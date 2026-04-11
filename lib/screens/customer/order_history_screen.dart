@@ -125,21 +125,24 @@ class _OrderCard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    order.status.replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: _statusColor,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _statusColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      order.status.replaceAll('_', ' ').toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _statusColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -172,7 +175,7 @@ class _OrderCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'JMD\$${order.totalAmount.toStringAsFixed(0)}',
+                  '\$${order.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -323,100 +326,99 @@ class _OrderCard extends ConsumerWidget {
           // Action buttons
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 if (isActive)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        '/order-tracking',
-                        arguments: order.id,
-                      ),
-                      icon: const Icon(Icons.location_on_rounded, size: 15),
-                      label: const Text('Track Order'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6366F1),
-                        side: const BorderSide(color: Color(0xFF6366F1)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      '/order-tracking',
+                      arguments: order.id,
                     ),
-                  ),
-                if (isActive) const SizedBox(width: 10),
-                if (isDelivered && order.userRating == null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        '/review',
-                        arguments: order,
+                    icon: const Icon(Icons.location_on_rounded, size: 15),
+                    label: const Text('Track'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6366F1),
+                      side: const BorderSide(color: Color(0xFF6366F1)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
                       ),
-                      icon: const Icon(Icons.star_rounded, size: 15),
-                      label: const Text('Rate'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFF59E0B),
-                        side: const BorderSide(color: Color(0xFFF59E0B)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                 if (isDelivered && order.userRating == null)
-                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      '/review',
+                      arguments: order,
+                    ),
+                    icon: const Icon(Icons.star_rounded, size: 15),
+                    label: const Text('Rate'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF59E0B),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
                 // Rate & Tip driver (delivered orders with a driver, not yet driver-rated)
                 if (isDelivered &&
                     order.driverId != null &&
                     order.driverRating == null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await RateAndTipDriverSheet.show(
-                          context,
-                          order,
-                        );
-                        if (result == true) {
-                          final userId = ref.read(currentUserIdProvider);
-                          if (userId != null) {
-                            ref.invalidate(userOrdersProvider(userId));
-                          }
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await RateAndTipDriverSheet.show(
+                        context,
+                        order,
+                      );
+                      if (result == true) {
+                        final userId = ref.read(currentUserIdProvider);
+                        if (userId != null) {
+                          ref.invalidate(userOrdersProvider(userId));
                         }
-                      },
-                      icon: const Icon(Icons.delivery_dining, size: 15),
-                      label: const Text('Rate Driver'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF10B981),
-                        side: const BorderSide(color: Color(0xFF10B981)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      }
+                    },
+                    icon: const Icon(Icons.delivery_dining, size: 15),
+                    label: const Text('Rate Driver'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                if (isDelivered &&
-                    order.driverId != null &&
-                    order.driverRating == null)
-                  const SizedBox(width: 10),
                 if (isDelivered || isCancelled)
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _reorder(context, ref, order),
-                      icon: const Icon(Icons.refresh_rounded, size: 15),
-                      label: const Text('Re-order'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        surfaceTintColor: Colors.white,
-                        foregroundColor: AppTheme.textPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                  ElevatedButton.icon(
+                    onPressed: () => _reorder(context, ref, order),
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
+                    label: const Text('Re-order'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      surfaceTintColor: Colors.white,
+                      foregroundColor: AppTheme.textPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -426,75 +428,66 @@ class _OrderCard extends ConsumerWidget {
                     order.driverId != null &&
                     (order.postDeliveryTip == null ||
                         order.postDeliveryTip == 0))
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showPostTipSheet(context, ref, order),
-                      icon: const Icon(Icons.volunteer_activism, size: 15),
-                      label: const Text('Tip'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFF59E0B),
-                        side: const BorderSide(color: Color(0xFFF59E0B)),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                  OutlinedButton.icon(
+                    onPressed: () => _showPostTipSheet(context, ref, order),
+                    icon: const Icon(Icons.volunteer_activism, size: 15),
+                    label: const Text('Tip'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF59E0B),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
 
                 // Receipt button (delivered orders)
                 if (isDelivered && order.receiptNumber != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: OutlinedButton(
-                      onPressed: () => _showReceipt(context, order),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF004E89),
-                        side: const BorderSide(color: Color(0xFF004E89)),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                  OutlinedButton(
+                    onPressed: () => _showReceipt(context, order),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF004E89),
+                      side: const BorderSide(color: Color(0xFF004E89)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
                       ),
-                      child: const Icon(Icons.receipt_long_outlined, size: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
+                    child: const Icon(Icons.receipt_long_outlined, size: 18),
                   ),
 
                 // Chat for active orders with driver
                 if (isActive && order.driverId != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        '/chat',
-                        arguments: {
-                          'orderId': order.id,
-                          'otherPartyName': 'Driver',
-                        },
+                  OutlinedButton(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      '/chat',
+                      arguments: {
+                        'orderId': order.id,
+                        'otherPartyName': 'Driver',
+                      },
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
                       ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF10B981),
-                        side: const BorderSide(color: Color(0xFF10B981)),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        size: 18,
-                      ),
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 18,
                     ),
                   ),
               ],
@@ -613,7 +606,7 @@ class _OrderCard extends ConsumerWidget {
                 children: [100, 200, 500, 1000].map((amount) {
                   final isSelected = selectedTip == amount.toDouble();
                   return ChoiceChip(
-                    label: Text('JMD\$ $amount'),
+                    label: Text('\$ $amount'),
                     selected: isSelected,
                     selectedColor: const Color(0xFFFFA630),
                     onSelected: (s) => setSheetState(() {
@@ -628,7 +621,7 @@ class _OrderCard extends ConsumerWidget {
                 controller: customCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Custom amount (JMD\$)',
+                  labelText: 'Custom amount (\$)',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (v) => setSheetState(() {
@@ -662,7 +655,7 @@ class _OrderCard extends ConsumerWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'JMD\$ ${selectedTip.toStringAsFixed(0)} tip added!',
+                                  '\$ ${selectedTip.toStringAsFixed(0)} tip added!',
                                 ),
                                 backgroundColor: const Color(0xFF10B981),
                               ),
@@ -731,7 +724,7 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      'JMD\$ ${item.subtotal.toStringAsFixed(2)}',
+                      '\$ ${item.subtotal.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13),
                     ),
                   ],
@@ -759,7 +752,7 @@ class _OrderCard extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'JMD\$ ${order.totalAmount.toStringAsFixed(2)}',
+                  '\$ ${order.totalAmount.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -809,7 +802,7 @@ class _OrderCard extends ConsumerWidget {
           ),
           const Spacer(),
           Text(
-            '${isNegative ? '-' : ''}JMD\$ ${amount.abs().toStringAsFixed(2)}',
+            '${isNegative ? '-' : ''}\$ ${amount.abs().toStringAsFixed(2)}',
             style: TextStyle(
               fontSize: 13,
               color: isNegative ? const Color(0xFF10B981) : null,

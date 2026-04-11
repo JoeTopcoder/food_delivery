@@ -225,7 +225,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       children: [
                         if (item.discount != null && item.discount! > 0) ...[
                           Text(
-                            'JMD\$${item.price.toStringAsFixed(0)}',
+                            '\$${item.price.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[400],
@@ -235,7 +235,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           const SizedBox(width: 8),
                         ],
                         Text(
-                          'JMD\$${item.discountedPrice.toStringAsFixed(0)}',
+                          '\$${item.discountedPrice.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -465,7 +465,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                               ),
                             ),
                             Text(
-                              'JMD\$${subtotal.toStringAsFixed(0)}',
+                              '\$${subtotal.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,

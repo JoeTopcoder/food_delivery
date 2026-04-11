@@ -121,7 +121,7 @@ class _AdminRefundCard extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'JMD\$ ${refund.amount.toStringAsFixed(2)}',
+                  '\$ ${refund.amount.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

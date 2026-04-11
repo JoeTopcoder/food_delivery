@@ -100,7 +100,7 @@
   static int pageSize = 20;
 
   // Currency
-  static const String currencySymbol = 'JMD\$';
+  static const String currencySymbol = '\$';
 
   // ── Business Constants (defaults — overridden from app_config table) ──────
 

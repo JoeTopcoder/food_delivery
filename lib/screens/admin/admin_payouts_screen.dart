@@ -395,7 +395,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
   Future<void> _openNcbPayoutDialog(dynamic payout) async {
     final amount = NumberFormat.currency(
-      symbol: 'JMD ',
+      symbol: '\$ ',
       decimalDigits: 2,
     ).format(payout.amount);
     final details =

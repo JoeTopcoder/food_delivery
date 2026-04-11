@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
@@ -409,7 +409,7 @@ class _RestaurantDashboardScreenState
                         Expanded(
                           child: _MetricCard(
                             label: 'Revenue',
-                            value: 'JMD\$${totalRevenue.toStringAsFixed(2)}',
+                            value: '\$${totalRevenue.toStringAsFixed(2)}',
                             color: Colors.green,
                           ),
                         ),

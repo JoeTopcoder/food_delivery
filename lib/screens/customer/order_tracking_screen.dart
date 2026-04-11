@@ -12,6 +12,7 @@ import '../../providers/chat_provider.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
+import '../../providers/wallet_provider.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -675,17 +676,20 @@ class _OrderDetailsCard extends StatelessWidget {
             (item) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${item.itemName} ×${item.quantity}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF4B5563),
+                  Expanded(
+                    child: Text(
+                      '${item.itemName} ×${item.quantity}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF4B5563),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    'JMD\$${item.subtotal.toStringAsFixed(0)}',
+                    '\$${item.subtotal.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -696,14 +700,14 @@ class _OrderDetailsCard extends StatelessWidget {
             ),
           ),
           Divider(color: Colors.grey[200], height: 20),
-          _Row('Subtotal', 'JMD\$${order.subtotal.toStringAsFixed(0)}'),
-          _Row('Delivery Fee', 'JMD\$${order.deliveryFee.toStringAsFixed(0)}'),
+          _Row('Subtotal', '\$${order.subtotal.toStringAsFixed(0)}'),
+          _Row('Delivery Fee', '\$${order.deliveryFee.toStringAsFixed(0)}'),
           if (order.taxAmount != null)
-            _Row('Tax', 'JMD\$${order.taxAmount!.toStringAsFixed(0)}'),
+            _Row('Tax', '\$${order.taxAmount!.toStringAsFixed(0)}'),
           const SizedBox(height: 4),
           _Row(
             'Total',
-            'JMD\$${order.totalAmount.toStringAsFixed(0)}',
+            '\$${order.totalAmount.toStringAsFixed(0)}',
             bold: true,
           ),
         ],
@@ -723,16 +727,19 @@ class _Row extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: bold ? FontWeight.bold : FontWeight.w400,
-              color: bold ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.bold : FontWeight.w400,
+                color: bold ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: TextStyle(
@@ -984,7 +991,10 @@ class _CancelOrderButton extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Cancel Order?'),
         content: const Text(
-          'Are you sure you want to cancel this order? This action cannot be undone.',
+          'Cancellation within 2 minutes is free. '
+          'After that, a \$200 fee applies. '
+          'If the restaurant is already preparing, a 15% fee may be charged. '
+          'Fees are deducted from your wallet.',
         ),
         actions: [
           TextButton(
@@ -995,12 +1005,14 @@ class _CancelOrderButton extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await ref.read(orderServiceProvider).cancelOrder(orderId);
+                await ref
+                    .read(walletNotifierProvider.notifier)
+                    .cancelOrder(orderId);
                 ref.invalidate(userOrdersProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Order cancelled successfully'),
+                      content: Text('Order cancelled'),
                       backgroundColor: Color(0xFF10B981),
                     ),
                   );

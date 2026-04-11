@@ -131,7 +131,7 @@ class _RestaurantList extends StatelessWidget {
             itemBuilder: (context, index) {
               final restaurant = restaurants[index];
               final isVerified = restaurant.isVerified == true;
-              final isOpen = restaurant.isOpen == true;
+              final isOpen = restaurant.isCurrentlyOpen;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -256,7 +256,7 @@ class _RestaurantList extends StatelessWidget {
                             icon: Icons.delivery_dining_rounded,
                             color: const Color(0xFF10B981),
                             value:
-                                'JMD\$${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
+                                '\$${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
                             label: 'Delivery',
                           ),
                           const SizedBox(width: 16),

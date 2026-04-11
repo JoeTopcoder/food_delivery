@@ -142,7 +142,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: ChoiceChip(
                       label: Text(
-                        'JMD\$${amount.toStringAsFixed(0)}',
+                        '\$${amount.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -171,7 +171,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
             controller: _customTipController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              prefixText: 'JMD\$ ',
+              prefixText: '\$ ',
               hintText: 'Custom amount',
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -218,7 +218,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
                     )
                   : Text(
                       _tipAmount > 0
-                          ? 'Submit Rating & Tip JMD\$${_tipAmount.toStringAsFixed(0)}'
+                          ? 'Submit Rating & Tip \$${_tipAmount.toStringAsFixed(0)}'
                           : 'Submit Rating',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
@@ -299,7 +299,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
             SnackBar(
               content: Text(
                 paymentCompleted == true
-                    ? 'Driver rated! Tip of JMD\$${_tipAmount.toStringAsFixed(0)} sent'
+                    ? 'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent'
                     : 'Driver rated! Tip payment was cancelled',
               ),
               backgroundColor: paymentCompleted == true

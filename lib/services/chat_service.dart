@@ -295,20 +295,11 @@ class ChatService {
   }
 
   /// Sends an FCM push notification to the receiver for an incoming call.
+  /// Uses the dedicated send-call-notification edge function which handles
+  /// FCM token lookup and high-priority data-only message delivery.
   Future<void> _notifyIncomingCall(CallRecord call) async {
     try {
-      // Get receiver's FCM token
-      final receiverRow = await _client
-          .from('users')
-          .select('fcm_token, name')
-          .eq('id', call.receiverId)
-          .maybeSingle();
-      if (receiverRow == null) return;
-
-      final fcmToken = receiverRow['fcm_token'] as String?;
-      if (fcmToken == null || fcmToken.isEmpty) return;
-
-      // Get caller name
+      // Get caller name for the notification
       final callerRow = await _client
           .from('users')
           .select('name')
@@ -316,22 +307,18 @@ class ChatService {
           .maybeSingle();
       final callerName = callerRow?['name'] as String? ?? 'Someone';
 
-      // Invoke the send-fcm-notification edge function
+      // Invoke the dedicated call notification edge function
+      // It fetches the recipient's FCM token server-side and sends
+      // a high-priority data-only FCM message so the phone rings
       await _client.functions.invoke(
-        'send-fcm-notification',
+        'send-call-notification',
         body: {
-          'token': fcmToken,
-          'title': 'Incoming Call',
-          'body': '$callerName is calling you',
-          'data': {
-            'type': 'incoming_call',
-            'call_id': call.id,
-            'caller_id': call.callerId,
-            'caller_name': callerName,
-            'order_id': call.orderId,
-            'channel_name': call.channelName,
-            'user_id': call.receiverId,
-          },
+          'recipientUserId': call.receiverId,
+          'callerName': callerName,
+          'callId': call.id,
+          'callerId': call.callerId,
+          'orderId': call.orderId,
+          'channelName': call.channelName,
         },
       );
     } catch (e) {

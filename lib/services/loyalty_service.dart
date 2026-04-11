@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/loyalty_model.dart';
 
@@ -6,7 +6,7 @@ class LoyaltyService {
   final SupabaseClient _client;
   LoyaltyService(this._client);
 
-  /// Points earned per JMD\$100 spent (DB-driven via AppConstants)
+  /// Points earned per \$100 spent (DB-driven via AppConstants)
   static int computeEarnedPoints(double orderTotal) =>
       (orderTotal / 100 * AppConstants.loyaltyPointsPer100).floor();
 

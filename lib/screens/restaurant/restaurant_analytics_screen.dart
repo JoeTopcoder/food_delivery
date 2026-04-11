@@ -205,7 +205,7 @@ class _RestaurantAnalyticsScreenState
                     children: [
                       _KpiCard(
                         label: 'Revenue',
-                        value: 'JMD\$${totalRevenue.toStringAsFixed(0)}',
+                        value: '\$${totalRevenue.toStringAsFixed(0)}',
                         icon: Icons.attach_money_rounded,
                         color: const Color(0xFF10B981),
                       ),
@@ -223,7 +223,7 @@ class _RestaurantAnalyticsScreenState
                       ),
                       _KpiCard(
                         label: 'Avg. Order',
-                        value: 'JMD\$${avgOrderValue.toStringAsFixed(0)}',
+                        value: '\$${avgOrderValue.toStringAsFixed(0)}',
                         icon: Icons.trending_up_rounded,
                         color: const Color(0xFFF59E0B),
                       ),
@@ -510,7 +510,7 @@ class _BarChart extends StatelessWidget {
               children: [
                 if (e.value > 0)
                   Text(
-                    'JMD\$${e.value.toStringAsFixed(0)}',
+                    '\$${e.value.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 8,
                       color: Color(0xFF6B7280),

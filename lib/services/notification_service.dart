@@ -17,6 +17,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   AppLogger.info('Background message received: ${message.messageId}');
 
   // For incoming calls, show a high-priority local notification that rings
+  // This fires for both data-only AND notification+data messages when in background
   final type = message.data['type'];
   if (type == 'incoming_call') {
     final plugin = FlutterLocalNotificationsPlugin();
@@ -44,8 +45,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     const initSettings = InitializationSettings(android: androidSettings);
     await plugin.initialize(settings: initSettings);
 
-    final title = message.data['title'] ?? 'Incoming Call';
-    final body = message.data['body'] ?? 'Someone is calling you';
+    final title =
+        message.data['title'] ?? message.notification?.title ?? 'Incoming Call';
+    final body =
+        message.data['body'] ??
+        message.notification?.body ??
+        'Someone is calling you';
 
     await plugin.show(
       id: 9999, // fixed ID so we can cancel it when the call is answered/declined
@@ -191,6 +196,14 @@ class NotificationService {
       FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+      // Suppress system notification display in foreground — we handle it
+      // ourselves so incoming calls get custom Answer/Decline buttons
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: false,
+        badge: false,
+        sound: false,
+      );
+
       // Handle notification that launched the app
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
@@ -251,10 +264,15 @@ class NotificationService {
     final notification = message.notification;
     final type = message.data['type'] as String?;
 
-    // Data-only incoming call messages have no notification block
+    // Incoming call — always show our custom call notification with
+    // Answer/Decline buttons (whether data-only or notification+data)
     if (type == 'incoming_call') {
-      final title = message.data['title'] ?? 'Incoming Call';
-      final body = message.data['body'] ?? 'Someone is calling you';
+      final title =
+          message.data['title'] ?? notification?.title ?? 'Incoming Call';
+      final body =
+          message.data['body'] ??
+          notification?.body ??
+          'Someone is calling you';
       showCallNotification(title: title, body: body, data: message.data);
       handleNotificationByType(type, title, body, message.data);
       return;

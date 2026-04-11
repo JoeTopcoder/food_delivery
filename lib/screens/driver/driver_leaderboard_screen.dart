@@ -272,7 +272,7 @@ class _LeaderboardTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      'JMD\$${earnings.toStringAsFixed(0)}',
+                      '\$${earnings.toStringAsFixed(0)}',
                       style: const TextStyle(
                         color: Color(0xFF6B7280),
                         fontSize: 11,

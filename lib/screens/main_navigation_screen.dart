@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'customer/home_screen.dart';
@@ -239,7 +239,7 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: 'JMD\$${order.totalAmount.toStringAsFixed(2)}',
+                      total: '\$${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       orderedAt: order.orderedAt,
@@ -267,7 +267,7 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: 'JMD\$${order.totalAmount.toStringAsFixed(2)}',
+                      total: '\$${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       onTap: () {

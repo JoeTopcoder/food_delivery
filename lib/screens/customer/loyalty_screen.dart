@@ -38,7 +38,7 @@ class LoyaltyScreen extends ConsumerWidget {
           final points = account?.points ?? 0;
           final totalEarned = account?.totalEarned ?? 0;
           final totalRedeemed = account?.totalRedeemed ?? 0;
-          final cashValue = points * 0.10; // JMD\$0.10 per point
+          final cashValue = points * 0.10; // \$0.10 per point
           final tier = account?.tier ?? 'bronze';
           final tierMultiplier = account?.tierMultiplier ?? 1.0;
           final pointsToNext = account?.pointsToNextTier ?? 500;
@@ -92,7 +92,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '= JMD\$${cashValue.toStringAsFixed(2)} cash value',
+                        '= \$${cashValue.toStringAsFixed(2)} cash value',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 13,
@@ -233,7 +233,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       _HowRow(
                         icon: Icons.shopping_bag_rounded,
                         color: AppTheme.primaryColor,
-                        text: 'Earn 10 pts for every JMD\$100 spent',
+                        text: 'Earn 10 pts for every \$100 spent',
                       ),
                       _HowRow(
                         icon: Icons.redeem_rounded,
@@ -243,7 +243,7 @@ class LoyaltyScreen extends ConsumerWidget {
                       _HowRow(
                         icon: Icons.account_balance_wallet_rounded,
                         color: const Color(0xFF6366F1),
-                        text: '100 pts = JMD\$10 discount',
+                        text: '100 pts = \$10 discount',
                       ),
                     ],
                   ),

@@ -348,7 +348,7 @@ class _DriverList extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      'JMD\$${driver.cashFloat!.toStringAsFixed(0)}',
+                                      '\$${driver.cashFloat!.toStringAsFixed(0)}',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -590,7 +590,7 @@ class _DriverList extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Outstanding Float: JMD\$${floatAmount.toStringAsFixed(0)}',
+                  'Outstanding Float: \$${floatAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -604,7 +604,7 @@ class _DriverList extends StatelessWidget {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    labelText: 'Amount to collect (JMD)',
+                    labelText: 'Amount to collect',
                     prefixText: '\$ ',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -679,7 +679,7 @@ class _DriverList extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'JMD\$${collectAmt.toStringAsFixed(0)} float collected successfully',
+                            '\$${collectAmt.toStringAsFixed(0)} float collected successfully',
                           ),
                           backgroundColor: const Color(0xFF10B981),
                           behavior: SnackBarBehavior.floating,

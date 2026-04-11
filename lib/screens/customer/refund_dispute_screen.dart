@@ -195,7 +195,7 @@ class _RefundCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'JMD\$${refund.amount.toStringAsFixed(0)}',
+              '\$${refund.amount.toStringAsFixed(0)}',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -530,7 +530,7 @@ class _NewRequestSheetState extends ConsumerState<_NewRequestSheet> {
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Refund Amount (JMD\$)',
+                  labelText: 'Refund Amount (\$)',
                   border: OutlineInputBorder(),
                 ),
               ),

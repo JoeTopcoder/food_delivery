@@ -527,7 +527,7 @@ class _DeliveryCard extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'JMD\$${delivery.totalAmount.toStringAsFixed(0)}',
+                  '\$${delivery.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
