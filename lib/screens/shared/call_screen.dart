@@ -34,7 +34,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   // ── Audio controls ─────────────────────────────────────────────────────────
   bool _isMuted = false;
-  bool _isSpeaker = true;
+  bool _isSpeaker = false;
 
   // ── Stage indicators ───────────────────────────────────────────────────────
   bool _micReady = false;
@@ -109,7 +109,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _agora.onEngineReady = () {
       if (mounted) setState(() => _engineReady = true);
     };
-    _agora.onJoined = (_) {
+    _agora.onJoined = (_) async {
       if (!mounted) return;
       setState(() {
         _channelReady = true;
@@ -117,7 +117,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _isJoining = false;
         _joinRetryCount = 0;
       });
-      _agora.setSpeaker(true);
+      await _agora.ensureAudioActive();
       _agora.setVolumes();
     };
     _agora.onUserJoined = (_) {
@@ -383,49 +383,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 ),
               ),
             ],
-            if (!(_channelReady && _audioReady) || _stageError != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
-                ),
-                child: Column(
-                  children: [
-                    _StageRow(
-                      label: 'Microphone',
-                      done: _micReady,
-                      failed: _stageError?.contains('Microphone') == true,
-                    ),
-                    _StageRow(
-                      label: 'Engine',
-                      done: _engineReady,
-                      failed: _stageError?.contains('Engine') == true,
-                    ),
-                    _StageRow(
-                      label: 'Token',
-                      done: _tokenReady,
-                      failed:
-                          _stageError?.contains('Token') == true ||
-                          _stageError?.contains('token') == true,
-                      detail: _tokenReady ? null : _stageError,
-                    ),
-                    _StageRow(
-                      label: 'Channel',
-                      done: _channelReady,
-                      failed:
-                          _stageError?.contains('Connection') == true ||
-                          _stageError?.contains('connect') == true,
-                      detail: _channelReady
-                          ? null
-                          : (_stageError?.contains('Token') == true ||
-                                    _stageError?.contains('token') == true
-                                ? null
-                                : _stageError),
-                    ),
-                    _StageRow(label: 'Audio', done: _audioReady, failed: false),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 24),
+            _buildConnectionStages(),
             const Spacer(flex: 3),
             _buildControls(),
             const SizedBox(height: 48),
@@ -500,6 +459,51 @@ class _CallScreenState extends ConsumerState<CallScreen>
         Icons.person_rounded,
         size: 48,
         color: Color(0xFF6B7280),
+      ),
+    );
+  }
+
+  Widget _buildConnectionStages() {
+    final hasFailed = _stageError != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 48),
+      child: Column(
+        children: [
+          _StageRow(
+            label: 'Microphone',
+            done: _micReady,
+            failed: hasFailed && !_micReady,
+          ),
+          _StageRow(
+            label: 'Engine',
+            done: _engineReady,
+            failed: hasFailed && !_engineReady,
+          ),
+          _StageRow(
+            label: 'Token',
+            done: _tokenReady,
+            failed: hasFailed && !_tokenReady,
+          ),
+          _StageRow(
+            label: 'Channel',
+            done: _channelReady,
+            failed: hasFailed && !_channelReady,
+          ),
+          _StageRow(
+            label: 'Audio',
+            done: _audioReady,
+            failed: hasFailed && !_audioReady,
+          ),
+          if (_stageError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _stageError!,
+                style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
       ),
     );
   }
