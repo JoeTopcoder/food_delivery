@@ -70,6 +70,8 @@
   static const String tableNotifications = 'notifications';
   static const String tableMenuItemSides = 'menu_item_sides';
   static const String tableOrderItemSides = 'order_item_sides';
+  static const String tableMenuOptionGroups = 'menu_option_groups';
+  static const String tableMenuOptionChoices = 'menu_option_choices';
 
   // Notification Types
   static const String notificationTypeNewOrder = 'new_order';

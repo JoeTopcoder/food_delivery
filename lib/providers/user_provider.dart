@@ -81,12 +81,14 @@ final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
   },
 );
 
-// Menu Providers
-final restaurantMenuProvider = FutureProvider.family
-    .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
-      final menuService = ref.watch(menuServiceProvider);
-      return menuService.getMenuByRestaurant(restaurantId);
-    });
+// Menu Providers — no autoDispose so data stays cached across screen visits
+final restaurantMenuProvider = FutureProvider.family<List<MenuItem>, String>((
+  ref,
+  restaurantId,
+) async {
+  final menuService = ref.watch(menuServiceProvider);
+  return menuService.getMenuByRestaurant(restaurantId);
+});
 
 final menuItemByIdProvider = FutureProvider.family
     .autoDispose<MenuItem?, String>((ref, menuItemId) async {
@@ -137,28 +139,51 @@ class CartItem {
   String? notes;
   List<MenuItemSide> selectedSides;
 
+  /// Map of groupId -> list of selected OptionChoice
+  Map<String, List<OptionChoice>> selectedOptions;
+
   CartItem({
     required this.menuItem,
     this.quantity = 1,
     this.notes,
     List<MenuItemSide>? selectedSides,
-  }) : selectedSides = selectedSides ?? [];
+    Map<String, List<OptionChoice>>? selectedOptions,
+  }) : selectedSides = selectedSides ?? [],
+       selectedOptions = selectedOptions ?? {};
 
   double get sidesTotal => selectedSides.fold(0.0, (sum, s) => sum + s.price);
 
-  double get subtotal => (menuItem.discountedPrice + sidesTotal) * quantity;
+  double get optionsTotal => selectedOptions.values
+      .expand((choices) => choices)
+      .fold(0.0, (sum, c) => sum + c.price);
+
+  double get subtotal =>
+      (menuItem.discountedPrice + sidesTotal + optionsTotal) * quantity;
+
+  /// Readable summary of all selected options for display.
+  String get optionsSummary {
+    final parts = <String>[];
+    for (final choices in selectedOptions.values) {
+      for (final c in choices) {
+        parts.add(c.name);
+      }
+    }
+    return parts.join(', ');
+  }
 
   CartItem copyWith({
     MenuItem? menuItem,
     int? quantity,
     String? notes,
     List<MenuItemSide>? selectedSides,
+    Map<String, List<OptionChoice>>? selectedOptions,
   }) {
     return CartItem(
       menuItem: menuItem ?? this.menuItem,
       quantity: quantity ?? this.quantity,
       notes: notes ?? this.notes,
       selectedSides: selectedSides ?? this.selectedSides,
+      selectedOptions: selectedOptions ?? this.selectedOptions,
     );
   }
 }
@@ -178,23 +203,45 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   /// Clear the cart and add the item from the new restaurant.
-  void replaceWithItem(MenuItem menuItem, {List<MenuItemSide>? sides}) {
-    state = [CartItem(menuItem: menuItem, selectedSides: sides)];
+  void replaceWithItem(
+    MenuItem menuItem, {
+    List<MenuItemSide>? sides,
+    Map<String, List<OptionChoice>>? options,
+  }) {
+    state = [
+      CartItem(
+        menuItem: menuItem,
+        selectedSides: sides,
+        selectedOptions: options,
+      ),
+    ];
   }
 
-  void addItem(MenuItem menuItem, {List<MenuItemSide>? sides}) {
-    // If sides differ, treat as a separate line item
+  void addItem(
+    MenuItem menuItem, {
+    List<MenuItemSide>? sides,
+    Map<String, List<OptionChoice>>? options,
+  }) {
+    // If sides/options differ, treat as a separate line item
     final existingIndex = state.indexWhere(
       (item) =>
           item.menuItem.id == menuItem.id &&
-          _sameSides(item.selectedSides, sides ?? []),
+          _sameSides(item.selectedSides, sides ?? []) &&
+          _sameOptions(item.selectedOptions, options ?? {}),
     );
 
     if (existingIndex != -1) {
       state[existingIndex].quantity++;
       state = [...state];
     } else {
-      state = [...state, CartItem(menuItem: menuItem, selectedSides: sides)];
+      state = [
+        ...state,
+        CartItem(
+          menuItem: menuItem,
+          selectedSides: sides,
+          selectedOptions: options,
+        ),
+      ];
     }
   }
 
@@ -203,6 +250,20 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final aIds = a.map((s) => s.id).toSet();
     final bIds = b.map((s) => s.id).toSet();
     return aIds.length == bIds.length && aIds.containsAll(bIds);
+  }
+
+  bool _sameOptions(
+    Map<String, List<OptionChoice>> a,
+    Map<String, List<OptionChoice>> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      final aIds = a[key]!.map((c) => c.id).toSet();
+      final bIds = b[key]!.map((c) => c.id).toSet();
+      if (!aIds.containsAll(bIds) || aIds.length != bIds.length) return false;
+    }
+    return true;
   }
 
   void removeItem(String menuItemId) {

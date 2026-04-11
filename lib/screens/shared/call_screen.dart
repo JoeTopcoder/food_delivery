@@ -178,7 +178,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   // ── Join Agora channel ─────────────────────────────────────────────────────
   Future<void> _joinChannel() async {
-    if (_isJoining || _agora.isInChannel) return;
+    if (_isJoining || _agora.isInChannel) {
+      debugPrint(
+        'CallScreen: _joinChannel skipped — isJoining=$_isJoining isInChannel=${_agora.isInChannel}',
+      );
+      return;
+    }
     _isJoining = true;
     if (mounted) setState(() => _stageError = null);
 
@@ -188,6 +193,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     if (_token == null || _token!.isEmpty) {
+      debugPrint('CallScreen: token null/empty — will retry in 3s');
       _isJoining = false;
       // Auto-retry after 3 s
       Future.delayed(const Duration(seconds: 3), () {
@@ -198,11 +204,22 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
 
-    await _agora.joinChannel(
+    debugPrint(
+      'CallScreen: calling joinChannel with token (${_token!.length} chars)',
+    );
+    final joined = await _agora.joinChannel(
       token: _token!,
       channelName: widget.call.channelName,
     );
     _isJoining = false;
+
+    if (!joined && mounted) {
+      setState(() => _stageError = 'Join returned false — retrying');
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && !_agora.isInChannel && !_isJoining) _retryJoin();
+      });
+      return;
+    }
 
     // Safety net: retry after 8 s if channel not connected
     Future.delayed(const Duration(seconds: 8), () {
@@ -213,22 +230,24 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Future<void> _retryJoin() async {
     if (_isJoining) return;
     _joinRetryCount++;
-    if (_joinRetryCount > 4) {
+    if (_joinRetryCount > 6) {
       if (mounted)
         setState(
           () => _stageError = 'Could not connect — check your connection',
         );
       return;
     }
+    debugPrint('CallScreen: retry #$_joinRetryCount — re-joining...');
     if (mounted)
       setState(() {
+        _stageError = 'Retrying (#$_joinRetryCount)...';
         _tokenReady = false;
         _channelReady = false;
         _audioReady = false;
       });
     _token = null;
     await _agora.leaveChannel();
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) _joinChannel();
   }
 
@@ -251,7 +270,18 @@ class _CallScreenState extends ConsumerState<CallScreen>
       setState(() => _callStatus = CallStatus.accepted);
       _startDurationTimer();
     }
-    await _joinChannel();
+
+    // Ensure engine is ready before joining
+    if (!_agora.isInChannel && !_isJoining) {
+      // Re-init engine if needed (idempotent)
+      final ok = await _agora.init();
+      if (!mounted) return;
+      if (!ok) {
+        setState(() => _stageError = 'Engine failed on accept');
+        return;
+      }
+      await _joinChannel();
+    }
   }
 
   Future<void> _declineCall() async {

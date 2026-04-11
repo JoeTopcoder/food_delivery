@@ -8,6 +8,7 @@ import '../../providers/premium_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
+import '../../widgets/menu_item_detail_sheet.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
@@ -484,66 +485,8 @@ class _RestaurantDetailScreenState
                         ...activeItems.map(
                           (item) => MenuItemCard(
                             item: item,
-                            onAddTap: () async {
-                              final hasSides =
-                                  item.sides != null && item.sides!.isNotEmpty;
-                              List<MenuItemSide> selectedSides = [];
-
-                              if (hasSides) {
-                                final result = await _showSidesSheet(
-                                  context,
-                                  item,
-                                );
-                                if (result == null) return; // cancelled
-                                selectedSides = result;
-                              }
-
-                              if (!context.mounted) return;
-                              final cartNotifier = ref.read(
-                                cartProvider.notifier,
-                              );
-                              if (cartNotifier.isDifferentRestaurant(item)) {
-                                final replace = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Replace cart?'),
-                                    content: const Text(
-                                      'Your cart has items from another restaurant. '
-                                      'Clear it and add this item instead?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Replace'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (replace != true) return;
-                                cartNotifier.replaceWithItem(
-                                  item,
-                                  sides: selectedSides,
-                                );
-                              } else {
-                                cartNotifier.addItem(
-                                  item,
-                                  sides: selectedSides,
-                                );
-                              }
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${item.name} added to cart'),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            },
+                            onTap: () => _showMenuItemDetail(context, item),
+                            onAddTap: () => _showMenuItemDetail(context, item),
                           ),
                         ),
                       ],
@@ -690,6 +633,60 @@ class _RestaurantDetailScreenState
           },
         );
       },
+    );
+  }
+
+  Future<void> _showMenuItemDetail(BuildContext context, MenuItem item) async {
+    final result = await showMenuItemDetailSheet(context, item);
+    if (result == null) return; // cancelled
+    if (!context.mounted) return;
+
+    final cartNotifier = ref.read(cartProvider.notifier);
+
+    if (cartNotifier.isDifferentRestaurant(item)) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Replace cart?'),
+          content: const Text(
+            'Your cart has items from another restaurant. '
+            'Clear it and add this item instead?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (replace != true) return;
+      cartNotifier.replaceWithItem(
+        item,
+        sides: result.selectedSides,
+        options: result.selectedOptions,
+      );
+    } else {
+      // Add the item with the chosen quantity
+      for (int i = 0; i < result.quantity; i++) {
+        cartNotifier.addItem(
+          item,
+          sides: result.selectedSides,
+          options: result.selectedOptions,
+        );
+      }
+    }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${result.quantity}x ${item.name} added to cart'),
+        duration: const Duration(seconds: 1),
+      ),
     );
   }
 }

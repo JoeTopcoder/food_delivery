@@ -139,14 +139,19 @@ class AgoraService {
     required String channelName,
   }) async {
     if (_engine == null || !_initialized) {
-      debugPrint('AgoraService: cannot join — engine not ready');
+      debugPrint(
+        'AgoraService: cannot join — engine not ready (engine=${_engine != null}, init=$_initialized)',
+      );
       return false;
     }
     if (_isInChannel) {
-      debugPrint('AgoraService: already in channel');
+      debugPrint('AgoraService: already in channel, skipping join');
       return true;
     }
     try {
+      debugPrint(
+        'AgoraService: joining channel=$channelName tokenLen=${token.length}',
+      );
       await _engine!.joinChannel(
         token: token,
         channelId: channelName,
@@ -159,6 +164,9 @@ class AgoraService {
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
           channelProfile: ChannelProfileType.channelProfileCommunication,
         ),
+      );
+      debugPrint(
+        'AgoraService: joinChannel call completed (waiting for onJoinChannelSuccess)',
       );
       return true;
     } catch (e) {

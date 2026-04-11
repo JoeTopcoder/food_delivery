@@ -13,29 +13,20 @@ class MenuService {
     try {
       AppLogger.info('Fetching menu for restaurant: $restaurantId');
 
+      // Single query with embedded sides + option groups (with nested choices)
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
-          .select()
+          .select(
+            '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
+          )
           .eq('restaurant_id', restaurantId)
           .eq('is_available', true)
           .order('category');
 
-      final items = <MenuItem>[];
-      for (final row in (response as List)) {
-        final sidesResponse = await _supabaseClient
-            .from(AppConstants.tableMenuItemSides)
-            .select()
-            .eq('menu_item_id', row['id']);
-        final sides = (sidesResponse as List)
-            .map((s) => MenuItemSide.fromJson(s))
-            .toList();
-        items.add(
-          MenuItem.fromJson({
-            ...row,
-            'sides': sides.map((s) => s.toJson()).toList(),
-          }),
-        );
-      }
+      final items = (response as List).map((row) {
+        final sidesJson = row[AppConstants.tableMenuItemSides] as List? ?? [];
+        return MenuItem.fromJson({...row, 'sides': sidesJson});
+      }).toList();
 
       AppLogger.info('Fetched ${items.length} menu items');
       return items;
