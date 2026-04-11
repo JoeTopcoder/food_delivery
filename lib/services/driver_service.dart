@@ -238,6 +238,42 @@ class DriverService {
       final claimed = result == true;
       if (claimed) {
         AppLogger.info('Delivery accepted');
+        // Notify customer that a driver is on the way
+        try {
+          final order = await _supabaseClient
+              .from(AppConstants.tableOrders)
+              .select('user_id')
+              .eq('id', orderId)
+              .maybeSingle();
+          final customerId = order?['user_id'] as String?;
+          if (customerId != null) {
+            final userRow = await _supabaseClient
+                .from('users')
+                .select('fcm_token')
+                .eq('id', customerId)
+                .maybeSingle();
+            final fcmToken = userRow?['fcm_token'] as String?;
+            if (fcmToken != null && fcmToken.isNotEmpty) {
+              _supabaseClient.functions.invoke(
+                'send-fcm-notification',
+                body: {
+                  'token': fcmToken,
+                  'title': 'Driver Assigned!',
+                  'body':
+                      'A driver has accepted your order and is heading to pick it up',
+                  'data': {
+                    'type': AppConstants.notificationTypeOrderStatus,
+                    'order_id': orderId,
+                    'status': 'driver_assigned',
+                    'user_id': customerId,
+                  },
+                },
+              );
+            }
+          }
+        } catch (e) {
+          AppLogger.error('Error notifying customer of driver assignment: $e');
+        }
       } else {
         AppLogger.warning('Order already taken by another driver');
       }

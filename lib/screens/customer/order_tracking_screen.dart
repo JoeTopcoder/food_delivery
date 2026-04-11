@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../widgets/sos_button.dart';
+import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -141,6 +142,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           children: [
             // Status banner
             _StatusBanner(status: liveOrder.status, statusIndex: statusIndex),
+
+            // Countdown timer (active orders only)
+            if (liveOrder.status != 'delivered' &&
+                liveOrder.status != 'cancelled')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: OrderCountdownTimer(
+                  orderedAt: order.orderedAt,
+                  estimatedMinutes: order.estimatedPrepMinutes,
+                ),
+              ),
 
             // Live map (only during delivery)
             if (hasMap)

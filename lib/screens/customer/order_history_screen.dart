@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../widgets/rate_driver_sheet.dart';
+import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
@@ -142,6 +143,15 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (isActive)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: OrderCountdownTimer(
+                      orderedAt: order.orderedAt,
+                      estimatedMinutes: order.estimatedPrepMinutes,
+                      compact: true,
+                    ),
+                  ),
                 const Spacer(),
                 Text(
                   '#${order.id.substring(0, 8).toUpperCase()}',

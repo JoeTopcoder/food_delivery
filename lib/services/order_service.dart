@@ -242,46 +242,45 @@ class OrderService {
           .update(updateData)
           .eq('id', orderId);
 
+      // Fire-and-forget: send notifications in the background so the UI
+      // updates immediately instead of waiting for every push to complete.
+
       // When order is marked ready, notify all available drivers
       if (status == AppConstants.orderReady) {
-        await _notifyAvailableDrivers(orderId: orderId);
+        _notifyAvailableDrivers(orderId: orderId);
       }
 
       // Notify the customer on every status change
-      try {
-        final order = await _supabaseClient
-            .from(AppConstants.tableOrders)
-            .select('user_id')
-            .eq('id', orderId)
-            .single();
-        final userId = order['user_id'] as String?;
-        if (userId != null) {
-          await _notifyCustomer(
-            userId: userId,
-            orderId: orderId,
-            status: status,
-          );
-        }
-      } catch (e) {
-        AppLogger.error('Error sending customer notification: $e');
-      }
+      _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('user_id')
+          .eq('id', orderId)
+          .single()
+          .then((order) {
+            final userId = order['user_id'] as String?;
+            if (userId != null) {
+              _notifyCustomer(userId: userId, orderId: orderId, status: status);
+            }
+          })
+          .catchError((e) {
+            AppLogger.error('Error sending customer notification: $e');
+          });
 
       // Notify admins on every status change
-      try {
-        await _sendPushNotification(
-          topic: AppConstants.fcmTopicAdmins,
-          title: 'Order Status Update',
-          body:
-              'Order #${orderId.substring(0, 8)} → ${status.replaceAll('_', ' ')}',
-          data: {
-            'type': AppConstants.notificationTypeOrderStatus,
-            'order_id': orderId,
-            'status': status,
-          },
-        );
-      } catch (e) {
+      _sendPushNotification(
+        topic: AppConstants.fcmTopicAdmins,
+        title: 'Order Status Update',
+        body:
+            'Order #${orderId.substring(0, 8)} → ${status.replaceAll('_', ' ')}',
+        data: {
+          'type': AppConstants.notificationTypeOrderStatus,
+          'order_id': orderId,
+          'status': status,
+        },
+      ).catchError((e) {
         AppLogger.error('Error sending admin notification: $e');
-      }
+        return; // satisfy catchError return type
+      });
 
       AppLogger.info('Order status updated successfully');
     } catch (e) {
@@ -462,6 +461,25 @@ class OrderService {
           })
           .eq('id', orderId);
 
+      // Notify the customer about cancellation
+      try {
+        final custOrder = await _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('user_id')
+            .eq('id', orderId)
+            .single();
+        final userId = custOrder['user_id'] as String?;
+        if (userId != null) {
+          _notifyCustomer(
+            userId: userId,
+            orderId: orderId,
+            status: AppConstants.orderCancelled,
+          );
+        }
+      } catch (e) {
+        AppLogger.error('Error sending cancel notification: $e');
+      }
+
       // If the order had an assigned driver, recalculate all their stats
       final driverId = order['driver_id'] as String?;
       if (driverId != null) {
@@ -491,32 +509,32 @@ class OrderService {
     try {
       AppLogger.info('Broadcasting order status update: $orderId -> $status');
 
-      // Note: Notification record can be saved to database if needed
-      // await _supabaseClient.from('notifications').insert({...});
+      // Send all notifications in parallel for speed
+      final futures = <Future>[];
 
-      // Notify restaurant
-      await _notifyRestaurant(
-        restaurantId: restaurantId,
-        orderId: orderId,
-        status: status,
-      );
-
-      // Notify customer
-      await _notifyCustomer(userId: userId, orderId: orderId, status: status);
-
-      // Notify driver (if assigned)
-      if (driverId != null && driverId.isNotEmpty) {
-        await _notifyDriver(
-          driverId: driverId,
+      futures.add(
+        _notifyRestaurant(
+          restaurantId: restaurantId,
           orderId: orderId,
           status: status,
+        ),
+      );
+
+      futures.add(
+        _notifyCustomer(userId: userId, orderId: orderId, status: status),
+      );
+
+      if (driverId != null && driverId.isNotEmpty) {
+        futures.add(
+          _notifyDriver(driverId: driverId, orderId: orderId, status: status),
         );
       }
 
-      // When order is marked ready, notify all available drivers
       if (status == AppConstants.orderReady) {
-        await _notifyAvailableDrivers(orderId: orderId);
+        futures.add(_notifyAvailableDrivers(orderId: orderId));
       }
+
+      await Future.wait(futures);
 
       AppLogger.info('Broadcast notifications sent');
     } catch (e) {
@@ -660,20 +678,25 @@ class OrderService {
           .select('id')
           .eq('is_available', true);
 
-      for (final driver in drivers) {
-        final driverId = driver['id'] as String;
-        await _sendPushNotification(
-          topic: 'driver_$driverId',
-          title: 'New Order Ready for Pickup!',
-          body: 'Order #${orderId.substring(0, 8)} is ready. Tap to accept.',
-          data: {
-            'type': AppConstants.notificationTypeDeliveryUpdate,
-            'order_id': orderId,
-            'status': AppConstants.orderReady,
-            'user_id': driverId,
-          },
-        );
-      }
+      // Send all driver notifications in parallel
+      await Future.wait(
+        (drivers as List).map((driver) {
+          final driverId = driver['id'] as String;
+          return _sendPushNotification(
+            topic: 'driver_$driverId',
+            title: 'New Order Ready for Pickup!',
+            body: 'Order #${orderId.substring(0, 8)} is ready. Tap to accept.',
+            data: {
+              'type': AppConstants.notificationTypeDeliveryUpdate,
+              'order_id': orderId,
+              'status': AppConstants.orderReady,
+              'user_id': driverId,
+            },
+          ).catchError((e) {
+            AppLogger.error('Error notifying driver $driverId: $e');
+          });
+        }),
+      );
 
       AppLogger.info('Notified ${drivers.length} available drivers');
     } catch (e) {

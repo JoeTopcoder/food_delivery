@@ -6,6 +6,7 @@ import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../widgets/order_countdown_timer.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -266,6 +267,15 @@ class _OrderCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // Countdown timer
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: OrderCountdownTimer(
+              orderedAt: order.orderedAt,
+              estimatedMinutes: order.estimatedPrepMinutes,
             ),
           ),
 

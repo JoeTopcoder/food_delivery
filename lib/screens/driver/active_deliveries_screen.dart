@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
+import '../../widgets/order_countdown_timer.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 
@@ -542,6 +543,15 @@ class _DeliveryCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // Countdown timer
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: OrderCountdownTimer(
+              orderedAt: delivery.orderedAt,
+              estimatedMinutes: delivery.estimatedPrepMinutes,
             ),
           ),
 

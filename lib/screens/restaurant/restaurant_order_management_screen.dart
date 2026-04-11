@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
 import '../../config/app_constants.dart';
+import '../../widgets/order_countdown_timer.dart';
 
 class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
   const RestaurantOrderManagementScreen({super.key});
@@ -323,6 +324,16 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               '${dateFormat.format(order.orderedAt)} at ${timeFormat.format(order.orderedAt)}',
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
+
+            // Countdown timer (active orders only)
+            if (order.status != AppConstants.orderDelivered &&
+                order.status != AppConstants.orderCancelled) ...[          
+              const SizedBox(height: 8),
+              OrderCountdownTimer(
+                orderedAt: order.orderedAt,
+                estimatedMinutes: order.estimatedPrepMinutes,
+              ),
+            ],
 
             const Divider(height: 20),
 
