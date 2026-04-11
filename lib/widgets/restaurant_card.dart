@@ -33,22 +33,17 @@ class RestaurantCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(14),
                   ),
-                  child: Image.network(
-                    restaurant.imageUrl ??
-                        'https://images.unsplash.com/photo-1604068549290-daea0aa2d812?w=500',
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      height: 160,
-                      color: Colors.grey[100],
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
+                  child:
+                      restaurant.imageUrl != null &&
+                          restaurant.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          restaurant.imageUrl!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _PlaceholderImage(),
+                        )
+                      : _PlaceholderImage(),
                 ),
                 // Rating badge
                 Positioned(
@@ -197,6 +192,41 @@ class RestaurantCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PlaceholderImage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor.withValues(alpha: 0.15),
+            AppTheme.primaryColor.withValues(alpha: 0.05),
+          ],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.restaurant_rounded,
+            size: 48,
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'No image available',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
+        ],
       ),
     );
   }

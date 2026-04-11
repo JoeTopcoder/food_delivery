@@ -112,22 +112,65 @@ class _RestaurantDetailScreenState
                 Stack(
                   children: [
                     ClipRRect(
-                      child: Image.network(
-                        widget.restaurant.imageUrl ??
-                            'https://images.unsplash.com/photo-1604068549290-daea0aa2d812?w=500',
-                        height: 260,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          height: 260,
-                          color: Colors.grey[100],
-                          child: const Icon(
-                            Icons.restaurant,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
+                      child:
+                          widget.restaurant.imageUrl != null &&
+                              widget.restaurant.imageUrl!.isNotEmpty
+                          ? Image.network(
+                              widget.restaurant.imageUrl!,
+                              height: 260,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                height: 260,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppTheme.primaryColor.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      AppTheme.primaryColor.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.restaurant_rounded,
+                                  size: 64,
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              height: 260,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppTheme.primaryColor.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                    AppTheme.primaryColor.withValues(
+                                      alpha: 0.05,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.restaurant_rounded,
+                                size: 64,
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.4,
+                                ),
+                              ),
+                            ),
                     ),
                     Positioned(
                       top: 40,
