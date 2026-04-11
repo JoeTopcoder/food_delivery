@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../widgets/order_countdown_timer.dart';
 
 /// Provider that fetches all orders with restaurant name joined.
 final _adminAllOrdersProvider =
@@ -391,6 +392,17 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 12),
             const Divider(height: 1, color: Color(0xFFF3F4F6)),
             const SizedBox(height: 10),
+
+            // Countdown timer (active orders only)
+            if (orderedAt != null &&
+                status != 'delivered' &&
+                status != 'cancelled') ...[          
+              OrderCountdownTimer(
+                orderedAt: orderedAt,
+                estimatedMinutes: (order['estimated_prep_minutes'] as int?) ?? 45,
+              ),
+              const SizedBox(height: 10),
+            ],
 
             // Customer & Restaurant
             _DetailRow(icon: Icons.person_outline, text: customerName),

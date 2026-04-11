@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/friendly_error.dart';
 import '../widgets/restaurant_card.dart';
+import '../widgets/order_countdown_timer.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -241,6 +242,9 @@ class OrdersScreen extends ConsumerWidget {
                       total: 'JMD\$${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
+                      orderedAt: order.orderedAt,
+                      estimatedPrepMinutes: order.estimatedPrepMinutes,
+                      isActive: true,
                       onTap: () {
                         Navigator.pushNamed(
                           context,
@@ -311,6 +315,9 @@ class _OrderCard extends StatelessWidget {
   final int itemCount;
   final Color statusColor;
   final VoidCallback onTap;
+  final DateTime? orderedAt;
+  final int? estimatedPrepMinutes;
+  final bool isActive;
 
   const _OrderCard({
     required this.orderId,
@@ -320,6 +327,9 @@ class _OrderCard extends StatelessWidget {
     required this.itemCount,
     required this.statusColor,
     required this.onTap,
+    this.orderedAt,
+    this.estimatedPrepMinutes,
+    this.isActive = false,
   });
 
   @override
@@ -397,9 +407,23 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              total,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  total,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                if (isActive && orderedAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: OrderCountdownTimer(
+                      orderedAt: orderedAt!,
+                      estimatedMinutes: estimatedPrepMinutes,
+                      compact: true,
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
