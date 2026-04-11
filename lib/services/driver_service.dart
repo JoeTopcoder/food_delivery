@@ -321,10 +321,43 @@ class DriverService {
       final order = await _supabaseClient
           .from(AppConstants.tableOrders)
           .select(
-            'driver_id, payment_method, total_amount, delivery_fee, driver_tip',
+            'user_id, driver_id, payment_method, total_amount, delivery_fee, driver_tip',
           )
           .eq('id', orderId)
           .maybeSingle();
+
+      // Notify customer that order is delivered
+      if (order != null) {
+        final customerId = order['user_id'] as String?;
+        if (customerId != null) {
+          try {
+            final userRow = await _supabaseClient
+                .from('users')
+                .select('fcm_token')
+                .eq('id', customerId)
+                .maybeSingle();
+            final fcmToken = userRow?['fcm_token'] as String?;
+            if (fcmToken != null && fcmToken.isNotEmpty) {
+              await _supabaseClient.functions.invoke(
+                'send-fcm-notification',
+                body: {
+                  'token': fcmToken,
+                  'title': 'Order Delivered!',
+                  'body': 'Thank you for ordering! Rate your experience',
+                  'data': {
+                    'type': AppConstants.notificationTypeOrderStatus,
+                    'order_id': orderId,
+                    'status': AppConstants.orderDelivered,
+                    'user_id': customerId,
+                  },
+                },
+              );
+            }
+          } catch (e) {
+            AppLogger.error('Error notifying customer on delivery: $e');
+          }
+        }
+      }
 
       if (order != null && order['driver_id'] != null) {
         final driverId = order['driver_id'] as String;

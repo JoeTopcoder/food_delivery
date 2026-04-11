@@ -106,6 +106,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       // Subscribe to role-specific FCM topics when authenticated
       if (next.isAuthenticated) {
         final role = next.user?.role;
+        final userId = next.user?.id;
         if (role == 'driver') {
           NotificationService().subscribeToTopic(
             AppConstants.fcmTopicAvailableDrivers,
@@ -117,9 +118,14 @@ class _MyAppState extends ConsumerState<MyApp> {
         } else if (role == 'admin') {
           NotificationService().subscribeToTopic(AppConstants.fcmTopicAdmins);
         }
+        // All users (especially customers) subscribe to their personal topic
+        if (userId != null) {
+          NotificationService().subscribeToTopic('customer_$userId');
+        }
       }
       // Unsubscribe when signing out
       if (isSignedOut) {
+        final userId = previous?.user?.id;
         NotificationService().unsubscribeFromTopic(
           AppConstants.fcmTopicAvailableDrivers,
         );
@@ -127,6 +133,9 @@ class _MyAppState extends ConsumerState<MyApp> {
           AppConstants.fcmTopicAllRestaurants,
         );
         NotificationService().unsubscribeFromTopic(AppConstants.fcmTopicAdmins);
+        if (userId != null) {
+          NotificationService().unsubscribeFromTopic('customer_$userId');
+        }
       }
     });
   }
