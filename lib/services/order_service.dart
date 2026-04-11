@@ -583,17 +583,42 @@ class OrderService {
       AppLogger.info('Sending customer notification for order: $orderId');
       final title = _getCustomerNotificationTitle(status);
       final body = _getCustomerNotificationBody(status);
-      await _sendPushNotification(
-        topic: 'customer_$userId',
-        title: title,
-        body: body,
-        data: {
-          'type': AppConstants.notificationTypeOrderStatus,
-          'order_id': orderId,
-          'status': status,
-          'user_id': userId,
-        },
-      );
+
+      // Look up the customer's FCM device token for direct delivery
+      final userRow = await _supabaseClient
+          .from('users')
+          .select('fcm_token')
+          .eq('id', userId)
+          .maybeSingle();
+      final fcmToken = userRow?['fcm_token'] as String?;
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        // Send directly to device token (most reliable)
+        await _sendPushNotification(
+          token: fcmToken,
+          title: title,
+          body: body,
+          data: {
+            'type': AppConstants.notificationTypeOrderStatus,
+            'order_id': orderId,
+            'status': status,
+            'user_id': userId,
+          },
+        );
+      } else {
+        // Fallback: send to topic
+        await _sendPushNotification(
+          topic: 'customer_$userId',
+          title: title,
+          body: body,
+          data: {
+            'type': AppConstants.notificationTypeOrderStatus,
+            'order_id': orderId,
+            'status': status,
+            'user_id': userId,
+          },
+        );
+      }
     } catch (e) {
       AppLogger.error('Error notifying customer: $e');
     }
