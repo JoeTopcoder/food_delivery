@@ -327,7 +327,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
 
             // Countdown timer (active orders only)
             if (order.status != AppConstants.orderDelivered &&
-                order.status != AppConstants.orderCancelled) ...[          
+                order.status != AppConstants.orderCancelled) ...[
               const SizedBox(height: 8),
               OrderCountdownTimer(
                 orderedAt: order.orderedAt,

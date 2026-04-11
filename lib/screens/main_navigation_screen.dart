@@ -412,7 +412,10 @@ class _OrderCard extends StatelessWidget {
               children: [
                 Text(
                   total,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 if (isActive && orderedAt != null)
                   Padding(
