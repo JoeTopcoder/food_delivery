@@ -112,8 +112,13 @@ class AgoraService {
         ),
       );
 
+      await _engine!.setAudioProfile(
+        profile: AudioProfileType.audioProfileDefault,
+        scenario: AudioScenarioType.audioScenarioChatroom,
+      );
       await _engine!.enableAudio();
       await _engine!.disableVideo();
+      await _engine!.setDefaultAudioRouteToSpeakerphone(false);
 
       _initialized = true;
       debugPrint('AgoraService: engine ready');
@@ -189,6 +194,14 @@ class AgoraService {
   void setVolumes() {
     _engine?.adjustRecordingSignalVolume(400);
     _engine?.adjustPlaybackSignalVolume(400);
+  }
+
+  /// Ensure all audio paths are fully open after joining a channel.
+  Future<void> ensureAudioActive() async {
+    if (_engine == null) return;
+    await _engine!.enableLocalAudio(true);
+    await _engine!.muteLocalAudioStream(false);
+    await _engine!.muteAllRemoteAudioStreams(false);
   }
 
   // ── Clear callbacks (call from CallScreen.dispose) ───────────────────────
