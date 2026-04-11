@@ -172,7 +172,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                           ),
                         ),
                         Text(
-                          '${widget.order.items.length} item(s) · JMD\$${widget.order.totalAmount.toStringAsFixed(0)}',
+                          '${widget.order.items.length} item(s) · \$${widget.order.totalAmount.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF6B7280),

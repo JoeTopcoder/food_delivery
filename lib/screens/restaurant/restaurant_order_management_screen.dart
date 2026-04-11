@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
@@ -350,7 +350,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     const SizedBox(width: 8),
                     Expanded(child: Text(item.itemName)),
                     Text(
-                      'JMD\$${item.subtotal.toStringAsFixed(2)}',
+                      '\$${item.subtotal.toStringAsFixed(2)}',
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ],
@@ -362,13 +362,15 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
 
             // Total + payment
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Total: JMD\$${order.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Expanded(
+                  child: Text(
+                    'Total: \$${order.totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (order.paymentMethod != null)

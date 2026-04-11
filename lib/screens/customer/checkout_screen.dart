@@ -16,6 +16,7 @@ import '../../providers/payment_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
+import '../../providers/wallet_provider.dart';
 import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
 import '../../utils/friendly_error.dart';
@@ -120,6 +121,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final addressAsync = currentUserId != null
         ? ref.watch(userAddressesProvider(currentUserId))
         : null;
+
+    // Auto-select the default address if nothing is selected yet
+    if (selectedAddress == null && addressAsync != null) {
+      addressAsync.whenData((addresses) {
+        if (addresses.isNotEmpty) {
+          final defaultAddr = addresses.where((a) => a.isDefault).toList();
+          final addr = defaultAddr.isNotEmpty
+              ? defaultAddr.first
+              : addresses.first;
+          // Schedule to avoid modifying provider during build
+          Future.microtask(() {
+            if (mounted) {
+              ref.read(selectedAddressProvider.notifier).state = addr;
+            }
+          });
+        }
+      });
+    }
+
     final savedCardsAsync = currentUserId != null
         ? ref.watch(savedCardsProvider(currentUserId))
         : null;
@@ -301,6 +321,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         onTap: () => setState(() => _selectedPayment = 'cash'),
                       ),
                       const SizedBox(height: 8),
+                      // Wallet payment option
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final walletAsync = ref.watch(walletNotifierProvider);
+                          final walletBalance =
+                              walletAsync.valueOrNull?.totalAvailable ?? 0;
+                          return _PaymentTile(
+                            icon: Icons.account_balance_wallet_rounded,
+                            label: 'Wallet',
+                            subtitle: walletBalance > 0
+                                ? 'Balance: \$${walletBalance.toStringAsFixed(2)}'
+                                : 'No funds \u2014 top up in your profile',
+                            selected: _selectedPayment == 'wallet',
+                            onTap: () {
+                              if (walletBalance > 0) {
+                                setState(() => _selectedPayment = 'wallet');
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
                         label: 'Credit / Debit Card',
@@ -470,7 +512,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '"${appliedPromo.code}" — saved JMD\$${promoDiscount.toStringAsFixed(2)}',
+                                  '"${appliedPromo.code}" — saved \$${promoDiscount.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     color: Color(0xFF10B981),
                                     fontWeight: FontWeight.w600,
@@ -567,7 +609,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               children: [
                                 Text(
                                   'You have ${account.points} pts '
-                                  '(= JMD\$${account.redemptionValue.toStringAsFixed(2)})',
+                                  '(= \$${account.redemptionValue.toStringAsFixed(2)})',
                                   style: const TextStyle(fontSize: 13),
                                 ),
                                 const Spacer(),
@@ -595,7 +637,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 child: Text(
                                   'Redeeming $redeemPoints pts = '
-                                  'JMD\$${loyaltyDiscount.toStringAsFixed(2)} off',
+                                  '\$${loyaltyDiscount.toStringAsFixed(2)} off',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF6366F1),
@@ -707,7 +749,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 child: ChoiceChip(
                                   label: Text(
-                                    'JMD\$${amount.toStringAsFixed(0)}',
+                                    '\$${amount.toStringAsFixed(0)}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
@@ -740,7 +782,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           decimal: true,
                         ),
                         decoration: InputDecoration(
-                          prefixText: 'JMD\$ ',
+                          prefixText: '\$ ',
                           hintText: 'Custom tip amount',
                           filled: true,
                           fillColor: Colors.grey.shade50,
@@ -798,38 +840,35 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     children: [
                       _SummaryRow(
                         'Subtotal',
-                        'JMD\$${subtotal.toStringAsFixed(2)}',
+                        '\$${subtotal.toStringAsFixed(2)}',
                       ),
                       if (promoDiscount > 0)
                         _SummaryRow(
                           'Promo (${appliedPromo!.code})',
-                          '−JMD\$${promoDiscount.toStringAsFixed(2)}',
+                          '−\$${promoDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       if (loyaltyDiscount > 0)
                         _SummaryRow(
                           'Loyalty points',
-                          '−JMD\$${loyaltyDiscount.toStringAsFixed(2)}',
+                          '−\$${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
                       _SummaryRow(
                         'Delivery',
-                        'JMD\$${deliveryFee.toStringAsFixed(2)}',
+                        '\$${deliveryFee.toStringAsFixed(2)}',
                       ),
-                      _SummaryRow(
-                        'Tax (10%)',
-                        'JMD\$${tax.toStringAsFixed(2)}',
-                      ),
+                      _SummaryRow('Tax (10%)', '\$${tax.toStringAsFixed(2)}'),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
-                          'JMD\$${_driverTip.toStringAsFixed(2)}',
+                          '\$${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       Divider(color: Colors.grey[200], height: 16),
                       _SummaryRow(
                         'Total',
-                        'JMD\$${total.toStringAsFixed(2)}',
+                        '\$${total.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                     ],
@@ -907,7 +946,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                         )
                       : Text(
-                          'Place Order \u2014 JMD\$${total.toStringAsFixed(2)}',
+                          'Place Order \u2014 \$${total.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -1075,6 +1114,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (order == null) {
         throw Exception('Order could not be created.');
+      }
+
+      // Wallet payment: deduct from wallet balance
+      if (_selectedPayment == 'wallet') {
+        try {
+          await ref
+              .read(walletNotifierProvider.notifier)
+              .payWithWallet(verifiedTotal, order.id);
+        } catch (e) {
+          await _deleteOrder(order.id);
+          rethrow;
+        }
       }
 
       if (_selectedPayment == 'card') {
@@ -1806,16 +1857,19 @@ class _SummaryRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
-              fontSize: isBold ? 15 : 13,
-              color: const Color(0xFF6B7280),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
+                fontSize: isBold ? 15 : 13,
+                color: const Color(0xFF6B7280),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: TextStyle(

@@ -134,7 +134,10 @@ class DriverEarningsScreen extends ConsumerWidget {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
+                                colors: [
+                                  AppTheme.primaryColor,
+                                  Color(0xFFFF8C5A),
+                                ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
@@ -152,7 +155,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'JMD\$${totalEarnings.toStringAsFixed(0)}',
+                                  '\$${totalEarnings.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 36,
@@ -165,13 +168,13 @@ class DriverEarningsScreen extends ConsumerWidget {
                                     _EarnChip(
                                       label: 'This Week',
                                       value:
-                                          'JMD\$${weekEarnings.toStringAsFixed(0)}',
+                                          '\$${weekEarnings.toStringAsFixed(0)}',
                                     ),
                                     const SizedBox(width: 10),
                                     _EarnChip(
                                       label: 'This Month',
                                       value:
-                                          'JMD\$${monthEarnings.toStringAsFixed(0)}',
+                                          '\$${monthEarnings.toStringAsFixed(0)}',
                                     ),
                                   ],
                                 ),
@@ -204,7 +207,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                               Expanded(
                                 child: _StatBox(
                                   label: 'Tips',
-                                  value: 'JMD\$${totalTips.toStringAsFixed(0)}',
+                                  value: '\$${totalTips.toStringAsFixed(0)}',
                                   icon: Icons.volunteer_activism_rounded,
                                   color: const Color(0xFF22C55E),
                                 ),
@@ -283,7 +286,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  'JMD\$${cashFloat.toStringAsFixed(0)}',
+                                  '\$${cashFloat.toStringAsFixed(0)}',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
@@ -410,7 +413,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    'Total Tips: JMD\$${totalTips.toStringAsFixed(0)}',
+                                    'Total Tips: \$${totalTips.toStringAsFixed(0)}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFFFBBF24),
@@ -608,21 +611,13 @@ class _DeliveryRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'JMD\$${earning.toStringAsFixed(0)}',
+                '\$${earning.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                   color: Color(0xFF22C55E),
                 ),
               ),
-              if (tip != null && tip! > 0)
-                Text(
-                  'incl. JMD\$${tip!.toStringAsFixed(0)} tip',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFFFBBF24),
-                  ),
-                ),
               if (isCash)
                 Container(
                   margin: const EdgeInsets.only(top: 2),

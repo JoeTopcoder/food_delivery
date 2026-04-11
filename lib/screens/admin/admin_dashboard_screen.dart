@@ -208,7 +208,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'JMD\$${totalRevenue.toStringAsFixed(0)}',
+                                  '\$${totalRevenue.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
@@ -236,7 +236,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        'This Month: JMD\$${monthlyRevenue.toStringAsFixed(0)}',
+                                        'This Month: \$${monthlyRevenue.toStringAsFixed(0)}',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 13,

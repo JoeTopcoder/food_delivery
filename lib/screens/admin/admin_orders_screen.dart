@@ -477,7 +477,7 @@ class _OrderCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'JMD\$${totalAmount.toStringAsFixed(0)}',
+                    '\$${totalAmount.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,

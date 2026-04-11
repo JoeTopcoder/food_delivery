@@ -343,7 +343,7 @@ class _GroupOrderCard extends StatelessWidget {
                 const Spacer(),
                 if (group.totalAmount > 0)
                   Text(
-                    'JMD\$${group.totalAmount.toStringAsFixed(0)}',
+                    '\$${group.totalAmount.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

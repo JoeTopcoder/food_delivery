@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
 
@@ -63,7 +63,7 @@ class MenuItemCard extends StatelessWidget {
                     children: [
                       if (item.discount != null && item.discount! > 0) ...[
                         Text(
-                          'JMD\$${item.price.toStringAsFixed(2)}',
+                          '\$${item.price.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.textLight,
@@ -73,7 +73,7 @@ class MenuItemCard extends StatelessWidget {
                         const SizedBox(width: 6),
                       ],
                       Text(
-                        'JMD\$${item.discountedPrice.toStringAsFixed(2)}',
+                        '\$${item.discountedPrice.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,

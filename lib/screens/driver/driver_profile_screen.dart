@@ -332,7 +332,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                           _StatTile(
                             label: 'Total Earnings',
                             value:
-                                'JMD\$${(driver?.totalEarnings ?? 0).toStringAsFixed(0)}',
+                                '\$${(driver?.totalEarnings ?? 0).toStringAsFixed(0)}',
                             icon: Icons.payments_rounded,
                             color: const Color(0xFF6366F1),
                           ),

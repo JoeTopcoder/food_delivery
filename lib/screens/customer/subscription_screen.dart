@@ -165,7 +165,7 @@ class _PlanCard extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  'JMD\$${plan.price.toStringAsFixed(0)}',
+                  '\$${plan.price.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

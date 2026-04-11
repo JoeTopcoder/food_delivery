@@ -315,7 +315,7 @@ class _OrderCard extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'JMD\$${order.totalAmount.toStringAsFixed(0)}',
+                  '\$${order.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 22,
@@ -542,7 +542,7 @@ class _OrderCard extends StatelessWidget {
             }),
             const SizedBox(height: 12),
             Text(
-              'JMD\$${order.totalAmount.toStringAsFixed(0)}',
+              '\$${order.totalAmount.toStringAsFixed(0)}',
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 20,

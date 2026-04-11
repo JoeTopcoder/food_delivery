@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'restaurant_model.g.dart';
@@ -141,5 +142,52 @@ class Restaurant {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  /// Whether the restaurant is open right now based on its operating hours.
+  /// Falls back to the manual [isOpen] flag when no schedule is set.
+  bool get isCurrentlyOpen {
+    if (!isOpen) return false; // manual override always wins
+
+    if (operatingHours == null || operatingHours!.isEmpty) {
+      // No schedule — use legacy openingTime / closingTime if available
+      if (openingTime != null && closingTime != null) {
+        return _isWithinTimeRange(openingTime!, closingTime!);
+      }
+      return isOpen;
+    }
+
+    // Day-of-week key (lowercase english)
+    final now = DateTime.now();
+    final dayName = DateFormat('EEEE').format(now).toLowerCase();
+    final dayData = operatingHours![dayName];
+    if (dayData is! Map) return isOpen;
+
+    final dayIsOpen = dayData['is_open'] ?? true;
+    if (dayIsOpen != true) return false;
+
+    final open = dayData['open'] as String?;
+    final close = dayData['close'] as String?;
+    if (open == null || close == null) return true;
+
+    return _isWithinTimeRange(open, close);
+  }
+
+  bool _isWithinTimeRange(String openStr, String closeStr) {
+    final now = DateTime.now();
+    final parts1 = openStr.split(':');
+    final parts2 = closeStr.split(':');
+    if (parts1.length < 2 || parts2.length < 2) return true;
+
+    final openMin = int.parse(parts1[0]) * 60 + int.parse(parts1[1]);
+    final closeMin = int.parse(parts2[0]) * 60 + int.parse(parts2[1]);
+    final nowMin = now.hour * 60 + now.minute;
+
+    if (closeMin > openMin) {
+      return nowMin >= openMin && nowMin < closeMin;
+    } else {
+      // Wraps past midnight (e.g. 18:00 – 02:00)
+      return nowMin >= openMin || nowMin < closeMin;
+    }
   }
 }

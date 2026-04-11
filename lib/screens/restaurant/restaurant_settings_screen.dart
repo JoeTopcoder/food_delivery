@@ -301,19 +301,27 @@ class _RestaurantSettingsScreenState
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Delivery Fee: JMD\$${_deliveryFee.toStringAsFixed(2)}',
-                    ),
-                    Slider(
-                      value: _deliveryFee,
+                    TextFormField(
+                      initialValue: _deliveryFee.toStringAsFixed(0),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Delivery Fee',
+                        prefixText: '\$ ',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        helperText: 'Max \$50,000',
+                      ),
                       onChanged: (value) {
-                        setState(() {
-                          _deliveryFee = value;
-                        });
+                        final parsed = double.tryParse(value);
+                        if (parsed != null && parsed >= 0 && parsed <= 50000) {
+                          setState(() {
+                            _deliveryFee = parsed;
+                          });
+                        }
                       },
-                      min: 0,
-                      max: 500,
-                      divisions: 100,
                     ),
                     const SizedBox(height: 16),
                     Text('Est. Delivery Time: $_estimatedDeliveryTime minutes'),

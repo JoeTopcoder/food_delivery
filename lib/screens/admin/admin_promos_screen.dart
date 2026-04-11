@@ -226,13 +226,13 @@ class _PromoCard extends ConsumerWidget {
               _InfoPill(
                 label: promo.discountType == 'percentage'
                     ? '${promo.discountValue.toStringAsFixed(0)}% off'
-                    : 'JMD\$${promo.discountValue.toStringAsFixed(0)} off',
+                    : '\$${promo.discountValue.toStringAsFixed(0)} off',
                 icon: Icons.discount_rounded,
                 color: const Color(0xFF6366F1),
               ),
               if (promo.minOrderAmount != null)
                 _InfoPill(
-                  label: 'Min JMD\$${promo.minOrderAmount!.toStringAsFixed(0)}',
+                  label: 'Min \$${promo.minOrderAmount!.toStringAsFixed(0)}',
                   icon: Icons.shopping_cart_rounded,
                   color: const Color(0xFFF59E0B),
                 ),
@@ -374,7 +374,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                           ),
                           DropdownMenuItem(
                             value: 'fixed',
-                            child: Text('Fixed JMD\$'),
+                            child: Text('Fixed \$'),
                           ),
                         ],
                         onChanged: (v) => setState(() => _type = v!),
@@ -392,7 +392,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                         decoration: InputDecoration(
                           labelText: _type == 'percentage'
                               ? '% Value'
-                              : 'JMD\$ Value',
+                              : '\$ Value',
                           border: const OutlineInputBorder(),
                         ),
                         validator: (v) =>
@@ -411,7 +411,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                         controller: _minCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Min Order JMD\$ (optional)',
+                          labelText: 'Min Order \$ (optional)',
                           border: OutlineInputBorder(),
                         ),
                       ),

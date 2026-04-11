@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/address_provider.dart';
 import '../../utils/app_theme.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -17,6 +19,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final currentUserId = ref.watch(currentUserIdProvider);
+    final defaultAddrAsync = currentUserId != null
+        ? ref.watch(defaultAddressProvider(currentUserId))
+        : null;
+    final deliveryAddress =
+        defaultAddrAsync?.valueOrNull?.address ??
+        currentUser?.address ??
+        'No address saved';
     final restaurantId = cartItems.isNotEmpty
         ? cartItems.first.menuItem.restaurantId
         : null;
@@ -89,6 +100,61 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 SingleChildScrollView(
                   child: Column(
                     children: [
+                      // Deliver to
+                      GestureDetector(
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/address-book'),
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.07,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.location_on_rounded,
+                                color: AppTheme.primaryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Deliver to',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      deliveryAddress,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppTheme.textSecondary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       // Cart Items
                       ListView.builder(
                         shrinkWrap: true,
@@ -128,19 +194,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           children: [
                             _PriceRow(
                               'Subtotal',
-                              'JMD\$${subtotal.toStringAsFixed(2)}',
+                              '\$${subtotal.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
                             _PriceRow(
                               'Delivery Fee',
-                              'JMD\$${deliveryFee.toStringAsFixed(2)}',
+                              '\$${deliveryFee.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
-                            _PriceRow('Tax', 'JMD\$${tax.toStringAsFixed(2)}'),
+                            _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
                             Divider(color: Colors.grey[300], height: 16),
                             _PriceRow(
                               'Total',
-                              'JMD\$${total.toStringAsFixed(2)}',
+                              '\$${total.toStringAsFixed(2)}',
                               isBold: true,
                             ),
                           ],
@@ -214,7 +280,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          'Proceed to Checkout - JMD\$${total.toStringAsFixed(2)}',
+                          'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -281,7 +347,7 @@ class _CartItemWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'JMD\$${(price * quantity).toStringAsFixed(2)}',
+                  '\$${(price * quantity).toStringAsFixed(2)}',
                   style: const TextStyle(
                     color: AppTheme.priceColor,
                     fontWeight: FontWeight.w700,
@@ -344,16 +410,19 @@ class _PriceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isBold ? 16 : 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: isBold ? Colors.black : Colors.grey[600],
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: isBold ? 16 : 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: isBold ? Colors.black : Colors.grey[600],
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: TextStyle(

@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/order_model.dart';
 import '../models/saved_card_model.dart';
@@ -236,7 +236,7 @@ class PaymentService {
     required double amount,
   }) async {
     try {
-      AppLogger.info('Processing cash payment: $orderId - JMD\$$amount');
+      AppLogger.info('Processing cash payment: $orderId - \$$amount');
 
       // Cash payments are recorded but not processed
       // Driver will collect payment on delivery
@@ -285,7 +285,7 @@ class PaymentService {
     String? reason,
   }) async {
     try {
-      AppLogger.info('Processing refund: $transactionId - JMD\$$amount');
+      AppLogger.info('Processing refund: $transactionId - \$$amount');
 
       if (reason != null) {
         AppLogger.info('Refund reason: $reason');
@@ -315,12 +315,12 @@ class PaymentService {
         
         Amount Breakdown:
         ─────────────────────────────────
-        Subtotal:       JMD\$${order.subtotal.toStringAsFixed(2)}
-        Tax:            JMD\$${order.taxAmount?.toStringAsFixed(2) ?? '0.00'}
-        Delivery Fee:   JMD\$${order.deliveryFee.toStringAsFixed(2)}
-        Discount:       -JMD\$${order.discount?.toStringAsFixed(2) ?? '0.00'}
+        Subtotal:       \$${order.subtotal.toStringAsFixed(2)}
+        Tax:            \$${order.taxAmount?.toStringAsFixed(2) ?? '0.00'}
+        Delivery Fee:   \$${order.deliveryFee.toStringAsFixed(2)}
+        Discount:       -\$${order.discount?.toStringAsFixed(2) ?? '0.00'}
         ─────────────────────────────────
-        TOTAL:          JMD\$${order.totalAmount.toStringAsFixed(2)}
+        TOTAL:          \$${order.totalAmount.toStringAsFixed(2)}
         
         Payment Method: ${paymentResponse.paymentMethod}
         Status: ${paymentResponse.status.toUpperCase()}

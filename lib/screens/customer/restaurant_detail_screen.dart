@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/menu_model.dart';
@@ -274,17 +274,19 @@ class _RestaurantDetailScreenState
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.restaurant.isOpen
+                              color: widget.restaurant.isCurrentlyOpen
                                   ? AppTheme.successColor.withValues(alpha: 0.1)
                                   : AppTheme.accentColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              widget.restaurant.isOpen ? 'Open Now' : 'Closed',
+                              widget.restaurant.isCurrentlyOpen
+                                  ? 'Open Now'
+                                  : 'Closed',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: widget.restaurant.isOpen
+                                color: widget.restaurant.isCurrentlyOpen
                                     ? AppTheme.successColor
                                     : AppTheme.accentColor,
                               ),
@@ -375,7 +377,7 @@ class _RestaurantDetailScreenState
                           ),
                           const SizedBox(width: 16),
                           Text(
-                            'Delivery: JMD\$${widget.restaurant.deliveryFee ?? 0}',
+                            'Delivery: \$${widget.restaurant.deliveryFee ?? 0}',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppTheme.textSecondary,
@@ -601,7 +603,7 @@ class _RestaurantDetailScreenState
                     (side) => CheckboxListTile(
                       activeColor: AppTheme.primaryColor,
                       title: Text(side.name),
-                      subtitle: Text('+ JMD\$${side.price.toStringAsFixed(2)}'),
+                      subtitle: Text('+ \$${side.price.toStringAsFixed(2)}'),
                       value: selected[side.id],
                       onChanged: (v) =>
                           setSheetState(() => selected[side.id] = v!),
@@ -618,7 +620,7 @@ class _RestaurantDetailScreenState
                       onPressed: () => Navigator.pop(ctx, chosenSides),
                       child: Text(
                         sidesTotal > 0
-                            ? 'Add to Cart (+JMD\$${sidesTotal.toStringAsFixed(2)})'
+                            ? 'Add to Cart (+\$${sidesTotal.toStringAsFixed(2)})'
                             : 'Add to Cart',
                         style: const TextStyle(
                           color: Colors.white,

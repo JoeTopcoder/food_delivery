@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -114,6 +114,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
             // My Activity
             _SectionTitle('My Activity'),
+            _SettingsTile(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Digital Wallet',
+              subtitle: 'Add funds, view balance & cashback',
+              onTap: () => Navigator.of(context).pushNamed('/wallet'),
+            ),
             _SettingsTile(
               icon: Icons.receipt_long_outlined,
               title: 'Order History',
@@ -472,7 +478,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             Container(width: 1, height: 30, color: Colors.grey[300]),
             _ProfileStat(
               label: 'Spent',
-              value: 'JMD\$${totalSpent.toStringAsFixed(0)}',
+              value: '\$${totalSpent.toStringAsFixed(0)}',
             ),
             Container(width: 1, height: 30, color: Colors.grey[300]),
             _ProfileStat(label: 'Member', value: 'Active'),
@@ -491,7 +497,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         children: [
           _ProfileStat(label: 'Orders', value: '0'),
           Container(width: 1, height: 30, color: Colors.grey[300]),
-          _ProfileStat(label: 'Spent', value: 'JMD\$0'),
+          _ProfileStat(label: 'Spent', value: '\$0'),
           Container(width: 1, height: 30, color: Colors.grey[300]),
           _ProfileStat(label: 'Member', value: 'Active'),
         ],

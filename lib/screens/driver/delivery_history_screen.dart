@@ -205,7 +205,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
 
                                 // Amount
                                 Text(
-                                  'JMD\$${delivery.totalAmount.toStringAsFixed(0)}',
+                                  '\$${delivery.totalAmount.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -331,7 +331,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      'JMD\$${delivery.totalAmount.toStringAsFixed(2)}',
+                      '\$${delivery.totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF22C55E),

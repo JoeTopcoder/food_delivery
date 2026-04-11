@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
 
@@ -86,7 +86,7 @@ class RestaurantCard extends StatelessWidget {
                   ),
                 ),
                 // Open/Closed badge
-                if (!restaurant.isOpen)
+                if (!restaurant.isCurrentlyOpen)
                   Positioned(
                     top: 10,
                     left: 10,
@@ -182,7 +182,7 @@ class RestaurantCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'JMD\$${restaurant.deliveryFee ?? 0}',
+                        '\$${restaurant.deliveryFee ?? 0}',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],

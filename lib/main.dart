@@ -57,6 +57,7 @@ import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
 import 'screens/customer/subscription_screen.dart';
 import 'screens/customer/feedback_screen.dart';
+import 'screens/customer/wallet_screen.dart';
 import 'screens/restaurant/restaurant_dashboard_screen.dart';
 import 'screens/restaurant/restaurant_order_management_screen.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
@@ -65,11 +66,13 @@ import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/main_navigation_screen.dart';
 // import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
+import 'services/cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await SupabaseConfig.initialize();
+  await CacheService.init();
   // Load DB-driven config (non-blocking — falls back to compiled defaults on error)
   await AppConfigService(SupabaseConfig.client).load();
   runApp(const ProviderScope(child: MyApp()));
@@ -409,6 +412,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-banners':
               return MaterialPageRoute(
                 builder: (context) => const AdminBannersScreen(),
+              );
+            case '/wallet':
+              return MaterialPageRoute(
+                builder: (context) => const WalletScreen(),
               );
             default:
               return MaterialPageRoute(

@@ -92,7 +92,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'JMD\$${totalSales.toStringAsFixed(2)}',
+                        '\$${totalSales.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
@@ -105,7 +105,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'This Month: JMD\$${monthlySales.toStringAsFixed(2)}',
+                        'This Month: \$${monthlySales.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Color(0xFFFF8C42),
                           fontSize: 14,
@@ -304,7 +304,7 @@ class _FinancialCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'JMD\$${mainValue.toStringAsFixed(2)}',
+                  '\$${mainValue.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -313,7 +313,7 @@ class _FinancialCard extends StatelessWidget {
                 ),
                 if (subValue != null)
                   Text(
-                    '$subLabel: JMD\$${subValue!.toStringAsFixed(2)}',
+                    '$subLabel: \$${subValue!.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF9CA3AF),
@@ -369,7 +369,7 @@ class _BreakdownRow extends StatelessWidget {
             ),
           ),
           Text(
-            'JMD\$${value.toStringAsFixed(2)}',
+            '\$${value.toStringAsFixed(2)}',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
