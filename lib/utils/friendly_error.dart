@@ -1,0 +1,75 @@
+/// Converts raw exceptions/errors into user-friendly messages.
+String friendlyError(Object? error) {
+  final msg = error.toString().toLowerCase();
+
+  // Network / DNS
+  if (msg.contains('socketexception') ||
+      msg.contains('failed host lookup') ||
+      msg.contains('no address associated') ||
+      msg.contains('connection refused') ||
+      msg.contains('network is unreachable') ||
+      msg.contains('no internet') ||
+      msg.contains('errno = 7')) {
+    return 'No internet connection. Please check your network and try again.';
+  }
+
+  // Timeout
+  if (msg.contains('timed out') || msg.contains('timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+
+  // Auth
+  if (msg.contains('invalid login') || msg.contains('invalid credentials')) {
+    return 'Incorrect email or password. Please try again.';
+  }
+  if (msg.contains('email not confirmed')) {
+    return 'Please verify your email before signing in.';
+  }
+  if (msg.contains('user already registered') ||
+      msg.contains('already been registered')) {
+    return 'An account with this email already exists.';
+  }
+  if (msg.contains('weak password') || msg.contains('password')) {
+    if (msg.contains('at least')) {
+      return 'Password is too weak. Use at least 6 characters.';
+    }
+  }
+  if (msg.contains('jwt expired') ||
+      msg.contains('token expired') ||
+      msg.contains('refresh_token_not_found')) {
+    return 'Your session has expired. Please sign in again.';
+  }
+  if (msg.contains('not authorized') ||
+      msg.contains('permission denied') ||
+      msg.contains('insufficient_privilege')) {
+    return 'You don\'t have permission to do that.';
+  }
+
+  // Supabase / Postgres
+  if (msg.contains('duplicate key') || msg.contains('unique constraint')) {
+    return 'This record already exists.';
+  }
+  if (msg.contains('foreign key') || msg.contains('violates foreign key')) {
+    return 'This item is linked to other data and can\'t be changed.';
+  }
+  if (msg.contains('row-level security') || msg.contains('rls')) {
+    return 'Access denied. Please try signing in again.';
+  }
+
+  // Server
+  if (msg.contains('500') || msg.contains('internal server error')) {
+    return 'Something went wrong on our end. Please try again later.';
+  }
+  if (msg.contains('502') ||
+      msg.contains('bad gateway') ||
+      msg.contains('503') ||
+      msg.contains('service unavailable')) {
+    return 'The server is temporarily unavailable. Please try again shortly.';
+  }
+  if (msg.contains('404') || msg.contains('not found')) {
+    return 'The requested item was not found.';
+  }
+
+  // Generic fallback
+  return 'Something went wrong. Please try again.';
+}
