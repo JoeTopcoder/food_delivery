@@ -685,7 +685,8 @@ class OrderService {
           return _sendPushNotification(
             topic: 'driver_$driverId',
             title: 'New Order Ready for Pickup!',
-            body: 'Order #${orderId.substring(0, 8).toUpperCase()} is ready. Tap to accept.',
+            body:
+                'Order #${orderId.substring(0, 8).toUpperCase()} is ready. Tap to accept.',
             data: {
               'type': AppConstants.notificationTypeDeliveryUpdate,
               'order_id': orderId,
@@ -748,7 +749,9 @@ class OrderService {
 
   // Get customer-specific notification body
   String _getCustomerNotificationBody(String status, {String? orderId}) {
-    final tag = orderId != null ? ' #${orderId.substring(0, 8).toUpperCase()}' : '';
+    final tag = orderId != null
+        ? ' #${orderId.substring(0, 8).toUpperCase()}'
+        : '';
     switch (status) {
       case 'confirmed':
         return 'Order$tag has been confirmed by the restaurant';

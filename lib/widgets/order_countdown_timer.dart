@@ -42,7 +42,7 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
   void initState() {
     super.initState();
     _elapsed = DateTime.now().difference(widget.orderedAt);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) {
         setState(() {
           _elapsed = DateTime.now().difference(widget.orderedAt);
@@ -59,45 +59,30 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
 
   bool get _isOverdue => _elapsed > _totalDuration;
 
-  Duration get _remaining =>
-      _isOverdue ? Duration.zero : _totalDuration - _elapsed;
+  /// Minutes left on the countdown (negative = overdue).
+  int get _remainingMin => _totalMinutes - _elapsed.inMinutes;
+
+  /// How many minutes past zero.
+  int get _overdueMin => _isOverdue ? (_elapsed.inMinutes - _totalMinutes) : 0;
 
   double get _progress =>
       (_elapsed.inSeconds / _totalDuration.inSeconds).clamp(0.0, 1.0);
 
-  /// Returns an escalating urgency color based on elapsed time:
-  /// - Under 75% of estimate → green
-  /// - 75-100% of estimate → amber
-  /// - 45+ min elapsed → light red, darkening every 30 min after
+  /// Green while counting down, then escalating red once at 0 and beyond.
+  /// Every 30 min past 0 → darker red.
   Color get _urgencyColor {
-    final elapsedMin = _elapsed.inMinutes;
+    if (!_isOverdue) return const Color(0xFF10B981); // green
 
-    if (elapsedMin >= 45) {
-      // Steps beyond 45 min, each 30 min = one darker step
-      final steps = ((elapsedMin - 45) / 30).floor();
-      // Interpolate from light-red to very-dark-red
-      // step 0 = #EF4444, step 1 = #DC2626, step 2 = #B91C1C, step 3+ = #7F1D1D
-      const reds = [
-        Color(0xFFEF4444), // 45 min
-        Color(0xFFDC2626), // 75 min
-        Color(0xFFB91C1C), // 105 min
-        Color(0xFF991B1B), // 135 min
-        Color(0xFF7F1D1D), // 165 min+
-      ];
-      return reds[math.min(steps, reds.length - 1)];
-    }
-
-    if (_isOverdue || _progress > 0.75) {
-      return const Color(0xFFF59E0B); // amber
-    }
-
-    return const Color(0xFF10B981); // green
-  }
-
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+    final overMin = _overdueMin;
+    final steps = (overMin / 30).floor();
+    const reds = [
+      Color(0xFFEF4444), // 0-29 min overdue
+      Color(0xFFDC2626), // 30-59 min overdue
+      Color(0xFFB91C1C), // 60-89 min overdue
+      Color(0xFF991B1B), // 90-119 min overdue
+      Color(0xFF7F1D1D), // 120+ min overdue
+    ];
+    return reds[math.min(steps, reds.length - 1)];
   }
 
   @override
@@ -108,16 +93,13 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
 
   Widget _buildCompact() {
     final color = _urgencyColor;
-    final isRed = _elapsed.inMinutes >= 45;
-    final text = _isOverdue
-        ? '+${_formatDuration(_elapsed - _totalDuration)}'
-        : _formatDuration(_remaining);
+    final text = _isOverdue ? '+${_overdueMin}m' : '${_remainingMin}m';
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          isRed ? Icons.warning_amber_rounded : Icons.timer_outlined,
+          _isOverdue ? Icons.warning_amber_rounded : Icons.timer_outlined,
           size: 14,
           color: color,
         ),
@@ -136,17 +118,12 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
 
   Widget _buildFull() {
     final Color barColor = _urgencyColor;
-    final elapsedMin = _elapsed.inMinutes;
     final String label;
 
-    if (elapsedMin >= 45 && _isOverdue) {
-      label = 'OVERDUE by ${_formatDuration(_elapsed - _totalDuration)}';
-    } else if (elapsedMin >= 45) {
-      label = '${_formatDuration(_remaining)} remaining \u2022 PRIORITY';
-    } else if (_isOverdue) {
-      label = 'OVERDUE by ${_formatDuration(_elapsed - _totalDuration)}';
+    if (_isOverdue) {
+      label = 'OVERDUE +${_overdueMin}m';
     } else {
-      label = '${_formatDuration(_remaining)} remaining';
+      label = '${_remainingMin}m remaining';
     }
 
     return Column(
@@ -170,7 +147,7 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
             ),
             const Spacer(),
             Text(
-              '${_formatDuration(_elapsed)} / ${_totalMinutes}m',
+              '${_elapsed.inMinutes}m / ${_totalMinutes}m',
               style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
             ),
           ],

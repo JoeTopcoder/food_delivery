@@ -379,7 +379,8 @@ class DriverService {
                 body: {
                   'token': fcmToken,
                   'title': 'Order Delivered!',
-                  'body': 'Order #${orderId.substring(0, 8).toUpperCase()} delivered! Rate your experience',
+                  'body':
+                      'Order #${orderId.substring(0, 8).toUpperCase()} delivered! Rate your experience',
                   'data': {
                     'type': AppConstants.notificationTypeOrderStatus,
                     'order_id': orderId,
