@@ -570,23 +570,52 @@ class _CompactRestaurantCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(12),
               ),
-              child: Image.network(
-                restaurant.imageUrl ??
-                    'https://images.unsplash.com/photo-1604068549290-daea0aa2d812?w=400',
-                height: 110,
-                width: 180,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  height: 110,
-                  width: 180,
-                  color: Colors.grey[100],
-                  child: const Icon(
-                    Icons.restaurant,
-                    size: 40,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
+              child:
+                  restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
+                  ? Image.network(
+                      restaurant.imageUrl!,
+                      height: 110,
+                      width: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        height: 110,
+                        width: 180,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppTheme.primaryColor.withValues(alpha: 0.15),
+                              AppTheme.primaryColor.withValues(alpha: 0.05),
+                            ],
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.restaurant_rounded,
+                          size: 36,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: 110,
+                      width: 180,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppTheme.primaryColor.withValues(alpha: 0.15),
+                            AppTheme.primaryColor.withValues(alpha: 0.05),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.restaurant_rounded,
+                        size: 36,
+                        color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(10),

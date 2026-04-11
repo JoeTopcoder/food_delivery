@@ -528,15 +528,29 @@ class _RestaurantSearchCard extends StatelessWidget {
               child: SizedBox(
                 width: 110,
                 height: 100,
-                child: Image.network(
-                  restaurant.imageUrl ??
-                      'https://images.unsplash.com/photo-1604068549290-daea0aa2d812?w=300',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.restaurant, color: Colors.grey),
-                  ),
-                ),
+                child:
+                    restaurant.imageUrl != null &&
+                        restaurant.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        restaurant.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          child: Icon(
+                            Icons.restaurant_rounded,
+                            size: 32,
+                            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        child: Icon(
+                          Icons.restaurant_rounded,
+                          size: 32,
+                          color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                        ),
+                      ),
               ),
             ),
             // Info
