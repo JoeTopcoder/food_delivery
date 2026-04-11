@@ -1,0 +1,315 @@
+import 'package:flutter/material.dart';
+import '../../utils/app_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
+
+class NotificationsScreen extends ConsumerStatefulWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  late final RealtimeChannel _channel;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeToOrderUpdates();
+  }
+
+  void _subscribeToOrderUpdates() {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+
+    _channel = Supabase.instance.client
+        .channel('user_notifications_$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (payload) {
+            final row = payload.newRecord;
+            ref
+                .read(notificationNotifierProvider.notifier)
+                .addNotification(
+                  AppNotification(
+                    id: row['id'] as String? ?? DateTime.now().toString(),
+                    type: row['type'] as String? ?? 'info',
+                    title: row['title'] as String? ?? '',
+                    body: row['body'] as String? ?? '',
+                    data: (row['data'] as Map<String, dynamic>?) ?? {},
+                    timestamp: DateTime.now(),
+                  ),
+                );
+          },
+        )
+        .subscribe();
+  }
+
+  @override
+  void dispose() {
+    Supabase.instance.client.removeChannel(_channel);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = ref.watch(notificationNotifierProvider);
+    final notifier = ref.read(notificationNotifierProvider.notifier);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'Notifications',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
+        actions: [
+          if (notifications.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                notifier.clearAll();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('All notifications cleared'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Text(
+                'Clear All',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+        ],
+      ),
+      body: notifications.isEmpty
+          ? const _EmptyNotifications()
+          : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final n = notifications[index];
+                return _NotifCard(
+                  notification: n,
+                  onTap: () => notifier.markAsRead(n.id),
+                  onDismiss: () => notifier.removeNotification(n.id),
+                );
+              },
+            ),
+    );
+  }
+}
+
+// ─── Notification Card ────────────────────────────────────────────────────────
+
+class _NotifCard extends StatelessWidget {
+  final AppNotification notification;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  const _NotifCard({
+    required this.notification,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  IconData get _icon {
+    switch (notification.type) {
+      case 'order_placed':
+        return Icons.receipt_long_rounded;
+      case 'order_confirmed':
+        return Icons.check_circle_rounded;
+      case 'preparing':
+        return Icons.restaurant_rounded;
+      case 'out_for_delivery':
+        return Icons.directions_bike_rounded;
+      case 'delivered':
+        return Icons.home_rounded;
+      case 'payment':
+        return Icons.payment_rounded;
+      default:
+        return Icons.notifications_rounded;
+    }
+  }
+
+  Color get _color {
+    switch (notification.type) {
+      case 'delivered':
+        return const Color(0xFF10B981);
+      case 'out_for_delivery':
+        return const Color(0xFF6366F1);
+      case 'preparing':
+        return const Color(0xFFF59E0B);
+      case 'payment':
+        return const Color(0xFF10B981);
+      default:
+        return AppTheme.primaryColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timeStr = DateFormat('h:mm a · MMM d').format(notification.timestamp);
+    return Dismissible(
+      key: Key(notification.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDismiss(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.delete_rounded, color: Colors.white),
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: notification.isRead
+                ? Colors.white
+                : _color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(14),
+            border: notification.isRead
+                ? null
+                : Border.all(color: _color.withValues(alpha: 0.2), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: _color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_icon, color: _color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: TextStyle(
+                              fontWeight: notification.isRead
+                                  ? FontWeight.w500
+                                  : FontWeight.bold,
+                              fontSize: 13,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ),
+                        if (!notification.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      notification.body,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyNotifications extends StatelessWidget {
+  const _EmptyNotifications();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.notifications_none_rounded,
+              size: 40,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'All caught up!',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'No notifications yet.\nYour order updates will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+          ),
+        ],
+      ),
+    );
+  }
+}

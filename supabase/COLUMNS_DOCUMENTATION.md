@@ -1,0 +1,392 @@
+-- ====================================================================
+-- FOOD DRIVER APP - DATABASE COLUMNS DOCUMENTATION
+-- ====================================================================
+
+-- ====================================================================
+-- TABLE: USERS
+-- Description: Stores all user accounts (customers, restaurant owners, drivers, admins)
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                   - Primary Key, auto-generated with UUID v4, unique identifier for each user
+-- email (TEXT, NOT NULL)      - User's email address, must be unique across all users
+-- name (TEXT)                 - User's full name
+-- phone (TEXT)                - User's contact phone number
+-- profile_image_url (TEXT)    - URL to user's profile picture
+-- role (TEXT, NOT NULL)       - User type: 'user' (customer), 'restaurant' (owner), 'driver', or 'admin'
+--                               CHECK constraint ensures only these 4 values
+-- address (TEXT)              - User's physical address
+-- latitude (DOUBLE PRECISION) - Geographic latitude for user location
+-- longitude (DOUBLE PRECISION)- Geographic longitude for user location
+-- is_active (BOOLEAN)         - Whether user account is active (default: TRUE)
+-- created_at (TIMESTAMP)      - Account creation timestamp (auto-set to NOW())
+-- updated_at (TIMESTAMP)      - Last profile update timestamp
+--
+-- Indexes:
+--   idx_users_email           - Fast email lookups and authentication
+--   idx_users_role            - Filter users by type
+--   idx_users_created_at      - Sort by signup date, analytics
+
+-- Sample Row:
+-- id: 123e4567-e89b-12d3-a456-426614174000
+-- email: customer1@example.com
+-- name: Ahmed Hassan
+-- phone: 01712345678
+-- role: user
+-- is_active: true
+-- created_at: 2026-04-03 10:30:00+00
+-- updated_at: 2026-04-04 15:45:00+00
+
+-- ====================================================================
+-- TABLE: RESTAURANTS
+-- Description: Restaurant profiles and metadata managed by restaurant owners
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                      - Primary Key, unique identifier
+-- owner_id (UUID, FK)            - References users.id, the restaurant owner's user id
+-- name (TEXT, NOT NULL)          - Restaurant's business name
+-- description (TEXT)             - About the restaurant, cuisine style, specialties
+-- image_url (TEXT)               - Route to restaurant's main image/logo
+-- phone (TEXT)                   - Restaurant's contact phone number
+-- email (TEXT)                   - Restaurant's contact email
+-- address (TEXT)                 - Physical restaurant location
+-- latitude (DOUBLE PRECISION)    - GPS latitude for map display
+-- longitude (DOUBLE PRECISION)   - GPS longitude for map display
+-- cuisine_type (TEXT)            - Cuisine category (e.g., 'Bengali', 'Chinese', 'Pizza')
+-- rating (DOUBLE PRECISION)      - Average customer rating (0.0-5.0)
+-- review_count (INTEGER)         - Total number of reviews received
+-- delivery_fee (DOUBLE PRECISION)- Standard delivery charge for orders
+-- estimated_delivery_time (INT)  - Typical delivery time in minutes
+-- is_open (BOOLEAN)              - Current open/closed status
+-- opening_time (TEXT)            - Format HH:MM (e.g., '11:00')
+-- closing_time (TEXT)            - Format HH:MM (e.g., '23:00')
+-- tags (TEXT[])                  - Array of tags for searchability (e.g., ['vegan', 'fast-delivery'])
+-- is_verified (BOOLEAN)          - Whether restaurant is verified by admin
+-- created_at (TIMESTAMP)         - When restaurant was registered
+-- updated_at (TIMESTAMP)         - Last updated time
+--
+-- Indexes:
+--   idx_restaurants_owner_id    - Find all restaurants by owner
+--   idx_restaurants_is_verified - Filter verified restaurants only
+--   idx_restaurants_cuisine_type- Filter by food type
+--   idx_restaurants_is_open     - List open restaurants
+--   idx_restaurants_created_at  - Sort by registration date
+
+-- Sample Row:
+-- id: 223e4567-e89b-12d3-a456-426614174000
+-- owner_id: [owner's user id]
+-- name: Spice Kitchen
+-- rating: 4.5
+-- review_count: 45
+-- delivery_fee: 50
+-- estimated_delivery_time: 30
+-- is_open: true
+-- opening_time: 11:00
+-- closing_time: 23:00
+-- is_verified: true
+-- created_at: 2026-01-15 08:00:00+00
+
+-- ====================================================================
+-- TABLE: MENUS (Menu Items)
+-- Description: Individual food items/dishes offered by each restaurant
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                      - Primary Key, unique dish identifier
+-- restaurant_id (UUID, FK)       - References restaurants.id, which restaurant offers this dish
+-- name (TEXT, NOT NULL)          - Dish name (e.g., 'Biryani Rice', 'Burger Deluxe')
+-- description (TEXT)             - Ingredients, preparation style, allergen info
+-- price (DOUBLE PRECISION, NOT NULL) - Individual item price in local currency
+-- image_url (TEXT)               - Photo of the dish
+-- category (TEXT, NOT NULL)      - Type of dish (e.g., 'Main Course', 'Dessert', 'Beverage')
+-- is_available (BOOLEAN)         - Whether item is currently available (stock status)
+-- discount (DOUBLE PRECISION)    - Discount percentage (0-100) applied to this item
+-- tags (TEXT[])                  - Tags like ['vegetarian', 'spicy', 'gluten-free']
+-- preparation_time (INTEGER)     - Estimated cooking time in minutes
+-- created_at (TIMESTAMP)         - When item was added to menu
+-- updated_at (TIMESTAMP)         - Last menu update
+--
+-- Indexes:
+--   idx_menus_restaurant_id     - Find all items in a restaurant
+--   idx_menus_category          - Filter by dish type
+--   idx_menus_is_available      - Show only available items
+--   idx_menus_created_at        - Sort by newest items
+
+-- Sample Row:
+-- id: 323e4567-e89b-12d3-a456-426614174000
+-- restaurant_id: [restaurant id]
+-- name: Tandoori Chicken
+-- price: 320.00
+-- category: Meat
+-- is_available: true
+-- discount: 5
+-- preparation_time: 20
+-- created_at: 2026-01-15 08:00:00+00
+
+-- ====================================================================
+-- TABLE: DRIVERS
+-- Description: Delivery driver profiles and real-time location/status
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                  - Primary Key, unique driver identifier
+-- user_id (UUID, FK, UNIQUE) - References users.id, the driver's user account (one-to-one)
+-- vehicle_type (TEXT)        - 'bike', 'car', or 'scooter'
+-- vehicle_number (TEXT)      - License plate or vehicle registration number
+-- license_number (TEXT)      - Driver's driving license ID
+-- rating (DOUBLE PRECISION)  - Average delivery rating from customers (0.0-5.0)
+-- completed_deliveries (INT) - Lifetime count of successful deliveries
+-- is_available (BOOLEAN)     - Whether driver is online and accepting orders
+-- current_latitude (DP)      - Driver's real-time GPS latitude
+-- current_longitude (DP)     - Driver's real-time GPS longitude
+-- is_verified (BOOLEAN)      - Whether driver passed verification checks
+-- documents_status (JSONB)   - Complex verification status object:
+--                              {"license": "verified"|"pending"|"rejected",
+--                               "registration": "verified"|"pending"|"rejected",
+--                               "insurance": "verified"|"pending"|"rejected"}
+-- created_at (TIMESTAMP)     - Driver profile creation date
+-- updated_at (TIMESTAMP)     - Last update to driver profile
+--
+-- Indexes:
+--   idx_drivers_user_id      - Look up driver by user account
+--   idx_drivers_is_verified  - Filter verified drivers only
+--   idx_drivers_is_available - Find available drivers for assignment
+--   idx_drivers_created_at   - Sort by signup date
+
+-- Sample Row:
+-- id: 423e4567-e89b-12d3-a456-426614174000
+-- user_id: [driver's user id]
+-- vehicle_type: bike
+-- rating: 4.8
+-- completed_deliveries: 245
+-- is_available: true
+-- current_latitude: 23.8120
+-- current_longitude: 90.4140
+-- is_verified: true
+-- documents_status: {"license": "verified", "registration": "verified", "insurance": "verified"}
+
+-- ====================================================================
+-- TABLE: ORDERS
+-- Description: Customer food orders with full lifecycle tracking
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                      - Primary Key, unique order identifier
+-- user_id (UUID, FK, NOT NULL)   - References users.id, customer who placed order
+-- restaurant_id (UUID, FK, NOT NULL) - References restaurants.id, where order sent
+-- driver_id (UUID, FK)           - References drivers.id, assigned delivery driver (nullable)
+-- subtotal (DOUBLE PRECISION)    - Sum of all item prices (before tax, fees, discounts)
+-- tax_amount (DOUBLE PRECISION)  - Tax calculated on subtotal
+-- delivery_fee (DOUBLE PRECISION)- Delivery charge from restaurant
+-- discount (DOUBLE PRECISION)    - Total discount amount applied (coupons, promos)
+-- total_amount (DOUBLE PRECISION)- Final amount to be paid (subtotal + tax + delivery - discount)
+-- status (TEXT)                  - Order state: 'pending', 'confirmed', 'preparing', 'ready',
+--                                  'picked_up', 'on_the_way', 'delivered', 'cancelled'
+--                                  CHECK constraint enforces these exact values
+-- delivery_address (TEXT)        - Where to deliver the order
+-- delivery_latitude (DP)         - GPS coordinates for delivery location
+-- delivery_longitude (DP)        - GPS coordinates for delivery location
+-- notes (TEXT)                   - Special instructions from customer
+-- payment_method (TEXT)          - How customer paid ('card', 'wallet', 'cash')
+-- payment_status (TEXT)          - 'pending', 'completed', or 'failed'
+-- ordered_at (TIMESTAMP)         - When customer placed the order
+-- confirmed_at (TIMESTAMP)       - When restaurant accepted the order
+-- completed_at (TIMESTAMP)       - When order was delivered
+-- cancelled_at (TIMESTAMP)       - If cancelled, timestamp of cancellation
+-- user_rating (DOUBLE PRECISION) - 1-5 star rating given after delivery
+-- user_review (TEXT)             - Text review of the order)
+-- created_at (TIMESTAMP)         - Record creation timestamp
+-- updated_at (TIMESTAMP)         - Last update to order
+--
+-- Indexes:
+--   idx_orders_user_id          - Find all orders by customer
+--   idx_orders_restaurant_id    - Find all orders for a restaurant
+--   idx_orders_driver_id        - Find all deliveries by a driver
+--   idx_orders_status           - Filter orders by status (e.g., pending, delivered)
+--   idx_orders_payment_status   - Track payment processing
+--   idx_orders_ordered_at       - Time-based queries and sorting
+
+-- Sample Row:
+-- id: 523e4567-e89b-12d3-a456-426614174000
+-- user_id: [customer id]
+-- restaurant_id: [restaurant id]
+-- driver_id: [driver id]
+-- subtotal: 900.00
+-- tax_amount: 90.00
+-- delivery_fee: 50.00
+-- discount: 50.00
+-- total_amount: 990.00
+-- status: delivered
+-- payment_method: card
+-- payment_status: completed
+-- ordered_at: 2026-04-03 18:30:00+00
+-- completed_at: 2026-04-03 19:15:00+00
+-- user_rating: 4.5
+-- user_review: Great food and quick delivery!
+
+-- ====================================================================
+-- TABLE: ORDER_ITEMS
+-- Description: Individual line items in each order (what dishes were ordered)
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                 - Primary Key, unique line item identifier
+-- order_id (UUID, FK)       - References orders.id, which order this item belongs to
+-- menu_item_id (UUID, FK)   - References menus.id, which dish was ordered
+-- item_name (TEXT)          - Denormalized dish name (snapshot at time of order)
+-- price (DOUBLE PRECISION)  - Price paid for this item (may differ from menu if discount)
+-- quantity (INTEGER)        - How many of this dish were ordered
+-- notes (TEXT)              - Special requests for this item (e.g., 'no onions', 'extra spicy')
+-- created_at (TIMESTAMP)    - When line item was created
+--
+-- Indexes:
+--   idx_order_items_order_id      - Find all items in an order
+--   idx_order_items_menu_item_id  - Track popularity of menu items
+
+-- Sample Row:
+-- id: 623e4567-e89b-12d3-a456-426614174000
+-- order_id: [order id]
+-- menu_item_id: [menu id]
+-- item_name: Biryani Rice
+-- price: 450.00
+-- quantity: 2
+-- notes: Extra spicy
+-- created_at: 2026-04-03 18:30:00+00
+
+-- ====================================================================
+-- TABLE: PAYMENTS
+-- Description: Payment transaction records for orders
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                      - Primary Key, unique payment identifier
+-- order_id (UUID, FK, UNIQUE)    - References orders.id, must be unique (one payment per order)
+-- user_id (UUID, FK)             - References users.id, customer who made payment
+-- amount (DOUBLE PRECISION)      - Amount paid in local currency
+-- method (TEXT)                  - Payment gateway ('card', 'wallet', 'cash', 'bank_transfer')
+-- status (TEXT)                  - 'pending', 'completed', or 'failed'
+-- transaction_id (TEXT)          - External payment gateway transaction ID
+-- error_message (TEXT)           - If failed, reason for failure
+-- created_at (TIMESTAMP)         - Payment record created time
+-- updated_at (TIMESTAMP)         - Last update (when status changed)
+--
+-- Indexes:
+--   idx_payments_user_id        - Find all payments by customer
+--   idx_payments_order_id       - Look up payment for specific order
+--   idx_payments_status         - Filter completed/failed/pending transactions
+--   idx_payments_created_at     - Revenue tracking by date
+
+-- Sample Row:
+-- id: 723e4567-e89b-12d3-a456-426614174000
+-- order_id: [order id]
+-- user_id: [customer id]
+-- amount: 990.00
+-- method: card
+-- status: completed
+-- transaction_id: TXN-001-CARD
+-- created_at: 2026-04-03 18:30:00+00
+-- updated_at: 2026-04-03 18:31:00+00
+
+-- ====================================================================
+-- TABLE: REVIEWS
+-- Description: Customer reviews and ratings for orders
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                      - Primary Key, unique review identifier
+-- order_id (UUID, FK, UNIQUE)    - References orders.id, must be unique (one review per order)
+-- user_id (UUID, FK)             - References users.id, who left the review
+-- restaurant_id (UUID, FK)       - References restaurants.id, restaurant being reviewed
+-- rating (DOUBLE PRECISION)      - Star rating 1-5, CHECK constraint enforces 1 <= rating <= 5
+-- review_text (TEXT)             - Customer's written feedback/comments
+-- created_at (TIMESTAMP)         - When review was submitted
+-- updated_at (TIMESTAMP)         - Last edit to review
+--
+-- Indexes:
+--   idx_reviews_user_id         - Find reviews by customer
+--   idx_reviews_restaurant_id   - Find all reviews for a restaurant
+--   idx_reviews_rating          - Filter by star rating (e.g., 5-star reviews)
+--   idx_reviews_created_at      - Most recent reviews first
+
+-- Sample Row:
+-- id: 823e4567-e89b-12d3-a456-426614174000
+-- order_id: [order id]
+-- user_id: [customer id]
+-- restaurant_id: [restaurant id]
+-- rating: 4.5
+-- review_text: Great food and quick delivery! Loved the biryani.
+-- created_at: 2026-04-03 20:00:00+00
+
+-- ====================================================================
+-- TABLE: NOTIFICATIONS
+-- Description: In-app and push notifications for users about orders and events
+-- ====================================================================
+-- Column Details:
+-- id (UUID)                  - Primary Key, unique notification identifier
+-- user_id (UUID, FK)         - References users.id, recipient of notification
+-- order_id (UUID, FK)        - References orders.id, related order (if applicable, nullable)
+-- type (TEXT)                - Notification category: 'order_status', 'delivery_assigned',
+--                              'payment_confirmation', 'review_request', 'promotion', etc.
+-- title (TEXT)               - Short notification title for display
+-- body (TEXT)                - Notification body/message text
+-- data (JSONB)               - Additional structured data (e.g., driver location, order ID)
+-- is_read (BOOLEAN)          - Whether user has read this notification
+-- created_at (TIMESTAMP)     - Timestamp notification was sent
+--
+-- Indexes:
+--   idx_notifications_user_id  - Find all notifications for a user
+--   idx_notifications_order_id - Find notifications related to an order
+--   idx_notifications_is_read  - Show unread notifications first
+--   idx_notifications_created_at - Sort by newest first
+
+-- Sample Row:
+-- id: 923e4567-e89b-12d3-a456-426614174000
+-- user_id: [customer id]
+-- order_id: [order id]
+-- type: order_status
+-- title: Order Delivered
+-- body: Your order has been delivered
+-- data: {"status": "delivered"}
+-- is_read: true
+-- created_at: 2026-04-03 19:15:00+00
+
+-- ====================================================================
+-- DATA TYPES REFERENCE
+-- ====================================================================
+-- UUID                          - 36-character unique identifier (e.g., 123e4567-e89b-12d3-a456-426614174000)
+-- TEXT                          - Variable-length character string, no size limit
+-- INTEGER                       - Whole numbers (-2147483648 to 2147483647)
+-- DOUBLE PRECISION              - 64-bit floating point numbers for decimals/prices
+-- BOOLEAN                       - TRUE or FALSE
+-- TIMESTAMP WITH TIME ZONE      - Date and time with timezone info (e.g., 2026-04-03 15:30:00+00)
+-- TEXT[]                        - Array of text values (e.g., ['vegetarian', 'spicy'])
+-- JSONB                         - JSON data as binary format, queryable and indexable
+
+-- ====================================================================
+-- FOREIGN KEY RELATIONSHIPS
+-- ====================================================================
+-- users.id <-- restaurants.owner_id (CASCADE: delete restaurant if owner deleted)
+-- users.id <-- drivers.user_id (CASCADE: delete driver if user deleted)
+-- users.id <-- orders.user_id (CASCADE: delete orders if customer deleted)
+-- restaurants.id <-- orders.restaurant_id (CASCADE: delete orders if restaurant deleted)
+-- drivers.id <-- orders.driver_id (SET NULL: clear driver if deleted, order continues)
+-- users.id <-- payments.user_id (CASCADE: delete payments if user deleted)
+-- orders.id <-- payments.order_id (CASCADE: delete payment if order deleted - UNIQUE)
+-- users.id <-- reviews.user_id (CASCADE: delete reviews if user deleted)
+-- restaurants.id <-- reviews.restaurant_id (CASCADE: delete reviews if restaurant deleted)
+-- orders.id <-- reviews.order_id (CASCADE: delete review if order deleted - UNIQUE)
+-- restaurants.id <-- menus.restaurant_id (CASCADE: delete menu if restaurant deleted)
+-- menus.id <-- order_items.menu_item_id (RESTRICT: cannot delete menu if items exist in orders)
+-- orders.id <-- order_items.order_id (CASCADE: delete line items if order deleted)
+-- users.id <-- notifications.user_id (CASCADE: delete notifications if user deleted)
+-- orders.id <-- notifications.order_id (CASCADE: delete notification if order deleted)
+
+-- ====================================================================
+-- CONSTRAINT TYPES USED
+-- ====================================================================
+-- PRIMARY KEY             - Ensures column values are unique for row identification
+-- UNIQUE                  - Ensures column values are never duplicated
+-- NOT NULL                - Ensures column must always have a value (cannot be empty)
+-- FOREIGN KEY             - Links to primary keys in other tables
+-- CHECK                   - Ensures values match specific conditions (e.g., role IN ('user', 'restaurant'))
+-- DEFAULT                 - Sets default value if not provided (e.g., is_active DEFAULT TRUE)
+-- ON DELETE CASCADE        - If referenced row deleted, delete this row too
+-- ON DELETE SET NULL      - If referenced row deleted, set this foreign key to NULL
+-- ON DELETE RESTRICT      - Cannot delete referenced row if its still being used here
+
+-- ====================================================================
+-- END OF DOCUMENTATION
+-- ====================================================================
