@@ -260,7 +260,7 @@ class DriverService {
                   'token': fcmToken,
                   'title': 'Driver Assigned!',
                   'body':
-                      'A driver has accepted your order and is heading to pick it up',
+                      'Order #${orderId.substring(0, 8).toUpperCase()} — a driver is heading to pick it up',
                   'data': {
                     'type': AppConstants.notificationTypeOrderStatus,
                     'order_id': orderId,
@@ -379,7 +379,7 @@ class DriverService {
                 body: {
                   'token': fcmToken,
                   'title': 'Order Delivered!',
-                  'body': 'Thank you for ordering! Rate your experience',
+                  'body': 'Order #${orderId.substring(0, 8).toUpperCase()} delivered! Rate your experience',
                   'data': {
                     'type': AppConstants.notificationTypeOrderStatus,
                     'order_id': orderId,

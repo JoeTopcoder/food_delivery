@@ -396,10 +396,11 @@ class _OrderCard extends StatelessWidget {
             // Countdown timer (active orders only)
             if (orderedAt != null &&
                 status != 'delivered' &&
-                status != 'cancelled') ...[          
+                status != 'cancelled') ...[
               OrderCountdownTimer(
                 orderedAt: orderedAt,
-                estimatedMinutes: (order['estimated_prep_minutes'] as int?) ?? 45,
+                estimatedMinutes:
+                    (order['estimated_prep_minutes'] as int?) ?? 45,
               ),
               const SizedBox(height: 10),
             ],

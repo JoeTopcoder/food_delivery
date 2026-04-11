@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// A countdown timer widget that shows elapsed time since an order was placed,
 /// with a visual progress indicator toward the estimated completion time.
 ///
-/// Displays MM:SS elapsed, a progress bar, and the estimated total minutes.
-/// Turns red and shows "OVERDUE" when time exceeds the estimate.
+/// Color escalation:
+///  - Green while under estimate
+///  - Amber when > 75% of estimate
+///  - At 45 min+: light red (#EF4444)
+///  - Every 30 min after 45: progressively darker red → (#B91C1C) → (#7F1D1D)
 class OrderCountdownTimer extends StatefulWidget {
   final DateTime orderedAt;
 
@@ -61,6 +65,35 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
   double get _progress =>
       (_elapsed.inSeconds / _totalDuration.inSeconds).clamp(0.0, 1.0);
 
+  /// Returns an escalating urgency color based on elapsed time:
+  /// - Under 75% of estimate → green
+  /// - 75-100% of estimate → amber
+  /// - 45+ min elapsed → light red, darkening every 30 min after
+  Color get _urgencyColor {
+    final elapsedMin = _elapsed.inMinutes;
+
+    if (elapsedMin >= 45) {
+      // Steps beyond 45 min, each 30 min = one darker step
+      final steps = ((elapsedMin - 45) / 30).floor();
+      // Interpolate from light-red to very-dark-red
+      // step 0 = #EF4444, step 1 = #DC2626, step 2 = #B91C1C, step 3+ = #7F1D1D
+      const reds = [
+        Color(0xFFEF4444), // 45 min
+        Color(0xFFDC2626), // 75 min
+        Color(0xFFB91C1C), // 105 min
+        Color(0xFF991B1B), // 135 min
+        Color(0xFF7F1D1D), // 165 min+
+      ];
+      return reds[math.min(steps, reds.length - 1)];
+    }
+
+    if (_isOverdue || _progress > 0.75) {
+      return const Color(0xFFF59E0B); // amber
+    }
+
+    return const Color(0xFF10B981); // green
+  }
+
   String _formatDuration(Duration d) {
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
@@ -74,7 +107,8 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
   }
 
   Widget _buildCompact() {
-    final color = _isOverdue ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final color = _urgencyColor;
+    final isRed = _elapsed.inMinutes >= 45;
     final text = _isOverdue
         ? '+${_formatDuration(_elapsed - _totalDuration)}'
         : _formatDuration(_remaining);
@@ -83,7 +117,7 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          _isOverdue ? Icons.warning_amber_rounded : Icons.timer_outlined,
+          isRed ? Icons.warning_amber_rounded : Icons.timer_outlined,
           size: 14,
           color: color,
         ),
@@ -101,17 +135,17 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
   }
 
   Widget _buildFull() {
-    final Color barColor;
+    final Color barColor = _urgencyColor;
+    final elapsedMin = _elapsed.inMinutes;
     final String label;
 
-    if (_isOverdue) {
-      barColor = const Color(0xFFEF4444);
+    if (elapsedMin >= 45 && _isOverdue) {
       label = 'OVERDUE by ${_formatDuration(_elapsed - _totalDuration)}';
-    } else if (_progress > 0.75) {
-      barColor = const Color(0xFFF59E0B);
-      label = '${_formatDuration(_remaining)} remaining';
+    } else if (elapsedMin >= 45) {
+      label = '${_formatDuration(_remaining)} remaining \u2022 PRIORITY';
+    } else if (_isOverdue) {
+      label = 'OVERDUE by ${_formatDuration(_elapsed - _totalDuration)}';
     } else {
-      barColor = const Color(0xFF10B981);
       label = '${_formatDuration(_remaining)} remaining';
     }
 
@@ -137,10 +171,7 @@ class _OrderCountdownTimerState extends State<OrderCountdownTimer> {
             const Spacer(),
             Text(
               '${_formatDuration(_elapsed)} / ${_totalMinutes}m',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF9CA3AF),
-              ),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
             ),
           ],
         ),

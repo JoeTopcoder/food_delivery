@@ -271,7 +271,7 @@ class OrderService {
         topic: AppConstants.fcmTopicAdmins,
         title: 'Order Status Update',
         body:
-            'Order #${orderId.substring(0, 8)} → ${status.replaceAll('_', ' ')}',
+            'Order #${orderId.substring(0, 8).toUpperCase()} → ${status.replaceAll('_', ' ')}',
         data: {
           'type': AppConstants.notificationTypeOrderStatus,
           'order_id': orderId,
@@ -578,7 +578,7 @@ class OrderService {
       await _sendPushNotification(
         topic: 'restaurant_$restaurantId',
         title: title,
-        body: 'Order #${orderId.substring(0, 8)}',
+        body: 'Order #${orderId.substring(0, 8).toUpperCase()}',
         data: {
           'type': AppConstants.notificationTypeNewOrder,
           'order_id': orderId,
@@ -600,7 +600,7 @@ class OrderService {
     try {
       AppLogger.info('Sending customer notification for order: $orderId');
       final title = _getCustomerNotificationTitle(status);
-      final body = _getCustomerNotificationBody(status);
+      final body = _getCustomerNotificationBody(status, orderId: orderId);
 
       // Look up the customer's FCM device token for direct delivery
       final userRow = await _supabaseClient
@@ -654,7 +654,7 @@ class OrderService {
       await _sendPushNotification(
         topic: 'driver_$driverId',
         title: title,
-        body: 'Order #${orderId.substring(0, 8)}',
+        body: 'Order #${orderId.substring(0, 8).toUpperCase()}',
         data: {
           'type': AppConstants.notificationTypeDeliveryUpdate,
           'order_id': orderId,
@@ -685,7 +685,7 @@ class OrderService {
           return _sendPushNotification(
             topic: 'driver_$driverId',
             title: 'New Order Ready for Pickup!',
-            body: 'Order #${orderId.substring(0, 8)} is ready. Tap to accept.',
+            body: 'Order #${orderId.substring(0, 8).toUpperCase()} is ready. Tap to accept.',
             data: {
               'type': AppConstants.notificationTypeDeliveryUpdate,
               'order_id': orderId,
@@ -747,24 +747,25 @@ class OrderService {
   }
 
   // Get customer-specific notification body
-  String _getCustomerNotificationBody(String status) {
+  String _getCustomerNotificationBody(String status, {String? orderId}) {
+    final tag = orderId != null ? ' #${orderId.substring(0, 8).toUpperCase()}' : '';
     switch (status) {
       case 'confirmed':
-        return 'Your order has been confirmed by the restaurant';
+        return 'Order$tag has been confirmed by the restaurant';
       case 'preparing':
-        return 'Your delicious food is being prepared';
+        return 'Order$tag is being prepared now';
       case 'ready':
-        return 'Your order is ready for pickup';
+        return 'Order$tag is ready for pickup';
       case 'picked_up':
-        return 'Your order has been picked up by the driver';
+        return 'Order$tag has been picked up by the driver';
       case 'on_the_way':
-        return 'Your food will arrive in approximately 20 minutes';
+        return 'Order$tag is on the way!';
       case 'delivered':
-        return 'Thank you for ordering! Rate your experience';
+        return 'Order$tag delivered! Rate your experience';
       case 'cancelled':
-        return 'Your order has been cancelled';
+        return 'Order$tag has been cancelled';
       default:
-        return 'Your order has been updated';
+        return 'Order$tag has been updated';
     }
   }
 
