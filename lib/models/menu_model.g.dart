@@ -6,6 +6,49 @@ part of 'menu_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+OptionChoice _$OptionChoiceFromJson(Map<String, dynamic> json) => OptionChoice(
+      id: json['id'] as String,
+      groupId: json['group_id'] as String,
+      name: json['name'] as String,
+      price: (json['price'] as num?)?.toDouble() ?? 0,
+      isAvailable: json['is_available'] as bool? ?? true,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$OptionChoiceToJson(OptionChoice instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'group_id': instance.groupId,
+      'name': instance.name,
+      'price': instance.price,
+      'is_available': instance.isAvailable,
+      'sort_order': instance.sortOrder,
+    };
+
+OptionGroup _$OptionGroupFromJson(Map<String, dynamic> json) => OptionGroup(
+      id: json['id'] as String,
+      menuItemId: json['menu_item_id'] as String,
+      name: json['name'] as String,
+      isRequired: json['is_required'] as bool? ?? false,
+      maxSelections: (json['max_selections'] as num?)?.toInt() ?? 1,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      choices: (json['choices'] as List<dynamic>?)
+              ?.map((e) => OptionChoice.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+
+Map<String, dynamic> _$OptionGroupToJson(OptionGroup instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'menu_item_id': instance.menuItemId,
+      'name': instance.name,
+      'is_required': instance.isRequired,
+      'max_selections': instance.maxSelections,
+      'sort_order': instance.sortOrder,
+      'choices': instance.choices.map((e) => e.toJson()).toList(),
+    };
+
 MenuItemSide _$MenuItemSideFromJson(Map<String, dynamic> json) => MenuItemSide(
       id: json['id'] as String,
       menuItemId: json['menu_item_id'] as String,

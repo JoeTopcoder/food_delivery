@@ -69,9 +69,9 @@ class RestaurantService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('owner_id', ownerId)
-          .maybeSingle();
-      if (response == null) return null;
-      return Restaurant.fromJson(response);
+          .limit(1);
+      if (response.isEmpty) return null;
+      return Restaurant.fromJson(response.first);
     } catch (e) {
       AppLogger.error('Error fetching restaurant by owner: $e');
       rethrow;
