@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
@@ -266,7 +267,10 @@ class _RestaurantDetailScreenState
                           ),
                         ),
                       // Status + rating row
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -279,20 +283,63 @@ class _RestaurantDetailScreenState
                                   : AppTheme.accentColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              widget.restaurant.isCurrentlyOpen
-                                  ? 'Open Now'
-                                  : 'Closed',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: widget.restaurant.isCurrentlyOpen
-                                    ? AppTheme.successColor
-                                    : AppTheme.accentColor,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  widget.restaurant.isCurrentlyOpen
+                                      ? Icons.check_circle_rounded
+                                      : Icons.cancel_rounded,
+                                  size: 14,
+                                  color: widget.restaurant.isCurrentlyOpen
+                                      ? AppTheme.successColor
+                                      : AppTheme.accentColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.restaurant.isCurrentlyOpen
+                                      ? 'Open Now'
+                                      : 'Closed',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: widget.restaurant.isCurrentlyOpen
+                                        ? AppTheme.successColor
+                                        : AppTheme.accentColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          if (widget.restaurant.formattedTodayHours != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    widget.restaurant.formattedTodayHours!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -330,7 +377,6 @@ class _RestaurantDetailScreenState
                               ],
                             ),
                           ),
-                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -513,7 +559,7 @@ class _RestaurantDetailScreenState
               ],
             ),
           ),
-          // Footer with View Cart
+          // Footer with View Cart / Schedule Order
           Positioned(
             bottom: 0,
             left: 0,
@@ -526,28 +572,95 @@ class _RestaurantDetailScreenState
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: SafeArea(
                 top: false,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/cart'),
-                    icon: const Icon(Icons.shopping_cart_rounded, size: 20),
-                    label: const Text(
-                      'View Cart',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!widget.restaurant.isCurrentlyOpen) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.accentColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.schedule_rounded,
+                              size: 18,
+                              color: AppTheme.accentColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'This restaurant is closed. '
+                                '${widget.restaurant.nextOpenLabel}. '
+                                'You can schedule an order.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.accentColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (!widget.restaurant.isCurrentlyOpen) {
+                            // Pre-set the schedule time in checkout
+                            Navigator.pushNamed(
+                              context,
+                              '/cart',
+                              arguments: {
+                                'forceSchedule': true,
+                                'restaurant': widget.restaurant,
+                              },
+                            );
+                          } else {
+                            Navigator.pushNamed(context, '/cart');
+                          }
+                        },
+                        icon: Icon(
+                          widget.restaurant.isCurrentlyOpen
+                              ? Icons.shopping_cart_rounded
+                              : Icons.schedule_rounded,
+                          size: 20,
+                        ),
+                        label: Text(
+                          widget.restaurant.isCurrentlyOpen
+                              ? 'View Cart'
+                              : 'Schedule Order',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: widget.restaurant.isCurrentlyOpen
+                              ? AppTheme.primaryColor
+                              : AppTheme.accentColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ),

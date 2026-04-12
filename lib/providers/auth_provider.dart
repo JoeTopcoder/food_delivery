@@ -234,14 +234,106 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final currentUser = state.user;
+      // Fire-and-forget: don't let FCM unsubscribe block sign-out
       if (currentUser != null) {
-        await _unsubscribeFromAllTopics(currentUser);
+        _unsubscribeFromAllTopics(currentUser);
       }
-      await _authService.signOut();
+      await _authService.signOut().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          AppLogger.error('Sign out timed out – forcing local state reset');
+        },
+      );
       AppLogger.info('Sign out successful');
       state = AuthState(isLoading: false);
     } catch (e) {
       AppLogger.error('Sign out error: $e');
+      // Always clear local auth state even on error so the user isn't stuck
+      state = AuthState(isLoading: false);
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _authService.signInWithGoogle();
+
+      if (response.user != null) {
+        final authUser = response.user!;
+        User? user;
+        try {
+          user = await _userService.getUserById(authUser.id);
+        } catch (e) {
+          AppLogger.error('getUserById failed after Google sign-in: $e');
+        }
+        user ??= User(
+          id: authUser.id,
+          email: authUser.email ?? '',
+          name:
+              authUser.userMetadata?['full_name'] as String? ??
+              authUser.userMetadata?['name'] as String? ??
+              'User',
+          role: 'user',
+          createdAt: DateTime.now(),
+        );
+        AppLogger.info('Google sign-in successful, role: ${user.role}');
+        state = state.copyWith(
+          isLoading: false,
+          user: user,
+          isAuthenticated: true,
+        );
+        _subscribeToUserTopics(user); // fire-and-forget
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Google sign-in returned no user',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Google sign-in error: $e');
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithApple() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _authService.signInWithApple();
+
+      if (response.user != null) {
+        final authUser = response.user!;
+        User? user;
+        try {
+          user = await _userService.getUserById(authUser.id);
+        } catch (e) {
+          AppLogger.error('getUserById failed after Apple sign-in: $e');
+        }
+        user ??= User(
+          id: authUser.id,
+          email: authUser.email ?? '',
+          name:
+              authUser.userMetadata?['full_name'] as String? ??
+              authUser.userMetadata?['name'] as String? ??
+              'User',
+          role: 'user',
+          createdAt: DateTime.now(),
+        );
+        AppLogger.info('Apple sign-in successful, role: ${user.role}');
+        state = state.copyWith(
+          isLoading: false,
+          user: user,
+          isAuthenticated: true,
+        );
+        _subscribeToUserTopics(user); // fire-and-forget
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Apple sign-in returned no user',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Apple sign-in error: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }

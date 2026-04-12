@@ -467,14 +467,17 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     final ordersAsync = ref.watch(userOrdersProvider(userId));
     return ordersAsync.when(
       data: (orders) {
-        final totalSpent = orders.fold<double>(
+        final activeOrders = orders
+            .where((o) => o.status != 'cancelled')
+            .toList();
+        final totalSpent = activeOrders.fold<double>(
           0,
           (sum, o) => sum + o.totalAmount,
         );
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _ProfileStat(label: 'Orders', value: '${orders.length}'),
+            _ProfileStat(label: 'Orders', value: '${activeOrders.length}'),
             Container(width: 1, height: 30, color: Colors.grey[300]),
             _ProfileStat(
               label: 'Spent',

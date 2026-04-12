@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
@@ -118,6 +124,158 @@ class AuthService {
   // Get authentication state stream
   Stream<AuthState> onAuthStateChanged() {
     return _supabaseClient.auth.onAuthStateChange;
+  }
+
+  // Sign in with Google (native SDK → Supabase signInWithIdToken)
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      AppLogger.info('Signing in with Google');
+
+      // This MUST be the Web Application OAuth client ID (not Android)
+      const webClientId =
+          '379314267431-qg34f9rs5ms8bkpq298o1cn7prnqv7eu.apps.googleusercontent.com';
+
+      final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+
+      // Clear any stale session
+      await googleSignIn.signOut();
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google sign-in was cancelled');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        throw Exception('No ID token from Google — check OAuth client config');
+      }
+
+      final response = await _supabaseClient.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      if (response.user != null) {
+        await _ensureUserProfile(
+          userId: response.user!.id,
+          email: response.user!.email ?? googleUser.email,
+          name: googleUser.displayName ?? 'User',
+        );
+      }
+
+      AppLogger.info('Google sign-in successful');
+      return response;
+    } catch (e, stackTrace) {
+      AppLogger.error('Google sign-in error: $e\n$stackTrace');
+      rethrow;
+    }
+  }
+
+  // Sign in with Apple
+  Future<AuthResponse> signInWithApple() async {
+    try {
+      AppLogger.info('Signing in with Apple');
+
+      final rawNonce = _generateNonce();
+      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        throw Exception('No identity token received from Apple');
+      }
+
+      final response = await _supabaseClient.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
+      );
+
+      if (response.user != null) {
+        final name = [
+          credential.givenName,
+          credential.familyName,
+        ].where((n) => n != null).join(' ');
+
+        await _ensureUserProfile(
+          userId: response.user!.id,
+          email: response.user!.email ?? credential.email ?? '',
+          name: name.isNotEmpty ? name : 'User',
+        );
+      }
+
+      AppLogger.info('Apple sign-in successful');
+      return response;
+    } catch (e) {
+      AppLogger.error('Apple sign-in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Generate a random nonce string for Apple Sign-In
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
+  }
+
+  /// Create user profile if it doesn't already exist (for social logins)
+  /// Uses a SECURITY DEFINER RPC to bypass RLS.
+  Future<void> _ensureUserProfile({
+    required String userId,
+    required String email,
+    required String name,
+  }) async {
+    try {
+      await _supabaseClient.rpc(
+        'ensure_user_profile',
+        params: {
+          'p_user_id': userId,
+          'p_email': email,
+          'p_name': name.isNotEmpty ? name : 'User',
+          'p_role': 'user',
+        },
+      );
+      AppLogger.info('User profile ensured via RPC');
+    } catch (e) {
+      AppLogger.error('Error ensuring user profile via RPC: $e');
+      // Fallback: try direct insert (works if RLS INSERT policy exists)
+      try {
+        final existing = await _supabaseClient
+            .from(AppConstants.tableUsers)
+            .select('id')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (existing == null) {
+          await _createUserProfile(
+            userId: userId,
+            email: email,
+            name: name.isNotEmpty ? name : 'User',
+            role: 'user',
+          );
+        }
+      } catch (fallbackError) {
+        AppLogger.error(
+          'Fallback profile creation also failed: $fallbackError',
+        );
+      }
+    }
   }
 
   // Create user profile in database

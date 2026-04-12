@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/order_model.dart';
@@ -12,12 +14,14 @@ class NcbPaymentSession {
   final String transactionId;
   final String paymentUrl;
   final String callbackUrl;
+  final double? verificationAmount;
 
   const NcbPaymentSession({
     required this.orderId,
     required this.transactionId,
     required this.paymentUrl,
     required this.callbackUrl,
+    this.verificationAmount,
   });
 }
 
@@ -71,6 +75,9 @@ class PaymentService {
     required String customerPhone,
     required String customerName,
     String? billingAddress,
+    String? type,
+    String? savedCardId,
+    String? cvv,
   }) async {
     if (!isNcbConfigured) {
       throw Exception(
@@ -89,6 +96,9 @@ class PaymentService {
           'name': customerName,
           if (billingAddress != null && billingAddress.trim().isNotEmpty)
             'billingAddress': billingAddress.trim(),
+          if (type != null) 'type': type,
+          if (savedCardId != null) 'savedCardId': savedCardId,
+          if (cvv != null) 'cvv': cvv,
         },
       );
 
@@ -114,6 +124,92 @@ class PaymentService {
     } catch (e) {
       AppLogger.error('NCB checkout creation error: $e');
       rethrow;
+    }
+  }
+
+  /// Create a small random card verification charge ($1–$5 JMD) to confirm
+  /// card ownership. After the charge the user must enter the exact amount
+  /// to prove they can see it on their bank statement.
+  Future<NcbPaymentSession> createCardVerificationCheckout({
+    required String customerEmail,
+    required String customerPhone,
+    required String customerName,
+    String? cardNumber,
+    String? cardExpiry,
+    String? cardCvv,
+  }) async {
+    if (!isNcbConfigured) {
+      throw Exception('NCB is not configured.');
+    }
+
+    try {
+      final verifyId = 'verify-card-${DateTime.now().millisecondsSinceEpoch}';
+      // Random amount between $1.00 and $5.00 with cents
+      final verificationAmount =
+          (Random().nextInt(400) + 100) / 100.0; // e.g. 1.00 – 5.00
+
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.ncbInitiatePaymentFunction.replaceAll('/', ''),
+        body: {
+          'orderId': verifyId,
+          'amount': _formatAmount(verificationAmount),
+          'email': customerEmail,
+          'phone': customerPhone,
+          'name': customerName,
+          'type': 'verify_card',
+          if (cardNumber != null) 'cardNumber': cardNumber,
+          if (cardExpiry != null) 'cardExpiry': cardExpiry,
+          if (cardCvv != null) 'cardCvv': cardCvv,
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected NCB session response.');
+      }
+
+      final paymentUrl = data['payment_url'] as String?;
+      final transactionId = data['reference'] as String?;
+      final callbackUrl = AppConstants.ncbCallbackUrl;
+
+      if (paymentUrl == null || transactionId == null) {
+        throw Exception(data['error'] ?? 'NCB session is incomplete.');
+      }
+
+      return NcbPaymentSession(
+        orderId: verifyId,
+        transactionId: transactionId,
+        paymentUrl: paymentUrl,
+        callbackUrl: callbackUrl,
+        verificationAmount: verificationAmount,
+      );
+    } catch (e) {
+      AppLogger.error('Card verification checkout error: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if the user-entered amount matches the verification charge.
+  Future<bool> confirmVerificationAmount(
+    String verificationId,
+    double enteredAmount,
+  ) async {
+    try {
+      final row = await _supabaseClient
+          .from('card_verifications')
+          .select('amount, status')
+          .eq('id', verificationId)
+          .maybeSingle();
+
+      if (row == null) return false;
+      final chargedAmount = (row['amount'] as num).toDouble();
+      final status = row['status'] as String?;
+
+      // Must be a completed charge and the amounts must match exactly
+      return status == 'completed' && chargedAmount == enteredAmount;
+    } catch (e) {
+      AppLogger.error('Error confirming verification amount: $e');
+      return false;
     }
   }
 
@@ -377,6 +473,152 @@ class PaymentService {
     } catch (e) {
       AppLogger.error('Error fetching saved cards: $e');
       return [];
+    }
+  }
+
+  /// Save a card in 'pending' status after the verification charge succeeds.
+  /// The user has until [expiresAt] to enter the correct amount.
+  Future<SavedCard?> savePendingCard({
+    required String userId,
+    required String cardBrand,
+    required String lastFour,
+    required String cardholderName,
+    required String email,
+    required String phone,
+    required String verificationId,
+    required DateTime expiresAt,
+  }) async {
+    try {
+      final count = await _supabaseClient
+          .from('saved_cards')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'verified');
+      final isFirst = (count as List).isEmpty;
+
+      final inserted = await _supabaseClient
+          .from('saved_cards')
+          .insert({
+            'user_id': userId,
+            'card_brand': cardBrand.toLowerCase(),
+            'last_four': lastFour,
+            'cardholder_name': cardholderName,
+            'email': email,
+            'phone': phone,
+            'is_default': isFirst,
+            'status': 'pending',
+            'verification_id': verificationId,
+            'verification_expires_at': expiresAt.toUtc().toIso8601String(),
+            'verification_attempts': 0,
+          })
+          .select()
+          .single();
+      return SavedCard.fromJson(inserted);
+    } catch (e) {
+      AppLogger.error('Error saving pending card: $e');
+      return null;
+    }
+  }
+
+  /// Attempt to verify a pending card by matching the charged amount.
+  /// Returns true if verified, false if wrong. Increments attempt count.
+  Future<bool> verifyPendingCard(String cardId, double enteredAmount) async {
+    try {
+      // Get the card and its verification record
+      final cardRow = await _supabaseClient
+          .from('saved_cards')
+          .select(
+            'verification_id, verification_attempts, verification_expires_at',
+          )
+          .eq('id', cardId)
+          .single();
+
+      final verificationId = cardRow['verification_id'] as String?;
+      if (verificationId == null) return false;
+
+      // Check if expired
+      final expiresAt = cardRow['verification_expires_at'] as String?;
+      if (expiresAt != null &&
+          DateTime.now().toUtc().isAfter(DateTime.parse(expiresAt).toUtc())) {
+        await _supabaseClient
+            .from('saved_cards')
+            .update({'status': 'failed'})
+            .eq('id', cardId);
+        return false;
+      }
+
+      final currentAttempts = cardRow['verification_attempts'] as int? ?? 0;
+
+      // Already exhausted all attempts
+      if (currentAttempts >= 3) {
+        await _supabaseClient
+            .from('saved_cards')
+            .update({'status': 'failed'})
+            .eq('id', cardId);
+        return false;
+      }
+
+      final attempts = currentAttempts + 1;
+
+      // Check amount against card_verifications
+      final row = await _supabaseClient
+          .from('card_verifications')
+          .select('amount, status')
+          .eq('id', verificationId)
+          .maybeSingle();
+
+      if (row == null) return false;
+      final chargedAmount = (row['amount'] as num).toDouble();
+      final cvStatus = row['status'] as String?;
+      final matched = cvStatus == 'completed' && chargedAmount == enteredAmount;
+
+      if (matched) {
+        // Verify the card
+        await _supabaseClient
+            .from('saved_cards')
+            .update({'status': 'verified', 'verification_attempts': attempts})
+            .eq('id', cardId);
+        // Mark verification charge for refund
+        await _supabaseClient
+            .from('card_verifications')
+            .update({
+              'refund_status': 'refunded',
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', verificationId);
+        return true;
+      }
+
+      // Wrong amount — increment attempts, fail after 3
+      if (attempts >= 3) {
+        await _supabaseClient
+            .from('saved_cards')
+            .update({'status': 'failed', 'verification_attempts': attempts})
+            .eq('id', cardId);
+      } else {
+        await _supabaseClient
+            .from('saved_cards')
+            .update({'verification_attempts': attempts})
+            .eq('id', cardId);
+      }
+      return false;
+    } catch (e) {
+      AppLogger.error('Error verifying pending card: $e');
+      return false;
+    }
+  }
+
+  /// Get the remaining attempts for a pending card.
+  Future<int> getCardVerificationAttempts(String cardId) async {
+    try {
+      final row = await _supabaseClient
+          .from('saved_cards')
+          .select('verification_attempts')
+          .eq('id', cardId)
+          .single();
+      return row['verification_attempts'] as int? ?? 0;
+    } catch (e) {
+      return 0;
     }
   }
 
