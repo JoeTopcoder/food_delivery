@@ -13,6 +13,9 @@ class AdminService {
 
   AdminService(this._supabaseClient);
 
+  static String _sanitizeQuery(String q) =>
+      q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
   // ==================== USER MANAGEMENT ====================
 
   /// Get all users with pagination
@@ -48,7 +51,7 @@ class AdminService {
       final response = await _supabaseClient
           .from(AppConstants.tableUsers)
           .select()
-          .or('email.ilike.%$query%,name.ilike.%$query%')
+          .or('email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%')
           .limit(50);
       return (response as List)
           .map((user) => user_models.User.fromJson(user))

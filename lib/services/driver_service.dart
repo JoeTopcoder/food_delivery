@@ -422,25 +422,37 @@ class DriverService {
     }
   }
 
-  /// Increment the driver's cash float by the given amount
+  /// Increment the driver's cash float by the given amount (atomic)
   Future<void> _incrementCashFloat(String driverId, double amount) async {
     try {
-      final driver = await _supabaseClient
-          .from(AppConstants.tableDrivers)
-          .select('cash_float')
-          .eq('id', driverId)
-          .single();
-      final currentFloat = (driver['cash_float'] as num?)?.toDouble() ?? 0.0;
-      await _supabaseClient
-          .from(AppConstants.tableDrivers)
-          .update({
-            'cash_float': currentFloat + amount,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', driverId);
+      await _supabaseClient.rpc(
+        'increment_cash_float',
+        params: {'p_driver_id': driverId, 'p_amount': amount},
+      );
       AppLogger.info('Cash float incremented by $amount for driver $driverId');
     } catch (e) {
-      AppLogger.error('Error incrementing cash float: $e');
+      // Fallback to non-atomic update if RPC doesn't exist yet
+      try {
+        final driver = await _supabaseClient
+            .from(AppConstants.tableDrivers)
+            .select('cash_float')
+            .eq('id', driverId)
+            .single();
+        final currentFloat =
+            (driver['cash_float'] as num?)?.toDouble() ?? 0.0;
+        await _supabaseClient
+            .from(AppConstants.tableDrivers)
+            .update({
+              'cash_float': currentFloat + amount,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', driverId);
+        AppLogger.info(
+          'Cash float incremented (fallback) by $amount for driver $driverId',
+        );
+      } catch (e2) {
+        AppLogger.error('Error incrementing cash float: $e2');
+      }
     }
   }
 

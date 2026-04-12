@@ -104,8 +104,8 @@ class LoyaltyTransaction {
         id: json['id'] as String,
         userId: json['user_id'] as String,
         orderId: json['order_id'] as String?,
-        points: (json['points'] as num).toInt(),
-        type: json['type'] as String,
+        points: (json['points'] as num? ?? 0).toInt(),
+        type: json['type'] as String? ?? 'earn',
         description: json['description'] as String? ?? '',
         createdAt: DateTime.parse(json['created_at'] as String),
       );

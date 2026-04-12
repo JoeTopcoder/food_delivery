@@ -9,8 +9,8 @@ part of 'order_model.dart';
 OrderItemSide _$OrderItemSideFromJson(Map<String, dynamic> json) =>
     OrderItemSide(
       id: json['id'] as String,
-      sideName: json['side_name'] as String,
-      sidePrice: (json['side_price'] as num).toDouble(),
+      sideName: json['side_name'] as String? ?? '',
+      sidePrice: (json['side_price'] as num?)?.toDouble() ?? 0.0,
     );
 
 Map<String, dynamic> _$OrderItemSideToJson(OrderItemSide instance) =>
@@ -47,9 +47,10 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
       userId: json['user_id'] as String,
       restaurantId: json['restaurant_id'] as String,
       driverId: json['driver_id'] as String?,
-      items: (json['items'] as List<dynamic>)
-          .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      items: (json['items'] as List<dynamic>?)
+              ?.map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       subtotal: (json['subtotal'] as num).toDouble(),
       taxAmount: (json['tax_amount'] as num?)?.toDouble(),
       deliveryFee: (json['delivery_fee'] as num).toDouble(),

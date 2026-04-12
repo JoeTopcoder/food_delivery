@@ -262,6 +262,7 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const MenuManagementScreen(),
               );
             case '/restaurant-detail':
+              if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
               return MaterialPageRoute(
                 builder: (context) =>
@@ -285,6 +286,7 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const CustomerProfileScreen(),
               );
             case '/review':
+              if (settings.arguments is! Order) return null;
               final order = settings.arguments as Order;
               return MaterialPageRoute(
                 builder: (context) => ReviewScreen(order: order),
@@ -340,7 +342,8 @@ class _MyAppState extends ConsumerState<MyApp> {
               );
             case '/call':
               final args = settings.arguments as Map<String, dynamic>?;
-              final call = args?['call'] as CallRecord;
+              final call = args?['call'] as CallRecord?;
+              if (call == null) return null;
               final isCaller = args?['isCaller'] as bool? ?? true;
               final otherPartyName = args?['otherPartyName'] as String?;
               return MaterialPageRoute(

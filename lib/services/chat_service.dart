@@ -28,22 +28,27 @@ class ChatService {
     MessageType messageType = MessageType.text,
     Map<String, dynamic>? metadata,
   }) async {
-    final result = await _client.rpc(
-      'send_message_secure',
-      params: {
-        'p_order_id': orderId,
-        'p_message': message.trim(),
-        'p_message_type': messageType.value,
-        'p_metadata': metadata ?? {},
-      },
-    );
+    try {
+      final result = await _client.rpc(
+        'send_message_secure',
+        params: {
+          'p_order_id': orderId,
+          'p_message': message.trim(),
+          'p_message_type': messageType.value,
+          'p_metadata': metadata ?? {},
+        },
+      );
 
-    // Send push notification to other participants (non-blocking)
-    if (messageType == MessageType.text) {
-      _notifyNewMessage(orderId: orderId, senderId: senderId, message: message);
+      // Send push notification to other participants (non-blocking)
+      if (messageType == MessageType.text) {
+        _notifyNewMessage(orderId: orderId, senderId: senderId, message: message);
+      }
+
+      return result as String?;
+    } catch (e) {
+      debugPrint('ChatService.sendMessage error: $e');
+      rethrow;
     }
-
-    return result as String?;
   }
 
   /// Send FCM push to other conversation participants about a new message.
@@ -110,6 +115,7 @@ class ChatService {
   // ─── Mark read (legacy compat) ───────────────────────────────────────────
 
   Future<void> markRead(String orderId, String readerId) async {
+    try {
     // First get the conversation for this order
     final convRows = await _client
         .from('conversations')
@@ -129,6 +135,9 @@ class ChatService {
           .update({'is_read': true})
           .eq('order_id', orderId)
           .neq('sender_id', readerId);
+    }
+    } catch (e) {
+      debugPrint('ChatService.markRead error: $e');
     }
   }
 

@@ -8,6 +8,9 @@ class MenuService {
 
   MenuService(this._supabaseClient);
 
+  static String _sanitizeQuery(String q) =>
+      q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
   // Get menu items for a restaurant
   Future<List<MenuItem>> getMenuByRestaurant(String restaurantId) async {
     try {
@@ -64,7 +67,7 @@ class MenuService {
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
           .select()
-          .or('name.ilike.%$query%,description.ilike.%$query%')
+          .or('name.ilike.%${_sanitizeQuery(query)}%,description.ilike.%${_sanitizeQuery(query)}%')
           .eq('is_available', true);
 
       final items = (response as List)

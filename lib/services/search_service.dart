@@ -113,8 +113,9 @@ class SearchService {
         params['p_cuisine'] = cuisine;
       }
       if (maxPrice != null) params['p_max_price'] = maxPrice;
-      if (minRating != null && minRating > 0)
+      if (minRating != null && minRating > 0) {
         params['p_min_rating'] = minRating;
+      }
 
       final result = await _client.rpc('search_menu_items', params: params);
       return (result as List)

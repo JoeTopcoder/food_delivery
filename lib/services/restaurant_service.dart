@@ -8,6 +8,9 @@ class RestaurantService {
 
   RestaurantService(this._supabaseClient);
 
+  static String _sanitizeQuery(String q) =>
+      q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
   // Get all restaurants
   Future<List<Restaurant>> getAllRestaurants({
     int? limit,
@@ -45,7 +48,7 @@ class RestaurantService {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
           .select()
-          .or('name.ilike.%$query%,cuisine_type.ilike.%$query%')
+          .or('name.ilike.%${_sanitizeQuery(query)}%,cuisine_type.ilike.%${_sanitizeQuery(query)}%')
           .eq('is_open', true)
           .eq('is_verified', true);
 

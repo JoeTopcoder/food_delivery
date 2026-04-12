@@ -47,7 +47,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     final userAddress =
         defaultAddrAsync?.valueOrNull?.address ??
         currentUser?.address ??
-        '123 Main Street';
+        'Tap to set delivery address';
 
     final isSearching = _searchQuery.isNotEmpty;
     final searchAsync = isSearching

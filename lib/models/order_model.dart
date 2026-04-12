@@ -55,6 +55,7 @@ class Order {
   final String userId;
   final String restaurantId;
   final String? driverId;
+  @JsonKey(defaultValue: [])
   final List<OrderItem> items;
   final double subtotal;
   final double? taxAmount;

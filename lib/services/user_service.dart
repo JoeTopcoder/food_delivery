@@ -6,6 +6,9 @@ import '../utils/app_logger.dart';
 class UserService {
   final SupabaseClient _supabaseClient;
 
+  static String _sanitizeQuery(String q) =>
+      q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
   UserService(this._supabaseClient);
 
   // Get user by ID
@@ -101,7 +104,7 @@ class UserService {
       final response = await _supabaseClient
           .from(AppConstants.tableUsers)
           .select()
-          .or('email.ilike.%$query%,name.ilike.%$query%');
+          .or('email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%');
 
       final users = (response as List)
           .map((user) => User.fromJson(user))

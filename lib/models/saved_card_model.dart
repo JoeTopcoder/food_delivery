@@ -26,9 +26,9 @@ class SavedCard {
     userId: json['user_id'] as String,
     cardBrand: json['card_brand'] as String,
     lastFour: json['last_four'] as String,
-    cardholderName: json['cardholder_name'] as String,
-    email: json['email'] as String,
-    phone: json['phone'] as String,
+    cardholderName: json['cardholder_name'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    phone: json['phone'] as String? ?? '',
     isDefault: json['is_default'] as bool? ?? false,
     createdAt: DateTime.parse(json['created_at'] as String),
   );

@@ -44,14 +44,25 @@ class AddressService {
   }
 
   Future<void> setDefault(String addressId, String userId) async {
-    await _client
-        .from('user_addresses')
-        .update({'is_default': false})
-        .eq('user_id', userId);
-    await _client
-        .from('user_addresses')
-        .update({'is_default': true})
-        .eq('id', addressId);
+    try {
+      await _client
+          .from('user_addresses')
+          .update({'is_default': false})
+          .eq('user_id', userId);
+      await _client
+          .from('user_addresses')
+          .update({'is_default': true})
+          .eq('id', addressId);
+    } catch (e) {
+      // If second update fails, at least try to restore the target as default
+      try {
+        await _client
+            .from('user_addresses')
+            .update({'is_default': true})
+            .eq('id', addressId);
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<void> deleteAddress(String addressId) async {

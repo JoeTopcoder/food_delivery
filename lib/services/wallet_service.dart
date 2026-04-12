@@ -41,7 +41,10 @@ class WalletService {
         'wallet_deposit',
         params: {'p_user_id': userId, 'p_amount': amount, 'p_method': method},
       );
-      final data = result as Map<String, dynamic>;
+      if (result == null || result is! Map<String, dynamic>) {
+        throw Exception('Invalid response from wallet_deposit');
+      }
+      final data = result;
       return Wallet(
         userId: userId,
         balance: (data['balance'] as num).toDouble(),
@@ -68,7 +71,10 @@ class WalletService {
           'p_order_id': orderId,
         },
       );
-      final data = result as Map<String, dynamic>;
+      if (result == null || result is! Map<String, dynamic>) {
+        throw Exception('Invalid response from wallet_pay');
+      }
+      final data = result;
       return Wallet(
         userId: userId,
         balance: (data['balance'] as num).toDouble(),
