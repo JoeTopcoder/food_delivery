@@ -145,8 +145,8 @@ class AgoraService {
       return false;
     }
     if (_isInChannel) {
-      debugPrint('AgoraService: already in channel, skipping join');
-      return true;
+      debugPrint('AgoraService: stale isInChannel — forcing leave before re-join');
+      await leaveChannel();
     }
     try {
       debugPrint(
@@ -178,13 +178,14 @@ class AgoraService {
 
   // ── Leave channel (keep engine alive for next call) ──────────────────────
   Future<void> leaveChannel() async {
+    // Set false immediately so new calls don't see stale state
+    _isInChannel = false;
     if (_engine == null) return;
     try {
       await _engine!.leaveChannel();
     } catch (e) {
       debugPrint('AgoraService: leaveChannel: $e');
     }
-    _isInChannel = false;
   }
 
   // ── Renew token mid-call ─────────────────────────────────────────────────
