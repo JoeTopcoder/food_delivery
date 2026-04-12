@@ -1021,6 +1021,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
     }
 
+    // Wallet: block order if balance is too low
+    if (_selectedPayment == 'wallet') {
+      final walletBalance =
+          ref.read(walletNotifierProvider).valueOrNull?.totalAvailable ?? 0;
+      if (walletBalance < total) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
+              'Top up \$${(total - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _placingOrder = true);
 
     try {
