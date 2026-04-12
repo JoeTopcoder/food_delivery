@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/order_model.dart';
@@ -44,8 +46,7 @@ class OrderService {
       final commissionAmount = totalAmount * commissionRate;
 
       // Generate 4-digit OTP for delivery verification
-      final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
-          .toString();
+      final otp = (1000 + Random.secure().nextInt(9000)).toString();
 
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)

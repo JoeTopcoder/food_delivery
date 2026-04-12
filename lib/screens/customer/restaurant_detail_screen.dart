@@ -557,6 +557,7 @@ class _RestaurantDetailScreenState
     );
   }
 
+  // ignore: unused_element
   Future<List<MenuItemSide>?> _showSidesSheet(
     BuildContext context,
     MenuItem item,

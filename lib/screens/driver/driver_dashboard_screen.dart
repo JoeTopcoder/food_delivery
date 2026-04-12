@@ -150,10 +150,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             radius: 24,
                             backgroundColor: const Color(0xFF1A1D2E),
                             backgroundImage:
-                                authState.user!.profileImageUrl != null
+                                authState.user?.profileImageUrl != null
                                 ? NetworkImage(authState.user!.profileImageUrl!)
                                 : null,
-                            child: authState.user!.profileImageUrl == null
+                            child: authState.user?.profileImageUrl == null
                                 ? const Icon(
                                     Icons.person,
                                     color: Colors.white60,
@@ -168,7 +168,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hey, ${authState.user!.name?.split(' ').first ?? 'Driver'}',
+                                'Hey, ${authState.user?.name?.split(' ').first ?? 'Driver'}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,

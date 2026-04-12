@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_logger.dart';
 
@@ -116,9 +118,9 @@ class EtaService {
   }
 
   double _estimateDistance(double lat1, double lng1, double lat2, double lng2) {
-    // Simple approximation in km
+    // Simple approximation in km (Euclidean on equirectangular projection)
     final dLat = (lat2 - lat1) * 111.0;
     final dLng = (lng2 - lng1) * 111.0 * 0.85; // Jamaica ~18°N
-    return (dLat * dLat + dLng * dLng).abs();
+    return sqrt(dLat * dLat + dLng * dLng);
   }
 }

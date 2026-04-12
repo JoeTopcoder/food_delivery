@@ -242,20 +242,22 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (_isJoining) return;
     _joinRetryCount++;
     if (_joinRetryCount > 6) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _stageError = 'Could not connect — check your connection',
         );
+      }
       return;
     }
     debugPrint('CallScreen: retry #$_joinRetryCount — re-joining...');
-    if (mounted)
+    if (mounted) {
       setState(() {
         _stageError = 'Retrying (#$_joinRetryCount)...';
         _tokenReady = false;
         _channelReady = false;
         _audioReady = false;
       });
+    }
     _token = null;
     await _agora.leaveChannel();
     await Future.delayed(const Duration(milliseconds: 800));
@@ -442,7 +444,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (_callStatus == CallStatus.ringing) {
       return AnimatedBuilder(
         animation: _pulseAnim,
-        builder: (_, __) => SizedBox(
+        builder: (_, _) => SizedBox(
           width: 140,
           height: 140,
           child: Stack(
@@ -729,13 +731,11 @@ class _StageRow extends StatelessWidget {
   final String label;
   final bool done;
   final bool failed;
-  final String? detail;
 
   const _StageRow({
     required this.label,
     required this.done,
     required this.failed,
-    this.detail,
   });
 
   @override
@@ -767,21 +767,17 @@ class _StageRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Flexible(
-            child: Text(
-              detail != null && detail!.length > 22
-                  ? '${detail!.substring(0, 22)}...'
-                  : (detail ?? (done ? 'Ready' : 'Waiting...')),
-              style: TextStyle(
-                color: failed
-                    ? const Color(0xFFEF4444)
-                    : done
-                    ? const Color(0xFF22C55E)
-                    : const Color(0xFF6B7280),
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.end,
+          Text(
+            done ? 'Ready' : 'Waiting...',
+            style: TextStyle(
+              color: failed
+                  ? const Color(0xFFEF4444)
+                  : done
+                  ? const Color(0xFF22C55E)
+                  : const Color(0xFF6B7280),
+              fontSize: 12,
             ),
+            textAlign: TextAlign.end,
           ),
         ],
       ),

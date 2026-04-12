@@ -93,7 +93,7 @@ class ChatMessage {
     conversationId: json['conversation_id'] as String?,
     senderId: json['sender_id'] as String,
     senderRole: json['sender_role'] as String,
-    message: json['message'] as String,
+    message: json['message'] as String? ?? '',
     messageType: MessageTypeExt.fromString(
       json['message_type'] as String? ?? 'text',
     ),

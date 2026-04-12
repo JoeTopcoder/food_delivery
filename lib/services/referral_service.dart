@@ -7,12 +7,17 @@ class ReferralService {
 
   /// Get the current user's referral code
   Future<String?> getReferralCode(String userId) async {
-    final res = await _client
-        .from('users')
-        .select('referral_code')
-        .eq('id', userId)
-        .single();
-    return res['referral_code'] as String?;
+    try {
+      final res = await _client
+          .from('users')
+          .select('referral_code')
+          .eq('id', userId)
+          .maybeSingle();
+      return res?['referral_code'] as String?;
+    } catch (e) {
+      AppLogger.error('Error getting referral code: $e');
+      return null;
+    }
   }
 
   /// Apply a referral code during sign-up

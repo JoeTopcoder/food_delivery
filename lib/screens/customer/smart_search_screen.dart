@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/search_provider.dart';
-import '../../services/search_service.dart';
 import 'restaurant_detail_screen.dart';
 import '../../utils/friendly_error.dart';
 
