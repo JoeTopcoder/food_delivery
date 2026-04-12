@@ -89,6 +89,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   // ── Init: permission → engine → join ──────────────────────────────────────
   Future<void> _initCall() async {
+    // 0. Force-leave any stale channel from a previous call
+    await _agora.leaveChannel();
+
     // 1. Microphone permission
     final hasMic = await _agora.requestMicPermission();
     if (!mounted) return;
@@ -178,10 +181,18 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   // ── Join Agora channel ─────────────────────────────────────────────────────
   Future<void> _joinChannel() async {
-    if (_isJoining || _agora.isInChannel) {
-      debugPrint(
-        'CallScreen: _joinChannel skipped — isJoining=$_isJoining isInChannel=${_agora.isInChannel}',
-      );
+    if (_isJoining) {
+      debugPrint('CallScreen: _joinChannel skipped — already joining');
+      return;
+    }
+    if (_agora.isInChannel) {
+      debugPrint('CallScreen: already in channel — marking ready');
+      if (mounted) {
+        setState(() {
+          _channelReady = true;
+          _audioReady = true;
+        });
+      }
       return;
     }
     _isJoining = true;
