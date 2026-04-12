@@ -52,6 +52,7 @@ import 'screens/admin/admin_feedback_screen.dart';
 import 'screens/admin/admin_surge_screen.dart';
 import 'screens/admin/admin_banners_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
+import 'screens/admin/admin_lookup_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -64,6 +65,7 @@ import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'screens/splash_screen.dart';
 // import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
@@ -146,13 +148,25 @@ class _MyAppState extends ConsumerState<MyApp> {
   static Widget _getHomeForRole(String? role) {
     switch (role) {
       case 'driver':
-        return const DriverDashboardScreen();
+        return const SplashScreen(
+          role: 'driver',
+          destination: DriverDashboardScreen(),
+        );
       case 'restaurant':
-        return const RestaurantDashboardScreen();
+        return const SplashScreen(
+          role: 'restaurant',
+          destination: RestaurantDashboardScreen(),
+        );
       case 'admin':
-        return const AdminDashboardScreen();
+        return const SplashScreen(
+          role: 'admin',
+          destination: AdminDashboardScreen(),
+        );
       default:
-        return const MainNavigationScreen();
+        return const SplashScreen(
+          role: 'customer',
+          destination: MainNavigationScreen(),
+        );
     }
   }
 
@@ -415,6 +429,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-banners':
               return MaterialPageRoute(
                 builder: (context) => const AdminBannersScreen(),
+              );
+            case '/admin-lookup':
+              return MaterialPageRoute(
+                builder: (context) => const AdminLookupScreen(),
               );
             case '/wallet':
               return MaterialPageRoute(
