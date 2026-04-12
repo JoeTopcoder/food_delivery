@@ -7,6 +7,10 @@ class SavedCard {
   final String email;
   final String phone;
   final bool isDefault;
+  final String status; // 'pending', 'verified', 'failed'
+  final String? verificationId;
+  final DateTime? verificationExpiresAt;
+  final int verificationAttempts;
   final DateTime createdAt;
 
   const SavedCard({
@@ -18,6 +22,10 @@ class SavedCard {
     required this.email,
     required this.phone,
     this.isDefault = false,
+    this.status = 'verified',
+    this.verificationId,
+    this.verificationExpiresAt,
+    this.verificationAttempts = 0,
     required this.createdAt,
   });
 
@@ -30,6 +38,12 @@ class SavedCard {
     email: json['email'] as String? ?? '',
     phone: json['phone'] as String? ?? '',
     isDefault: json['is_default'] as bool? ?? false,
+    status: json['status'] as String? ?? 'verified',
+    verificationId: json['verification_id'] as String?,
+    verificationExpiresAt: json['verification_expires_at'] != null
+        ? DateTime.parse(json['verification_expires_at'] as String)
+        : null,
+    verificationAttempts: json['verification_attempts'] as int? ?? 0,
     createdAt: DateTime.parse(json['created_at'] as String),
   );
 
@@ -41,6 +55,10 @@ class SavedCard {
     'email': email,
     'phone': phone,
     'is_default': isDefault,
+    'status': status,
+    'verification_id': verificationId,
+    'verification_expires_at': verificationExpiresAt?.toIso8601String(),
+    'verification_attempts': verificationAttempts,
   };
 
   String get displayBrand {
@@ -57,4 +75,20 @@ class SavedCard {
   }
 
   String get maskedNumber => '•••• $lastFour';
+
+  bool get isPending => status == 'pending';
+  bool get isVerified => status == 'verified';
+  bool get isFailed => status == 'failed';
+
+  bool get isExpired =>
+      verificationExpiresAt != null &&
+      DateTime.now().toUtc().isAfter(verificationExpiresAt!.toUtc());
+
+  Duration? get timeRemaining {
+    if (verificationExpiresAt == null) return null;
+    final remaining = verificationExpiresAt!.toUtc().difference(
+      DateTime.now().toUtc(),
+    );
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
 }

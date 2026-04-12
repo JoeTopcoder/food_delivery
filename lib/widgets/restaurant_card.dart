@@ -14,6 +14,8 @@ class RestaurantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOpen = restaurant.isCurrentlyOpen;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -85,30 +87,31 @@ class RestaurantCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Open/Closed badge
-                if (!restaurant.isCurrentlyOpen)
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Closed',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                // Open/Closed badge — always shown
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isOpen
+                          ? AppTheme.successColor
+                          : AppTheme.accentColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isOpen ? 'Open Now' : 'Closed',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
+                ),
               ],
             ),
             // Info section
@@ -170,11 +173,19 @@ class RestaurantCard extends StatelessWidget {
                         color: Colors.grey[400],
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '${restaurant.estimatedDeliveryTime ?? 30} min',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      Flexible(
+                        child: Text(
+                          restaurant.formattedTodayHours ??
+                              '${restaurant.estimatedDeliveryTime ?? 30} min',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Icon(
                         Icons.delivery_dining_rounded,
                         size: 15,

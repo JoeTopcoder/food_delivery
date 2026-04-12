@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/est_datetime.dart';
 
 part 'restaurant_model.g.dart';
 
@@ -145,6 +146,7 @@ class Restaurant {
   }
 
   /// Whether the restaurant is open right now based on its operating hours.
+  /// All comparisons use Eastern Standard Time (UTC-5).
   /// Falls back to the manual [isOpen] flag when no schedule is set.
   bool get isCurrentlyOpen {
     if (!isOpen) return false; // manual override always wins
@@ -157,24 +159,125 @@ class Restaurant {
       return isOpen;
     }
 
-    // Day-of-week key (lowercase english)
-    final now = DateTime.now();
-    final dayName = DateFormat('EEEE').format(now).toLowerCase();
-    final dayData = operatingHours![dayName];
-    if (dayData is! Map) return isOpen;
+    final todayHours = _todayHours();
+    if (todayHours == null) return isOpen;
 
-    final dayIsOpen = dayData['is_open'] ?? true;
+    final dayIsOpen = todayHours['is_open'] ?? true;
     if (dayIsOpen != true) return false;
 
-    final open = dayData['open'] as String?;
-    final close = dayData['close'] as String?;
+    final open = todayHours['open'] as String?;
+    final close = todayHours['close'] as String?;
     if (open == null || close == null) return true;
 
     return _isWithinTimeRange(open, close);
   }
 
+  /// Returns the operating-hours map for the current EST day, or null.
+  Map<String, dynamic>? _todayHours() {
+    if (operatingHours == null || operatingHours!.isEmpty) return null;
+    final now = EstDateTime.now();
+    final dayName = DateFormat('EEEE').format(now).toLowerCase();
+    final dayData = operatingHours![dayName];
+    return dayData is Map ? Map<String, dynamic>.from(dayData) : null;
+  }
+
+  /// Returns the opening time (HH:mm) for a given EST [day] name,
+  /// or falls back to the legacy [openingTime].
+  String? _openTimeForDay(String day) {
+    final dayData = operatingHours?[day];
+    if (dayData is Map) return dayData['open'] as String?;
+    return openingTime;
+  }
+
+  /// The earliest DateTime (EST) the customer can schedule an order when
+  /// the restaurant is currently closed.
+  /// Rule: next day, 1 hour after opening time.
+  DateTime? get nextSchedulableTime {
+    final now = EstDateTime.now();
+    final days = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    final todayIdx = now.weekday - 1; // DateTime.weekday: 1=Mon
+
+    // Look up to 7 days ahead for the next open day
+    for (int offset = 1; offset <= 7; offset++) {
+      final idx = (todayIdx + offset) % 7;
+      final dayName = days[idx];
+
+      // Check if this day is marked open
+      if (operatingHours != null && operatingHours!.isNotEmpty) {
+        final dayData = operatingHours![dayName];
+        if (dayData is Map && dayData['is_open'] == false) continue;
+      }
+
+      final openStr = _openTimeForDay(dayName);
+      if (openStr == null) continue;
+
+      final parts = openStr.split(':');
+      if (parts.length < 2) continue;
+
+      final openHour = int.parse(parts[0]);
+      final openMinute = int.parse(parts[1]);
+
+      // Build the date for that future day
+      final targetDate = now.add(Duration(days: offset));
+      // 1 hour after opening
+      return DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+        openHour + 1,
+        openMinute,
+      );
+    }
+    return null;
+  }
+
+  /// Formatted string describing when the restaurant next opens (EST).
+  String get nextOpenLabel {
+    final t = nextSchedulableTime;
+    if (t == null) return 'Unavailable';
+    // Subtract the 1-hour buffer to show actual opening time
+    final openTime = t.subtract(const Duration(hours: 1));
+    return 'Opens ${DateFormat('EEEE').format(openTime)} at '
+        '${DateFormat('h:mm a').format(openTime)}';
+  }
+
+  /// Today's hours formatted as "8:00 AM - 10:00 PM" or null.
+  String? get formattedTodayHours {
+    final hours = _todayHours();
+    if (hours != null) {
+      final open = hours['open'] as String?;
+      final close = hours['close'] as String?;
+      if (open != null && close != null) {
+        return '${_formatTime(open)} - ${_formatTime(close)}';
+      }
+    }
+    // Fall back to legacy fields
+    if (openingTime != null && closingTime != null) {
+      return '${_formatTime(openingTime!)} - ${_formatTime(closingTime!)}';
+    }
+    return null;
+  }
+
+  /// Convert "HH:mm" (24-hour) to "h:mm AM/PM".
+  static String _formatTime(String hhmm) {
+    final parts = hhmm.split(':');
+    if (parts.length < 2) return hhmm;
+    final h = int.tryParse(parts[0]) ?? 0;
+    final m = int.tryParse(parts[1]) ?? 0;
+    final dt = DateTime(2000, 1, 1, h, m);
+    return DateFormat('h:mm a').format(dt);
+  }
+
   bool _isWithinTimeRange(String openStr, String closeStr) {
-    final now = DateTime.now();
+    final now = EstDateTime.now();
     final parts1 = openStr.split(':');
     final parts2 = closeStr.split(':');
     if (parts1.length < 2 || parts2.length < 2) return true;

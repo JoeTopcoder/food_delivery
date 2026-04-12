@@ -92,6 +92,11 @@ dependencies:
   agora_rtc_engine: ^6.6.2
   permission_handler: ^12.0.1
 
+  # Social Sign-In
+  google_sign_in: ^6.2.2
+  sign_in_with_apple: ^6.1.4
+  crypto: ^3.0.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

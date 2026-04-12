@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,39 +35,80 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
-      if (mounted) {
-        final role = ref.read(authNotifierProvider).user?.role;
-        String route;
-        switch (role) {
-          case 'driver':
-            route = '/driver-dashboard';
-            break;
-          case 'restaurant':
-            route = '/restaurant-dashboard';
-            break;
-          case 'admin':
-            route = '/admin-dashboard';
-            break;
-          default:
-            route = '/home';
-        }
-        Navigator.of(context).pushReplacementNamed(route);
-      }
+      _navigateAfterSignIn();
     } catch (e) {
       AppLogger.error('Sign in error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red[700],
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
+      _showError(e);
     }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+      _navigateAfterSignIn();
+    } catch (e) {
+      AppLogger.error('Google sign-in error: $e');
+      if (!mounted) return;
+      // Show specific error for debugging social sign-in issues
+      final msg = e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.contains('cancelled')
+                ? 'Google sign-in was cancelled'
+                : 'Google sign-in failed: ${msg.length > 120 ? msg.substring(0, 120) : msg}',
+          ),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithApple();
+      _navigateAfterSignIn();
+    } catch (e) {
+      AppLogger.error('Apple sign-in error: $e');
+      _showError(e);
+    }
+  }
+
+  void _navigateAfterSignIn() {
+    if (!mounted) return;
+    final role = ref.read(authNotifierProvider).user?.role;
+    String route;
+    switch (role) {
+      case 'driver':
+        route = '/driver-dashboard';
+        break;
+      case 'restaurant':
+        route = '/restaurant-dashboard';
+        break;
+      case 'admin':
+        route = '/admin-dashboard';
+        break;
+      default:
+        route = '/home';
+    }
+    Navigator.of(context).pushReplacementNamed(route);
+  }
+
+  void _showError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(friendlyError(e)),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -226,6 +268,63 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Divider
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Divider(color: Color(0xFFE5E7EB)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or continue with',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ),
+                        const Expanded(
+                          child: Divider(color: Color(0xFFE5E7EB)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Social login buttons
+                    Row(
+                      children: [
+                        // Google
+                        Expanded(
+                          child: _SocialButton(
+                            onPressed: authState.isLoading
+                                ? null
+                                : _handleGoogleSignIn,
+                            icon: _googleIcon(),
+                            label: 'Google',
+                          ),
+                        ),
+                        // Apple — only on iOS/macOS
+                        if (Platform.isIOS || Platform.isMacOS) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _SocialButton(
+                              onPressed: authState.isLoading
+                                  ? null
+                                  : _handleAppleSignIn,
+                              icon: const Icon(
+                                Icons.apple,
+                                size: 22,
+                                color: Colors.black,
+                              ),
+                              label: 'Apple',
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
                     // Sign up link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -256,6 +355,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _googleIcon() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
     );
   }
 
@@ -372,4 +479,108 @@ class _GradientButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SocialButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final Widget icon;
+  final String label;
+
+  const _SocialButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor: Colors.white,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final double cx = w / 2;
+    final double cy = h / 2;
+    final double r = w / 2;
+
+    // Blue
+    final bluePaint = Paint()..color = const Color(0xFF4285F4);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -0.6,
+      1.8,
+      true,
+      bluePaint,
+    );
+
+    // Green
+    final greenPaint = Paint()..color = const Color(0xFF34A853);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      1.2,
+      1.2,
+      true,
+      greenPaint,
+    );
+
+    // Yellow
+    final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      2.4,
+      1.0,
+      true,
+      yellowPaint,
+    );
+
+    // Red
+    final redPaint = Paint()..color = const Color(0xFFEA4335);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      3.4,
+      1.6,
+      true,
+      redPaint,
+    );
+
+    // White inner circle
+    final whitePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.55, whitePaint);
+
+    // Blue bar for the "G" cutout
+    canvas.drawRect(
+      Rect.fromLTRB(cx, cy - r * 0.15, cx + r, cy + r * 0.15),
+      bluePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -993,8 +993,9 @@ class _CancelOrderButton extends ConsumerWidget {
         content: const Text(
           'Cancellation within 2 minutes is free. '
           'After that, a \$200 fee applies. '
-          'If the restaurant is already preparing, a 15% fee may be charged. '
-          'Fees are deducted from your wallet.',
+          'If the restaurant is already preparing, a 15% fee may be charged.\n\n'
+          'If you paid with your wallet, the order amount will be '
+          'refunded minus any cancellation fee.',
         ),
         actions: [
           TextButton(
@@ -1005,15 +1006,22 @@ class _CancelOrderButton extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await ref
+                final result = await ref
                     .read(walletNotifierProvider.notifier)
                     .cancelOrder(orderId);
                 ref.invalidate(userOrdersProvider);
                 if (context.mounted) {
+                  final refund = (result['refund'] as num?)?.toDouble() ?? 0;
+                  final penalty = (result['penalty'] as num?)?.toDouble() ?? 0;
+                  final message = refund > 0
+                      ? 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.'
+                      : penalty > 0
+                      ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'
+                      : 'Order cancelled';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Order cancelled'),
-                      backgroundColor: Color(0xFF10B981),
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: const Color(0xFF10B981),
                     ),
                   );
                   Navigator.pop(context);

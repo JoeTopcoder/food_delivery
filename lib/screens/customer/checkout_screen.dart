@@ -19,6 +19,7 @@ import '../../utils/app_theme.dart';
 import '../../providers/wallet_provider.dart';
 import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
+import '../../utils/est_datetime.dart';
 import '../../utils/friendly_error.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -34,9 +35,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _cardholderCtrl = TextEditingController();
   final _paymentEmailCtrl = TextEditingController();
   final _paymentPhoneCtrl = TextEditingController();
+  final _cvcCtrl = TextEditingController();
   String _selectedPayment = 'cash';
   SavedCard? _selectedSavedCard;
-  bool _useNewCard = false;
   bool _agreeToTerms = false;
   bool _applyingPromo = false;
   bool _placingOrder = false;
@@ -55,6 +56,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _cardholderCtrl.dispose();
     _paymentEmailCtrl.dispose();
     _paymentPhoneCtrl.dispose();
+    _cvcCtrl.dispose();
     _customTipCtrl.dispose();
     super.dispose();
   }
@@ -270,40 +272,90 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // ── Schedule (optional) ───────────────────────────────
-                _Section(
-                  title: 'Delivery Time',
-                  icon: Icons.schedule_rounded,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                // ── Schedule (optional / forced when closed) ─────────
+                Builder(
+                  builder: (context) {
+                    final restaurant = restaurantAsync.valueOrNull;
+                    final isClosed =
+                        restaurant != null && !restaurant.isCurrentlyOpen;
+
+                    // Auto-set schedule when restaurant is closed
+                    if (isClosed && _scheduledAt == null) {
+                      final earliest = restaurant.nextSchedulableTime;
+                      if (earliest != null) {
+                        Future.microtask(
+                          () => setState(() => _scheduledAt = earliest),
+                        );
+                      }
+                    }
+
+                    return _Section(
+                      title: 'Delivery Time',
+                      icon: Icons.schedule_rounded,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: _TimeChip(
-                              label: 'ASAP',
-                              subtitle: '20-35 min',
-                              selected: _scheduledAt == null,
-                              onTap: () => setState(() => _scheduledAt = null),
+                          if (isClosed) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor.withValues(
+                                  alpha: 0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppTheme.accentColor.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'This restaurant is currently closed. '
+                                '${restaurant!.nextOpenLabel}. '
+                                'Your order will be scheduled.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.accentColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _TimeChip(
-                              label: 'Schedule',
-                              subtitle: _scheduledAt != null
-                                  ? DateFormat(
-                                      'MMM d, h:mm a',
-                                    ).format(_scheduledAt!)
-                                  : 'Pick time',
-                              selected: _scheduledAt != null,
-                              onTap: _pickSchedule,
-                            ),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _TimeChip(
+                                  label: 'ASAP',
+                                  subtitle: '20-35 min',
+                                  selected: _scheduledAt == null && !isClosed,
+                                  onTap: isClosed
+                                      ? null
+                                      : () =>
+                                            setState(() => _scheduledAt = null),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _TimeChip(
+                                  label: 'Schedule',
+                                  subtitle: _scheduledAt != null
+                                      ? DateFormat(
+                                          'MMM d, h:mm a',
+                                        ).format(_scheduledAt!)
+                                      : 'Pick time',
+                                  selected: _scheduledAt != null || isClosed,
+                                  onTap: () =>
+                                      _pickSchedule(restaurant: restaurant),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
 
@@ -360,7 +412,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                       if (_selectedPayment == 'card') ...[
                         const SizedBox(height: 12),
-                        // ── Saved Cards ──
+                        // ── Saved Cards (verified only) ──
                         if (savedCardsAsync != null)
                           savedCardsAsync.when(
                             loading: () => const Padding(
@@ -377,28 +429,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             ),
                             error: (_, _) => const SizedBox.shrink(),
                             data: (savedCards) {
-                              if (savedCards.isEmpty) {
-                                return const SizedBox.shrink();
+                              final verifiedCards = savedCards
+                                  .where((c) => c.isVerified)
+                                  .toList();
+                              if (verifiedCards.isEmpty) {
+                                return Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.credit_card_off_outlined,
+                                        size: 32,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'No saved cards',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Add a card from your Wallet first',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
                               }
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ...savedCards.map(
+                                  ...verifiedCards.map(
                                     (card) => Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: _SavedCardTile(
                                         card: card,
                                         selected:
-                                            _selectedSavedCard?.id == card.id &&
-                                            !_useNewCard,
+                                            _selectedSavedCard?.id == card.id,
                                         onTap: () {
                                           setState(() {
                                             _selectedSavedCard = card;
-                                            _useNewCard = false;
                                             _cardholderCtrl.text =
                                                 card.cardholderName;
                                             _paymentEmailCtrl.text = card.email;
                                             _paymentPhoneCtrl.text = card.phone;
+                                            _cvcCtrl.clear();
                                           });
                                         },
                                         onDelete: () async {
@@ -449,32 +538,163 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       ),
                                     ),
                                   ),
-                                  // "Use a new card" option
-                                  _PaymentTile(
-                                    icon: Icons.add_card_rounded,
-                                    label: 'Use a new card',
-                                    subtitle: 'Enter new card details',
-                                    selected: _useNewCard,
-                                    onTap: () {
-                                      setState(() {
-                                        _useNewCard = true;
-                                        _selectedSavedCard = null;
-                                      });
-                                    },
-                                  ),
                                 ],
                               );
                             },
                           ),
-                        // Show card panel if no saved cards exist, or user chose "new card"
-                        if (savedCardsAsync == null ||
-                            savedCardsAsync.valueOrNull?.isEmpty == true ||
-                            _useNewCard)
-                          _CardPaymentPanel(
-                            cardholderController: _cardholderCtrl,
-                            emailController: _paymentEmailCtrl,
-                            phoneController: _paymentPhoneCtrl,
+                        // CVC field when a saved card is selected
+                        if (_selectedSavedCard != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF111827), Color(0xFF1F2937)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF111827,
+                                  ).withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.lock_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Paying with ${_selectedSavedCard!.displayBrand} •••• ${_selectedSavedCard!.lastFour}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Enter your CVC to confirm payment',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: 120,
+                                  child: TextField(
+                                    controller: _cvcCtrl,
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 4,
+                                    obscureText: true,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 6,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '•••',
+                                      hintStyle: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                        letterSpacing: 6,
+                                      ),
+                                      counterText: '',
+                                      filled: true,
+                                      fillColor: Colors.white.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.15,
+                                          ),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF10B981,
+                                    ).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF10B981,
+                                      ).withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.shield_outlined,
+                                        color: const Color(0xFF10B981),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Your CVC is never stored and is used only for this transaction',
+                                          style: TextStyle(
+                                            color: const Color(0xFF10B981),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
                       ],
                     ],
                   ),
@@ -961,29 +1181,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Future<void> _pickSchedule() async {
-    final now = DateTime.now();
+  Future<void> _pickSchedule({Restaurant? restaurant}) async {
+    final now = EstDateTime.now();
+    final isClosed = restaurant != null && !restaurant.isCurrentlyOpen;
+    final earliest = isClosed
+        ? restaurant.nextSchedulableTime ?? now.add(const Duration(hours: 1))
+        : now.add(const Duration(hours: 1));
+
+    // firstDate must be at least the earliest schedulable time
+    final firstDate = isClosed
+        ? DateTime(earliest.year, earliest.month, earliest.day)
+        : DateTime(now.year, now.month, now.day);
+
     final date = await showDatePicker(
       context: context,
-      initialDate: now.add(const Duration(hours: 1)),
-      firstDate: now,
+      initialDate: earliest,
+      firstDate: firstDate,
       lastDate: now.add(const Duration(days: 7)),
     );
     if (date == null || !mounted) return;
+
+    final initialTime =
+        (date.year == earliest.year &&
+            date.month == earliest.month &&
+            date.day == earliest.day)
+        ? TimeOfDay(hour: earliest.hour, minute: earliest.minute)
+        : TimeOfDay.fromDateTime(now.add(const Duration(hours: 1)));
+
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+      initialTime: initialTime,
     );
     if (time == null) return;
-    setState(() {
-      _scheduledAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
-    });
+
+    var chosen = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+
+    // Clamp to earliest if user picked too early
+    if (chosen.isBefore(earliest)) {
+      chosen = earliest;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Earliest available time is '
+              '${DateFormat('MMM d, h:mm a').format(earliest)}. '
+              'Adjusted automatically.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    setState(() => _scheduledAt = chosen);
   }
 
   Future<void> _placeOrder({
@@ -1003,15 +1259,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     if (_selectedPayment == 'card') {
-      final cardholder = _cardholderCtrl.text.trim();
-      final email = _paymentEmailCtrl.text.trim();
-      final phone = _paymentPhoneCtrl.text.trim();
-
-      if (cardholder.isEmpty || email.isEmpty || phone.isEmpty) {
+      if (_selectedSavedCard == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a saved card to pay with.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      final cvc = _cvcCtrl.text.trim();
+      if (cvc.length < 3) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Enter cardholder name, email, and phone before continuing to NCB payment.',
+              'Enter the 3 or 4 digit CVC from the back of your card.',
             ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
@@ -1154,10 +1417,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           checkoutSession = await paymentService.createCardCheckout(
             orderId: order.id,
             amount: verifiedTotal,
-            customerEmail: _paymentEmailCtrl.text.trim(),
-            customerPhone: _paymentPhoneCtrl.text.trim(),
-            customerName: _cardholderCtrl.text.trim(),
+            customerEmail: _selectedSavedCard!.email.isNotEmpty
+                ? _selectedSavedCard!.email
+                : _paymentEmailCtrl.text.trim(),
+            customerPhone: _selectedSavedCard!.phone.isNotEmpty
+                ? _selectedSavedCard!.phone
+                : _paymentPhoneCtrl.text.trim(),
+            customerName: _selectedSavedCard!.cardholderName,
             billingAddress: deliveryAddress,
+            savedCardId: _selectedSavedCard!.id,
+            cvv: _cvcCtrl.text.trim(),
           );
         } catch (e) {
           // Payment session failed – delete the order so nothing lingers.
@@ -1186,9 +1455,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           setState(() => _placingOrder = false);
           return;
         }
-
-        // Refresh saved cards (callback saves card info server-side)
-        ref.invalidate(savedCardsProvider(userId));
       }
 
       // Mark promo as used
@@ -1563,7 +1829,7 @@ class _TimeChip extends StatelessWidget {
   final String label;
   final String subtitle;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _TimeChip({
     required this.label,
     required this.subtitle,
@@ -1573,39 +1839,43 @@ class _TimeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final disabled = onTap == null;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.primaryColor.withValues(alpha: 0.08)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
-            width: selected ? 1.5 : 1,
+      child: Opacity(
+        opacity: disabled ? 0.4 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
+              width: selected ? 1.5 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: selected
-                    ? AppTheme.primaryColor
-                    : const Color(0xFF1F2937),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: selected
+                      ? AppTheme.primaryColor
+                      : const Color(0xFF1F2937),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              ),
+            ],
+          ),
         ),
       ),
     );

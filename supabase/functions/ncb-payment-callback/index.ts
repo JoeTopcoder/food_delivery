@@ -50,6 +50,7 @@ Deno.serve(async (request) => {
   let message = "Payment was not completed.";
   let cardLast4 = "";
   let cardBrand = "";
+  let cardholderName = "";
 
   if (request.method === "GET") {
     // Browser redirect from payment page (query params)
@@ -59,6 +60,7 @@ Deno.serve(async (request) => {
     message = url.searchParams.get("message") ?? "Payment was not completed.";
     cardLast4 = url.searchParams.get("card_last4") ?? "";
     cardBrand = url.searchParams.get("card_brand") ?? "";
+    cardholderName = url.searchParams.get("cardholder_name") ?? "";
   } else if (request.method === "POST") {
     // Webhook callback from NCB
     try {
@@ -69,6 +71,7 @@ Deno.serve(async (request) => {
       message = String(body.message ?? "Payment was not completed.");
       cardLast4 = String(body.card_last4 ?? body.cardLast4 ?? "").trim();
       cardBrand = String(body.card_brand ?? body.cardBrand ?? "").trim();
+      cardholderName = String(body.cardholder_name ?? body.cardholderName ?? "").trim();
     } catch {
       return html("failed", "Invalid callback data.");
     }
@@ -84,6 +87,48 @@ Deno.serve(async (request) => {
   if (!orderId) {
     return html("failed", "Missing order reference.");
   }
+
+  // Determine if this is a non-order transaction (card verification or wallet top-up)
+  const isVerifyCard = orderId.startsWith("verify-card-");
+  const isWalletTopup = orderId.startsWith("wallet-");
+  const isNonOrder = isVerifyCard || isWalletTopup;
+
+  if (isVerifyCard) {
+    // Handle card verification callback
+    const verified = status === "success" && transactionId.length > 0;
+
+    await adminClient
+      .from("card_verifications")
+      .update({
+        transaction_id: transactionId || null,
+        status: verified ? "completed" : "failed",
+        card_last4: cardLast4 || null,
+        card_brand: cardBrand || null,
+        refund_status: verified ? "pending" : "none",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    // NOTE: Card is saved as 'pending' by the app before the charge.
+    // The app handles verification (user enters the charged amount).
+    // We do NOT auto-save the card here anymore.
+
+    if (verified) {
+      return html("success", "Card charged! Check your bank statement for the exact amount, then verify in the app.");
+    }
+    return html("failed", message);
+  }
+
+  if (isWalletTopup) {
+    // Wallet top-ups don't need order table updates — just show result page
+    const verified = status === "success" && transactionId.length > 0;
+    if (verified) {
+      return html("success", "Payment received! You can return to the app now.");
+    }
+    return html("failed", message);
+  }
+
+  // ── Standard order payment flow ──────────────────────────
 
   // Verify order exists
   const { data: order } = await adminClient
