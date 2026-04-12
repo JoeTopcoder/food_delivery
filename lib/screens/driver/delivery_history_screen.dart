@@ -222,7 +222,9 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                 },
                 loading: () => const SliverFillRemaining(
                   child: Center(
-                    child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
                   ),
                 ),
                 error: (err, _) => SliverFillRemaining(

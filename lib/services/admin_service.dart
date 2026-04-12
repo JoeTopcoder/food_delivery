@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
@@ -15,6 +16,11 @@ class AdminService {
 
   static String _sanitizeQuery(String q) =>
       q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
+  /// Less aggressive sanitizer for admin lookups — keeps . @ + - needed for
+  /// emails and phone numbers, only strips PostgREST wildcards.
+  static String _sanitizeLookup(String q) =>
+      q.replaceAll(RegExp(r'[%_\\]'), '');
 
   // ==================== USER MANAGEMENT ====================
 
@@ -694,6 +700,242 @@ class AdminService {
       return newUserId;
     } catch (e) {
       AppLogger.error('Error creating user with role: $e');
+      rethrow;
+    } finally {
+      await adminClient.dispose();
+    }
+  }
+
+  // ==================== DATABASE LOOKUP ====================
+
+  /// Creates a short-lived service-role client that bypasses RLS.
+  SupabaseClient _createAdminClient() {
+    const serviceRoleKey =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloYXJ3ZWxpcnVlbWpleG11dXhuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ0MDUxOCwiZXhwIjoyMDkxMDE2NTE4fQ.v-PMGcTny7Nz5PhPCbi6eZfpFJPwRk6eHMTnZEi6KH8';
+    return SupabaseClient(
+      AppConstants.supabaseUrl,
+      serviceRoleKey,
+      authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
+    );
+  }
+
+  /// Lookup by card last-four digits.
+  /// Finds saved cards matching, then fetches associated orders & customer info.
+  Future<List<Map<String, dynamic>>> lookupByCard(String lastFour) async {
+    final adminClient = _createAdminClient();
+    try {
+      final sanitized = _sanitizeLookup(lastFour).replaceAll(RegExp(r'\D'), '');
+      if (sanitized.isEmpty) return [];
+
+      AppLogger.info('Admin lookup by card ending: $sanitized');
+
+      // 1. Find all saved cards matching last_four
+      final cards = await adminClient
+          .from('saved_cards')
+          .select('id, user_id, card_brand, last_four, cardholder_name, email, phone, is_default, created_at')
+          .eq('last_four', sanitized);
+
+      if ((cards as List).isEmpty) return [];
+
+      final results = <Map<String, dynamic>>[];
+
+      for (final card in cards) {
+        final userId = card['user_id'] as String;
+
+        // 2. Get customer info
+        final user = await adminClient
+            .from(AppConstants.tableUsers)
+            .select('id, name, email, phone, role, is_active, created_at')
+            .eq('id', userId)
+            .maybeSingle();
+
+        // 3. Get orders paid by card for this user
+        final orders = await adminClient
+            .from(AppConstants.tableOrders)
+            .select('id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address, restaurant_id')
+            .eq('user_id', userId)
+            .eq('payment_method', 'card')
+            .order('ordered_at', ascending: false)
+            .limit(20);
+
+        // 4. Get payment records for those orders
+        final orderIds = (orders as List).map((o) => o['id'] as String).toList();
+        List<dynamic> payments = [];
+        if (orderIds.isNotEmpty) {
+          payments = await adminClient
+              .from(AppConstants.tablePayments)
+              .select('id, order_id, amount, method, status, transaction_id, created_at')
+              .inFilter('order_id', orderIds);
+        }
+
+        results.add({
+          'card': card,
+          'customer': user,
+          'orders': orders,
+          'payments': payments,
+        });
+      }
+
+      return results;
+    } catch (e) {
+      AppLogger.error('Error in card lookup: $e');
+      return [];
+    } finally {
+      await adminClient.dispose();
+    }
+  }
+
+  /// Lookup by order ID (full or partial).
+  Future<Map<String, dynamic>?> lookupByOrderId(String orderId) async {
+    final adminClient = _createAdminClient();
+    try {
+      final sanitized = _sanitizeLookup(orderId).trim();
+      if (sanitized.isEmpty) return null;
+
+      AppLogger.info('Admin lookup by order ID: $sanitized');
+
+      // Try exact match first
+      var order = await adminClient
+          .from(AppConstants.tableOrders)
+          .select()
+          .eq('id', sanitized)
+          .maybeSingle();
+
+      // If no match, try prefix search (partial UUID)
+      if (order == null) {
+        final partialResults = await adminClient
+            .from(AppConstants.tableOrders)
+            .select()
+            .ilike('id', '$sanitized%')
+            .limit(1);
+        if ((partialResults as List).isNotEmpty) {
+          order = partialResults.first;
+        }
+      }
+
+      if (order == null) return null;
+
+      // Get customer info
+      final userId = order['user_id'] as String?;
+      Map<String, dynamic>? customer;
+      if (userId != null) {
+        customer = await adminClient
+            .from(AppConstants.tableUsers)
+            .select('id, name, email, phone, role, is_active')
+            .eq('id', userId)
+            .maybeSingle();
+      }
+
+      // Get payment info
+      final payment = await adminClient
+          .from(AppConstants.tablePayments)
+          .select()
+          .eq('order_id', order['id'])
+          .maybeSingle();
+
+      // Get restaurant info
+      final restaurantId = order['restaurant_id'] as String?;
+      Map<String, dynamic>? restaurant;
+      if (restaurantId != null) {
+        restaurant = await adminClient
+            .from(AppConstants.tableRestaurants)
+            .select('id, name, phone, address')
+            .eq('id', restaurantId)
+            .maybeSingle();
+      }
+
+      // Get driver info
+      final driverId = order['driver_id'] as String?;
+      Map<String, dynamic>? driver;
+      if (driverId != null) {
+        driver = await adminClient
+            .from(AppConstants.tableDrivers)
+            .select('id, user_id, vehicle_type, vehicle_number, rating')
+            .eq('id', driverId)
+            .maybeSingle();
+      }
+
+      return {
+        'order': order,
+        'customer': customer,
+        'payment': payment,
+        'restaurant': restaurant,
+        'driver': driver,
+      };
+    } catch (e) {
+      AppLogger.error('Error in order lookup: $e');
+      return null;
+    } finally {
+      await adminClient.dispose();
+    }
+  }
+
+  /// Lookup by customer email or phone.
+  Future<Map<String, dynamic>?> lookupByCustomer(String query) async {
+    final adminClient = _createAdminClient();
+    try {
+      final sanitized = _sanitizeLookup(query).trim();
+      if (sanitized.isEmpty) return null;
+
+      debugPrint('=== CUSTOMER LOOKUP ===');
+      debugPrint('Raw query: "$query"');
+      debugPrint('Sanitized: "$sanitized"');
+
+      // Search user by email or phone
+      final users = await adminClient
+          .from(AppConstants.tableUsers)
+          .select('id, name, email, phone, role, is_active, created_at')
+          .or('email.ilike.%$sanitized%,phone.ilike.%$sanitized%,name.ilike.%$sanitized%')
+          .limit(5);
+
+      debugPrint('Query returned ${(users as List).length} user(s)');
+
+      if (users.isEmpty) return null;
+
+      final user = users.first;
+      final userId = user['id'] as String;
+      debugPrint('Found user: ${user['email']} (id: $userId)');
+
+      // Get recent orders
+      final orders = await adminClient
+          .from(AppConstants.tableOrders)
+          .select('id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address')
+          .eq('user_id', userId)
+          .order('ordered_at', ascending: false)
+          .limit(20);
+
+      // Get saved cards
+      List<dynamic> cards = [];
+      try {
+        cards = await adminClient
+            .from('saved_cards')
+            .select('id, card_brand, last_four, cardholder_name, is_default, created_at')
+            .eq('user_id', userId);
+      } catch (e) {
+        debugPrint('saved_cards query failed (ok): $e');
+      }
+
+      // Get wallet balance
+      Map<String, dynamic>? wallet;
+      try {
+        wallet = await adminClient
+            .from('wallets')
+            .select('balance, currency')
+            .eq('user_id', userId)
+            .maybeSingle();
+      } catch (_) {}
+
+      debugPrint('=== LOOKUP COMPLETE: orders=${(orders as List).length}, cards=${cards.length} ===');
+
+      return {
+        'customer': user,
+        'orders': orders,
+        'saved_cards': cards,
+        'wallet': wallet,
+      };
+    } catch (e, st) {
+      debugPrint('!!! CUSTOMER LOOKUP ERROR: $e');
+      debugPrint('Stack: $st');
       rethrow;
     } finally {
       await adminClient.dispose();

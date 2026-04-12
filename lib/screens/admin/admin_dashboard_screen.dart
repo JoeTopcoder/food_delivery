@@ -566,6 +566,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 12),
+                            _MgmtCard(
+                              items: [
+                                _MgmtItem(
+                                  icon: Icons.manage_search_rounded,
+                                  label: 'DB Lookup',
+                                  sub: 'Cards, orders, customers',
+                                  color: const Color(0xFF0EA5E9),
+                                  onTap: () => Navigator.of(
+                                    context,
+                                  ).pushNamed('/admin-lookup'),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
