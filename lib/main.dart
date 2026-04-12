@@ -53,6 +53,7 @@ import 'screens/admin/admin_surge_screen.dart';
 import 'screens/admin/admin_banners_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_lookup_screen.dart';
+import 'screens/admin/admin_contract_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -433,6 +434,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-lookup':
               return MaterialPageRoute(
                 builder: (context) => const AdminLookupScreen(),
+              );
+            case '/admin-contract':
+              return MaterialPageRoute(
+                builder: (context) => const AdminContractScreen(),
               );
             case '/wallet':
               return MaterialPageRoute(

@@ -578,6 +578,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     context,
                                   ).pushNamed('/admin-lookup'),
                                 ),
+                                _MgmtItem(
+                                  icon: Icons.description_rounded,
+                                  label: 'Contracts',
+                                  sub: 'Service agreements',
+                                  color: const Color(0xFF10B981),
+                                  onTap: () => Navigator.of(
+                                    context,
+                                  ).pushNamed('/admin-contract'),
+                                ),
                               ],
                             ),
                           ],
