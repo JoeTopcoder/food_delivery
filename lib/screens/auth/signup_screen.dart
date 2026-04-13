@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   final String role;
@@ -62,16 +63,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     } catch (e) {
       AppLogger.error('Sign up error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red[700],
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

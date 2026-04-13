@@ -6,6 +6,7 @@ import '../../config/app_constants.dart';
 import '../../providers/payout_provider.dart';
 import '../../services/payout_service.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminPayoutsScreen extends ConsumerStatefulWidget {
   const AdminPayoutsScreen({super.key});
@@ -77,19 +78,21 @@ class _AdminPayoutsScreenState extends ConsumerState<AdminPayoutsScreen>
         ],
       ),
       body: payoutsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () => const AppLoadingIndicator(message: 'Loading payouts...'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(allPayoutsProvider),
+        ),
         data: (allPayouts) {
           final filtered = _statusFilter == null
               ? allPayouts
               : allPayouts.where((p) => p.status == _statusFilter).toList();
 
           if (filtered.isEmpty) {
-            return const Center(
-              child: Text(
-                'No payout requests',
-                style: TextStyle(color: Colors.grey),
-              ),
+            return const AppEmptyState(
+              icon: Icons.payments_rounded,
+              title: 'No payout requests',
+              subtitle: 'Payout requests will appear here',
             );
           }
 
@@ -561,9 +564,13 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
   void _snack(String msg, Color color) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+      if (color == Colors.red) {
+        AppSnackbar.error(context, msg);
+      } else if (color == Colors.orange) {
+        AppSnackbar.warning(context, msg);
+      } else {
+        AppSnackbar.success(context, msg);
+      }
     }
   }
 }

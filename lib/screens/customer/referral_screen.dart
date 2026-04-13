@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/premium_providers.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class ReferralScreen extends ConsumerWidget {
   const ReferralScreen({super.key});
@@ -114,18 +115,13 @@ class ReferralScreen extends ConsumerWidget {
                             ),
                             onPressed: () {
                               Clipboard.setData(ClipboardData(text: code));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Code copied!'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
+                              AppSnackbar.success(context, 'Code copied!');
                             },
                           ),
                         ],
                       ],
                     ),
-                    loading: () => const CircularProgressIndicator(),
+                    loading: () => const AppLoadingIndicator(fullScreen: false),
                     error: (_, _) => const Text('Error loading code'),
                   ),
                 ],
@@ -243,7 +239,7 @@ class ReferralScreen extends ConsumerWidget {
                   ],
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const AppLoadingIndicator(),
               error: (_, _) => const SizedBox.shrink(),
             ),
           ],

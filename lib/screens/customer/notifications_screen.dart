@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -84,12 +85,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             TextButton(
               onPressed: () {
                 notifier.clearAll();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('All notifications cleared'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                AppSnackbar.success(context, 'All notifications cleared');
               },
               child: const Text(
                 'Clear All',

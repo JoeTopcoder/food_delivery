@@ -5,6 +5,7 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -564,6 +565,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     context,
                                   ).pushNamed('/admin-banners'),
                                 ),
+                                _MgmtItem(
+                                  icon: Icons.map_rounded,
+                                  label: 'Regions',
+                                  sub: 'Delivery zones',
+                                  color: const Color(0xFF10B981),
+                                  onTap: () => Navigator.of(
+                                    context,
+                                  ).pushNamed('/admin-regions'),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -598,62 +608,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 },
                 loading: () => const Padding(
                   padding: EdgeInsets.only(top: 100),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
+                  child: AppLoadingIndicator(message: 'Loading dashboard...'),
                 ),
                 error: (e, _) => Padding(
                   padding: const EdgeInsets.only(top: 80),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.error_outline,
-                            size: 40,
-                            color: Colors.red,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Something went wrong',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: Colors.grey.shade800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 40),
-                          child: Text(
-                            '$e',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton.icon(
-                          onPressed: _refresh,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Try Again'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: AppErrorState(message: '$e', onRetry: _refresh),
                 ),
               ),
             ),
@@ -995,17 +954,9 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
       );
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${widget.role == 'driver' ? 'Driver' : 'Restaurant'} account created successfully!',
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+        AppSnackbar.success(
+          context,
+          '${widget.role == 'driver' ? 'Driver' : 'Restaurant'} account created successfully!',
         );
         ref.invalidate(dashboardSummaryProvider);
         ref.invalidate(allDriversAdminProvider);
@@ -1017,16 +968,7 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
       AppLogger.error('Create user error: $e');
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

@@ -6,6 +6,7 @@ import '../../models/subscription_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -60,27 +61,14 @@ class _BrowsePlans extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plansAsync = ref.watch(availablePlansProvider);
     return plansAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (plans) {
         if (plans.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.restaurant_menu, size: 56, color: Color(0xFFD1D5DB)),
-                SizedBox(height: 12),
-                Text(
-                  'No meal plans available yet',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Check back soon for curated meal subscriptions',
-                  style: TextStyle(color: Color(0xFF9CA3AF)),
-                ),
-              ],
-            ),
+          return const AppEmptyState(
+            icon: Icons.restaurant_menu,
+            title: 'No meal plans available yet',
+            subtitle: 'Check back soon for curated meal subscriptions',
           );
         }
         return ListView.builder(
@@ -190,10 +178,9 @@ class _PlanCard extends ConsumerWidget {
                     if (result != null) {
                       ref.invalidate(userSubscriptionsProvider(userId));
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Subscribed successfully!'),
-                          ),
+                        AppSnackbar.success(
+                          context,
+                          'Subscribed successfully!',
                         );
                       }
                     }
@@ -256,26 +243,14 @@ class _MySubscriptions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final subsAsync = ref.watch(userSubscriptionsProvider(userId));
     return subsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (subs) {
         if (subs.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_rounded, size: 48, color: Color(0xFFD1D5DB)),
-                SizedBox(height: 8),
-                Text(
-                  'No active subscriptions',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Browse plans to get started',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                ),
-              ],
-            ),
+          return const AppEmptyState(
+            icon: Icons.inbox_rounded,
+            title: 'No active subscriptions',
+            subtitle: 'Browse plans to get started',
           );
         }
         return ListView.builder(

@@ -7,6 +7,7 @@ import 'dart:io';
 import '../../models/order_model.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
   final Order order;
@@ -40,13 +41,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
   Future<void> _submit() async {
     if (_foodRating == 0 || _deliveryRating == 0 || _packagingRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please rate all three categories'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.warning(context, 'Please rate all three categories');
       return;
     }
     setState(() => _loading = true);
@@ -91,24 +86,12 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Review submitted! Thank you.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.success(context, 'Review submitted! Thank you.');
       }
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

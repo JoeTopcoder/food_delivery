@@ -7,6 +7,7 @@ import '../../providers/chat_provider.dart';
 import '../../services/agora_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
   final CallRecord call;
@@ -98,10 +99,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (!hasMic) {
       setState(() => _stageError = 'Microphone permission denied');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Microphone permission required for calls'),
-          ),
+        AppSnackbar.warning(
+          context,
+          'Microphone permission required for calls',
         );
       }
       return;

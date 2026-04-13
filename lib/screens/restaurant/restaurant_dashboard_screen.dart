@@ -6,6 +6,7 @@ import '../../utils/app_theme.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class RestaurantDashboardScreen extends ConsumerStatefulWidget {
   const RestaurantDashboardScreen({super.key});
@@ -61,9 +62,7 @@ class _RestaurantDashboardScreenState
       await ref.read(authNotifierProvider.notifier).signOut();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }
@@ -89,12 +88,7 @@ class _RestaurantDashboardScreenState
       ref.invalidate(restaurantByOwnerProvider(ownerId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _creatingRestaurant = false);
@@ -119,9 +113,7 @@ class _RestaurantDashboardScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) {
@@ -136,45 +128,26 @@ class _RestaurantDashboardScreenState
     final currentUserId = ref.watch(currentUserIdProvider);
 
     if (authState.user == null || currentUserId == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppLoadingIndicator());
     }
 
     final restaurantAsync = ref.watch(restaurantByOwnerProvider(currentUserId));
 
     return restaurantAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        body: AppLoadingIndicator(message: 'Loading restaurant...'),
+      ),
       error: (error, stack) => Scaffold(
         appBar: AppBar(
           title: const Text('Restaurant Dashboard'),
           centerTitle: true,
           elevation: 0,
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load restaurant data',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(restaurantByOwnerProvider(currentUserId));
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        body: AppErrorState(
+          message: error.toString(),
+          onRetry: () {
+            ref.invalidate(restaurantByOwnerProvider(currentUserId));
+          },
         ),
       ),
       data: (restaurant) {
@@ -349,27 +322,22 @@ class _RestaurantDashboardScreenState
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(),
+                      child: AppLoadingIndicator(
+                        fullScreen: false,
+                        message: 'Loading metrics...',
+                      ),
                     ),
                   ),
                   error: (error, stack) => Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red),
-                          const SizedBox(height: 8),
-                          const Text('Failed to load metrics'),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () {
-                              ref.invalidate(
-                                restaurantOrdersProvider(restaurant.id),
-                              );
-                            },
-                            child: const Text('Retry'),
-                          ),
-                        ],
+                      child: AppErrorState(
+                        message: 'Failed to load metrics',
+                        onRetry: () {
+                          ref.invalidate(
+                            restaurantOrdersProvider(restaurant.id),
+                          );
+                        },
                       ),
                     ),
                   ),

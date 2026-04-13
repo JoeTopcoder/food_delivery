@@ -13,6 +13,7 @@ import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -66,15 +67,20 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 surfaceTintColor: Colors.white,
                 foregroundColor: AppTheme.textPrimary,
               ),
-              body: const Center(child: Text('No orders found')),
+              body: const AppEmptyState(
+                icon: Icons.receipt_long_rounded,
+                title: 'No Orders Found',
+                subtitle: 'Your order history will appear here',
+              ),
             );
           }
           return _buildContent(orders.first);
         },
-        loading: () =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        loading: () => const Scaffold(
+          body: AppLoadingIndicator(message: 'Loading orders...'),
+        ),
         error: (err, _) =>
-            Scaffold(body: Center(child: Text(friendlyError(err)))),
+            Scaffold(body: AppErrorState(message: friendlyError(err))),
       );
     }
 
@@ -84,15 +90,20 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         if (order == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Order Tracking')),
-            body: const Center(child: Text('Order not found')),
+            body: const AppEmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'Order Not Found',
+              subtitle: 'This order may have been removed',
+            ),
           );
         }
         return _buildContent(order);
       },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        body: AppLoadingIndicator(message: 'Loading order...'),
+      ),
       error: (err, _) =>
-          Scaffold(body: Center(child: Text(friendlyError(err)))),
+          Scaffold(body: AppErrorState(message: friendlyError(err))),
     );
   }
 
@@ -913,9 +924,7 @@ class _SupportChatButtonState extends ConsumerState<_SupportChatButton> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not connect to support: $e')),
-        );
+        AppSnackbar.error(context, 'Could not connect to support: $e');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -1018,22 +1027,12 @@ class _CancelOrderButton extends ConsumerWidget {
                       : penalty > 0
                       ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'
                       : 'Order cancelled';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(message),
-                      backgroundColor: const Color(0xFF10B981),
-                    ),
-                  );
+                  AppSnackbar.success(context, message);
                   Navigator.pop(context);
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to cancel: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppSnackbar.error(context, 'Failed to cancel: $e');
                 }
               }
             },
@@ -1152,21 +1151,14 @@ class _ReportIssueSheetState extends ConsumerState<_ReportIssueSheet> {
             'otherPartyName': 'Restaurant Support',
           },
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Issue reported — chat started with restaurant.'),
-            backgroundColor: Color(0xFF10B981),
-          ),
+        AppSnackbar.success(
+          context,
+          'Issue reported — chat started with restaurant.',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

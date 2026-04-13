@@ -7,6 +7,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -62,41 +63,10 @@ class AvailableOrdersScreen extends ConsumerWidget {
           body: ordersAsync.when(
             data: (orders) {
               if (orders.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.shopping_bag_outlined,
-                          size: 48,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'No Orders Available',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Pull down to refresh for new orders',
-                        style: TextStyle(
-                          color: Color(0xFF6B7280),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
+                return const AppEmptyState(
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'No Orders Available',
+                  subtitle: 'Pull down to refresh for new orders',
                 );
               }
 
@@ -122,55 +92,22 @@ class AvailableOrdersScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              child: AppLoadingIndicator(message: 'Loading orders...'),
             ),
-            error: (error, stackTrace) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    size: 40,
-                    color: Color(0xFFEF4444),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Something went wrong. Please try again.',
-                    style: const TextStyle(color: Color(0xFF9CA3AF)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => ref.invalidate(availableOrdersProvider),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E2030),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+            error: (error, stackTrace) => AppErrorState(
+              message: 'Something went wrong. Please try again.',
+              onRetry: () => ref.invalidate(availableOrdersProvider),
             ),
           ),
         );
       },
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-        ),
+        body: AppLoadingIndicator(message: 'Loading driver profile...'),
       ),
       error: (error, stackTrace) => Scaffold(
         backgroundColor: const Color(0xFF0F1117),
-        body: Center(
-          child: Text(
-            friendlyError(error),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
+        body: AppErrorState(message: friendlyError(error)),
       ),
     );
   }
@@ -477,14 +414,7 @@ class _OrderCard extends StatelessWidget {
   }
 
   void _declineOrder(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Order declined'),
-        backgroundColor: const Color(0xFF1E2030),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppSnackbar.info(context, 'Order declined');
     ref.invalidate(availableOrdersProvider);
   }
 
@@ -611,26 +541,11 @@ class _OrderCard extends StatelessWidget {
                 await driverService.acceptDelivery(order.id, driverId);
                 ref.invalidate(availableOrdersProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Order accepted!'),
-                      backgroundColor: const Color(0xFF22C55E),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  AppSnackbar.success(context, 'Order accepted!');
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },

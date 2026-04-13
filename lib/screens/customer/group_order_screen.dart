@@ -7,6 +7,7 @@ import '../../models/group_order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class GroupOrderScreen extends ConsumerStatefulWidget {
   const GroupOrderScreen({super.key});
@@ -49,31 +50,18 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
         label: const Text('New Group', style: TextStyle(color: Colors.white)),
       ),
       body: groupOrdersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () =>
+            const AppLoadingIndicator(message: 'Loading group orders...'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(userGroupOrdersProvider(userId)),
+        ),
         data: (groups) {
           if (groups.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.groups_rounded,
-                    size: 56,
-                    color: Color(0xFFD1D5DB),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'No group orders yet',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Create one or join with an invite code',
-                    style: TextStyle(color: Color(0xFF9CA3AF)),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.groups_rounded,
+              title: 'No group orders yet',
+              subtitle: 'Create one or join with an invite code',
             );
           }
           return ListView.builder(
@@ -123,12 +111,9 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
               Navigator.pop(ctx);
               // For now, pick a placeholder restaurant — in real usage,
               // the user would navigate to a restaurant first
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Navigate to a restaurant first, then create a group from there',
-                  ),
-                ),
+              AppSnackbar.info(
+                context,
+                'Navigate to a restaurant first, then create a group from there',
               );
             },
             style: ElevatedButton.styleFrom(
@@ -173,17 +158,11 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
               if (result != null) {
                 ref.invalidate(userGroupOrdersProvider(userId));
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Joined: ${result.name}')),
-                  );
+                  AppSnackbar.success(context, 'Joined: ${result.name}');
                 }
               } else {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Invalid or expired invite code'),
-                    ),
-                  );
+                  AppSnackbar.error(context, 'Invalid or expired invite code');
                 }
               }
             },
@@ -306,9 +285,7 @@ class _GroupOrderCard extends StatelessWidget {
                 GestureDetector(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: group.inviteCode));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Invite code copied!')),
-                    );
+                    AppSnackbar.success(context, 'Invite code copied!');
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(

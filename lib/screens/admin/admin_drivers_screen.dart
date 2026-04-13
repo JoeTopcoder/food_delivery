@@ -8,6 +8,7 @@ import '../../providers/driver_provider.dart';
 import '../../config/app_constants.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminDriversScreen extends ConsumerStatefulWidget {
   const AdminDriversScreen({super.key});
@@ -136,22 +137,7 @@ class _DriverList extends StatelessWidget {
       child: asyncValue.when(
         data: (drivers) {
           if (drivers.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(emptyIcon, size: 64, color: const Color(0xFFD1D5DB)),
-                  const SizedBox(height: 12),
-                  Text(
-                    emptyMessage,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return AppEmptyState(icon: emptyIcon, title: emptyMessage);
           }
 
           return ListView.builder(
@@ -254,25 +240,17 @@ class _DriverList extends StatelessWidget {
                                   launchUrl(Uri(scheme: 'tel', path: phone));
                                 } else {
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'No phone number on file for this driver',
-                                        ),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
+                                    AppSnackbar.warning(
+                                      context,
+                                      'No phone number on file for this driver',
                                     );
                                   }
                                 }
                               } catch (_) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Could not retrieve driver phone number',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
+                                  AppSnackbar.error(
+                                    context,
+                                    'Could not retrieve driver phone number',
                                   );
                                 }
                               }
@@ -465,25 +443,9 @@ class _DriverList extends StatelessWidget {
             },
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-        ),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 8),
-              Text(
-                friendlyError(e),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF6B7280)),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: onRefresh, child: const Text('Retry')),
-            ],
-          ),
-        ),
+        loading: () => const AppLoadingIndicator(message: 'Loading drivers…'),
+        error: (e, _) =>
+            AppErrorState(message: friendlyError(e), onRetry: onRefresh),
       ),
     );
   }
@@ -520,28 +482,21 @@ class _DriverList extends StatelessWidget {
                 ref.invalidate(pendingDriversProvider);
                 ref.invalidate(driverStatisticsProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$driverName ${verify ? 'verified' : 'rejected'} successfully',
-                      ),
-                      backgroundColor: verify ? Colors.green : Colors.orange,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  if (verify) {
+                    AppSnackbar.success(
+                      context,
+                      '$driverName verified successfully',
+                    );
+                  } else {
+                    AppSnackbar.warning(
+                      context,
+                      '$driverName rejected successfully',
+                    );
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },
@@ -653,12 +608,9 @@ class _DriverList extends StatelessWidget {
                       double.tryParse(amountCtrl.text.trim()) ?? 0;
                   if (collectAmt <= 0) return;
                   if (collectAmt > floatAmount) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Amount exceeds outstanding float'),
-                        backgroundColor: Colors.orange,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    AppSnackbar.warning(
+                      context,
+                      'Amount exceeds outstanding float',
                     );
                     return;
                   }
@@ -676,28 +628,14 @@ class _DriverList extends StatelessWidget {
                     ref.invalidate(allDriversAdminProvider);
                     ref.invalidate(pendingDriversProvider);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '\$${collectAmt.toStringAsFixed(0)} float collected successfully',
-                          ),
-                          backgroundColor: const Color(0xFF10B981),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                      AppSnackbar.success(
+                        context,
+                        '\$${collectAmt.toStringAsFixed(0)} float collected successfully',
                       );
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(friendlyError(e)),
-                          backgroundColor: Colors.red,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                      AppSnackbar.error(context, friendlyError(e));
                     }
                   }
                 },
@@ -888,15 +826,9 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
       Navigator.of(context).pop();
       widget.onCreated();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Driver ${_nameCtrl.text.trim()} created successfully'),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      AppSnackbar.success(
+        context,
+        'Driver ${_nameCtrl.text.trim()} created successfully',
       );
     } catch (e) {
       if (!mounted) return;
@@ -904,13 +836,7 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
       if (msg.contains('Exception: ')) {
         msg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $msg'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.error(context, 'Error: $msg');
     } finally {
       if (mounted) setState(() => _creating = false);
     }

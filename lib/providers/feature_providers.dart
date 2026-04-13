@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../models/refund_model.dart';
 import '../models/group_order_model.dart';
@@ -98,8 +99,59 @@ final cuisineCategoriesProvider =
       (ref) => ref.watch(cuisineServiceProvider).getCategories(),
     );
 
-// Surge Zones (admin)
+// Surge Zones (admin) — real-time
 final allSurgeZonesProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>(
-      (ref) => ref.watch(surgeServiceProvider).getAllSurgeZones(),
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+      final channel = Supabase.instance.client.realtime.channel(
+        'surge_zones_all_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'surge_zones',
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+      return ref.watch(surgeServiceProvider).getAllSurgeZones();
+    });
+
+/// Surge multiplier for a delivery location. Pass `'$lat,$lng'` as the family key.
+/// Refreshes in real-time when surge_zones table changes.
+final surgeMultiplierProvider = FutureProvider.autoDispose.family<double, String>((
+  ref,
+  latLng,
+) async {
+  final parts = latLng.split(',');
+  if (parts.length != 2) return 1.0;
+  final lat = double.tryParse(parts[0]);
+  final lng = double.tryParse(parts[1]);
+  if (lat == null || lng == null || (lat == 0 && lng == 0)) return 1.0;
+
+  // Real-time: re-fetch when any surge zone is created/updated/deleted
+  try {
+    final channel = Supabase.instance.client.realtime.channel(
+      'surge_mult_${latLng.hashCode.abs()}_${DateTime.now().microsecondsSinceEpoch}',
     );
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'surge_zones',
+          callback: (_) => ref.invalidateSelf(),
+        )
+        .subscribe();
+    ref.onDispose(
+      () => Supabase.instance.client.realtime.removeChannel(channel),
+    );
+  } catch (_) {
+    // Realtime subscription failed — still proceed with the DB query.
+  }
+
+  return ref
+      .watch(surgeServiceProvider)
+      .getSurgeMultiplier(latitude: lat, longitude: lng);
+});

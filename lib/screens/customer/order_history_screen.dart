@@ -12,6 +12,7 @@ import '../../config/supabase_config.dart';
 import '../../widgets/rate_driver_sheet.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
   const OrderHistoryScreen({super.key});
@@ -37,31 +38,17 @@ class OrderHistoryScreen extends ConsumerWidget {
         elevation: 0,
       ),
       body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () => const AppLoadingIndicator(),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(userOrdersProvider(userId)),
+        ),
         data: (orders) {
           if (orders.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 56,
-                    color: Color(0xFFD1D5DB),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'No orders yet',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Your completed orders will appear here',
-                    style: TextStyle(color: Color(0xFF9CA3AF)),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.receipt_long_rounded,
+              title: 'No orders yet',
+              subtitle: 'Your completed orders will appear here',
             );
           }
           return ListView.builder(
@@ -564,17 +551,12 @@ class _OrderCard extends ConsumerWidget {
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${order.items.length} item(s) added to cart'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF10B981),
-        action: SnackBarAction(
-          label: 'Checkout',
-          textColor: Colors.white,
-          onPressed: () => Navigator.pushNamed(context, '/checkout'),
-        ),
-      ),
+    AppSnackbar.show(
+      context,
+      message: '${order.items.length} item(s) added to cart',
+      type: AppSnackbarType.success,
+      actionLabel: 'Checkout',
+      onAction: () => Navigator.pushNamed(context, '/checkout'),
     );
   }
 
@@ -653,13 +635,9 @@ class _OrderCard extends ConsumerWidget {
                           }
                           if (ctx.mounted) Navigator.pop(ctx);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '\$ ${selectedTip.toStringAsFixed(0)} tip added!',
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                              ),
+                            AppSnackbar.success(
+                              context,
+                              '\$ ${selectedTip.toStringAsFixed(0)} tip added!',
                             );
                           }
                         }
@@ -851,21 +829,11 @@ class _OrderCard extends ConsumerWidget {
                       : penalty > 0
                       ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'
                       : 'Order cancelled successfully';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(message),
-                      backgroundColor: const Color(0xFF10B981),
-                    ),
-                  );
+                  AppSnackbar.success(context, message);
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to cancel: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppSnackbar.error(context, 'Failed to cancel: $e');
                 }
               }
             },
@@ -956,21 +924,14 @@ class _ReportIssueSheetState extends ConsumerState<_ReportIssueSheet> {
             'otherPartyName': 'Restaurant Support',
           },
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Issue reported — chat started with restaurant.'),
-            backgroundColor: Color(0xFF10B981),
-          ),
+        AppSnackbar.success(
+          context,
+          'Issue reported — chat started with restaurant.',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

@@ -1,9 +1,13 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import '../../models/delivery_region_model.dart';
+import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
+import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 
 class AdminSurgeScreen extends ConsumerStatefulWidget {
@@ -334,7 +338,7 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
     );
     if (result != null && ctx.mounted) {
       final service = ref.read(surgeServiceProvider);
-      await service.createSurgeZone(
+      final ok = await service.createSurgeZone(
         name: result['name'] as String,
         latitude: result['latitude'] as double,
         longitude: result['longitude'] as double,
@@ -342,6 +346,13 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
         multiplier: result['multiplier'] as double,
         reason: result['reason'] as String?,
       );
+      if (ctx.mounted) {
+        if (ok) {
+          AppSnackbar.success(ctx, 'Surge zone created');
+        } else {
+          AppSnackbar.error(ctx, 'Failed to create surge zone');
+        }
+      }
       ref.invalidate(allSurgeZonesProvider);
     }
   }
@@ -349,14 +360,29 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
 
 // ─── Full-screen Map Picker for creating a surge zone ──────────────────────
 
-class _SurgeZoneMapPicker extends StatefulWidget {
+/// Haversine distance in km.
+double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+  const R = 6371.0;
+  final dLat = (lat2 - lat1) * pi / 180;
+  final dLng = (lng2 - lng1) * pi / 180;
+  final a =
+      sin(dLat / 2) * sin(dLat / 2) +
+      cos(lat1 * pi / 180) *
+          cos(lat2 * pi / 180) *
+          sin(dLng / 2) *
+          sin(dLng / 2);
+  return R * 2 * atan2(sqrt(a), sqrt(1 - a));
+}
+
+class _SurgeZoneMapPicker extends ConsumerStatefulWidget {
   const _SurgeZoneMapPicker();
 
   @override
-  State<_SurgeZoneMapPicker> createState() => _SurgeZoneMapPickerState();
+  ConsumerState<_SurgeZoneMapPicker> createState() =>
+      _SurgeZoneMapPickerState();
 }
 
-class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
+class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
   static const _defaultLat = 18.1096;
   static const _defaultLng = -77.2975;
 
@@ -370,8 +396,49 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
     super.dispose();
   }
 
+  /// Find the delivery region containing [point]. Returns null if outside all.
+  DeliveryRegion? _containingRegion(
+    LatLng point,
+    List<DeliveryRegion> regions,
+  ) {
+    for (final r in regions) {
+      final dist = _haversineKm(
+        point.latitude,
+        point.longitude,
+        r.latitude,
+        r.longitude,
+      );
+      if (dist <= r.radiusKm) return r;
+    }
+    return null;
+  }
+
+  /// Max surge radius so the surge circle fits within the enclosing region.
+  double _maxAllowedRadius(LatLng point, List<DeliveryRegion> regions) {
+    final region = _containingRegion(point, regions);
+    if (region == null) return 0;
+    final distToCenter = _haversineKm(
+      point.latitude,
+      point.longitude,
+      region.latitude,
+      region.longitude,
+    );
+    return (region.radiusKm - distToCenter).clamp(0.5, region.radiusKm);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final regionsAsync = ref.watch(activeRegionsProvider);
+    final regions = regionsAsync.valueOrNull ?? [];
+    final maxRadius = regions.isEmpty ? 20.0 : _maxAllowedRadius(_pin, regions);
+    final insideRegion =
+        regions.isEmpty || _containingRegion(_pin, regions) != null;
+
+    // Clamp current radius if it exceeds the new max
+    if (_radiusKm > maxRadius && maxRadius > 0) {
+      Future.microtask(() => setState(() => _radiusKm = maxRadius));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -389,21 +456,49 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
             options: MapOptions(
               initialCenter: _pin,
               initialZoom: 12,
-              onTap: (_, point) => setState(() => _pin = point),
+              onTap: (_, point) => setState(() {
+                _pin = point;
+                // Auto-clamp radius to new max
+                final newMax = regions.isEmpty
+                    ? 20.0
+                    : _maxAllowedRadius(point, regions);
+                if (_radiusKm > newMax && newMax > 0) _radiusKm = newMax;
+              }),
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.food_driver',
               ),
+              // Delivery region circles (green, behind surge)
+              CircleLayer(
+                circles: regions
+                    .map(
+                      (r) => CircleMarker(
+                        point: LatLng(r.latitude, r.longitude),
+                        radius: r.radiusKm * 1000,
+                        useRadiusInMeter: true,
+                        color: const Color(0xFF10B981).withValues(alpha: 0.10),
+                        borderColor: const Color(
+                          0xFF10B981,
+                        ).withValues(alpha: 0.5),
+                        borderStrokeWidth: 1.5,
+                      ),
+                    )
+                    .toList(),
+              ),
+              // Surge zone circle
               CircleLayer(
                 circles: [
                   CircleMarker(
                     point: _pin,
                     radius: _radiusKm * 1000,
                     useRadiusInMeter: true,
-                    color: const Color(0xFFFFA630).withValues(alpha: 0.25),
-                    borderColor: const Color(0xFFFFA630),
+                    color: (insideRegion ? const Color(0xFFFFA630) : Colors.red)
+                        .withValues(alpha: 0.25),
+                    borderColor: insideRegion
+                        ? const Color(0xFFFFA630)
+                        : Colors.red,
                     borderStrokeWidth: 2,
                   ),
                 ],
@@ -414,9 +509,11 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
                     point: _pin,
                     width: 40,
                     height: 40,
-                    child: const Icon(
+                    child: Icon(
                       Icons.bolt,
-                      color: Color(0xFFFFA630),
+                      color: insideRegion
+                          ? const Color(0xFFFFA630)
+                          : Colors.red,
                       size: 36,
                     ),
                   ),
@@ -425,13 +522,17 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
             ],
           ),
 
-          // Crosshair hint
-          const Positioned(
+          // Hint
+          Positioned(
             top: 12,
             left: 0,
             right: 0,
             child: Center(
-              child: _HintChip('Tap the map to place the surge zone centre'),
+              child: _HintChip(
+                insideRegion
+                    ? 'Tap the map to place the surge zone centre'
+                    : 'Pin is outside delivery regions — move it inside',
+              ),
             ),
           ),
 
@@ -470,16 +571,30 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
                           fontSize: 13,
                         ),
                       ),
+                      if (regions.isNotEmpty) ...[
+                        const Spacer(),
+                        Text(
+                          'max ${maxRadius.toStringAsFixed(1)} km',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Slider(
-                    value: _radiusKm,
+                    value: _radiusKm.clamp(0.5, maxRadius.clamp(0.5, 20.0)),
                     min: 0.5,
-                    max: 20,
-                    divisions: 39,
+                    max: maxRadius.clamp(0.5, 20.0),
+                    divisions: ((maxRadius.clamp(0.5, 20.0) - 0.5) * 2)
+                        .round()
+                        .clamp(1, 39),
                     activeColor: const Color(0xFFFFA630),
                     label: '${_radiusKm.toStringAsFixed(1)} km',
-                    onChanged: (v) => setState(() => _radiusKm = v),
+                    onChanged: insideRegion
+                        ? (v) => setState(() => _radiusKm = v)
+                        : null,
                   ),
                 ],
               ),
@@ -529,7 +644,9 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
                 height: 32,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor: insideRegion
+                        ? AppTheme.primaryColor
+                        : Colors.grey,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -540,7 +657,7 @@ class _SurgeZoneMapPickerState extends State<_SurgeZoneMapPicker> {
                     'Set Location',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  onPressed: () => _showDetailsDialog(),
+                  onPressed: insideRegion ? () => _showDetailsDialog() : null,
                 ),
               ),
             ),

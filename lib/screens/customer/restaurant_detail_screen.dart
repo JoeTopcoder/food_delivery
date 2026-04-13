@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
 import '../../widgets/menu_item_detail_sheet.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
@@ -543,17 +544,11 @@ class _RestaurantDetailScreenState
                   loading: () => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(
-                        color: AppTheme.primaryColor,
-                      ),
+                      child: AppLoadingIndicator(color: AppTheme.primaryColor),
                     ),
                   ),
-                  error: (err, stack) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text('Error loading menu: $err'),
-                    ),
-                  ),
+                  error: (err, stack) =>
+                      AppErrorState(message: 'Error loading menu: $err'),
                 ),
                 const SizedBox(height: 100),
               ],
@@ -798,11 +793,9 @@ class _RestaurantDetailScreenState
     }
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${result.quantity}x ${item.name} added to cart'),
-        duration: const Duration(seconds: 1),
-      ),
+    AppSnackbar.success(
+      context,
+      '${result.quantity}x ${item.name} added to cart',
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/notification_service.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -58,12 +59,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       ref.invalidate(driverProfileProvider(userId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _creatingProfile = false);
@@ -82,7 +78,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         : null;
 
     if (authState.user == null || currentUserId == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppLoadingIndicator());
     }
 
     return Scaffold(
@@ -95,7 +91,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 return _buildDashboard(driver, authState, currentUserId);
               },
               loading: () => const Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                child: AppLoadingIndicator(message: 'Loading dashboard...'),
               ),
               error: (error, _) => _buildError(currentUserId, error),
             ),
@@ -243,7 +239,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       decoration: BoxDecoration(
                         gradient: isOnline
                             ? const LinearGradient(
-                                colors: [AppTheme.primaryColor, Color(0xFFFF8F5E)],
+                                colors: [
+                                  AppTheme.primaryColor,
+                                  Color(0xFFFF8F5E),
+                                ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               )
@@ -344,13 +343,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                       );
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(
+                                        AppSnackbar.error(
                                           context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(friendlyError(e)),
-                                            backgroundColor: Colors.red,
-                                          ),
+                                          friendlyError(e),
                                         );
                                       }
                                     } finally {
@@ -724,54 +719,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Widget _buildError(String userId, Object error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 40,
-                color: Color(0xFFEF4444),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Something went wrong',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => ref.invalidate(driverProfileProvider(userId)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E2030),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
+    return AppErrorState(
+      message: error.toString(),
+      onRetry: () => ref.invalidate(driverProfileProvider(userId)),
     );
   }
 }

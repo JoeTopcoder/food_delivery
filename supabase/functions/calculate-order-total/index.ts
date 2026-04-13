@@ -171,6 +171,27 @@ Deno.serve(async (request) => {
     let deliveryFee = restaurant.delivery_fee ?? defaultDeliveryFee;
     let deliveryDistanceKm: number | null = null;
 
+    // Check surge_zones table for zone-specific multiplier at delivery location
+    let effectiveSurge = surgeMultiplier;
+    if (deliveryLat && deliveryLng) {
+      try {
+        const now = new Date().toISOString();
+        const { data: zones } = await admin
+          .from("surge_zones")
+          .select("latitude, longitude, radius_km, multiplier")
+          .eq("is_active", true)
+          .or(`ends_at.is.null,ends_at.gt.${now}`);
+        if (zones && zones.length > 0) {
+          for (const z of zones) {
+            const dist = haversineKm(deliveryLat, deliveryLng, z.latitude, z.longitude);
+            if (dist > z.radius_km && z.multiplier > effectiveSurge) {
+              effectiveSurge = z.multiplier;
+            }
+          }
+        }
+      } catch { /* fall back to global config */ }
+    }
+
     if (deliveryLat && deliveryLng && restaurant.latitude && restaurant.longitude) {
       deliveryDistanceKm = haversineKm(
         restaurant.latitude, restaurant.longitude,
@@ -185,9 +206,12 @@ Deno.serve(async (request) => {
 
       // Distance-based fee: base fee + extra per km beyond base distance
       const extraKm = Math.max(0, deliveryDistanceKm - baseKm);
-      const calculatedFee = (baseFee + extraKm * perKmFee) * surgeMultiplier;
+      const calculatedFee = (baseFee + extraKm * perKmFee) * effectiveSurge;
       // Use the higher of restaurant override or distance-based fee
       deliveryFee = Math.max(deliveryFee, Math.round(calculatedFee * 100) / 100);
+    } else {
+      // No coordinates — still apply surge to flat fee
+      deliveryFee = Math.round(deliveryFee * effectiveSurge * 100) / 100;
     }
 
     // ── 5. Tax ─────────────────────────────────────────────────────────────

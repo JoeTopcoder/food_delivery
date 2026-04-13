@@ -6,6 +6,7 @@ import '../../providers/banner_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminBannersScreen extends ConsumerStatefulWidget {
   const AdminBannersScreen({super.key});
@@ -37,31 +38,17 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: bannersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () => const AppLoadingIndicator(message: 'Loading banners...'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(allBannersProvider),
+        ),
         data: (banners) {
           if (banners.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.campaign_outlined, size: 56, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text(
-                    'No banners yet',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Tap + to create a promotional banner',
-                    style: TextStyle(color: AppTheme.textLight),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.campaign_outlined,
+              title: 'No banners yet',
+              subtitle: 'Tap + to create a promotional banner',
             );
           }
           return ReorderableListView.builder(
@@ -272,12 +259,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty || _selectedRestaurantId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Title and restaurant are required'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.warning(context, 'Title and restaurant are required');
       return;
     }
     setState(() => _saving = true);
@@ -304,12 +286,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
       widget.onSaved();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

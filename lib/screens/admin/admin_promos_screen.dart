@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/promo_model.dart';
 import '../../providers/promo_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminPromosScreen extends ConsumerWidget {
   const AdminPromosScreen({super.key});
@@ -36,33 +37,13 @@ class AdminPromosScreen extends ConsumerWidget {
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
       body: promosAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () => const AppLoadingIndicator(),
+        error: (e, _) => AppErrorState(message: friendlyError(e)),
         data: (promos) => promos.isEmpty
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.discount_rounded,
-                      size: 56,
-                      color: Color(0xFFD1D5DB),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'No promo codes yet',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tap + to create one',
-                      style: TextStyle(color: Color(0xFF9CA3AF)),
-                    ),
-                  ],
-                ),
+            ? const AppEmptyState(
+                icon: Icons.discount_rounded,
+                title: 'No promo codes yet',
+                subtitle: 'Tap + to create one',
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -539,12 +520,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
