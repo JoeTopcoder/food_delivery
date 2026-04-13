@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class DeliveryHistoryScreen extends ConsumerWidget {
   const DeliveryHistoryScreen({super.key});
@@ -16,9 +17,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
     if (currentUserId == null) {
       return const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: Text('User not found', style: TextStyle(color: Colors.white)),
-        ),
+        body: AppErrorState(message: 'User not found'),
       );
     }
 
@@ -29,12 +28,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
         if (driver == null) {
           return const Scaffold(
             backgroundColor: Color(0xFF0F1117),
-            body: Center(
-              child: Text(
-                'Driver profile not found',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
+            body: AppErrorState(message: 'Driver profile not found'),
           );
         }
 
@@ -61,45 +55,11 @@ class DeliveryHistoryScreen extends ConsumerWidget {
               historyAsync.when(
                 data: (deliveries) {
                   if (deliveries.isEmpty) {
-                    return SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF6B7280,
-                                ).withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.history_rounded,
-                                size: 40,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              'No Delivery History',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Completed deliveries will appear here.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
+                    return const SliverFillRemaining(
+                      child: AppEmptyState(
+                        icon: Icons.history_rounded,
+                        title: 'No Delivery History',
+                        subtitle: 'Completed deliveries will appear here.',
                       ),
                     );
                   }
@@ -221,19 +181,13 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                   );
                 },
                 loading: () => const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
-                    ),
+                  child: AppLoadingIndicator(
+                    message: 'Loading history...',
+                    color: AppTheme.primaryColor,
                   ),
                 ),
                 error: (err, _) => SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      friendlyError(err),
-                      style: const TextStyle(color: Color(0xFF9CA3AF)),
-                    ),
-                  ),
+                  child: AppErrorState(message: friendlyError(err)),
                 ),
               ),
             ],
@@ -242,18 +196,14 @@ class DeliveryHistoryScreen extends ConsumerWidget {
       },
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        body: AppLoadingIndicator(
+          message: 'Loading driver...',
+          color: AppTheme.primaryColor,
         ),
       ),
       error: (err, _) => Scaffold(
         backgroundColor: const Color(0xFF0F1117),
-        body: Center(
-          child: Text(
-            friendlyError(err),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
+        body: AppErrorState(message: friendlyError(err)),
       ),
     );
   }

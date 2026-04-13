@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class RestaurantReviewsScreen extends ConsumerWidget {
   final String restaurantId;
@@ -35,29 +36,17 @@ class RestaurantReviewsScreen extends ConsumerWidget {
             .getRestaurantReviews(restaurantId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingIndicator(message: 'Loading reviews...');
           }
           if (snapshot.hasError) {
-            return Center(child: Text(friendlyError(snapshot.error)));
+            return AppErrorState(message: friendlyError(snapshot.error));
           }
           final reviews = snapshot.data ?? [];
           if (reviews.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.rate_review_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No reviews yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.rate_review_outlined,
+              title: 'No reviews yet',
+              subtitle: 'Be the first to leave a review!',
             );
           }
 
@@ -122,23 +111,11 @@ class RestaurantReviewsScreen extends ConsumerWidget {
                       responderId: currentUserId!,
                     );
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Response submitted'),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.success(context, 'Response submitted');
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },

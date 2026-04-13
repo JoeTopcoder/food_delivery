@@ -6,6 +6,7 @@ import '../../providers/payout_provider.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class BankInfoScreen extends ConsumerStatefulWidget {
   final String role; // 'driver' or 'restaurant'
@@ -207,8 +208,11 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
   Widget _buildDriverBody(String userId) {
     final driverAsync = ref.watch(driverProfileProvider(userId));
     return driverAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(message: 'Loading bank info...'),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(driverProfileProvider(userId)),
+      ),
       data: (driver) {
         if (driver == null) {
           return const Center(child: Text('No driver profile'));
@@ -242,8 +246,11 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
   Widget _buildRestaurantBody(String userId) {
     final restAsync = ref.watch(restaurantByOwnerProvider(userId));
     return restAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(message: 'Loading bank info...'),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(restaurantByOwnerProvider(userId)),
+      ),
       data: (restaurant) {
         if (restaurant == null) {
           return const Center(child: Text('No restaurant profile'));
@@ -475,22 +482,12 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
     try {
       await onSave();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Banking info saved!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackbar.success(context, 'Banking info saved!');
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

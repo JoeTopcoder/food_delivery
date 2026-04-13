@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/user_model.dart' as user_models;
 import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -80,28 +81,14 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       ref.invalidate(usersByRoleProvider);
       ref.invalidate(userSearchProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${user.name ?? user.email} ${isBanning ? 'banned' : 'unbanned'}',
-            ),
-            backgroundColor: isBanning ? Colors.orange : Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+        AppSnackbar.success(
+          context,
+          '${user.name ?? user.email} ${isBanning ? 'banned' : 'unbanned'}',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }
@@ -246,24 +233,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     return ListView(
                       children: const [
                         SizedBox(height: 80),
-                        Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 60,
-                                color: Color(0xFFD1D5DB),
-                              ),
-                              SizedBox(height: 12),
-                              Text(
-                                'No users found',
-                                style: TextStyle(
-                                  color: Color(0xFF9CA3AF),
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
+                        AppEmptyState(
+                          icon: Icons.people_outline,
+                          title: 'No users found',
                         ),
                       ],
                     );
@@ -283,35 +255,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   );
                 },
                 loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryColor,
-                  ),
+                  child: AppLoadingIndicator(message: 'Loading users...'),
                 ),
                 error: (e, _) => ListView(
                   children: [
                     const SizedBox(height: 80),
-                    Center(
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.red,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            friendlyError(e),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Color(0xFF6B7280)),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _refresh,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                    AppErrorState(message: friendlyError(e), onRetry: _refresh),
                   ],
                 ),
               ),

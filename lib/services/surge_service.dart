@@ -12,11 +12,16 @@ class SurgeService {
     required double longitude,
   }) async {
     try {
+      final now = DateTime.now().toUtc().toIso8601String();
       final zones = await _client
           .from('surge_zones')
           .select()
           .eq('is_active', true)
-          .or('ends_at.is.null,ends_at.gt.${DateTime.now().toIso8601String()}');
+          .or('ends_at.is.null,ends_at.gt.$now');
+
+      AppLogger.info(
+        'Surge query for ($latitude, $longitude): ${zones.length} active zone(s)',
+      );
 
       double maxMultiplier = 1.0;
       for (final zone in (zones as List)) {
@@ -26,10 +31,16 @@ class SurgeService {
         final multiplier = (zone['multiplier'] as num).toDouble();
 
         final distance = _haversine(latitude, longitude, lat, lng);
-        if (distance <= radius && multiplier > maxMultiplier) {
+        AppLogger.info(
+          'Zone "${zone['name']}": dist=${distance.toStringAsFixed(2)} km, '
+          'radius=$radius km, multiplier=$multiplier '
+          '→ ${distance > radius ? "OUTSIDE ZONE – SURGE" : "inside zone – no surge"}',
+        );
+        if (distance > radius && multiplier > maxMultiplier) {
           maxMultiplier = multiplier;
         }
       }
+      AppLogger.info('Surge multiplier result: $maxMultiplier');
       return maxMultiplier;
     } catch (e) {
       AppLogger.error('Error fetching surge: $e');

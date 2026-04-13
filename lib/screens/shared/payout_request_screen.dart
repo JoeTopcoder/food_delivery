@@ -10,6 +10,7 @@ import '../../utils/friendly_error.dart';
 import '../../services/payout_service.dart';
 import '../../utils/app_theme.dart';
 import 'bank_info_screen.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class PayoutRequestScreen extends ConsumerStatefulWidget {
   final String role; // 'driver' or 'restaurant'
@@ -61,8 +62,12 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
   Widget _buildDriverBody(String userId) {
     final driverAsync = ref.watch(driverProfileProvider(userId));
     return driverAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () =>
+          const AppLoadingIndicator(message: 'Loading driver profile...'),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(driverProfileProvider(userId)),
+      ),
       data: (driver) {
         if (driver == null) {
           return const Center(child: Text('No driver profile'));
@@ -96,8 +101,12 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
   Widget _buildRestaurantBody(String userId) {
     final restAsync = ref.watch(restaurantByOwnerProvider(userId));
     return restAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () =>
+          const AppLoadingIndicator(message: 'Loading restaurant profile...'),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(restaurantByOwnerProvider(userId)),
+      ),
       data: (restaurant) {
         if (restaurant == null) {
           return const Center(child: Text('No restaurant profile'));
@@ -111,8 +120,13 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
         );
 
         return earningsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(friendlyError(e))),
+          loading: () =>
+              const AppLoadingIndicator(message: 'Loading earnings...'),
+          error: (e, _) => AppErrorState(
+            message: friendlyError(e),
+            onRetry: () =>
+                ref.invalidate(restaurantEarningsProvider(restaurant.id)),
+          ),
           data: (totalEarnings) {
             final totalPaidOut = paidOutAsync.valueOrNull ?? 0.0;
             final available = totalEarnings - totalPaidOut;
@@ -360,22 +374,18 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
           ),
           const SizedBox(height: 10),
           payoutsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text(friendlyError(e)),
+            loading: () =>
+                const AppLoadingIndicator(message: 'Loading payouts...'),
+            error: (e, _) => AppErrorState(
+              message: friendlyError(e),
+              onRetry: () => ref.invalidate(myPayoutsProvider(userId)),
+            ),
             data: (payouts) {
               if (payouts.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'No payout requests yet',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
+                return const AppEmptyState(
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'No payout requests yet',
+                  subtitle: 'Submit your first payout request above',
                 );
               }
               return Column(
@@ -545,12 +555,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
       _amountCtrl.clear();
       ref.invalidate(myPayoutsProvider(userId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payout request submitted!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackbar.success(context, 'Payout request submitted!');
       }
     } catch (e) {
       _showError('$e');
@@ -590,12 +595,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
       _amountCtrl.clear();
       ref.invalidate(myPayoutsProvider(userId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payout request submitted!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackbar.success(context, 'Payout request submitted!');
       }
     } catch (e) {
       _showError('$e');
@@ -606,9 +606,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
 
   void _showError(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      AppSnackbar.error(context, msg);
     }
   }
 }

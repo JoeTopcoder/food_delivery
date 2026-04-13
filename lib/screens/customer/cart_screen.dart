@@ -5,7 +5,9 @@ import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
+import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -15,6 +17,8 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  double _lastSurge = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
@@ -34,9 +38,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final restaurantAsync = restaurantId != null
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
-    final deliveryFee =
+    final baseDeliveryFee =
         restaurantAsync.valueOrNull?.deliveryFee ??
         AppConstants.defaultDeliveryFee;
+
+    // Surge multiplier based on delivery location
+    final defaultAddr = defaultAddrAsync?.valueOrNull;
+    final delLat = defaultAddr?.latitude ?? currentUser?.latitude ?? 0.0;
+    final delLng = defaultAddr?.longitude ?? currentUser?.longitude ?? 0.0;
+    final surgeKey =
+        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
+    final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
+    if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
+    final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
+    final deliveryFee = double.parse(
+      (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
+    );
+
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + deliveryFee + tax;
 
@@ -198,8 +216,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                             const SizedBox(height: 8),
                             _PriceRow(
-                              'Delivery Fee',
+                              surgeMultiplier > 1.0
+                                  ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
+                                  : 'Delivery Fee',
                               '\$${deliveryFee.toStringAsFixed(2)}',
+                              valueColor: surgeMultiplier > 1.0
+                                  ? const Color(0xFFFFA630)
+                                  : null,
                             ),
                             const SizedBox(height: 8),
                             _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
@@ -227,13 +250,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               border: InputBorder.none,
                               suffix: GestureDetector(
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Apply promo codes at checkout',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
+                                  AppSnackbar.info(
+                                    context,
+                                    'Apply promo codes at checkout',
                                   );
                                 },
                                 child: Text(
@@ -404,8 +423,14 @@ class _PriceRow extends StatelessWidget {
   final String label;
   final String value;
   final bool isBold;
+  final Color? valueColor;
 
-  const _PriceRow(this.label, this.value, {this.isBold = false});
+  const _PriceRow(
+    this.label,
+    this.value, {
+    this.isBold = false,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -428,7 +453,7 @@ class _PriceRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isBold ? 16 : 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: Colors.black,
+            color: valueColor ?? Colors.black,
           ),
         ),
       ],

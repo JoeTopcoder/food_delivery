@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -51,20 +52,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (!mounted) return;
       // Show specific error for debugging social sign-in issues
       final msg = e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            msg.contains('cancelled')
-                ? 'Google sign-in was cancelled'
-                : 'Google sign-in failed: ${msg.length > 120 ? msg.substring(0, 120) : msg}',
-          ),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+      AppSnackbar.error(
+        context,
+        msg.contains('cancelled')
+            ? 'Google sign-in was cancelled'
+            : 'Google sign-in failed: ${msg.length > 120 ? msg.substring(0, 120) : msg}',
       );
     }
   }
@@ -101,14 +93,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   void _showError(Object e) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(friendlyError(e)),
-        backgroundColor: Colors.red[700],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppSnackbar.error(context, friendlyError(e));
   }
 
   @override

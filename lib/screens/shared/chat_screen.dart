@@ -7,6 +7,7 @@ import '../../models/chat_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -96,9 +97,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _startCall() async {
     if (widget.receiverId == null || widget.receiverId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot call — no participant found')),
-      );
+      AppSnackbar.warning(context, 'Cannot call — no participant found');
       return;
     }
     try {
@@ -121,9 +120,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }
@@ -191,68 +188,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Expanded(
             child: msgsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
-              ),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.wifi_off_rounded,
-                      size: 48,
-                      color: Color(0xFF4B5563),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Connection lost',
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Check your internet and try again',
-                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          ref.invalidate(chatMessagesProvider(widget.orderId)),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: const Text('Retry'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+              loading: () =>
+                  const AppLoadingIndicator(message: 'Loading messages...'),
+              error: (e, _) => AppErrorState(
+                message: 'Connection lost',
+                icon: Icons.wifi_off_rounded,
+                onRetry: () =>
+                    ref.invalidate(chatMessagesProvider(widget.orderId)),
               ),
               data: (msgs) {
                 if (msgs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 48,
-                          color: Color(0xFF4B5563),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'No messages yet',
-                          style: TextStyle(color: Color(0xFF6B7280)),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Start the conversation!',
-                          style: TextStyle(
-                            color: Color(0xFF4B5563),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                  return const AppEmptyState(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No messages yet',
+                    subtitle: 'Start the conversation!',
                   );
                 }
                 return ListView.builder(

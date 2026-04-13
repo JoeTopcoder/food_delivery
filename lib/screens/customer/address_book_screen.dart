@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import 'map_location_picker_screen.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({super.key});
@@ -36,33 +37,17 @@ class AddressBookScreen extends ConsumerWidget {
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
       body: addressAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () =>
+            const AppLoadingIndicator(message: 'Loading addresses...'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(userAddressesProvider(userId)),
+        ),
         data: (addresses) => addresses.isEmpty
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.location_off_rounded,
-                      size: 56,
-                      color: Color(0xFFD1D5DB),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'No saved addresses',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tap + to add your first address',
-                      style: TextStyle(color: Color(0xFF9CA3AF)),
-                    ),
-                  ],
-                ),
+            ? const AppEmptyState(
+                icon: Icons.location_off_rounded,
+                title: 'No saved addresses',
+                subtitle: 'Tap + to add your first address',
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -447,12 +432,7 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -654,12 +634,7 @@ class _AddressSheetState extends ConsumerState<_AddressSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

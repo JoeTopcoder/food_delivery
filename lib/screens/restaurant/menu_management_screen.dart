@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/menu_service.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class MenuManagementScreen extends ConsumerStatefulWidget {
   const MenuManagementScreen({super.key});
@@ -28,33 +29,25 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
     final restaurantAsync = ref.watch(restaurantByOwnerProvider(currentUserId));
 
     return restaurantAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        body: AppLoadingIndicator(message: 'Loading restaurant...'),
+      ),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Menu Management')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(friendlyError(error)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(restaurantByOwnerProvider(currentUserId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        body: AppErrorState(
+          message: friendlyError(error),
+          onRetry: () =>
+              ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
       ),
       data: (restaurant) {
         if (restaurant == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Menu Management')),
-            body: const Center(
-              child: Text('No restaurant found for your account.'),
+            body: const AppEmptyState(
+              icon: Icons.storefront_rounded,
+              title: 'No Restaurant Found',
+              subtitle: 'No restaurant found for your account.',
             ),
           );
         }
@@ -73,48 +66,23 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
             ],
           ),
           body: menuAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(friendlyError(error)),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () =>
-                        ref.invalidate(restaurantMenuProvider(restaurant.id)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+            loading: () => const Center(
+              child: AppLoadingIndicator(message: 'Loading menu...'),
+            ),
+            error: (error, _) => AppErrorState(
+              message: friendlyError(error),
+              onRetry: () =>
+                  ref.invalidate(restaurantMenuProvider(restaurant.id)),
             ),
             data: (menuItems) {
               if (menuItems.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.restaurant_menu,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No menu items yet',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            _showAddMenuItemDialog(context, restaurant.id),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Menu Item'),
-                      ),
-                    ],
-                  ),
+                return AppEmptyState(
+                  icon: Icons.restaurant_menu,
+                  title: 'No menu items yet',
+                  subtitle: 'Add your first menu item to get started.',
+                  actionLabel: 'Add Menu Item',
+                  onAction: () =>
+                      _showAddMenuItemDialog(context, restaurant.id),
                 );
               }
 
@@ -327,15 +295,11 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
         ref.invalidate(restaurantMenuProvider(restaurantId));
 
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('"$itemName" deleted.')));
+          AppSnackbar.success(context, '"$itemName" deleted.');
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+          AppSnackbar.error(context, friendlyError(e));
         }
       }
     }
@@ -405,15 +369,11 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Menu item added!')));
+        AppSnackbar.success(context, 'Menu item added!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) {
@@ -641,9 +601,7 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
       widget.onChanged();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -657,9 +615,7 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
       widget.onChanged();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

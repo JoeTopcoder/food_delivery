@@ -3,6 +3,7 @@ import '../../utils/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/app_feedback_widgets.dart';
 
 /// A reusable Emergency SOS button and dialog.
 /// Shows an SOS icon button that opens a bottom sheet with emergency contacts.
@@ -140,12 +141,7 @@ class _SosSheetContent extends StatelessWidget {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enable location services'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppSnackbar.warning(context, 'Please enable location services');
         }
         return;
       }
@@ -157,12 +153,7 @@ class _SosSheetContent extends StatelessWidget {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location permission is required'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppSnackbar.warning(context, 'Location permission is required');
         }
         return;
       }
@@ -181,12 +172,7 @@ class _SosSheetContent extends StatelessWidget {
       await Share.share(message);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not get location: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, 'Could not get location: $e');
       }
     }
   }

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/feature_providers.dart';
 import '../../models/feedback_model.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminFeedbackScreen extends ConsumerStatefulWidget {
   const AdminFeedbackScreen({super.key});
@@ -42,14 +43,21 @@ class _AdminFeedbackScreenState extends ConsumerState<AdminFeedbackScreen> {
         ],
       ),
       body: feedbackAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        loading: () => const AppLoadingIndicator(message: 'Loading feedback…'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(allFeedbackProvider),
+        ),
         data: (items) {
           final filtered = _filterType == null
               ? items
               : items.where((f) => f.type == _filterType).toList();
           if (filtered.isEmpty) {
-            return const Center(child: Text('No feedback yet'));
+            return const AppEmptyState(
+              icon: Icons.feedback_outlined,
+              title: 'No feedback yet',
+              subtitle: 'Feedback from users will appear here',
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(12),

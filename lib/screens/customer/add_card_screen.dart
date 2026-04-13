@@ -7,6 +7,7 @@ import '../../providers/payment_provider.dart';
 import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import 'ncb_payment_screen.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AddCardScreen extends ConsumerStatefulWidget {
   const AddCardScreen({super.key});
@@ -127,12 +128,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         );
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to start verification: $e'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
+          AppSnackbar.error(context, 'Failed to start verification: $e');
         }
         return;
       }
@@ -146,12 +142,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       if (chargeCompleted != true || !mounted) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Card verification was not completed'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          AppSnackbar.warning(context, 'Card verification was not completed');
         }
         return;
       }
@@ -173,33 +164,18 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       if (saved != null) {
         ref.invalidate(savedCardsProvider(userId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Card charged! Check your bank statement and verify '
-              'the amount within 15 minutes.',
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 5),
-          ),
+        AppSnackbar.success(
+          context,
+          'Card charged! Check your bank statement and verify '
+          'the amount within 15 minutes.',
         );
         Navigator.of(context).pop(true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save card. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to save card. Please try again.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        AppSnackbar.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -436,13 +412,9 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                     elevation: 0,
                   ),
                   child: _isSaving
-                      ? SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: isDark ? Colors.black : Colors.white,
-                          ),
+                      ? AppLoadingIndicator(
+                          fullScreen: false,
+                          color: isDark ? Colors.black : Colors.white,
                         )
                       : const Text(
                           'Save Card',

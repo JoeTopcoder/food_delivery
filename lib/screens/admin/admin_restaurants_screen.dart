@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminRestaurantsScreen extends ConsumerStatefulWidget {
   const AdminRestaurantsScreen({super.key});
@@ -107,22 +108,7 @@ class _RestaurantList extends StatelessWidget {
       child: asyncValue.when(
         data: (restaurants) {
           if (restaurants.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(emptyIcon, size: 64, color: const Color(0xFFD1D5DB)),
-                  const SizedBox(height: 12),
-                  Text(
-                    emptyMessage,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return AppEmptyState(icon: emptyIcon, title: emptyMessage);
           }
 
           return ListView.builder(
@@ -391,25 +377,10 @@ class _RestaurantList extends StatelessWidget {
             },
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-        ),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 8),
-              Text(
-                friendlyError(e),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF6B7280)),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: onRefresh, child: const Text('Retry')),
-            ],
-          ),
-        ),
+        loading: () =>
+            const AppLoadingIndicator(message: 'Loading restaurants…'),
+        error: (e, _) =>
+            AppErrorState(message: friendlyError(e), onRetry: onRefresh),
       ),
     );
   }
@@ -448,28 +419,21 @@ class _RestaurantList extends StatelessWidget {
                 ref.invalidate(pendingRestaurantsProvider);
                 ref.invalidate(restaurantStatisticsProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '"$restaurantName" ${verify ? 'verified' : 'rejected'} successfully',
-                      ),
-                      backgroundColor: verify ? Colors.green : Colors.orange,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  if (verify) {
+                    AppSnackbar.success(
+                      context,
+                      '"$restaurantName" verified successfully',
+                    );
+                  } else {
+                    AppSnackbar.warning(
+                      context,
+                      '"$restaurantName" rejected successfully',
+                    );
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },
@@ -543,28 +507,14 @@ class _RestaurantList extends StatelessWidget {
                       );
                   ref.invalidate(allRestaurantsAdminProvider);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Commission for "${restaurant.name}" set to ${commission.toStringAsFixed(0)}%',
-                        ),
-                        backgroundColor: const Color(0xFF8B5CF6),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                    AppSnackbar.success(
+                      context,
+                      'Commission for "${restaurant.name}" set to ${commission.toStringAsFixed(0)}%',
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(friendlyError(e)),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    AppSnackbar.error(context, friendlyError(e));
                   }
                 }
               },

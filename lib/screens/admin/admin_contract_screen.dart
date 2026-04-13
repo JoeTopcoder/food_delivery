@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 /// Admin screen for viewing/editing the proprietor–client service agreement.
 class AdminContractScreen extends ConsumerStatefulWidget {
@@ -72,7 +73,10 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
   }
 
   Future<void> _loadContracts() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final session = Supabase.instance.client.auth.currentSession;
       final resp = await Supabase.instance.client.functions.invoke(
@@ -174,9 +178,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
 
   Future<void> _save() async {
     if (_clientName.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Client name is required')),
-      );
+      AppSnackbar.warning(context, 'Client name is required');
       return;
     }
     setState(() => _saving = true);
@@ -196,18 +198,14 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
       _applyData(body['contract'] as Map<String, dynamic>);
       setState(() => _editing = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isNew ? 'Contract created' : 'Contract saved'),
-            backgroundColor: const Color(0xFF10B981),
-          ),
+        AppSnackbar.success(
+          context,
+          isNew ? 'Contract created' : 'Contract saved',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e'), backgroundColor: Colors.red),
-        );
+        AppSnackbar.error(context, 'Save failed: $e');
       }
     } finally {
       setState(() => _saving = false);
@@ -251,13 +249,17 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
       return Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
         appBar: AppBar(
-          title: const Text('Service Agreement',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Service Agreement',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           backgroundColor: const Color(0xFF1E293B),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: AppLoadingIndicator(message: 'Loading contract…'),
+        ),
       );
     }
 
@@ -277,9 +279,12 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
               const Padding(
                 padding: EdgeInsets.all(12),
                 child: SizedBox(
-                  width: 24, height: 24,
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               )
             else
@@ -317,13 +322,20 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: Colors.red, size: 20),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(_error!,
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.red.shade800)),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 18),

@@ -4,6 +4,7 @@ import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 /// Provider that fetches all orders with restaurant name joined.
 final _adminAllOrdersProvider =
@@ -246,32 +247,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                   }),
                 );
               },
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
-              ),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      friendlyError(e),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF6B7280)),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _refresh,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
+              loading: () =>
+                  const AppLoadingIndicator(message: 'Loading orders…'),
+              error: (e, _) =>
+                  AppErrorState(message: friendlyError(e), onRetry: _refresh),
             ),
           ),
         ],
@@ -280,24 +259,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   }
 
   Widget _emptyState(int tabIdx) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            tabIdx == 4 ? Icons.cancel_outlined : Icons.receipt_long_outlined,
-            size: 64,
-            color: const Color(0xFFD1D5DB),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            tabIdx == 0
-                ? 'No orders found'
-                : 'No ${_tabs[tabIdx].toLowerCase()} orders',
-            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: tabIdx == 4 ? Icons.cancel_outlined : Icons.receipt_long_outlined,
+      title: tabIdx == 0
+          ? 'No orders found'
+          : 'No ${_tabs[tabIdx].toLowerCase()} orders',
     );
   }
 }
@@ -732,32 +698,18 @@ class _UpdateStatusButton extends StatelessWidget {
 
       await onUpdated();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              newStatus == 'cancelled'
-                  ? 'Order cancelled'
-                  : 'Order updated to ${_statusLabel(newStatus)}',
-            ),
-            backgroundColor: newStatus == 'cancelled'
-                ? Colors.orange
-                : const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        if (newStatus == 'cancelled') {
+          AppSnackbar.warning(context, 'Order cancelled');
+        } else {
+          AppSnackbar.success(
+            context,
+            'Order updated to ${_statusLabel(newStatus)}',
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }
@@ -896,26 +848,11 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
         Navigator.pop(context);
         final user = driver['user'] as Map?;
         final name = (user?['name'] ?? 'Rider').toString();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$name assigned to order'),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        AppSnackbar.success(context, '$name assigned to order');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _assigning = false);
@@ -1054,26 +991,9 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                       }).toList();
 
                 if (filtered.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.two_wheeler_outlined,
-                          size: 48,
-                          color: Color(0xFFD1D5DB),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'No available riders found',
-                          style: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
+                  return const AppEmptyState(
+                    icon: Icons.two_wheeler_outlined,
+                    title: 'No available riders found',
                   );
                 }
 
@@ -1220,19 +1140,11 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
               },
               loading: () => const Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
+                child: AppLoadingIndicator(fullScreen: false),
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  friendlyError(e),
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
-                ),
+                child: AppErrorState(message: friendlyError(e)),
               ),
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -232,9 +233,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
 
   Future<void> _submit(String userId) async {
     if (_messageCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your feedback')),
-      );
+      AppSnackbar.warning(context, 'Please enter your feedback');
       return;
     }
     setState(() => _loading = true);
@@ -251,9 +250,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     });
     ref.invalidate(userFeedbackProvider(userId));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your feedback!')),
-      );
+      AppSnackbar.success(context, 'Thank you for your feedback!');
     }
   }
 }
@@ -268,23 +265,14 @@ class _FeedbackHistory extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final feedbackAsync = ref.watch(userFeedbackProvider(userId));
     return feedbackAsync.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (e, _) => Text(friendlyError(e)),
+      loading: () => const AppLoadingIndicator(),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (items) {
         if (items.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: Text(
-                'No feedback submitted yet',
-                style: TextStyle(color: Color(0xFF9CA3AF)),
-              ),
-            ),
+          return const AppEmptyState(
+            icon: Icons.chat_bubble_outline,
+            title: 'No feedback yet',
+            subtitle: 'Submit your first feedback above',
           );
         }
         return Column(

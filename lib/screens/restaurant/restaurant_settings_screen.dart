@@ -5,6 +5,7 @@ import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class RestaurantSettingsScreen extends ConsumerStatefulWidget {
   const RestaurantSettingsScreen({super.key});
@@ -93,9 +94,7 @@ class _RestaurantSettingsScreenState
       await ref.read(authNotifierProvider.notifier).signOut();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }
@@ -152,15 +151,11 @@ class _RestaurantSettingsScreenState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully!')),
-        );
+        AppSnackbar.success(context, 'Settings saved successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving settings: $e')));
+        AppSnackbar.error(context, 'Error saving settings: $e');
       }
     } finally {
       if (mounted) {
@@ -182,33 +177,25 @@ class _RestaurantSettingsScreenState
     final restaurantAsync = ref.watch(restaurantByOwnerProvider(currentUserId));
 
     return restaurantAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        body: AppLoadingIndicator(message: 'Loading settings...'),
+      ),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Restaurant Settings')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error loading restaurant: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(restaurantByOwnerProvider(currentUserId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        body: AppErrorState(
+          message: 'Error loading restaurant: $error',
+          onRetry: () =>
+              ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
       ),
       data: (restaurant) {
         if (restaurant == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Restaurant Settings')),
-            body: const Center(
-              child: Text('No restaurant found for your account.'),
+            body: const AppEmptyState(
+              icon: Icons.storefront_rounded,
+              title: 'No Restaurant Found',
+              subtitle: 'No restaurant found for your account.',
             ),
           );
         }

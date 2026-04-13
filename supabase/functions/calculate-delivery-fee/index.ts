@@ -70,7 +70,7 @@ Deno.serve(async (request) => {
     }
 
     // Fetch config values
-    const [baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultFee] = await Promise.all([
+    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee] = await Promise.all([
       getConfig("delivery_base_fee", 50.0),
       getConfig("delivery_per_km_fee", 30.0),
       getConfig("delivery_base_km", 3.0),
@@ -79,9 +79,28 @@ Deno.serve(async (request) => {
       getConfig("default_delivery_fee", 50.0),
     ]);
 
-    // If restaurant has no coordinates, return flat fee
+    // Check surge_zones table for zone-specific multiplier at delivery location
+    let surgeMultiplier = globalSurgeMultiplier;
+    try {
+      const now = new Date().toISOString();
+      const { data: zones } = await admin
+        .from("surge_zones")
+        .select("latitude, longitude, radius_km, multiplier")
+        .eq("is_active", true)
+        .or(`ends_at.is.null,ends_at.gt.${now}`);
+      if (zones && zones.length > 0) {
+        for (const z of zones) {
+          const dist = haversineKm(deliveryLat, deliveryLng, z.latitude, z.longitude);
+          if (dist > z.radius_km && z.multiplier > surgeMultiplier) {
+            surgeMultiplier = z.multiplier;
+          }
+        }
+      }
+    } catch { /* fall back to global config */ }
+
+    // If restaurant has no coordinates, return flat fee (still apply surge)
     if (!restaurant.latitude || !restaurant.longitude) {
-      const flatFee = restaurant.delivery_fee ?? defaultFee;
+      const flatFee = Math.round((restaurant.delivery_fee ?? defaultFee) * surgeMultiplier * 100) / 100;
       return json({
         delivery_fee: flatFee,
         distance_km: null,

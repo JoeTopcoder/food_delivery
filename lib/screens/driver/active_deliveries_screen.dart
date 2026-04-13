@@ -11,6 +11,7 @@ import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -48,30 +49,15 @@ class _ActiveDeliveriesScreenState
       ref.read(isTrackingProvider.notifier).state = false;
       setState(() => _trackingOrderId = null);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('GPS tracking stopped'),
-            backgroundColor: const Color(0xFF1E2030),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        AppSnackbar.info(context, 'GPS tracking stopped');
       }
     } else {
       final hasPermission = await locationService.requestPermission();
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Location permission required for tracking'),
-              backgroundColor: const Color(0xFFF59E0B),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+          AppSnackbar.warning(
+            context,
+            'Location permission required for tracking',
           );
         }
         return;
@@ -80,16 +66,7 @@ class _ActiveDeliveriesScreenState
       ref.read(isTrackingProvider.notifier).state = true;
       setState(() => _trackingOrderId = orderId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('GPS tracking started'),
-            backgroundColor: const Color(0xFF22C55E),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        AppSnackbar.success(context, 'GPS tracking started');
       }
     }
   }
@@ -231,19 +208,10 @@ class _ActiveDeliveriesScreenState
                   );
                 },
                 loading: () => const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
+                  child: AppLoadingIndicator(message: 'Loading deliveries...'),
                 ),
                 error: (err, _) => SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      friendlyError(err),
-                      style: const TextStyle(color: Color(0xFF9CA3AF)),
-                    ),
-                  ),
+                  child: AppErrorState(message: friendlyError(err)),
                 ),
               ),
             ],
@@ -252,18 +220,11 @@ class _ActiveDeliveriesScreenState
       },
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
-        ),
+        body: AppLoadingIndicator(message: 'Loading driver profile...'),
       ),
       error: (err, _) => Scaffold(
         backgroundColor: const Color(0xFF0F1117),
-        body: Center(
-          child: Text(
-            friendlyError(err),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
+        body: AppErrorState(message: friendlyError(err)),
       ),
     );
   }
@@ -296,16 +257,7 @@ class _ActiveDeliveriesScreenState
       );
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('No delivery address available'),
-            backgroundColor: const Color(0xFFF59E0B),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        AppSnackbar.warning(context, 'No delivery address available');
       }
     }
   }
@@ -394,26 +346,11 @@ class _ActiveDeliveriesScreenState
                 await driverService.completeDelivery(delivery.id);
                 ref.invalidate(activeDeliveriesProvider(driverId));
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Delivery completed!'),
-                      backgroundColor: const Color(0xFF22C55E),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  AppSnackbar.success(context, 'Delivery completed!');
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },
@@ -809,39 +746,10 @@ class _CardAction extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.local_shipping_outlined,
-              size: 40,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No Active Deliveries',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Accept an order to start delivering.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-          ),
-        ],
-      ),
+    return const AppEmptyState(
+      icon: Icons.local_shipping_outlined,
+      title: 'No Active Deliveries',
+      subtitle: 'Accept an order to start delivering.',
     );
   }
 }

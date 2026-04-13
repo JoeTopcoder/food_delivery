@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 /// Admin database lookup screen.
 /// Search by card last-4, order ID, or customer email/phone/name.
@@ -65,9 +66,7 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
           final result = await svc.lookupByCustomer(query);
           setState(() => _customerResult = result);
           if (result == null) {
-            setState(
-              () => _error = 'No customer found matching "$query"',
-            );
+            setState(() => _error = 'No customer found matching "$query"');
           }
           break;
       }
@@ -189,8 +188,7 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -212,36 +210,30 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
           // ── Results ──────────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
-                    ),
-                  )
+                ? const AppLoadingIndicator(message: 'Searching...')
                 : _error != null
-                    ? _EmptyState(message: _error!)
-                    : _cardResults == null &&
-                            _orderResult == null &&
-                            _customerResult == null
-                        ? _EmptyState(
-                            message: _mode.emptyPrompt,
-                            icon: Icons.manage_search_rounded,
-                          )
-                        : SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (_cardResults != null)
-                                  _CardResultsView(results: _cardResults!),
-                                if (_orderResult != null)
-                                  _OrderResultView(data: _orderResult!),
-                                if (_customerResult != null)
-                                  _CustomerResultView(
-                                    data: _customerResult!,
-                                  ),
-                              ],
-                            ),
-                          ),
+                ? _EmptyState(message: _error!)
+                : _cardResults == null &&
+                      _orderResult == null &&
+                      _customerResult == null
+                ? _EmptyState(
+                    message: _mode.emptyPrompt,
+                    icon: Icons.manage_search_rounded,
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_cardResults != null)
+                          _CardResultsView(results: _cardResults!),
+                        if (_orderResult != null)
+                          _OrderResultView(data: _orderResult!),
+                        if (_customerResult != null)
+                          _CustomerResultView(data: _customerResult!),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -258,19 +250,22 @@ enum _SearchMode {
     label: 'Card',
     hint: 'Last 4 digits (e.g. 3432)',
     icon: Icons.credit_card_rounded,
-    emptyPrompt: 'Enter last 4 digits of a card to find associated orders & customer info',
+    emptyPrompt:
+        'Enter last 4 digits of a card to find associated orders & customer info',
   ),
   order(
     label: 'Order ID',
     hint: 'Full or partial order UUID',
     icon: Icons.receipt_long_rounded,
-    emptyPrompt: 'Enter an order ID to see full details, customer, payment & delivery info',
+    emptyPrompt:
+        'Enter an order ID to see full details, customer, payment & delivery info',
   ),
   customer(
     label: 'Customer',
     hint: 'Email, phone, or name',
     icon: Icons.person_search_rounded,
-    emptyPrompt: 'Search by email, phone, or name to see customer details & orders',
+    emptyPrompt:
+        'Search by email, phone, or name to see customer details & orders',
   );
 
   final String label;
@@ -340,7 +335,8 @@ class _CardResultsView extends StatelessWidget {
       children: [
         _SectionHeader(
           icon: Icons.credit_card_rounded,
-          title: '${results.length} Card Match${results.length > 1 ? 'es' : ''}',
+          title:
+              '${results.length} Card Match${results.length > 1 ? 'es' : ''}',
           color: const Color(0xFF7C3AED),
         ),
         const SizedBox(height: 12),
@@ -403,7 +399,9 @@ class _CardResultsView extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
@@ -441,7 +439,10 @@ class _CardResultsView extends StatelessWidget {
               _InfoRow('Name', customer['name'] as String? ?? 'N/A'),
               _InfoRow('Email', customer['email'] as String? ?? 'N/A'),
               _InfoRow('Phone', customer['phone'] as String? ?? 'N/A'),
-              _InfoRow('Status', (customer['is_active'] as bool? ?? false) ? 'Active' : 'Banned'),
+              _InfoRow(
+                'Status',
+                (customer['is_active'] as bool? ?? false) ? 'Active' : 'Banned',
+              ),
             ],
           ),
         ],
@@ -455,7 +456,8 @@ class _CardResultsView extends StatelessWidget {
             rows: [],
           ),
           const SizedBox(height: 8),
-          for (final order in orders) _OrderRow(order: order as Map<String, dynamic>, payments: payments),
+          for (final order in orders)
+            _OrderRow(order: order as Map<String, dynamic>, payments: payments),
         ],
 
         if (orders.isEmpty) ...[
@@ -511,17 +513,36 @@ class _OrderResultView extends StatelessWidget {
               icon: Icons.info_outline_rounded,
               rows: [
                 _InfoRow('Order ID', orderId),
-                _InfoRow('Status', _statusLabel(order['status'] as String? ?? '')),
-                _InfoRow('Total', '\$${(order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
-                _InfoRow('Subtotal', '\$${(order['subtotal'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
-                _InfoRow('Delivery Fee', '\$${(order['delivery_fee'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
+                _InfoRow(
+                  'Status',
+                  _statusLabel(order['status'] as String? ?? ''),
+                ),
+                _InfoRow(
+                  'Total',
+                  '\$${(order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                ),
+                _InfoRow(
+                  'Subtotal',
+                  '\$${(order['subtotal'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                ),
+                _InfoRow(
+                  'Delivery Fee',
+                  '\$${(order['delivery_fee'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                ),
                 if (order['discount'] != null)
-                  _InfoRow('Discount', '\$${(order['discount'] as num).toStringAsFixed(2)}'),
-                _InfoRow('Payment', '${order['payment_method'] ?? 'N/A'} (${order['payment_status'] ?? '?'})'),
+                  _InfoRow(
+                    'Discount',
+                    '\$${(order['discount'] as num).toStringAsFixed(2)}',
+                  ),
+                _InfoRow(
+                  'Payment',
+                  '${order['payment_method'] ?? 'N/A'} (${order['payment_status'] ?? '?'})',
+                ),
                 _InfoRow('Ordered At', _formatDateTime(order['ordered_at'])),
                 if (order['delivery_address'] != null)
                   _InfoRow('Delivery To', order['delivery_address'] as String),
-                if (order['notes'] != null && (order['notes'] as String).isNotEmpty)
+                if (order['notes'] != null &&
+                    (order['notes'] as String).isNotEmpty)
                   _InfoRow('Notes', order['notes'] as String),
               ],
             ),
@@ -536,7 +557,12 @@ class _OrderResultView extends StatelessWidget {
                   _InfoRow('Name', customer['name'] as String? ?? 'N/A'),
                   _InfoRow('Email', customer['email'] as String? ?? 'N/A'),
                   _InfoRow('Phone', customer['phone'] as String? ?? 'N/A'),
-                  _InfoRow('Status', (customer['is_active'] as bool? ?? false) ? 'Active' : 'Banned'),
+                  _InfoRow(
+                    'Status',
+                    (customer['is_active'] as bool? ?? false)
+                        ? 'Active'
+                        : 'Banned',
+                  ),
                 ],
               ),
             ],
@@ -548,11 +574,17 @@ class _OrderResultView extends StatelessWidget {
                 title: 'Payment Record',
                 icon: Icons.payments_rounded,
                 rows: [
-                  _InfoRow('Amount', '\$${(payment['amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
+                  _InfoRow(
+                    'Amount',
+                    '\$${(payment['amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  ),
                   _InfoRow('Method', payment['method'] as String? ?? 'N/A'),
                   _InfoRow('Status', payment['status'] as String? ?? 'N/A'),
                   if (payment['transaction_id'] != null)
-                    _InfoRow('Transaction', payment['transaction_id'] as String),
+                    _InfoRow(
+                      'Transaction',
+                      payment['transaction_id'] as String,
+                    ),
                 ],
               ),
             ],
@@ -580,9 +612,15 @@ class _OrderResultView extends StatelessWidget {
                 title: 'Driver',
                 icon: Icons.delivery_dining_rounded,
                 rows: [
-                  _InfoRow('Vehicle', '${driver['vehicle_type'] ?? ''} ${driver['vehicle_number'] ?? ''}'),
+                  _InfoRow(
+                    'Vehicle',
+                    '${driver['vehicle_type'] ?? ''} ${driver['vehicle_number'] ?? ''}',
+                  ),
                   if (driver['rating'] != null)
-                    _InfoRow('Rating', '${(driver['rating'] as num).toStringAsFixed(1)} ★'),
+                    _InfoRow(
+                      'Rating',
+                      '${(driver['rating'] as num).toStringAsFixed(1)} ★',
+                    ),
                 ],
               ),
             ],
@@ -600,7 +638,20 @@ class _OrderResultView extends StatelessWidget {
     if (dt == null) return 'N/A';
     try {
       final parsed = DateTime.parse(dt.toString()).toLocal();
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       return '${months[parsed.month - 1]} ${parsed.day}, ${parsed.year} at ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return dt.toString();
@@ -644,8 +695,16 @@ class _CustomerResultView extends StatelessWidget {
                 _InfoRow('Email', customer['email'] as String? ?? 'N/A'),
                 _InfoRow('Phone', customer['phone'] as String? ?? 'N/A'),
                 _InfoRow('Role', customer['role'] as String? ?? 'N/A'),
-                _InfoRow('Status', (customer['is_active'] as bool? ?? false) ? 'Active' : 'Banned'),
-                _InfoRow('Member Since', _OrderResultView._formatDateTime(customer['created_at'])),
+                _InfoRow(
+                  'Status',
+                  (customer['is_active'] as bool? ?? false)
+                      ? 'Active'
+                      : 'Banned',
+                ),
+                _InfoRow(
+                  'Member Since',
+                  _OrderResultView._formatDateTime(customer['created_at']),
+                ),
               ],
             ),
 
@@ -656,7 +715,10 @@ class _CustomerResultView extends StatelessWidget {
                 title: 'Wallet',
                 icon: Icons.account_balance_wallet_rounded,
                 rows: [
-                  _InfoRow('Balance', '\$${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
+                  _InfoRow(
+                    'Balance',
+                    '\$${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  ),
                 ],
               ),
             ],
@@ -693,14 +755,23 @@ class _CustomerResultView extends StatelessWidget {
                       if (card['is_default'] == true) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(3),
                           ),
                           child: const Text(
                             'DEFAULT',
-                            style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF10B981),
+                            ),
                           ),
                         ),
                       ],
@@ -719,7 +790,10 @@ class _CustomerResultView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               for (final order in orders)
-                _OrderRow(order: order as Map<String, dynamic>, payments: const []),
+                _OrderRow(
+                  order: order as Map<String, dynamic>,
+                  payments: const [],
+                ),
             ],
 
             if (orders.isEmpty) ...[
@@ -901,9 +975,10 @@ class _OrderRow extends StatelessWidget {
     final orderedAt = order['ordered_at'];
 
     // Find matching payment record
-    final paymentRecord = payments.cast<Map<String, dynamic>?>().where(
-      (p) => p != null && p['order_id'] == orderId,
-    ).firstOrNull;
+    final paymentRecord = payments
+        .cast<Map<String, dynamic>?>()
+        .where((p) => p != null && p['order_id'] == orderId)
+        .firstOrNull;
     final txnId = paymentRecord?['transaction_id'] as String?;
 
     return Container(
@@ -945,10 +1020,7 @@ class _OrderRow extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 '$method ($paymentStatus)',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF6B7280),
-                ),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
               ),
             ],
           ),
@@ -967,10 +1039,7 @@ class _OrderRow extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               _OrderResultView._formatDateTime(orderedAt),
-              style: const TextStyle(
-                fontSize: 10,
-                color: Color(0xFF9CA3AF),
-              ),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
             ),
           ],
         ],
@@ -1013,11 +1082,7 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         status.replaceAll('_', ' ').toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }

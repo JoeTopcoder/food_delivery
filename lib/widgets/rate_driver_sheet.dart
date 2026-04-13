@@ -7,6 +7,7 @@ import '../providers/payment_provider.dart';
 import '../config/supabase_config.dart';
 import '../screens/customer/ncb_payment_screen.dart';
 import '../utils/friendly_error.dart';
+import '../utils/app_feedback_widgets.dart';
 
 /// Bottom sheet that lets a customer rate a driver (1-5 stars)
 /// and optionally tip them via card payment.
@@ -295,39 +296,28 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                paymentCompleted == true
-                    ? 'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent'
-                    : 'Driver rated! Tip payment was cancelled',
-              ),
-              backgroundColor: paymentCompleted == true
-                  ? Colors.green
-                  : Colors.orange,
-            ),
-          );
+          if (paymentCompleted == true) {
+            AppSnackbar.success(
+              context,
+              'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent',
+            );
+          } else {
+            AppSnackbar.warning(
+              context,
+              'Driver rated! Tip payment was cancelled',
+            );
+          }
         }
         return; // Already popped + shown snackbar
       }
 
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Driver rated! Thank you'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackbar.success(context, 'Driver rated! Thank you');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

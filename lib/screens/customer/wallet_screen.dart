@@ -13,6 +13,7 @@ import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import 'add_card_screen.dart';
 import 'ncb_payment_screen.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -115,12 +116,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to start verification: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to start verification: $e');
       }
       return false;
     }
@@ -134,12 +130,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
     if (chargeCompleted != true || !mounted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Card verification was not completed'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        AppSnackbar.warning(context, 'Card verification was not completed');
       }
       return false;
     }
@@ -152,22 +143,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
     if (amountConfirmed && mounted) {
       ref.invalidate(savedCardsProvider(userId));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Card verified! The charge will be reversed.'),
-          backgroundColor: Colors.green,
-        ),
+      AppSnackbar.success(
+        context,
+        'Card verified! The charge will be reversed.',
       );
       return true;
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Amount did not match. Verification failed.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackbar.error(context, 'Amount did not match. Verification failed.');
     }
     return false;
   }
@@ -382,12 +366,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
     final enteredAmount = double.tryParse(entered);
     if (enteredAmount == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid amount.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      AppSnackbar.warning(context, 'Please enter a valid amount.');
       return;
     }
 
@@ -397,11 +376,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (!mounted) return;
 
     if (matched) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Card verified successfully! Charge will be reversed.'),
-          backgroundColor: Colors.green,
-        ),
+      AppSnackbar.success(
+        context,
+        'Card verified successfully! Charge will be reversed.',
       );
     } else {
       // Re-fetch card to check if now failed
@@ -414,15 +391,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
       if (updatedCard != null && updatedCard.isFailed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Verification failed — too many wrong attempts. '
-              'Please try adding the card again.',
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
+        AppSnackbar.error(
+          context,
+          'Verification failed — too many wrong attempts. Please try adding the card again.',
         );
       } else {
         if (!mounted) return;
@@ -430,14 +401,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             maxAttempts -
             (updatedCard?.verificationAttempts ??
                 card.verificationAttempts + 1);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Amount didn\'t match. $attemptsLeft '
-              '${attemptsLeft == 1 ? "attempt" : "attempts"} remaining.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
+        AppSnackbar.warning(
+          context,
+          'Amount didn\'t match. $attemptsLeft ${attemptsLeft == 1 ? "attempt" : "attempts"} remaining.',
         );
       }
     }
@@ -455,11 +421,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (!mounted) return matched;
 
     if (matched) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Card verified successfully! Charge will be reversed.'),
-          backgroundColor: Colors.green,
-        ),
+      AppSnackbar.success(
+        context,
+        'Card verified successfully! Charge will be reversed.',
       );
     } else {
       final updatedCards = userId != null
@@ -469,27 +433,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
       if (updatedCard != null && updatedCard.isFailed) {
         if (!mounted) return false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Verification failed — too many wrong attempts. '
-              'Please try adding the card again.',
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
+        AppSnackbar.error(
+          context,
+          'Verification failed — too many wrong attempts. Please try adding the card again.',
         );
       } else {
         if (!mounted) return false;
         final attemptsLeft = 3 - (updatedCard?.verificationAttempts ?? 1);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Amount didn\'t match. $attemptsLeft '
-              '${attemptsLeft == 1 ? "attempt" : "attempts"} remaining.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
+        AppSnackbar.warning(
+          context,
+          'Amount didn\'t match. $attemptsLeft ${attemptsLeft == 1 ? "attempt" : "attempts"} remaining.',
         );
       }
     }
@@ -703,12 +656,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
       if (paymentCompleted != true) {
         // User cancelled or payment failed
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Wallet top-up cancelled'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        AppSnackbar.warning(context, 'Wallet top-up cancelled');
         return;
       }
 
@@ -716,22 +664,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       await ref.read(walletNotifierProvider.notifier).deposit(amount);
       ref.invalidate(walletTransactionsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('\$${amount.toStringAsFixed(2)} added to wallet'),
-            backgroundColor: AppTheme.successColor,
-          ),
+        AppSnackbar.success(
+          context,
+          '\$${amount.toStringAsFixed(2)} added to wallet',
         );
         _amountCtrl.clear();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed: $e');
       }
     } finally {
       if (mounted) setState(() => _isDepositing = false);
@@ -1460,15 +1401,9 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                                       _amountCtrl.text.trim(),
                                     );
                                     if (amount == null || amount <= 0) {
-                                      ScaffoldMessenger.of(
+                                      AppSnackbar.warning(
                                         context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please enter a valid amount.',
-                                          ),
-                                          backgroundColor: Colors.orange,
-                                        ),
+                                        'Please enter a valid amount.',
                                       );
                                       return;
                                     }

@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
@@ -201,11 +202,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               title: 'Payment Methods',
               subtitle: 'Manage payment methods',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Payment methods are configured at checkout'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                AppSnackbar.info(
+                  context,
+                  'Payment methods are configured at checkout',
                 );
               },
             ),
@@ -318,23 +317,11 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
       ref.invalidate(currentUserProvider);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile photo updated!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.success(context, 'Profile photo updated!');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload photo: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to upload photo: $e');
       }
     }
   }
@@ -376,13 +363,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Language set to $selected'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                AppSnackbar.success(context, 'Language set to $selected');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
@@ -431,24 +412,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                   ref.invalidate(currentUserProvider);
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Phone number updated'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    AppSnackbar.success(context, 'Phone number updated');
                   }
                 } catch (e) {
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(friendlyError(e)),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    AppSnackbar.error(context, friendlyError(e));
                   }
                 }
               }
@@ -488,12 +457,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           ],
         );
       },
-      loading: () => const Center(
-        child: SizedBox(
-          height: 30,
-          width: 30,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+      loading: () => const AppLoadingIndicator(
+        fullScreen: false,
+        message: 'Loading stats...',
       ),
       error: (_, _) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,

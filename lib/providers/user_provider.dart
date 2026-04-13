@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
@@ -56,6 +58,28 @@ final restaurantSearchProvider = FutureProvider.family
 final restaurantByIdProvider = FutureProvider.family
     .autoDispose<Restaurant?, String>((ref, restaurantId) async {
       final restaurantService = ref.watch(restaurantServiceProvider);
+
+      // Real-time: refresh when this restaurant row changes
+      final channel = Supabase.instance.client.realtime.channel(
+        'rest_${restaurantId}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'restaurants',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: restaurantId,
+            ),
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+
       return restaurantService.getRestaurantById(restaurantId);
     });
 
@@ -186,10 +210,73 @@ class CartItem {
       selectedOptions: selectedOptions ?? this.selectedOptions,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'menuItem': menuItem.toJson(),
+    'quantity': quantity,
+    'notes': notes,
+    'selectedSides': selectedSides.map((s) => s.toJson()).toList(),
+    'selectedOptions': selectedOptions.map(
+      (groupId, choices) =>
+          MapEntry(groupId, choices.map((c) => c.toJson()).toList()),
+    ),
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    return CartItem(
+      menuItem: MenuItem.fromJson(json['menuItem'] as Map<String, dynamic>),
+      quantity: json['quantity'] as int? ?? 1,
+      notes: json['notes'] as String?,
+      selectedSides:
+          (json['selectedSides'] as List?)
+              ?.map((s) => MenuItemSide.fromJson(s as Map<String, dynamic>))
+              .toList() ??
+          [],
+      selectedOptions:
+          (json['selectedOptions'] as Map<String, dynamic>?)?.map(
+            (groupId, choices) => MapEntry(
+              groupId,
+              (choices as List)
+                  .map((c) => OptionChoice.fromJson(c as Map<String, dynamic>))
+                  .toList(),
+            ),
+          ) ??
+          {},
+    );
+  }
 }
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  static const _storageKey = 'persisted_cart';
+
+  CartNotifier() : super([]) {
+    _loadFromStorage();
+  }
+
+  Future<void> _loadFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List)
+            .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+        state = list;
+      }
+    } catch (e) {
+      AppLogger.error('Cart load error: $e');
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(state.map((c) => c.toJson()).toList());
+      await prefs.setString(_storageKey, encoded);
+    } catch (e) {
+      AppLogger.error('Cart save error: $e');
+    }
+  }
 
   /// Returns the restaurantId currently in the cart, or null if empty.
   String? get currentRestaurantId =>
@@ -215,6 +302,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         selectedOptions: options,
       ),
     ];
+    _persist();
   }
 
   void addItem(
@@ -243,6 +331,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         ),
       ];
     }
+    _persist();
   }
 
   bool _sameSides(List<MenuItemSide> a, List<MenuItemSide> b) {
@@ -268,6 +357,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   void removeItem(String menuItemId) {
     state = state.where((item) => item.menuItem.id != menuItemId).toList();
+    _persist();
   }
 
   void updateQuantity(String menuItemId, int quantity) {
@@ -278,6 +368,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       } else {
         state[index].quantity = quantity;
         state = [...state];
+        _persist();
       }
     }
   }
@@ -287,11 +378,13 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     if (index != -1) {
       state[index].notes = notes;
       state = [...state];
+      _persist();
     }
   }
 
   void clearCart() {
     state = [];
+    _persist();
   }
 
   double getSubtotal() {
@@ -322,6 +415,28 @@ final cartItemCountProvider = Provider.autoDispose<int>((ref) {
 final restaurantByOwnerProvider = FutureProvider.family
     .autoDispose<Restaurant?, String>((ref, ownerId) async {
       final restaurantService = ref.watch(restaurantServiceProvider);
+
+      // Real-time: refresh when any restaurant owned by this user changes
+      final channel = Supabase.instance.client.realtime.channel(
+        'rest_owner_${ownerId}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'restaurants',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'owner_id',
+              value: ownerId,
+            ),
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+
       return restaurantService.getRestaurantByOwnerId(ownerId);
     });
 

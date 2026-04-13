@@ -21,6 +21,9 @@ import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
 import '../../utils/est_datetime.dart';
 import '../../utils/friendly_error.dart';
+import '../../providers/delivery_region_provider.dart';
+import '../../providers/feature_providers.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -46,6 +49,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _promoError;
   DateTime? _scheduledAt;
   double _driverTip = 0;
+  double _lastSurgeMultiplier = 1.0;
   final _customTipCtrl = TextEditingController();
   final List<double> _presetTips = AppConstants.presetTips;
 
@@ -124,33 +128,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ? ref.watch(userAddressesProvider(currentUserId))
         : null;
 
-    // Auto-select the default address if nothing is selected yet
-    if (selectedAddress == null && addressAsync != null) {
-      addressAsync.whenData((addresses) {
-        if (addresses.isNotEmpty) {
-          final defaultAddr = addresses.where((a) => a.isDefault).toList();
-          final addr = defaultAddr.isNotEmpty
-              ? defaultAddr.first
-              : addresses.first;
-          // Schedule to avoid modifying provider during build
-          Future.microtask(() {
-            if (mounted) {
-              ref.read(selectedAddressProvider.notifier).state = addr;
-            }
-          });
-        }
-      });
-    }
-
     final savedCardsAsync = currentUserId != null
         ? ref.watch(savedCardsProvider(currentUserId))
         : null;
 
     final promoDiscount = appliedPromo?.computeDiscount(subtotal) ?? 0.0;
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
-    final deliveryFee =
+
+    // Surge multiplier based on delivery location
+    final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
+    final delLng = selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
+    final surgeKey =
+        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
+    final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
+    if (surgeAsync.hasValue) _lastSurgeMultiplier = surgeAsync.value!;
+    final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurgeMultiplier;
+
+    final baseDeliveryFee =
         restaurantAsync.valueOrNull?.deliveryFee ??
         AppConstants.defaultDeliveryFee;
+    final deliveryFee = double.parse(
+      (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
+    );
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
         (subtotal - promoDiscount - loyaltyDiscount + deliveryFee + tax).clamp(
@@ -216,12 +215,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                         onTap: () =>
                                             ref
                                                 .read(
-                                                  selectedAddressProvider
+                                                  selectedAddressIdProvider
                                                       .notifier,
                                                 )
                                                 .state = sel
                                             ? null
-                                            : a,
+                                            : a.id,
                                         child: _AddressChip(
                                           address: a,
                                           isSelected: sel,
@@ -415,18 +414,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         // ── Saved Cards (verified only) ──
                         if (savedCardsAsync != null)
                           savedCardsAsync.when(
-                            loading: () => const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            loading: () => const AppLoadingIndicator(),
                             error: (_, _) => const SizedBox.shrink(),
                             data: (savedCards) {
                               final verifiedCards = savedCards
@@ -1075,8 +1063,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           valueColor: const Color(0xFF6366F1),
                         ),
                       _SummaryRow(
-                        'Delivery',
+                        surgeMultiplier > 1.0
+                            ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
+                            : 'Delivery',
                         '\$${deliveryFee.toStringAsFixed(2)}',
+                        valueColor: surgeMultiplier > 1.0
+                            ? const Color(0xFFFFA630)
+                            : null,
                       ),
                       _SummaryRow('Tax (10%)', '\$${tax.toStringAsFixed(2)}'),
                       if (_driverTip > 0)
@@ -1226,15 +1219,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (chosen.isBefore(earliest)) {
       chosen = earliest;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Earliest available time is '
-              '${DateFormat('MMM d, h:mm a').format(earliest)}. '
-              'Adjusted automatically.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppSnackbar.info(
+          context,
+          'Earliest available time is '
+          '${DateFormat('MMM d, h:mm a').format(earliest)}. '
+          'Adjusted automatically.',
         );
       }
     }
@@ -1260,25 +1249,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     if (_selectedPayment == 'card') {
       if (_selectedSavedCard == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a saved card to pay with.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppSnackbar.error(context, 'Please select a saved card to pay with.');
         return;
       }
       final cvc = _cvcCtrl.text.trim();
       if (cvc.length < 3) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Enter the 3 or 4 digit CVC from the back of your card.',
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppSnackbar.error(
+          context,
+          'Enter the 3 or 4 digit CVC from the back of your card.',
         );
         return;
       }
@@ -1289,16 +1267,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final walletBalance =
           ref.read(walletNotifierProvider).valueOrNull?.totalAvailable ?? 0;
       if (walletBalance < total) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
-              'Top up \$${(total - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
+        AppSnackbar.error(
+          context,
+          'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
+          'Top up \$${(total - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
         );
         return;
       }
@@ -1319,6 +1291,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
       final delLng =
           selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
+
+      // ── Delivery region check ──────────────────────────────────────────
+      if (delLat != 0.0 && delLng != 0.0) {
+        final regionService = ref.read(deliveryRegionServiceProvider);
+        final insideRegion = await regionService.isInsideActiveRegion(
+          delLat,
+          delLng,
+        );
+        if (!insideRegion) {
+          setState(() => _placingOrder = false);
+          if (!mounted) return;
+          AppSnackbar.error(
+            context,
+            'Your delivery address is outside our delivery regions. '
+            'Please choose an address within a supported area.',
+          );
+          return;
+        }
+      }
 
       // ── Server-verified total ───────────────────────────────────────────
       final serverItems = cart
@@ -1476,7 +1467,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ref.read(cartProvider.notifier).clearCart();
       ref.read(appliedPromoProvider.notifier).clear();
       ref.read(redeemPointsProvider.notifier).state = 0;
-      ref.read(selectedAddressProvider.notifier).state = null;
+      ref.read(selectedAddressIdProvider.notifier).state = null;
       // Refresh loyalty balance so it reflects redeemed/earned points.
       if (userId.isNotEmpty) {
         ref.invalidate(loyaltyAccountProvider(userId));
@@ -1508,13 +1499,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         message = message.replaceFirst(RegExp(r'^Exception:\s*'), '');
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.error(context, message);
     } finally {
       if (mounted) {
         setState(() => _placingOrder = false);

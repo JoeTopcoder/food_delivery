@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/feature_providers.dart';
 import '../../models/refund_model.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class AdminDisputesScreen extends ConsumerStatefulWidget {
   const AdminDisputesScreen({super.key});
@@ -68,11 +69,15 @@ class _AdminRefundsList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final refundsAsync = ref.watch(allRefundsProvider);
     return refundsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(message: 'Loading refunds...'),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (refunds) {
         if (refunds.isEmpty) {
-          return const Center(child: Text('No refund requests'));
+          return const AppEmptyState(
+            icon: Icons.receipt_long_rounded,
+            title: 'No refund requests',
+            subtitle: 'Refund requests will appear here',
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -199,9 +204,7 @@ class _AdminRefundCard extends ConsumerWidget {
     await service.updateRefundStatus(refundId: refund.id, status: status);
     ref.invalidate(allRefundsProvider);
     if (ctx.mounted) {
-      ScaffoldMessenger.of(
-        ctx,
-      ).showSnackBar(SnackBar(content: Text('Refund $status')));
+      AppSnackbar.success(ctx, 'Refund $status');
     }
   }
 }
@@ -215,11 +218,15 @@ class _AdminDisputesList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final disputesAsync = ref.watch(allDisputesProvider);
     return disputesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
+      loading: () => const AppLoadingIndicator(message: 'Loading disputes...'),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (disputes) {
         if (disputes.isEmpty) {
-          return const Center(child: Text('No disputes filed'));
+          return const AppEmptyState(
+            icon: Icons.gavel_rounded,
+            title: 'No disputes filed',
+            subtitle: 'Disputes will appear here when filed',
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -370,9 +377,7 @@ class _AdminDisputeCard extends ConsumerWidget {
       );
       ref.invalidate(allDisputesProvider);
       if (ctx.mounted) {
-        ScaffoldMessenger.of(
-          ctx,
-        ).showSnackBar(const SnackBar(content: Text('Dispute resolved')));
+        AppSnackbar.success(ctx, 'Dispute resolved');
       }
     }
   }

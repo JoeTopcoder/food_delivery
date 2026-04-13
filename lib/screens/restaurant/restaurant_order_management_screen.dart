@@ -6,6 +6,7 @@ import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
   const RestaurantOrderManagementScreen({super.key});
@@ -58,36 +59,24 @@ class _RestaurantOrderManagementScreenState
     return restaurantAsync.when(
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('Order Management')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const AppLoadingIndicator(message: 'Loading restaurant...'),
       ),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Order Management')),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load restaurant:\n$error',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(restaurantByOwnerProvider(currentUserId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        body: AppErrorState(
+          message: 'Failed to load restaurant:\n$error',
+          onRetry: () =>
+              ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
       ),
       data: (restaurant) {
         if (restaurant == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Order Management')),
-            body: const Center(
-              child: Text('No restaurant found for your account.'),
+            body: const AppEmptyState(
+              icon: Icons.storefront_rounded,
+              title: 'No restaurant found',
+              subtitle: 'No restaurant found for your account.',
             ),
           );
         }
@@ -118,25 +107,10 @@ class _RestaurantOrderManagementScreenState
         ],
       ),
       body: ordersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load orders:\n$error',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(restaurantOrdersProvider(restaurantId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
+        loading: () => const AppLoadingIndicator(message: 'Loading orders...'),
+        error: (error, _) => AppErrorState(
+          message: 'Failed to load orders:\n$error',
+          onRetry: () => ref.invalidate(restaurantOrdersProvider(restaurantId)),
         ),
         data: (allOrders) {
           return TabBarView(
@@ -175,18 +149,9 @@ class _OrderListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (orders.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.receipt_long, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'No ${status.replaceAll('_', ' ')} orders',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.receipt_long,
+        title: 'No ${status.replaceAll('_', ' ')} orders',
       );
     }
 
@@ -228,22 +193,14 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
       await orderService.updateOrderStatus(widget.order.id, newStatus);
       ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Order #${widget.order.id.substring(0, 8)} updated to ${newStatus.replaceAll('_', ' ')}',
-            ),
-          ),
+        AppSnackbar.success(
+          context,
+          'Order #${widget.order.id.substring(0, 8)} updated to ${newStatus.replaceAll('_', ' ')}',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update order: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackbar.error(context, 'Failed to update order: $e');
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);

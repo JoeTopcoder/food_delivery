@@ -5,6 +5,7 @@ import '../../models/driver_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/driver_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 class DriverProfileScreen extends ConsumerStatefulWidget {
   const DriverProfileScreen({super.key});
@@ -51,8 +52,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     if (authState.user == null || currentUserId == null) {
       return const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        body: AppLoadingIndicator(
+          message: 'Loading profile...',
+          color: AppTheme.primaryColor,
         ),
       );
     }
@@ -370,30 +372,15 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   driverProfileProvider(currentUserId),
                                 );
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Text('Profile updated!'),
-                                      backgroundColor: const Color(0xFF22C55E),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
+                                  AppSnackbar.success(
+                                    context,
+                                    'Profile updated!',
                                   );
                                 }
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(friendlyError(e)),
-                                    backgroundColor: const Color(0xFFEF4444),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
+                                AppSnackbar.error(context, friendlyError(e));
                               }
                             }
                           },
@@ -424,18 +411,14 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
       },
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF0F1117),
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        body: AppLoadingIndicator(
+          message: 'Loading driver profile...',
+          color: AppTheme.primaryColor,
         ),
       ),
       error: (err, _) => Scaffold(
         backgroundColor: const Color(0xFF0F1117),
-        body: Center(
-          child: Text(
-            friendlyError(err),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
+        body: AppErrorState(message: friendlyError(err)),
       ),
     );
   }
