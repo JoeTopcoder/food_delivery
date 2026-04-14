@@ -118,6 +118,94 @@ class RecommendationService {
     }
   }
 
+  /// Run the grocery brain engine — same pipeline but grocery-specific RPC.
+  Future<BrainEngineResponse> runGroceryBrainEngine({
+    required String userId,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final profileResult = await _client.rpc(
+        'compute_user_profile',
+        params: {'p_user_id': userId},
+      );
+
+      final profileJson = profileResult is Map<String, dynamic>
+          ? profileResult
+          : {};
+      final segment = profileJson['segment'] as String? ?? 'new_user';
+      final churnRisk = (profileJson['churn_risk'] as num?)?.toDouble() ?? 0;
+
+      // Get grocery-specific scored recommendations
+      final recResults = await _client.rpc(
+        'get_grocery_recommendations',
+        params: {
+          'p_user_id': userId,
+          if (latitude != null) 'p_latitude': latitude,
+          if (longitude != null) 'p_longitude': longitude,
+          'p_limit': 30,
+        },
+      );
+
+      final allRecs = <SmartRecommendation>[];
+      if (recResults is List) {
+        for (final r in recResults) {
+          if (r is Map<String, dynamic>) {
+            allRecs.add(SmartRecommendation.fromJson(r));
+          }
+        }
+      }
+
+      final forYou = <SmartRecommendation>[];
+      final becauseYouLove = <SmartRecommendation>[];
+      final dealsForYou = <SmartRecommendation>[];
+      final quickDelivery = <SmartRecommendation>[];
+
+      for (final rec in allRecs) {
+        switch (rec.section) {
+          case 'because_you_love':
+            becauseYouLove.add(rec);
+            break;
+          case 'deals_for_you':
+            dealsForYou.add(rec);
+            break;
+          case 'quick_delivery':
+            quickDelivery.add(rec);
+            break;
+          default:
+            forYou.add(rec);
+        }
+      }
+
+      SmartCoupon? coupon;
+      try {
+        final couponResult = await _client.rpc(
+          'generate_targeted_coupon',
+          params: {'p_user_id': userId},
+        );
+        if (couponResult is Map<String, dynamic> &&
+            couponResult['generated'] == true) {
+          coupon = SmartCoupon.fromJson(couponResult);
+        }
+      } catch (e) {
+        AppLogger.error('Grocery coupon generation failed: $e');
+      }
+
+      return BrainEngineResponse(
+        forYou: forYou,
+        becauseYouLove: becauseYouLove,
+        dealsForYou: dealsForYou,
+        quickDelivery: quickDelivery,
+        activeCoupon: coupon,
+        userSegment: segment,
+        churnRisk: churnRisk,
+      );
+    } catch (e) {
+      AppLogger.error('GroceryBrainEngine.run failed: $e');
+      return const BrainEngineResponse();
+    }
+  }
+
   /// Fetch the current intelligence profile without recomputing.
   Future<UserIntelligenceProfile?> getProfile(String userId) async {
     try {

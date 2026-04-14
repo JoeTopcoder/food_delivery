@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
@@ -90,18 +91,12 @@ class _GroceryStoreDetailScreenState
             background:
                 widget.store.imageUrl != null &&
                     widget.store.imageUrl!.isNotEmpty
-                ? Image.network(
-                    widget.store.imageUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: widget.store.imageUrl!,
                     fit: BoxFit.cover,
-                    frameBuilder:
-                        (context, child, frame, wasSynchronouslyLoaded) {
-                          if (wasSynchronouslyLoaded) return child;
-                          return AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: frame != null ? child : _storePlaceholder(),
-                          );
-                        },
-                    errorBuilder: (_, _, _) => _storePlaceholder(),
+                    memCacheWidth: 800,
+                    placeholder: (_, __) => _storePlaceholder(),
+                    errorWidget: (_, _, _) => _storePlaceholder(),
                   )
                 : _storePlaceholder(),
           ),
@@ -268,7 +263,7 @@ class _GroceryStoreDetailScreenState
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.72,
+                    childAspectRatio: 0.62,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
@@ -322,9 +317,10 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
-          Expanded(
-            flex: 3,
+          // Image – fixed height for uniform sizing
+          SizedBox(
+            height: 130,
+            width: double.infinity,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14),
@@ -333,20 +329,12 @@ class _ProductCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   product.imageUrl != null && product.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          product.imageUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: product.imageUrl!,
                           fit: BoxFit.cover,
-                          frameBuilder:
-                              (context, child, frame, wasSynchronouslyLoaded) {
-                                if (wasSynchronouslyLoaded) return child;
-                                return AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: frame != null
-                                      ? child
-                                      : _productPlaceholder(),
-                                );
-                              },
-                          errorBuilder: (_, _, _) => _productPlaceholder(),
+                          memCacheWidth: 400,
+                          placeholder: (_, __) => _productPlaceholder(),
+                          errorWidget: (_, _, _) => _productPlaceholder(),
                         )
                       : _productPlaceholder(),
                   if (!inStock)
@@ -393,11 +381,11 @@ class _ProductCard extends ConsumerWidget {
 
           // Info
           Expanded(
-            flex: 2,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
                 children: [
                   if (product.brand != null)
                     Text(
@@ -410,14 +398,16 @@ class _ProductCard extends ConsumerWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                  Flexible(
+                    child: Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
                   ),
                   if (product.weight != null)
@@ -426,61 +416,141 @@ class _ProductCard extends ConsumerWidget {
                       style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                     ),
                   const Spacer(),
-                  Row(
-                    children: [
-                      // Price
-                      Expanded(
-                        child: product.discount != null && product.discount! > 0
-                            ? Row(
+                  Flexible(
+                    child: Row(
+                      children: [
+                        // Price
+                        Expanded(
+                          child:
+                              product.discount != null && product.discount! > 0
+                              ? Row(
+                                  children: [
+                                    Text(
+                                      '\$${product.discountedPrice.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '\$${product.price.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[400],
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  '\$${product.price.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                        ),
+                        // Add button / quantity badge
+                        Builder(
+                          builder: (context) {
+                            final cartItems = ref.watch(groceryCartProvider);
+                            final inCartItem = cartItems.where(
+                              (c) => c.menuItem.id == product.id,
+                            );
+                            final inCartQty = inCartItem.isNotEmpty
+                                ? inCartItem.first.quantity
+                                : 0;
+                            final atMax = inCartQty >= product.maxQuantity;
+
+                            if (inCartQty > 0) {
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    '\$${product.discountedPrice.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.primaryColor,
+                                  GestureDetector(
+                                    onTap: () => ref
+                                        .read(groceryCartProvider.notifier)
+                                        .updateQuantity(
+                                          product.id,
+                                          inCartQty - 1,
+                                        ),
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(
+                                        Icons.remove,
+                                        size: 14,
+                                        color: AppTheme.textPrimary,
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '\$${product.price.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[400],
-                                      decoration: TextDecoration.lineThrough,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    child: Text(
+                                      '$inCartQty',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: atMax
+                                        ? null
+                                        : () => _addToCart(ref, context),
+                                    child: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: atMax
+                                            ? Colors.grey[300]
+                                            : AppTheme.primaryColor,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Icon(
+                                        Icons.add,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
                                     ),
                                   ),
                                 ],
-                              )
-                            : Text(
-                                '\$${product.price.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.primaryColor,
+                              );
+                            }
+
+                            return GestureDetector(
+                              onTap: inStock
+                                  ? () => _addToCart(ref, context)
+                                  : null,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: inStock
+                                      ? AppTheme.primaryColor
+                                      : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 18,
                                 ),
                               ),
-                      ),
-                      // Add button
-                      GestureDetector(
-                        onTap: inStock ? () => _addToCart(ref, context) : null,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: inStock
-                                ? AppTheme.primaryColor
-                                : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                            );
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -494,35 +564,18 @@ class _ProductCard extends ConsumerWidget {
   void _addToCart(WidgetRef ref, BuildContext context) {
     final cartNotifier = ref.read(groceryCartProvider.notifier);
 
-    // Check if cart has items from a different store
-    if (cartNotifier.isDifferentStore(product)) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Replace cart?'),
-          content: const Text(
-            'Your grocery cart has items from another store. '
-            'Would you like to clear it and add this item instead?',
+    // Enforce stock / max quantity
+    final cartItems = ref.read(groceryCartProvider);
+    final existing = cartItems.where((c) => c.menuItem.id == product.id);
+    final currentQty = existing.isNotEmpty ? existing.first.quantity : 0;
+    if (currentQty >= product.maxQuantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Maximum of ${product.maxQuantity} ${product.name} allowed',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                cartNotifier.replaceWithItem(product);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Added to grocery cart'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-              child: const Text('Replace'),
-            ),
-          ],
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 2),
         ),
       );
       return;

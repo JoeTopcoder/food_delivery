@@ -25,6 +25,7 @@ class RestaurantService {
           .select()
           .eq('is_open', true)
           .eq('is_verified', true)
+          .neq('store_type', 'grocery')
           .range(offset, offset + limit - 1)
           .order('rating', ascending: false);
 
@@ -48,9 +49,12 @@ class RestaurantService {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
           .select()
-          .or('name.ilike.%${_sanitizeQuery(query)}%,cuisine_type.ilike.%${_sanitizeQuery(query)}%')
+          .or(
+            'name.ilike.%${_sanitizeQuery(query)}%,cuisine_type.ilike.%${_sanitizeQuery(query)}%',
+          )
           .eq('is_open', true)
-          .eq('is_verified', true);
+          .eq('is_verified', true)
+          .neq('store_type', 'grocery');
 
       final restaurants = (response as List)
           .map((restaurant) => Restaurant.fromJson(restaurant))
@@ -77,6 +81,21 @@ class RestaurantService {
       return Restaurant.fromJson(response.first);
     } catch (e) {
       AppLogger.error('Error fetching restaurant by owner: $e');
+      rethrow;
+    }
+  }
+
+  // Get ALL restaurants by owner ID
+  Future<List<Restaurant>> getRestaurantsByOwnerId(String ownerId) async {
+    try {
+      AppLogger.info('Fetching all restaurants for owner: $ownerId');
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select()
+          .eq('owner_id', ownerId);
+      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching restaurants by owner: $e');
       rethrow;
     }
   }
@@ -110,7 +129,8 @@ class RestaurantService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('cuisine_type', cuisineType)
-          .eq('is_open', true);
+          .eq('is_open', true)
+          .neq('store_type', 'grocery');
 
       final restaurants = (response as List)
           .map((restaurant) => Restaurant.fromJson(restaurant))
@@ -134,6 +154,7 @@ class RestaurantService {
           .select()
           .eq('is_open', true)
           .eq('is_verified', true)
+          .neq('store_type', 'grocery')
           .order('rating', ascending: false)
           .limit(limit);
 
@@ -157,6 +178,7 @@ class RestaurantService {
           .select()
           .eq('is_open', true)
           .eq('is_verified', true)
+          .neq('store_type', 'grocery')
           .order('created_at', ascending: false)
           .limit(limit);
 
@@ -174,6 +196,7 @@ class RestaurantService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('is_open', true)
+          .neq('store_type', 'grocery')
           .or('cuisine_type.ilike.%breakfast%,tags.cs.{breakfast}')
           .limit(limit);
 
@@ -191,6 +214,7 @@ class RestaurantService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('is_open', true)
+          .neq('store_type', 'grocery')
           .gte('rating', 4.0)
           .order('review_count', ascending: false)
           .limit(limit);

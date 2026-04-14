@@ -36,12 +36,14 @@ final orderCalculationServiceProvider = Provider<OrderCalculationService>((
 final allRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>((
   ref,
 ) async {
+  final link = ref.keepAlive();
   final restaurantService = ref.watch(restaurantServiceProvider);
   return restaurantService.getAllRestaurants();
 });
 
 final topRatedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
+      final link = ref.keepAlive();
       final restaurantService = ref.watch(restaurantServiceProvider);
       return restaurantService.getTopRatedRestaurants();
     });
@@ -57,6 +59,7 @@ final restaurantSearchProvider = FutureProvider.family
 
 final restaurantByIdProvider = FutureProvider.family
     .autoDispose<Restaurant?, String>((ref, restaurantId) async {
+      final link = ref.keepAlive();
       final restaurantService = ref.watch(restaurantServiceProvider);
 
       // Real-time: refresh when this restaurant row changes
@@ -91,16 +94,19 @@ final restaurantsByCuisineProvider = FutureProvider.family
 
 final newlyAddedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
+      final link = ref.keepAlive();
       return ref.watch(restaurantServiceProvider).getNewlyAddedRestaurants();
     });
 
 final breakfastRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
+      final link = ref.keepAlive();
       return ref.watch(restaurantServiceProvider).getBreakfastRestaurants();
     });
 
 final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
   (ref) async {
+    final link = ref.keepAlive();
     return ref.watch(restaurantServiceProvider).getMustTryRestaurants();
   },
 );
@@ -108,6 +114,7 @@ final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
 // Menu Providers — no autoDispose so data stays cached across screen visits
 final restaurantMenuProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
+      final link = ref.keepAlive();
       final menuService = ref.watch(menuServiceProvider);
       return menuService.getMenuByRestaurant(restaurantId);
     });
@@ -142,9 +149,48 @@ final menuByCategoryProvider = FutureProvider.family
 // Order Providers
 final userOrdersProvider = FutureProvider.family
     .autoDispose<List<Order>, String>((ref, userId) async {
+      ref.keepAlive();
       final orderService = ref.watch(orderServiceProvider);
       return orderService.getUserOrders(userId);
     });
+
+/// Real-time watcher for customer orders — invalidates userOrdersProvider on
+/// any INSERT, UPDATE, or DELETE so the orders list stays fresh instantly.
+final customerOrderRealtimeProvider = Provider.family.autoDispose<void, String>((
+  ref,
+  userId,
+) {
+  final channel = SupabaseConfig.client.realtime.channel(
+    'customer_orders_$userId',
+  );
+
+  channel.onPostgresChanges(
+    event: PostgresChangeEvent.all,
+    schema: 'public',
+    table: 'orders',
+    filter: PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'user_id',
+      value: userId,
+    ),
+    callback: (payload) {
+      final newStatus = payload.newRecord['status'] as String?;
+      AppLogger.info(
+        'Customer Realtime: order update (status=$newStatus) for user $userId',
+      );
+      ref.invalidate(userOrdersProvider(userId));
+    },
+  );
+
+  channel.subscribe();
+
+  ref.onDispose(() {
+    channel.unsubscribe();
+    AppLogger.info(
+      'Customer Realtime: customer_orders_$userId channel disposed',
+    );
+  });
+});
 
 final orderByIdProvider = FutureProvider.family.autoDispose<Order?, String>((
   ref,
@@ -443,27 +489,20 @@ class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
     }
   }
 
-  String? get currentStoreId =>
-      state.isNotEmpty ? state.first.menuItem.restaurantId : null;
-
-  bool isDifferentStore(MenuItem menuItem) {
-    final sid = currentStoreId;
-    return sid != null && sid != menuItem.restaurantId;
-  }
-
-  void replaceWithItem(MenuItem menuItem) {
-    state = [CartItem(menuItem: menuItem)];
-    _persist();
-  }
+  /// Returns all distinct store IDs currently in the cart.
+  Set<String> get storeIds => state.map((c) => c.menuItem.restaurantId).toSet();
 
   void addItem(MenuItem menuItem) {
     final existingIndex = state.indexWhere(
       (item) => item.menuItem.id == menuItem.id,
     );
     if (existingIndex != -1) {
+      final current = state[existingIndex].quantity;
+      if (current >= menuItem.maxQuantity) return;
       state[existingIndex].quantity++;
       state = [...state];
     } else {
+      if (menuItem.maxQuantity <= 0) return;
       state = [...state, CartItem(menuItem: menuItem)];
     }
     _persist();
@@ -551,13 +590,96 @@ final restaurantByOwnerProvider = FutureProvider.family
       return restaurantService.getRestaurantByOwnerId(ownerId);
     });
 
+// All restaurants for an owner (multi-restaurant support)
+final restaurantsByOwnerProvider = FutureProvider.family
+    .autoDispose<List<Restaurant>, String>((ref, ownerId) async {
+      final restaurantService = ref.watch(restaurantServiceProvider);
+      return restaurantService.getRestaurantsByOwnerId(ownerId);
+    });
+
+// Orders across ALL restaurants for an owner
+final ownerAllOrdersProvider = FutureProvider.family
+    .autoDispose<List<Order>, String>((ref, ownerId) async {
+      final restaurants = await ref.watch(
+        restaurantsByOwnerProvider(ownerId).future,
+      );
+      if (restaurants.isEmpty) return [];
+      final restaurantIds = restaurants.map((r) => r.id).toList();
+      final orderService = ref.watch(orderServiceProvider);
+      return orderService.getOrdersForRestaurants(restaurantIds);
+    });
+
 final restaurantOrdersProvider = FutureProvider.family
     .autoDispose<List<Order>, String>((ref, restaurantId) async {
+      ref.keepAlive();
       final orderService = ref.watch(orderServiceProvider);
       return orderService.getRestaurantOrders(restaurantId);
     });
 
 // ==================== RESTAURANT REALTIME NOTIFICATIONS ====================
+
+/// Owner-level realtime: watches ALL restaurants for a given owner.
+/// Invalidates ownerAllOrdersProvider when new orders come in to any restaurant.
+final ownerOrderRealtimeProvider = Provider.family.autoDispose<void, String>((
+  ref,
+  ownerId,
+) {
+  final restaurantsAsync = ref.watch(restaurantsByOwnerProvider(ownerId));
+
+  restaurantsAsync.whenData((restaurants) {
+    for (final restaurant in restaurants) {
+      final channel = SupabaseConfig.client.realtime.channel(
+        'owner_orders_${restaurant.id}',
+      );
+
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'orders',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'restaurant_id',
+          value: restaurant.id,
+        ),
+        callback: (payload) {
+          final record = payload.newRecord;
+          final orderId = record['id'] ?? '';
+          final eventType = payload.eventType;
+
+          if (eventType == PostgresChangeEvent.insert) {
+            AppLogger.info(
+              'Owner Realtime: new order #$orderId at ${restaurant.name}',
+            );
+            NotificationService().showNotification(
+              title: 'New Order Received! 🔔',
+              body: 'New order #$orderId at ${restaurant.name}.',
+              data: {
+                'type': 'new_restaurant_order',
+                'order_id': orderId.toString(),
+                'restaurant_id': restaurant.id,
+              },
+            );
+            NotificationService.onNewOrderForRestaurant?.call();
+          } else {
+            AppLogger.info(
+              'Owner Realtime: order #$orderId updated at ${restaurant.name}',
+            );
+          }
+          ref.invalidate(ownerAllOrdersProvider(ownerId));
+        },
+      );
+
+      channel.subscribe();
+
+      ref.onDispose(() {
+        channel.unsubscribe();
+        AppLogger.info(
+          'Owner Realtime: owner_orders_${restaurant.id} channel disposed',
+        );
+      });
+    }
+  });
+});
 
 /// Watches the orders table via Supabase Realtime for new orders targeting
 /// a specific restaurant. Shows in-app notification and refreshes orders list.
@@ -568,7 +690,7 @@ final restaurantNewOrderRealtimeProvider = Provider.family
       );
 
       channel.onPostgresChanges(
-        event: PostgresChangeEvent.insert,
+        event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'orders',
         filter: PostgresChangeFilter(
@@ -579,19 +701,28 @@ final restaurantNewOrderRealtimeProvider = Provider.family
         callback: (payload) {
           final record = payload.newRecord;
           final orderId = record['id'] ?? '';
+          final eventType = payload.eventType;
 
-          AppLogger.info('Restaurant Realtime: new order #$orderId received');
-          NotificationService().showNotification(
-            title: 'New Order Received! 🔔',
-            body: 'You have a new order #$orderId to prepare.',
-            data: {
-              'type': 'new_restaurant_order',
-              'order_id': orderId.toString(),
-              'restaurant_id': restaurantId,
-            },
-          );
+          if (eventType == PostgresChangeEvent.insert) {
+            AppLogger.info('Restaurant Realtime: new order #$orderId received');
+            NotificationService().showNotification(
+              title: 'New Order Received! 🔔',
+              body: 'You have a new order #$orderId to prepare.',
+              data: {
+                'type': 'new_restaurant_order',
+                'order_id': orderId.toString(),
+                'restaurant_id': restaurantId,
+              },
+            );
+            NotificationService.onNewOrderForRestaurant?.call();
+          } else {
+            final status = record['status'] as String? ?? '';
+            AppLogger.info(
+              'Restaurant Realtime: order #$orderId updated (status=$status)',
+            );
+          }
+
           ref.invalidate(restaurantOrdersProvider(restaurantId));
-          NotificationService.onNewOrderForRestaurant?.call();
         },
       );
 

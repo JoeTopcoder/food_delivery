@@ -64,7 +64,7 @@ class _RestaurantAnalyticsScreenState
             body: Center(child: Text('No restaurant found')),
           );
         }
-        final ordersAsync = ref.watch(restaurantOrdersProvider(restaurant.id));
+        final ordersAsync = ref.watch(ownerAllOrdersProvider(currentUserId));
         return ordersAsync.when(
           loading: () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -176,9 +176,7 @@ class _RestaurantAnalyticsScreenState
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: active
-                              ? AppTheme.primaryColor
-                              : Colors.white,
+                          color: active ? AppTheme.primaryColor : Colors.white,
                         ),
                       ),
                     ),

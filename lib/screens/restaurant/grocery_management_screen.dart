@@ -7,6 +7,7 @@ import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/grocery_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../services/grocery_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -335,6 +336,11 @@ class _GroceryStoreBody extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.local_shipping_outlined),
+            tooltip: 'Delivery Settings',
+            onPressed: () => _showDeliverySettings(context, ref, store),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () =>
                 ref.invalidate(ownerGroceryProductsProvider(store.id)),
@@ -449,6 +455,26 @@ class _GroceryStoreBody extends ConsumerWidget {
           'Add Product',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
+      ),
+    );
+  }
+
+  void _showDeliverySettings(
+    BuildContext context,
+    WidgetRef ref,
+    Restaurant store,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _DeliverySettingsSheet(
+        store: store,
+        onSaved: () {
+          ref.invalidate(ownerGroceryStoreProvider(store.ownerId));
+        },
       ),
     );
   }
@@ -1141,4 +1167,239 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
       borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
     ),
   );
+}
+
+// ─── Delivery Settings Bottom Sheet ──────────────────────────────────────────
+
+class _DeliverySettingsSheet extends ConsumerStatefulWidget {
+  final Restaurant store;
+  final VoidCallback onSaved;
+
+  const _DeliverySettingsSheet({required this.store, required this.onSaved});
+
+  @override
+  ConsumerState<_DeliverySettingsSheet> createState() =>
+      _DeliverySettingsSheetState();
+}
+
+class _DeliverySettingsSheetState
+    extends ConsumerState<_DeliverySettingsSheet> {
+  late TextEditingController _feeController;
+  late double _estimatedTime;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _feeController = TextEditingController(
+      text: (widget.store.deliveryFee ?? 0).toStringAsFixed(2),
+    );
+    _estimatedTime = (widget.store.estimatedDeliveryTime ?? 30).toDouble();
+  }
+
+  @override
+  void dispose() {
+    _feeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final fee = double.tryParse(_feeController.text);
+    if (fee == null || fee < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid delivery fee')),
+      );
+      return;
+    }
+    if (fee > 50000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delivery fee cannot exceed \$50,000')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final restaurantService = ref.read(restaurantServiceProvider);
+      await restaurantService.updateRestaurant(
+        restaurantId: widget.store.id,
+        deliveryFee: fee,
+        estimatedDeliveryTime: _estimatedTime.round(),
+      );
+      widget.onSaved();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Delivery settings saved')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Row(
+            children: [
+              Icon(Icons.local_shipping, color: Colors.green[700]),
+              const SizedBox(width: 10),
+              const Text(
+                'Delivery Settings',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Configure delivery fee and estimated delivery time for your grocery store.',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 24),
+
+          // Delivery Fee
+          const Text(
+            'Delivery Fee',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _feeController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              prefixText: '\$ ',
+              prefixStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+              hintText: '0.00',
+              filled: true,
+              fillColor: Colors.grey[50],
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: AppTheme.primaryColor,
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Estimated Delivery Time
+          const Text(
+            'Estimated Delivery Time',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_estimatedTime.round()} minutes',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.green[700],
+            ),
+          ),
+          Slider(
+            value: _estimatedTime,
+            min: 10,
+            max: 120,
+            divisions: 22,
+            activeColor: Colors.green[700],
+            label: '${_estimatedTime.round()} min',
+            onChanged: (v) => setState(() => _estimatedTime = v),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '10 min',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+              Text(
+                '120 min',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Save Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _saving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Text(
+                      'Save Delivery Settings',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

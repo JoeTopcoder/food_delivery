@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
+import '../../models/restaurant_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -19,28 +20,36 @@ class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
 
 class _RestaurantOrderManagementScreenState
     extends ConsumerState<RestaurantOrderManagementScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    with TickerProviderStateMixin {
+  TabController? _topTabController;
+  TabController? _foodStatusTabController;
+  TabController? _groceryStatusTabController;
+
+  TabController get topTabController =>
+      _topTabController ??= TabController(length: 2, vsync: this);
+  TabController get foodStatusTabController => _foodStatusTabController ??=
+      TabController(length: _statusTabs.length, vsync: this);
+  TabController get groceryStatusTabController =>
+      _groceryStatusTabController ??= TabController(
+        length: _statusTabs.length,
+        vsync: this,
+      );
 
   // Tabs the restaurant owner cares about
-  static const _tabs = [
+  static const _statusTabs = [
     AppConstants.orderPending,
     AppConstants.orderPreparing,
     AppConstants.orderReady,
     AppConstants.orderDelivered,
   ];
 
-  static const _tabLabels = ['Pending', 'Preparing', 'Ready', 'Delivered'];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
-  }
+  static const _statusLabels = ['Pending', 'Preparing', 'Ready', 'Delivered'];
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _topTabController?.dispose();
+    _foodStatusTabController?.dispose();
+    _groceryStatusTabController?.dispose();
     super.dispose();
   }
 
@@ -82,28 +91,30 @@ class _RestaurantOrderManagementScreenState
           );
         }
 
-        return _buildOrderManagementScaffold(restaurant.id);
+        return _buildOrderManagementScaffold(currentUserId);
       },
     );
   }
 
-  Widget _buildOrderManagementScaffold(String restaurantId) {
-    final ordersAsync = ref.watch(restaurantOrdersProvider(restaurantId));
+  Widget _buildOrderManagementScaffold(String ownerId) {
+    final ordersAsync = ref.watch(ownerAllOrdersProvider(ownerId));
+    final restaurantsAsync = ref.watch(restaurantsByOwnerProvider(ownerId));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Management'),
         bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: _tabLabels.map((label) => Tab(text: label)).toList(),
+          controller: topTabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.restaurant), text: 'Food'),
+            Tab(icon: Icon(Icons.local_grocery_store), text: 'Grocery'),
+          ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh orders',
-            onPressed: () =>
-                ref.invalidate(restaurantOrdersProvider(restaurantId)),
+            onPressed: () => ref.invalidate(ownerAllOrdersProvider(ownerId)),
           ),
         ],
       ),
@@ -111,24 +122,146 @@ class _RestaurantOrderManagementScreenState
         loading: () => const AppLoadingIndicator(message: 'Loading orders...'),
         error: (error, _) => AppErrorState(
           message: friendlyError(error),
-          onRetry: () => ref.invalidate(restaurantOrdersProvider(restaurantId)),
+          onRetry: () => ref.invalidate(ownerAllOrdersProvider(ownerId)),
         ),
         data: (allOrders) {
-          return TabBarView(
-            controller: _tabController,
-            children: _tabs.map((status) {
+          return restaurantsAsync.when(
+            loading: () =>
+                const AppLoadingIndicator(message: 'Loading orders...'),
+            error: (error, _) => AppErrorState(
+              message: friendlyError(error),
+              onRetry: () =>
+                  ref.invalidate(restaurantsByOwnerProvider(ownerId)),
+            ),
+            data: (restaurants) {
+              final groceryIds = restaurants
+                  .where((r) => r.storeType == 'grocery')
+                  .map((r) => r.id)
+                  .toSet();
+
+              final foodOrders = allOrders
+                  .where((o) => !groceryIds.contains(o.restaurantId))
+                  .toList();
+              final groceryOrders = allOrders
+                  .where((o) => groceryIds.contains(o.restaurantId))
+                  .toList();
+
+              return TabBarView(
+                controller: topTabController,
+                children: [
+                  _StatusTabSection(
+                    tabController: foodStatusTabController,
+                    allOrders: foodOrders,
+                    ownerId: ownerId,
+                    isGrocery: false,
+                  ),
+                  _StatusTabSection(
+                    tabController: groceryStatusTabController,
+                    allOrders: groceryOrders,
+                    ownerId: ownerId,
+                    isGrocery: true,
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status sub-tabs (Pending / Preparing / Ready / Delivered) for each type
+// ---------------------------------------------------------------------------
+class _StatusTabSection extends StatelessWidget {
+  final TabController tabController;
+  final List<Order> allOrders;
+  final String ownerId;
+  final bool isGrocery;
+
+  static const _statusTabs = [
+    AppConstants.orderPending,
+    AppConstants.orderPreparing,
+    AppConstants.orderReady,
+    AppConstants.orderDelivered,
+  ];
+
+  static const _statusLabels = ['Pending', 'Preparing', 'Ready', 'Delivered'];
+
+  const _StatusTabSection({
+    required this.tabController,
+    required this.allOrders,
+    required this.ownerId,
+    required this.isGrocery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TabBar(
+          controller: tabController,
+          isScrollable: true,
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Colors.grey,
+          indicatorSize: TabBarIndicatorSize.label,
+          tabs: _statusLabels.map((label) {
+            final count = allOrders
+                .where(
+                  (o) => o.status == _statusTabs[_statusLabels.indexOf(label)],
+                )
+                .length;
+            return Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label),
+                  if (count > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: tabController,
+            children: _statusTabs.map((status) {
               final filtered =
                   allOrders.where((o) => o.status == status).toList()
                     ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
               return _OrderListView(
                 orders: filtered,
                 status: status,
-                restaurantId: restaurantId,
+                ownerId: ownerId,
+                isGrocery: isGrocery,
               );
             }).toList(),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -139,12 +272,14 @@ class _RestaurantOrderManagementScreenState
 class _OrderListView extends ConsumerWidget {
   final List<Order> orders;
   final String status;
-  final String restaurantId;
+  final String ownerId;
+  final bool isGrocery;
 
   const _OrderListView({
     required this.orders,
     required this.status,
-    required this.restaurantId,
+    required this.ownerId,
+    this.isGrocery = false,
   });
 
   @override
@@ -158,13 +293,17 @@ class _OrderListView extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(restaurantOrdersProvider(restaurantId));
+        ref.invalidate(ownerAllOrdersProvider(ownerId));
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: orders.length,
         itemBuilder: (context, index) {
-          return _OrderCard(order: orders[index], restaurantId: restaurantId);
+          return _OrderCard(
+            order: orders[index],
+            ownerId: ownerId,
+            isGrocery: isGrocery,
+          );
         },
       ),
     );
@@ -176,9 +315,14 @@ class _OrderListView extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 class _OrderCard extends ConsumerStatefulWidget {
   final Order order;
-  final String restaurantId;
+  final String ownerId;
+  final bool isGrocery;
 
-  const _OrderCard({required this.order, required this.restaurantId});
+  const _OrderCard({
+    required this.order,
+    required this.ownerId,
+    this.isGrocery = false,
+  });
 
   @override
   ConsumerState<_OrderCard> createState() => _OrderCardState();
@@ -186,13 +330,14 @@ class _OrderCard extends ConsumerStatefulWidget {
 
 class _OrderCardState extends ConsumerState<_OrderCard> {
   bool _isUpdating = false;
+  bool _itemsExpanded = false;
 
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isUpdating = true);
     try {
       final orderService = ref.read(orderServiceProvider);
       await orderService.updateOrderStatus(widget.order.id, newStatus);
-      ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
+      ref.invalidate(ownerAllOrdersProvider(widget.ownerId));
       if (mounted) {
         AppSnackbar.success(
           context,
@@ -335,25 +480,82 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
 
             const Divider(height: 20),
 
-            // Order items
-            ...order.items.map(
-              (item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+            // Order items — tap to expand
+            InkWell(
+              onTap: () => setState(() => _itemsExpanded = !_itemsExpanded),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    Text(
-                      '${item.quantity}x',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    Icon(
+                      widget.isGrocery
+                          ? Icons.shopping_basket_rounded
+                          : Icons.restaurant_menu_rounded,
+                      size: 18,
+                      color: widget.isGrocery
+                          ? Colors.green[700]
+                          : Colors.deepOrange[700],
                     ),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(item.itemName)),
-                    Text(
-                      '\$${item.subtotal.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    Expanded(
+                      child: Text(
+                        '${order.items.length} item${order.items.length == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: widget.isGrocery
+                              ? Colors.green[700]
+                              : Colors.deepOrange[700],
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _itemsExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.expand_more,
+                        color: widget.isGrocery
+                            ? Colors.green[700]
+                            : Colors.deepOrange[700],
+                      ),
                     ),
                   ],
                 ),
               ),
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(
+                children: order.items
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Text(
+                              '${item.quantity}x',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(item.itemName)),
+                            Text(
+                              '\$${item.subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              crossFadeState: _itemsExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
             ),
 
             const Divider(height: 20),
@@ -663,7 +865,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               try {
                 final orderService = ref.read(orderServiceProvider);
                 await orderService.setPickupCode(order.id, code);
-                ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
+                ref.invalidate(ownerAllOrdersProvider(widget.ownerId));
                 if (mounted) {
                   AppSnackbar.success(context, 'Pickup code set to $code');
                 }
@@ -745,7 +947,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                   code,
                 );
                 if (verified) {
-                  ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
+                  ref.invalidate(ownerAllOrdersProvider(widget.ownerId));
                   if (mounted) {
                     AppSnackbar.success(
                       context,

@@ -48,6 +48,19 @@ final brainEngineWithLocationProvider = FutureProvider.autoDispose
       );
     });
 
+// ── Grocery Brain Engine ───────────────────────────────────────
+
+final groceryBrainEngineProvider =
+    FutureProvider.autoDispose<BrainEngineResponse>((ref) async {
+      final userId = ref.watch(currentUserIdProvider);
+      if (userId == null) return const BrainEngineResponse();
+
+      final service = ref.watch(recommendationServiceProvider);
+      ref.read(behaviorTrackingProvider).trackAppOpen(userId);
+
+      return service.runGroceryBrainEngine(userId: userId);
+    });
+
 // ── User Intelligence Profile ──────────────────────────────────
 
 final userIntelligenceProvider =

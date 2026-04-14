@@ -141,7 +141,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Order #${order.id.substring(0, 8).toUpperCase()}',
+          'Order #${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,

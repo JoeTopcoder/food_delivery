@@ -32,15 +32,14 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
         defaultAddrAsync?.valueOrNull?.address ??
         currentUser?.address ??
         'No address saved';
-    final storeId = cartItems.isNotEmpty
-        ? cartItems.first.menuItem.restaurantId
-        : null;
-    final storeAsync = storeId != null
-        ? ref.watch(restaurantByIdProvider(storeId))
-        : const AsyncValue<Restaurant?>.data(null);
-    final store = storeAsync.valueOrNull;
-    final baseDeliveryFee =
-        store?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+
+    // Group cart items by store
+    final Map<String, List<CartItem>> grouped = {};
+    for (final item in cartItems) {
+      final sid = item.menuItem.restaurantId;
+      grouped.putIfAbsent(sid, () => []).add(item);
+    }
+    final storeIds = grouped.keys.toList();
 
     // Surge multiplier
     final defaultAddr = defaultAddrAsync?.valueOrNull;
@@ -51,14 +50,26 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
     if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
     final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
-    final deliveryFee = double.parse(
-      (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
-    );
-    final pickupServiceFee = store?.serviceFee ?? AppConstants.pickupServiceFee;
-    final activeFee = isPickup ? pickupServiceFee : deliveryFee;
+
+    // Accumulate delivery / service fee across all stores
+    double totalActiveFee = 0;
+    final storeData = <String, Restaurant?>{};
+    for (final sid in storeIds) {
+      final sAsync = ref.watch(restaurantByIdProvider(sid));
+      final s = sAsync.valueOrNull;
+      storeData[sid] = s;
+      if (isPickup) {
+        totalActiveFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
+      } else {
+        final base = s?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+        totalActiveFee += double.parse(
+          (base * surgeMultiplier).toStringAsFixed(2),
+        );
+      }
+    }
 
     final tax = subtotal * AppConstants.taxRate;
-    final total = subtotal + activeFee + tax;
+    final total = subtotal + totalActiveFee + tax;
 
     return Scaffold(
       appBar: AppBar(
@@ -138,38 +149,6 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                   ),
                   child: Column(
                     children: [
-                      // ── Store name header ─────────────────────────────
-                      if (store != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(
-                              alpha: 0.06,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.storefront_rounded,
-                                color: AppTheme.primaryColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                store.name,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
                       // ── Delivery / Pickup Toggle ──────────────────────
                       Container(
                         margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -288,38 +267,44 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             ).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.store_rounded,
-                                color: Color(0xFF10B981),
-                                size: 20,
+                              Row(
+                                children: const [
+                                  Icon(
+                                    Icons.store_rounded,
+                                    color: Color(0xFF10B981),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Pick up from',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Pick up from',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.textSecondary,
-                                      ),
+                              const SizedBox(height: 6),
+                              for (final sid in storeIds)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 30,
+                                    bottom: 2,
+                                  ),
+                                  child: Text(
+                                    storeData[sid]?.name ?? 'Store',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textPrimary,
                                     ),
-                                    Text(
-                                      store?.name ?? 'Store',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         )
@@ -380,18 +365,60 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                         ),
                       const SizedBox(height: 8),
 
-                      // ── Cart Items ────────────────────────────────────
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: cartItems.length,
-                        itemBuilder: (context, index) {
-                          final cartItem = cartItems[index];
-                          return _GroceryCartItemWidget(
+                      // ── Cart Items grouped by store ───────────────────
+                      for (final sid in storeIds) ...[
+                        // Store header
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.06,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.storefront_rounded,
+                                color: AppTheme.primaryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  storeData[sid]?.name ?? 'Store',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${grouped[sid]!.length} item${grouped[sid]!.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Items for this store
+                        for (final cartItem in grouped[sid]!)
+                          _GroceryCartItemWidget(
                             name: cartItem.menuItem.name,
                             brand: cartItem.menuItem.brand,
                             weight: cartItem.menuItem.weight,
                             quantity: cartItem.quantity,
+                            maxQuantity: cartItem.menuItem.maxQuantity,
                             price: cartItem.menuItem.discountedPrice,
                             imageUrl: cartItem.menuItem.imageUrl,
                             onRemove: () {
@@ -407,9 +434,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     newQuantity,
                                   );
                             },
-                          );
-                        },
-                      ),
+                          ),
+                        const SizedBox(height: 4),
+                      ],
 
                       // ── Price Breakdown ───────────────────────────────
                       Container(
@@ -432,16 +459,16 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             const SizedBox(height: 8),
                             if (isPickup)
                               _PriceRow(
-                                'Service Fee',
-                                '\$${pickupServiceFee.toStringAsFixed(2)}',
+                                'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                                '\$${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: const Color(0xFF10B981),
                               )
                             else
                               _PriceRow(
                                 surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                                    : 'Delivery Fee',
-                                '\$${deliveryFee.toStringAsFixed(2)}',
+                                    : 'Delivery Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                                '\$${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,
@@ -514,6 +541,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
   final String? brand;
   final String? weight;
   final int quantity;
+  final int maxQuantity;
   final double price;
   final String? imageUrl;
   final VoidCallback onRemove;
@@ -524,6 +552,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
     this.brand,
     this.weight,
     required this.quantity,
+    this.maxQuantity = 99,
     required this.price,
     this.imageUrl,
     required this.onRemove,
@@ -614,8 +643,14 @@ class _GroceryCartItemWidget extends StatelessWidget {
                   child: Text('$quantity'),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add, size: 16),
-                  onPressed: () => onQuantityChanged(quantity + 1),
+                  icon: Icon(
+                    Icons.add,
+                    size: 16,
+                    color: quantity >= maxQuantity ? Colors.grey[300] : null,
+                  ),
+                  onPressed: quantity >= maxQuantity
+                      ? null
+                      : () => onQuantityChanged(quantity + 1),
                   constraints: const BoxConstraints(
                     minHeight: 30,
                     minWidth: 30,
@@ -625,6 +660,18 @@ class _GroceryCartItemWidget extends StatelessWidget {
               ],
             ),
           ),
+          if (quantity >= maxQuantity)
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: Tooltip(
+                message: 'Max $maxQuantity',
+                child: Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Colors.orange[400],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.close, size: 20, color: Colors.red),
             onPressed: onRemove,

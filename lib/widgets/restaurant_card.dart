@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
 
@@ -38,13 +39,14 @@ class RestaurantCard extends StatelessWidget {
                   child:
                       restaurant.imageUrl != null &&
                           restaurant.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          restaurant.imageUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: restaurant.imageUrl!,
                           height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          cacheWidth: 800,
-                          errorBuilder: (_, _, _) => const _PlaceholderImage(),
+                          memCacheWidth: 800,
+                          placeholder: (_, __) => const _PlaceholderImage(),
+                          errorWidget: (_, _, _) => const _PlaceholderImage(),
                         )
                       : const _PlaceholderImage(),
                 ),

@@ -661,3 +661,64 @@ class _SmartSectionsLoading extends StatelessWidget {
     );
   }
 }
+
+// ════════════════════════════════════════════════════════════════
+// Grocery Smart Sections — AI-powered grocery recommendations
+// ════════════════════════════════════════════════════════════════
+
+class GrocerySmartSections extends ConsumerWidget {
+  final void Function(SmartRecommendation rec)? onStoreTap;
+
+  const GrocerySmartSections({super.key, this.onStoreTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final brainAsync = ref.watch(groceryBrainEngineProvider);
+
+    return brainAsync.when(
+      data: (brain) {
+        if (!brain.hasPersonalizedContent && brain.activeCoupon == null) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SmartRecommendationSection(
+              title: 'Stores for You',
+              emoji: '\u{1F6D2}',
+              recommendations: brain.forYou,
+              onTap: onStoreTap,
+            ),
+
+            if (brain.becauseYouLove.isNotEmpty)
+              SmartRecommendationSection(
+                title: 'Top Rated Stores',
+                emoji: '\u{2B50}',
+                recommendations: brain.becauseYouLove,
+                onTap: onStoreTap,
+              ),
+
+            if (brain.dealsForYou.isNotEmpty)
+              SmartRecommendationSection(
+                title: 'Great Delivery Deals',
+                emoji: '\u{1F4B0}',
+                recommendations: brain.dealsForYou,
+                onTap: onStoreTap,
+              ),
+
+            if (brain.quickDelivery.isNotEmpty)
+              SmartRecommendationSection(
+                title: 'Quick Delivery',
+                emoji: '\u{26A1}',
+                recommendations: brain.quickDelivery,
+                onTap: onStoreTap,
+              ),
+          ],
+        );
+      },
+      loading: () => const _SmartSectionsLoading(),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}

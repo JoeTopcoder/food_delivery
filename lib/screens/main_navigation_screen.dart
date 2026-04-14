@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -22,18 +23,18 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const CustomerHomeScreen(),
-    const GroceryScreen(),
-    const SearchScreen(),
-    const OrdersScreen(),
-    const CustomerProfileScreen(),
+  static const List<Widget> _screens = [
+    CustomerHomeScreen(),
+    GroceryScreen(),
+    SearchScreen(),
+    OrdersScreen(),
+    CustomerProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -84,6 +85,20 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _query = '';
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) setState(() => _query = value);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +117,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 hintText: 'Search restaurants or food...',
                 prefixIcon: const Icon(Icons.search),
@@ -185,6 +200,9 @@ class OrdersScreen extends ConsumerWidget {
     }
 
     final ordersAsync = ref.watch(userOrdersProvider(currentUserId));
+
+    // Activate real-time subscription so the list updates instantly on cancel/status changes
+    ref.watch(customerOrderRealtimeProvider(currentUserId));
 
     return Scaffold(
       appBar: AppBar(

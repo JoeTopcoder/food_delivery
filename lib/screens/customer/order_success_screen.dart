@@ -7,12 +7,14 @@ class OrderSuccessScreen extends StatefulWidget {
   final bool contactlessDelivery;
   final String? deliveryOtp;
   final bool isPickup;
+  final String? receiptNumber;
   const OrderSuccessScreen({
     super.key,
     required this.orderId,
     this.contactlessDelivery = false,
     this.deliveryOtp,
     this.isPickup = false,
+    this.receiptNumber,
   });
 
   @override
@@ -81,7 +83,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Order #${widget.orderId.substring(0, 8).toUpperCase()}',
+                      'Order #${widget.receiptNumber ?? widget.orderId.substring(0, 8).toUpperCase()}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
