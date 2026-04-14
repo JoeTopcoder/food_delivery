@@ -1587,6 +1587,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             contactlessDelivery: order.contactlessDelivery,
             deliveryOtp: order.deliveryOtp,
             isPickup: order.isPickup,
+            receiptNumber: order.receiptNumber,
           ),
         ),
       );

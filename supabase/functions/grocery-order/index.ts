@@ -93,11 +93,11 @@ Deno.serve(async (request) => {
     const productIds = items.map((i) => i.menu_item_id);
     const { data: products, error: prodErr } = await admin
       .from("menus")
-      .select("id, name, price, discounted_price, is_available, in_stock, max_quantity, product_type")
-      .in_("id", productIds);
+      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type")
+      .filter("id", "in", `(${productIds.map((id) => `"${id}"`).join(",")})`);
 
     if (prodErr || !products) {
-      return json({ error: "Could not verify products" }, 500);
+      return json({ error: "Could not verify products", details: prodErr?.message ?? "No products returned" }, 500);
     }
 
     const productMap = new Map(products.map((p: Record<string, unknown>) => [p.id as string, p]));
@@ -124,7 +124,9 @@ Deno.serve(async (request) => {
         }, 400);
       }
 
-      const price = ((dbProduct.discounted_price ?? dbProduct.price) as number);
+      const basePrice = dbProduct.price as number;
+      const discountPct = (dbProduct.discount as number) ?? 0;
+      const price = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100) * 100) / 100 : basePrice;
       const lineTotal = price * item.quantity;
       subtotal += lineTotal;
 
@@ -209,14 +211,22 @@ Deno.serve(async (request) => {
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
     // ── 7. Create order ─────────────────────────────────────────────────
+    // Generate GRO- receipt number
+    const today = new Date().toISOString().split("T")[0];
+    const { count: todayCount } = await admin
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .gte("ordered_at", today);
+    const receiptNumber = `GRO-${today.replace(/-/g, "")}-${String((todayCount ?? 0) + 1).padStart(4, "0")}`;
+
     const orderData: Record<string, unknown> = {
       user_id: userId,
       restaurant_id: storeId,
       status: "pending",
       subtotal,
       delivery_fee: deliveryFee,
-      tax,
-      total: grandTotal,
+      tax_amount: tax,
+      total_amount: grandTotal,
       payment_method: paymentMethod,
       payment_status: paymentMethod === "cash" ? "pending" : "processing",
       is_pickup: isPickup,
@@ -225,11 +235,11 @@ Deno.serve(async (request) => {
       delivery_latitude: isPickup ? store.latitude : deliveryLat,
       delivery_longitude: isPickup ? store.longitude : deliveryLng,
       driver_tip: driverTip,
-      promo_code_id: promoId,
-      promo_discount: promoDiscount,
-      order_type: "grocery",
+      promo_code: promoCode ?? null,
+      discount_amount: promoDiscount,
       pickup_code: isPickup ? generatePickupCode() : null,
       delivery_otp: !isPickup ? generateOtp() : null,
+      receipt_number: receiptNumber,
     };
 
     const { data: order, error: orderErr } = await admin
@@ -247,8 +257,8 @@ Deno.serve(async (request) => {
       order_id: order.id,
       menu_item_id: v.menu_item_id,
       quantity: v.quantity,
-      unit_price: v.unit_price,
-      total_price: v.line_total,
+      price: v.unit_price,
+      subtotal: v.line_total,
       item_name: v.name,
     }));
 
@@ -273,6 +283,7 @@ Deno.serve(async (request) => {
         is_pickup: isPickup,
         pickup_code: order.pickup_code,
         delivery_otp: order.delivery_otp,
+        receipt_number: receiptNumber,
         item_count: verifiedItems.length,
         delivery_distance_km: deliveryDistanceKm,
       },

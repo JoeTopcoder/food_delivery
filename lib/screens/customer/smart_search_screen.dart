@@ -271,6 +271,9 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
 
   List<Restaurant> _applyFilters(List<Restaurant> restaurants) {
     return restaurants.where((r) {
+      // Exclude grocery-only stores
+      if (r.storeType == 'grocery') return false;
+
       // Text search
       if (_query.isNotEmpty) {
         final matchesName = r.name.toLowerCase().contains(_query);

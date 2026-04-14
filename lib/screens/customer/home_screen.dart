@@ -1,6 +1,7 @@
 ﻿import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/restaurant_ad_model.dart';
@@ -1059,13 +1060,14 @@ class _CompactRestaurantCard extends StatelessWidget {
               ),
               child:
                   restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      restaurant.imageUrl!,
+                  ? CachedNetworkImage(
+                      imageUrl: restaurant.imageUrl!,
                       height: 110,
                       width: 180,
                       fit: BoxFit.cover,
-                      cacheWidth: 360,
-                      errorBuilder: (_, _, _) => _placeholder(),
+                      memCacheWidth: 360,
+                      placeholder: (_, __) => _placeholder(),
+                      errorWidget: (_, _, _) => _placeholder(),
                     )
                   : _placeholder(),
             ),
@@ -1273,13 +1275,13 @@ class _DynamicBannerCarouselState
           fit: StackFit.expand,
           children: [
             if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              Image.network(
-                banner.imageUrl!,
+              CachedNetworkImage(
+                imageUrl: banner.imageUrl!,
                 fit: BoxFit.cover,
-                cacheWidth: 800,
+                memCacheWidth: 800,
                 color: Colors.black.withValues(alpha: 0.35),
                 colorBlendMode: BlendMode.darken,
-                errorBuilder: (_, _, _) => Positioned.fill(
+                errorWidget: (_, _, _) => Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -1621,10 +1623,10 @@ class _AdPopupDialog extends StatelessWidget {
   Widget _buildAdImage() {
     final url = ad.restaurantImageUrl ?? ad.imageUrl;
     if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
+      return CachedNetworkImage(
+        imageUrl: url,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _defaultAdBg(),
+        errorWidget: (_, _, _) => _defaultAdBg(),
       );
     }
     return _defaultAdBg();

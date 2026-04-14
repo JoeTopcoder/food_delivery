@@ -16,6 +16,8 @@ final groceryServiceProvider = Provider<GroceryService>((ref) {
 final groceryStoresProvider = FutureProvider.autoDispose<List<Restaurant>>((
   ref,
 ) {
+  // Keep data alive so it's not re-fetched on every tab switch
+  final link = ref.keepAlive();
   // Real-time: refresh when any grocery store row changes
   final channel = Supabase.instance.client.realtime.channel(
     'grocery_stores_${DateTime.now().microsecondsSinceEpoch}',
@@ -51,6 +53,8 @@ final groceryStoreSearchProvider = FutureProvider.family
 
 final groceryProductsProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, storeId) {
+      // Keep products alive while browsing
+      final link = ref.keepAlive();
       // Real-time: refresh when products for this store change
       final channel = Supabase.instance.client.realtime.channel(
         'grocery_products_${storeId}_${DateTime.now().microsecondsSinceEpoch}',
@@ -95,7 +99,67 @@ final groceryProductsByCategoryProvider = FutureProvider.family
 
 final groceryCategoriesProvider =
     FutureProvider.autoDispose<List<GroceryCategory>>((ref) {
+      // Keep alive across tab switches
+      final link = ref.keepAlive();
+      // Real-time: refresh when grocery_categories or menus table changes
+      // so custom categories from new products appear immediately
+      final channel = Supabase.instance.client.realtime.channel(
+        'grocery_categories_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'grocery_categories',
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'menus',
+            callback: (payload) {
+              final row = payload.newRecord;
+              if (row['product_type'] == 'grocery') {
+                ref.invalidateSelf();
+              }
+            },
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+
       return ref.watch(groceryServiceProvider).getCategories();
+    });
+
+/// All grocery products for a given category across ALL stores (real-time).
+final allGroceryProductsByCategoryProvider = FutureProvider.family
+    .autoDispose<List<MenuItem>, String>((ref, category) {
+      // Real-time: refresh when any grocery product changes
+      final channel = Supabase.instance.client.realtime.channel(
+        'all_grocery_cat_${category.hashCode}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'menus',
+            callback: (payload) {
+              final row = payload.newRecord;
+              if (row['product_type'] == 'grocery' &&
+                  row['category'] == category) {
+                ref.invalidateSelf();
+              }
+            },
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+
+      return ref
+          .watch(groceryServiceProvider)
+          .getAllProductsByCategory(category);
     });
 
 // ── Owner (restaurant) Providers (real-time) ────────────────────────────────

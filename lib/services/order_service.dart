@@ -61,6 +61,22 @@ class OrderService {
       // Generate 4-digit OTP for delivery verification
       final otp = (1000 + Random.secure().nextInt(9000)).toString();
 
+      // Generate FD- receipt number
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+      final todayStart = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).toIso8601String();
+      final countResult = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('id')
+          .gte('ordered_at', todayStart);
+      final seq = (countResult as List).length + 1;
+      final receiptNumber = 'FD-$dateStr-${seq.toString().padLeft(4, '0')}';
+
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
           .insert({
@@ -77,9 +93,10 @@ class OrderService {
             'notes': ?notes,
             'payment_method': paymentMethod ?? 'cash',
             'payment_status': AppConstants.paymentPending,
-            'ordered_at': DateTime.now().toIso8601String(),
+            'ordered_at': now.toIso8601String(),
             'contactless_delivery': contactlessDelivery,
             'delivery_otp': otp,
+            'receipt_number': receiptNumber,
             if (discount != null && discount > 0) 'discount': discount,
             if (driverTip != null && driverTip > 0) 'driver_tip': driverTip,
             if (scheduledFor != null)
@@ -447,6 +464,60 @@ class OrderService {
       AppLogger.info('Driver tipped successfully');
     } catch (e) {
       AppLogger.error('Error tipping driver: $e');
+      rethrow;
+    }
+  }
+
+  // Get orders for multiple restaurants (for multi-restaurant owners)
+  Future<List<Order>> getOrdersForRestaurants(
+    List<String> restaurantIds,
+  ) async {
+    try {
+      if (restaurantIds.isEmpty) return [];
+      AppLogger.info('Fetching orders for ${restaurantIds.length} restaurants');
+
+      final response = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select()
+          .inFilter('restaurant_id', restaurantIds)
+          .order('ordered_at', ascending: false);
+
+      final orders = <Order>[];
+      for (var orderData in response as List) {
+        final itemsResponse = await _supabaseClient
+            .from(AppConstants.tableOrderItems)
+            .select()
+            .eq('order_id', orderData['id']);
+
+        final items = <OrderItem>[];
+        for (final itemJson in (itemsResponse as List)) {
+          final sidesResponse = await _supabaseClient
+              .from(AppConstants.tableOrderItemSides)
+              .select()
+              .eq('order_item_id', itemJson['id']);
+          final sides = (sidesResponse as List)
+              .map((s) => OrderItemSide.fromJson(s))
+              .toList();
+          items.add(
+            OrderItem.fromJson({
+              ...itemJson,
+              'sides': sides.map((s) => s.toJson()).toList(),
+            }),
+          );
+        }
+
+        orders.add(
+          Order.fromJson({
+            ...orderData,
+            'items': items.map((item) => item.toJson()).toList(),
+          }),
+        );
+      }
+
+      AppLogger.info('Fetched ${orders.length} orders across restaurants');
+      return orders;
+    } catch (e) {
+      AppLogger.error('Error fetching orders for restaurants: $e');
       rethrow;
     }
   }

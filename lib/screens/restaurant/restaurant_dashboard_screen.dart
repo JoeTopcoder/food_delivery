@@ -132,6 +132,7 @@ class _RestaurantDashboardScreenState
     final currentUserId = ref.read(currentUserIdProvider);
     if (currentUserId != null) {
       ref.invalidate(restaurantByOwnerProvider(currentUserId));
+      ref.invalidate(ownerAllOrdersProvider(currentUserId));
     }
   }
 
@@ -164,8 +165,8 @@ class _RestaurantDashboardScreenState
           return _buildSetupRestaurant(currentUserId);
         }
 
-        ref.watch(restaurantNewOrderRealtimeProvider(restaurant.id));
-        final ordersAsync = ref.watch(restaurantOrdersProvider(restaurant.id));
+        ref.watch(ownerOrderRealtimeProvider(currentUserId));
+        final ordersAsync = ref.watch(ownerAllOrdersProvider(currentUserId));
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FB),
@@ -655,7 +656,7 @@ class _RestaurantDashboardScreenState
                         child: AppErrorState(
                           message: 'Failed to load orders',
                           onRetry: () => ref.invalidate(
-                            restaurantOrdersProvider(restaurant.id),
+                            ownerAllOrdersProvider(currentUserId),
                           ),
                         ),
                       ),

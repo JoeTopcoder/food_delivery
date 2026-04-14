@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
@@ -140,12 +141,13 @@ class _RestaurantDetailScreenState
                       child:
                           widget.restaurant.imageUrl != null &&
                               widget.restaurant.imageUrl!.isNotEmpty
-                          ? Image.network(
-                              widget.restaurant.imageUrl!,
+                          ? CachedNetworkImage(
+                              imageUrl: widget.restaurant.imageUrl!,
                               height: 260,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
+                              memCacheWidth: 800,
+                              errorWidget: (_, _, _) => Container(
                                 height: 260,
                                 width: double.infinity,
                                 decoration: BoxDecoration(

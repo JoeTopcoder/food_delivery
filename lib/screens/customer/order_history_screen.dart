@@ -25,6 +25,9 @@ class OrderHistoryScreen extends ConsumerWidget {
     }
     final ordersAsync = ref.watch(userOrdersProvider(userId));
 
+    // Activate real-time subscription for instant cancel/status updates
+    ref.watch(customerOrderRealtimeProvider(userId));
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -148,7 +151,7 @@ class _OrderCard extends ConsumerWidget {
                   ),
                 const Spacer(),
                 Text(
-                  '#${order.id.substring(0, 8).toUpperCase()}',
+                  '#${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF9CA3AF),

@@ -28,6 +28,7 @@ import 'screens/customer/restaurant_detail_screen.dart';
 import 'screens/customer/cart_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
+import 'screens/customer/grocery_checkout_screen.dart';
 import 'screens/customer/order_tracking_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/customer/review_screen.dart';
@@ -305,7 +306,7 @@ class _MyAppState extends ConsumerState<MyApp> {
               );
             case '/grocery-checkout':
               return MaterialPageRoute(
-                builder: (context) => const CheckoutScreen(),
+                builder: (context) => const GroceryCheckoutScreen(),
               );
             case '/order-tracking':
               final orderId = settings.arguments as String?;

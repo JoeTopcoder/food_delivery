@@ -146,18 +146,62 @@ class GroceryService {
     }
   }
 
-  /// Fetch all grocery categories.
+  /// Fetch all grocery categories (from grocery_categories table + any custom
+  /// categories that exist on products in the menus table).
   Future<List<GroceryCategory>> getCategories() async {
     try {
-      final response = await _client
+      // 1. Fetch the curated categories
+      final catResponse = await _client
           .from('grocery_categories')
           .select()
           .eq('is_active', true)
           .order('sort_order');
 
-      return (response as List)
+      final categories = (catResponse as List)
           .map((r) => GroceryCategory.fromJson(r))
           .toList();
+
+      final knownNames = categories.map((c) => c.name).toSet();
+
+      // 2. Fetch distinct category names from actual grocery products
+      final menuResponse = await _client
+          .from(AppConstants.tableMenus)
+          .select('category')
+          .eq('product_type', 'grocery')
+          .eq('is_available', true);
+
+      final productCategories = <String>{};
+      for (final row in (menuResponse as List)) {
+        final cat = row['category'] as String?;
+        if (cat != null && cat.isNotEmpty) {
+          productCategories.add(cat);
+        }
+      }
+
+      // 3. Merge: add any product categories not already in the curated list
+      for (final name in productCategories) {
+        if (!knownNames.contains(name)) {
+          categories.add(
+            GroceryCategory(
+              id: 'custom_$name',
+              name: name,
+              icon: '📦',
+              sortOrder: 999,
+              isActive: true,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+      }
+
+      // Sort: curated first (by sort_order), custom at end alphabetically
+      categories.sort((a, b) {
+        if (a.sortOrder != b.sortOrder)
+          return a.sortOrder.compareTo(b.sortOrder);
+        return a.name.compareTo(b.name);
+      });
+
+      return categories;
     } catch (e) {
       AppLogger.error('Error fetching grocery categories: $e');
       rethrow;
@@ -187,6 +231,31 @@ class GroceryService {
       }).toList();
     } catch (e) {
       AppLogger.error('Error fetching products by category: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch grocery products by category across ALL stores.
+  Future<List<MenuItem>> getAllProductsByCategory(String category) async {
+    try {
+      AppLogger.info('Fetching all grocery products for category: $category');
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('product_type', 'grocery')
+          .eq('category', category)
+          .eq('is_available', true)
+          .eq('in_stock', true)
+          .order('name');
+
+      return (response as List).map((row) {
+        final sidesJson = row['menu_item_sides'] as List? ?? [];
+        return MenuItem.fromJson({...row, 'sides': sidesJson});
+      }).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching all products by category: $e');
       rethrow;
     }
   }
