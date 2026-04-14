@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'customer/home_screen.dart';
+import 'customer/grocery_screen.dart';
 import 'customer/profile_screen.dart';
 import '../providers/user_provider.dart';
 import '../providers/auth_provider.dart';
@@ -23,6 +24,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const CustomerHomeScreen(),
+    const GroceryScreen(),
     const SearchScreen(),
     const OrdersScreen(),
     const CustomerProfileScreen(),
@@ -46,6 +48,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.local_grocery_store_outlined),
+            activeIcon: Icon(Icons.local_grocery_store),
+            label: 'Grocery',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.search_outlined),

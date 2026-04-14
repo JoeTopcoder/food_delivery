@@ -96,6 +96,11 @@ class Order {
   final DateTime? receiptGeneratedAt;
   final DateTime? estimatedDeliveryAt;
   final int? estimatedPrepMinutes;
+  final bool isPickup;
+  final double? pickupFee;
+  final String? pickupCode;
+  final bool fromAd;
+  final String? adId;
 
   Order({
     required this.id,
@@ -141,6 +146,11 @@ class Order {
     this.receiptGeneratedAt,
     this.estimatedDeliveryAt,
     this.estimatedPrepMinutes,
+    this.isPickup = false,
+    this.pickupFee,
+    this.pickupCode,
+    this.fromAd = false,
+    this.adId,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -190,6 +200,11 @@ class Order {
     DateTime? receiptGeneratedAt,
     DateTime? estimatedDeliveryAt,
     int? estimatedPrepMinutes,
+    bool? isPickup,
+    double? pickupFee,
+    String? pickupCode,
+    bool? fromAd,
+    String? adId,
   }) {
     return Order(
       id: id ?? this.id,
@@ -235,6 +250,11 @@ class Order {
       receiptGeneratedAt: receiptGeneratedAt ?? this.receiptGeneratedAt,
       estimatedDeliveryAt: estimatedDeliveryAt ?? this.estimatedDeliveryAt,
       estimatedPrepMinutes: estimatedPrepMinutes ?? this.estimatedPrepMinutes,
+      isPickup: isPickup ?? this.isPickup,
+      pickupFee: pickupFee ?? this.pickupFee,
+      pickupCode: pickupCode ?? this.pickupCode,
+      fromAd: fromAd ?? this.fromAd,
+      adId: adId ?? this.adId,
     );
   }
 }

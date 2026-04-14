@@ -82,6 +82,7 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
             height: 44,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _filterCategories.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -159,6 +160,9 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                   );
                 }
                 return ListView.builder(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: restaurants.length,
                   itemBuilder: (context, index) {

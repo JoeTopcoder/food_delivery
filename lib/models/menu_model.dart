@@ -108,6 +108,12 @@ class MenuItem {
   final List<MenuItemSide>? sides;
   @JsonKey(includeFromJson: false, includeToJson: false)
   final List<OptionGroup> optionGroups;
+  final String? unit; // e.g. 'lb', 'kg', 'each', 'pack'
+  final String? brand;
+  final String? weight; // e.g. '16 oz', '500g'
+  final bool inStock;
+  final int maxQuantity;
+  final String productType; // 'food' or 'grocery'
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -125,6 +131,12 @@ class MenuItem {
     this.preparationTime,
     this.sides,
     this.optionGroups = const [],
+    this.unit,
+    this.brand,
+    this.weight,
+    this.inStock = true,
+    this.maxQuantity = 99,
+    this.productType = 'food',
     required this.createdAt,
     this.updatedAt,
   });
@@ -158,6 +170,12 @@ class MenuItem {
     int? preparationTime,
     List<MenuItemSide>? sides,
     List<OptionGroup>? optionGroups,
+    String? unit,
+    String? brand,
+    String? weight,
+    bool? inStock,
+    int? maxQuantity,
+    String? productType,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -175,6 +193,12 @@ class MenuItem {
       preparationTime: preparationTime ?? this.preparationTime,
       sides: sides ?? this.sides,
       optionGroups: optionGroups ?? this.optionGroups,
+      unit: unit ?? this.unit,
+      brand: brand ?? this.brand,
+      weight: weight ?? this.weight,
+      inStock: inStock ?? this.inStock,
+      maxQuantity: maxQuantity ?? this.maxQuantity,
+      productType: productType ?? this.productType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

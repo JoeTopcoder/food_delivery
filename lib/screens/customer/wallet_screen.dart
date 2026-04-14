@@ -11,6 +11,7 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/friendly_error.dart';
 import 'add_card_screen.dart';
 import 'ncb_payment_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -116,7 +117,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       );
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Failed to start verification: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
       return false;
     }
@@ -293,122 +294,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     ref.invalidate(savedCardsProvider(userId));
   }
 
-  Future<void> _verifyCard(SavedCard card) async {
-    if (!mounted) return;
-    final svc = ref.read(paymentServiceProvider);
-    final userId = ref.read(currentUserIdProvider);
-    final controller = TextEditingController();
-    const maxAttempts = 3;
-    final remaining = maxAttempts - card.verificationAttempts;
-
-    final entered = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        final timeLeft = card.timeRemaining;
-        final minLeft = timeLeft != null ? timeLeft.inMinutes : 0;
-
-        return AlertDialog(
-          title: const Text('Verify Card'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enter the exact amount charged to your '
-                '${card.displayBrand} •••• ${card.lastFour}.',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'You have $remaining ${remaining == 1 ? "attempt" : "attempts"} '
-                'remaining${minLeft > 0 ? " ($minLeft min left)" : ""}.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: remaining <= 1
-                      ? Colors.red.shade700
-                      : Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                decoration: const InputDecoration(
-                  prefixText: '\$ ',
-                  hintText: 'e.g. 3.00',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Later'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Verify'),
-            ),
-          ],
-        );
-      },
-    );
-
-    controller.dispose();
-
-    if (entered == null || entered.isEmpty || !mounted) return;
-
-    final enteredAmount = double.tryParse(entered);
-    if (enteredAmount == null) {
-      AppSnackbar.warning(context, 'Please enter a valid amount.');
-      return;
-    }
-
-    final matched = await svc.verifyPendingCard(card.id, enteredAmount);
-    if (userId != null) ref.invalidate(savedCardsProvider(userId));
-
-    if (!mounted) return;
-
-    if (matched) {
-      AppSnackbar.success(
-        context,
-        'Card verified successfully! Charge will be reversed.',
-      );
-    } else {
-      // Re-fetch card to check if now failed
-      final updatedCards = userId != null
-          ? await svc.getSavedCards(userId)
-          : <SavedCard>[];
-      final updatedCard = updatedCards
-          .where((c) => c.id == card.id)
-          .firstOrNull;
-
-      if (updatedCard != null && updatedCard.isFailed) {
-        if (!mounted) return;
-        AppSnackbar.error(
-          context,
-          'Verification failed — too many wrong attempts. Please try adding the card again.',
-        );
-      } else {
-        if (!mounted) return;
-        final attemptsLeft =
-            maxAttempts -
-            (updatedCard?.verificationAttempts ??
-                card.verificationAttempts + 1);
-        AppSnackbar.warning(
-          context,
-          'Amount didn\'t match. $attemptsLeft ${attemptsLeft == 1 ? "attempt" : "attempts"} remaining.',
-        );
-      }
-    }
-  }
-
   /// Inline verify — called from the amount field inside _SavedCardTile.
   /// Returns true if the amount matched.
   Future<bool> _verifyCardInline(String cardId, double amount) async {
@@ -497,12 +382,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     Icon(
                       Icons.credit_card_off_outlined,
                       size: 40,
-                      color: Colors.grey.shade400,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade400,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'No cards added yet',
-                      style: TextStyle(color: Colors.grey.shade500),
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
@@ -612,7 +503,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             height: 60,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-          error: (e, _) => Text('Error loading cards: $e'),
+          error: (e, _) => Text(
+            friendlyError(e),
+            style: TextStyle(
+              color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
+            ),
+          ),
         ),
       ],
     );
@@ -672,7 +568,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Failed: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isDepositing = false);
@@ -698,6 +594,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ref.invalidate(walletTransactionsProvider);
         },
         child: ListView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           padding: const EdgeInsets.all(16),
           children: [
             // ── Balance Card ──────────────────────────────────
@@ -707,7 +606,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 height: 180,
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (e, _) => Text('Error: $e'),
+              error: (e, _) => Text(
+                friendlyError(e),
+                style: TextStyle(
+                  color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
+                ),
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -728,7 +632,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               children: _presetAmounts
                   .map(
                     (a) => ActionChip(
-                      label: Text('\$$a'),
+                      label: Text(
+                        '\$$a',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      backgroundColor: isDark
+                          ? const Color(0xFF374151)
+                          : Colors.grey.shade100,
                       onPressed: () => _deposit(a.toDouble()),
                     ),
                   )
@@ -740,15 +653,29 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 Expanded(
                   child: TextField(
                     controller: _amountCtrl,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 16,
+                    ),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                     ],
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       prefixText: '\$ ',
+                      prefixStyle: TextStyle(
+                        color: isDark ? Colors.white : AppTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                       hintText: 'Custom amount',
+                      hintStyle: TextStyle(
+                        color: isDark
+                            ? Colors.grey.shade500
+                            : Colors.grey.shade400,
+                      ),
                     ),
                   ),
                 ),
@@ -802,12 +729,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           Icon(
                             Icons.receipt_long_outlined,
                             size: 48,
-                            color: Colors.grey.shade400,
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade400,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No transactions yet',
-                            style: TextStyle(color: Colors.grey.shade500),
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -819,7 +752,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Error: $e'),
+              error: (e, _) => Text(
+                friendlyError(e),
+                style: TextStyle(
+                  color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
+                ),
+              ),
             ),
           ],
         ),

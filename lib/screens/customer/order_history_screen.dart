@@ -52,6 +52,9 @@ class OrderHistoryScreen extends ConsumerWidget {
             );
           }
           return ListView.builder(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             itemCount: orders.length,
             itemBuilder: (_, i) => _OrderCard(order: orders[i]),
@@ -675,7 +678,7 @@ class _OrderCard extends ConsumerWidget {
           children: [
             const Center(
               child: Text(
-                'FoodDriver',
+                'FoodHub',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -754,7 +757,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 20),
             const Center(
               child: Text(
-                'Thank you for using FoodDriver!',
+                'Thank you for using FoodHub!',
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
@@ -833,7 +836,7 @@ class _OrderCard extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  AppSnackbar.error(context, 'Failed to cancel: $e');
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },

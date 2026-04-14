@@ -111,6 +111,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

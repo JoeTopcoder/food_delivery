@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/app_theme.dart';
-import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/friendly_error.dart';
 
 /// Admin database lookup screen.
 /// Search by card last-4, order ID, or customer email/phone/name.
@@ -71,7 +71,7 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
           break;
       }
     } catch (e) {
-      setState(() => _error = 'ERROR: $e');
+      setState(() => _error = friendlyError(e));
     } finally {
       setState(() => _loading = false);
     }

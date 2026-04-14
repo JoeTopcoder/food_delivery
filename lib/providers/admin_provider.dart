@@ -111,6 +111,25 @@ final driverStatisticsProvider =
 
 // ==================== ANALYTICS PROVIDERS ====================
 
+// ==================== RESTAURANT ADS PROVIDERS ====================
+
+/// All ads for a restaurant (admin view)
+final restaurantAdsProvider =
+    riverpod_pkg.FutureProvider.family<List<Map<String, dynamic>>, String?>((
+      ref,
+      restaurantId,
+    ) async {
+      final adminService = ref.watch(adminServiceProvider);
+      return adminService.getRestaurantAds(restaurantId: restaurantId);
+    });
+
+/// Active ads for customer display
+final activeAdsProvider =
+    riverpod_pkg.FutureProvider<List<Map<String, dynamic>>>((ref) async {
+      final adminService = ref.watch(adminServiceProvider);
+      return adminService.getActiveAds();
+    });
+
 /// Revenue statistics provider
 final revenueStatisticsProvider =
     riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {

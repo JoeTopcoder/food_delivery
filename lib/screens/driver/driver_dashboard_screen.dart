@@ -720,7 +720,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   Widget _buildError(String userId, Object error) {
     return AppErrorState(
-      message: error.toString(),
+      message: friendlyError(error),
       onRetry: () => ref.invalidate(driverProfileProvider(userId)),
     );
   }

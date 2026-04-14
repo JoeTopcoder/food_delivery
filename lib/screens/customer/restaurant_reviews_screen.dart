@@ -51,6 +51,7 @@ class RestaurantReviewsScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: reviews.length,
             itemBuilder: (context, index) {

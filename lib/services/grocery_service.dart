@@ -1,0 +1,342 @@
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/restaurant_model.dart';
+import '../models/menu_model.dart';
+import '../models/grocery_category_model.dart';
+import '../config/app_constants.dart';
+import '../utils/app_logger.dart';
+
+class GroceryService {
+  final SupabaseClient _client;
+
+  GroceryService(this._client);
+
+  static String _sanitize(String q) => q.replaceAll(RegExp(r'[%_(),.\\]'), '');
+
+  /// Fetch the grocery store owned by a specific user.
+  Future<Restaurant?> getGroceryStoreByOwnerId(String ownerId) async {
+    try {
+      AppLogger.info('Fetching grocery store for owner: $ownerId');
+      final response = await _client
+          .from(AppConstants.tableRestaurants)
+          .select()
+          .eq('owner_id', ownerId)
+          .or('store_type.eq.grocery,store_type.eq.both')
+          .limit(1);
+      if (response.isEmpty) return null;
+      return Restaurant.fromJson(response.first);
+    } catch (e) {
+      AppLogger.error('Error fetching grocery store by owner: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a new grocery store for an owner.
+  Future<Restaurant> createGroceryStore({
+    required String ownerId,
+    required String name,
+    String? description,
+    String? phone,
+    String? address,
+  }) async {
+    try {
+      AppLogger.info('Creating grocery store for owner: $ownerId');
+      final response = await _client
+          .from(AppConstants.tableRestaurants)
+          .insert({
+            'owner_id': ownerId,
+            'name': name,
+            'description': description,
+            'phone': phone,
+            'address': address,
+            'store_type': 'grocery',
+            'is_open': true,
+            'is_verified': true,
+          })
+          .select()
+          .single();
+      return Restaurant.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error creating grocery store: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch all verified grocery stores (store_type = 'grocery' or 'both').
+  Future<List<Restaurant>> getGroceryStores({int? limit}) async {
+    try {
+      AppLogger.info('Fetching grocery stores');
+      var query = _client
+          .from(AppConstants.tableRestaurants)
+          .select()
+          .or('store_type.eq.grocery,store_type.eq.both')
+          .eq('is_verified', true)
+          .order('rating', ascending: false);
+
+      if (limit != null) {
+        query = query.limit(limit);
+      }
+
+      final response = await query;
+      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching grocery stores: $e');
+      rethrow;
+    }
+  }
+
+  /// Search grocery stores by name.
+  Future<List<Restaurant>> searchGroceryStores(String query) async {
+    try {
+      final response = await _client
+          .from(AppConstants.tableRestaurants)
+          .select()
+          .or('store_type.eq.grocery,store_type.eq.both')
+          .eq('is_verified', true)
+          .ilike('name', '%${_sanitize(query)}%')
+          .order('rating', ascending: false);
+
+      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+    } catch (e) {
+      AppLogger.error('Error searching grocery stores: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch all grocery products for a given store.
+  Future<List<MenuItem>> getGroceryProducts(String storeId) async {
+    try {
+      AppLogger.info('Fetching grocery products for store: $storeId');
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery')
+          .eq('is_available', true)
+          .order('category');
+
+      return (response as List).map((row) {
+        final sidesJson = row['menu_item_sides'] as List? ?? [];
+        return MenuItem.fromJson({...row, 'sides': sidesJson});
+      }).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching grocery products: $e');
+      rethrow;
+    }
+  }
+
+  /// Search grocery products across all stores.
+  Future<List<MenuItem>> searchGroceryProducts(String query) async {
+    try {
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .select()
+          .eq('product_type', 'grocery')
+          .eq('is_available', true)
+          .or(
+            'name.ilike.%${_sanitize(query)}%,brand.ilike.%${_sanitize(query)}%,description.ilike.%${_sanitize(query)}%',
+          );
+
+      return (response as List).map((r) => MenuItem.fromJson(r)).toList();
+    } catch (e) {
+      AppLogger.error('Error searching grocery products: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch all grocery categories.
+  Future<List<GroceryCategory>> getCategories() async {
+    try {
+      final response = await _client
+          .from('grocery_categories')
+          .select()
+          .eq('is_active', true)
+          .order('sort_order');
+
+      return (response as List)
+          .map((r) => GroceryCategory.fromJson(r))
+          .toList();
+    } catch (e) {
+      AppLogger.error('Error fetching grocery categories: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch grocery products by category for a given store.
+  Future<List<MenuItem>> getProductsByCategory(
+    String storeId,
+    String category,
+  ) async {
+    try {
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery')
+          .eq('category', category)
+          .eq('is_available', true)
+          .order('name');
+
+      return (response as List).map((row) {
+        final sidesJson = row['menu_item_sides'] as List? ?? [];
+        return MenuItem.fromJson({...row, 'sides': sidesJson});
+      }).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching products by category: $e');
+      rethrow;
+    }
+  }
+
+  /// Add a grocery product (for store owners).
+  Future<MenuItem?> addGroceryProduct({
+    required String storeId,
+    required String name,
+    required double price,
+    required String category,
+    String? description,
+    String? imageUrl,
+    String? unit,
+    String? brand,
+    String? weight,
+    int maxQuantity = 99,
+  }) async {
+    try {
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .insert({
+            'restaurant_id': storeId,
+            'name': name,
+            'price': price,
+            'category': category,
+            'description': description,
+            'image_url': imageUrl,
+            'is_available': true,
+            'product_type': 'grocery',
+            'unit': unit,
+            'brand': brand,
+            'weight': weight,
+            'in_stock': true,
+            'max_quantity': maxQuantity,
+          })
+          .select()
+          .single();
+
+      return MenuItem.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error adding grocery product: $e');
+      rethrow;
+    }
+  }
+
+  /// Update stock status of a grocery product.
+  Future<void> updateStockStatus(String productId, bool inStock) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'in_stock': inStock})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error updating stock status: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch ALL grocery products for a store (including unavailable — for owner management).
+  Future<List<MenuItem>> getOwnerGroceryProducts(String storeId) async {
+    try {
+      final response = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery')
+          .order('category');
+
+      return (response as List).map((row) {
+        final sidesJson = row['menu_item_sides'] as List? ?? [];
+        return MenuItem.fromJson({...row, 'sides': sidesJson});
+      }).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching owner grocery products: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a grocery product.
+  Future<void> deleteGroceryProduct(String productId) async {
+    try {
+      await _client.from(AppConstants.tableMenus).delete().eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error deleting grocery product: $e');
+      rethrow;
+    }
+  }
+
+  /// Toggle availability of a grocery product.
+  Future<void> toggleAvailability(String productId, bool available) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'is_available': available})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error toggling product availability: $e');
+      rethrow;
+    }
+  }
+
+  /// Place a grocery order via edge function (server-side validated).
+  Future<Map<String, dynamic>> placeGroceryOrder({
+    required String storeId,
+    required String userId,
+    required List<Map<String, dynamic>> items,
+    bool isPickup = false,
+    String paymentMethod = 'cash',
+    String? deliveryAddress,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    double driverTip = 0,
+    String? specialInstructions,
+    String? promoCode,
+  }) async {
+    try {
+      AppLogger.info('Placing grocery order via edge function');
+      final response = await _client.functions.invoke(
+        'grocery-order',
+        body: {
+          'store_id': storeId,
+          'user_id': userId,
+          'items': items,
+          'is_pickup': isPickup,
+          'payment_method': paymentMethod,
+          if (deliveryAddress != null) 'delivery_address': deliveryAddress,
+          if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
+          if (deliveryLongitude != null)
+            'delivery_longitude': deliveryLongitude,
+          'driver_tip': driverTip,
+          if (specialInstructions != null)
+            'special_instructions': specialInstructions,
+          if (promoCode != null) 'promo_code': promoCode,
+        },
+      );
+
+      final body = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      if (body['error'] != null) {
+        throw Exception(body['error']);
+      }
+
+      return body;
+    } catch (e) {
+      AppLogger.error('Error placing grocery order: $e');
+      rethrow;
+    }
+  }
+}

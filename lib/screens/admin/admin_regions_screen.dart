@@ -104,7 +104,7 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.food_driver',
+            userAgentPackageName: 'com.foodhub.delivery',
           ),
           CircleLayer(
             circles: regions.map((r) {
@@ -356,7 +356,7 @@ class _RegionMapPickerState extends State<_RegionMapPicker> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.food_driver',
+                userAgentPackageName: 'com.foodhub.delivery',
               ),
               CircleLayer(
                 circles: [

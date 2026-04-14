@@ -370,26 +370,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       // ── Quick Actions ──────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            const Text(
-                              'Quick Actions',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '2 actions',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
+                        child: const Text(
+                          'Quick Actions',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -422,186 +410,166 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const SizedBox(height: 28),
 
                       // ── Management Section ──────────────────────────────
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: const Text(
-                          'Manage',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.3,
+
+                      // People & Places
+                      _CategoryRow(
+                        title: 'People & Places',
+                        children: [
+                          _GridAction(
+                            icon: Icons.people_alt_rounded,
+                            label: 'Users',
+                            color: const Color(0xFF6366F1),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-users').then((_) => _refresh()),
                           ),
-                        ),
+                          _GridAction(
+                            icon: Icons.storefront_rounded,
+                            label: 'Restaurants',
+                            color: AppTheme.primaryColor,
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/admin-restaurants')
+                                .then((_) => _refresh()),
+                          ),
+                          _GridAction(
+                            icon: Icons.delivery_dining_rounded,
+                            label: 'Drivers',
+                            color: const Color(0xFF10B981),
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/admin-drivers')
+                                .then((_) => _refresh()),
+                          ),
+                          _GridAction(
+                            icon: Icons.map_rounded,
+                            label: 'Regions',
+                            color: const Color(0xFF10B981),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-regions'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: [
-                            _MgmtCard(
-                              items: [
-                                _MgmtItem(
-                                  icon: Icons.people_alt_rounded,
-                                  label: 'Users',
-                                  sub:
-                                      '${users['total_users'] ?? 0} registered',
-                                  color: const Color(0xFF6366F1),
-                                  onTap: () => Navigator.of(context)
-                                      .pushNamed('/admin-users')
-                                      .then((_) => _refresh()),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.storefront_rounded,
-                                  label: 'Restaurants',
-                                  sub: '${restaurants['pending'] ?? 0} pending',
-                                  color: AppTheme.primaryColor,
-                                  onTap: () => Navigator.of(context)
-                                      .pushNamed('/admin-restaurants')
-                                      .then((_) => _refresh()),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.delivery_dining_rounded,
-                                  label: 'Drivers',
-                                  sub: '${drivers['pending'] ?? 0} pending',
-                                  color: const Color(0xFF10B981),
-                                  onTap: () => Navigator.of(context)
-                                      .pushNamed('/admin-drivers')
-                                      .then((_) => _refresh()),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _MgmtCard(
-                              items: [
-                                _MgmtItem(
-                                  icon: Icons.receipt_long_rounded,
-                                  label: 'Orders',
-                                  sub: '${orders['total_orders'] ?? 0} total',
-                                  color: const Color(0xFFF59E0B),
-                                  onTap: () => Navigator.of(context)
-                                      .pushNamed('/admin-orders')
-                                      .then((_) => _refresh()),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.payments_rounded,
-                                  label: 'Payouts',
-                                  sub: 'Manage requests',
-                                  color: const Color(0xFFF97316),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-payouts'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.account_balance_rounded,
-                                  label: 'Financials',
-                                  sub: 'Commission & sales',
-                                  color: const Color(0xFF8B5CF6),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-financials'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _MgmtCard(
-                              items: [
-                                _MgmtItem(
-                                  icon: Icons.discount_rounded,
-                                  label: 'Promos',
-                                  sub: 'Coupons & codes',
-                                  color: const Color(0xFF6366F1),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-promos'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.support_agent_rounded,
-                                  label: 'Support',
-                                  sub: 'Customer chats',
-                                  color: const Color(0xFFEF4444),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-chats'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.gavel_rounded,
-                                  label: 'Disputes',
-                                  sub: 'Refunds & claims',
-                                  color: const Color(0xFFDC2626),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-disputes'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.rate_review_rounded,
-                                  label: 'Feedback',
-                                  sub: 'App reviews',
-                                  color: const Color(0xFF06B6D4),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-feedback'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _MgmtCard(
-                              items: [
-                                _MgmtItem(
-                                  icon: Icons.bolt_rounded,
-                                  label: 'Surge Zones',
-                                  sub: 'Pricing areas',
-                                  color: const Color(0xFFFFA630),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-surge'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.campaign_rounded,
-                                  label: 'Banners',
-                                  sub: 'Promo ads',
-                                  color: const Color(0xFF7C3AED),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-banners'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.map_rounded,
-                                  label: 'Regions',
-                                  sub: 'Delivery zones',
-                                  color: const Color(0xFF10B981),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-regions'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _MgmtCard(
-                              items: [
-                                _MgmtItem(
-                                  icon: Icons.manage_search_rounded,
-                                  label: 'DB Lookup',
-                                  sub: 'Cards, orders, customers',
-                                  color: const Color(0xFF0EA5E9),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-lookup'),
-                                ),
-                                _MgmtItem(
-                                  icon: Icons.description_rounded,
-                                  label: 'Contracts',
-                                  sub: 'Service agreements',
-                                  color: const Color(0xFF10B981),
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).pushNamed('/admin-contract'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+
+                      const SizedBox(height: 20),
+
+                      // Orders & Payments
+                      _CategoryRow(
+                        title: 'Orders & Payments',
+                        children: [
+                          _GridAction(
+                            icon: Icons.receipt_long_rounded,
+                            label: 'Orders',
+                            color: const Color(0xFFF59E0B),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-orders'),
+                          ),
+                          _GridAction(
+                            icon: Icons.payments_rounded,
+                            label: 'Payouts',
+                            color: const Color(0xFFF97316),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-payouts'),
+                          ),
+                          _GridAction(
+                            icon: Icons.account_balance_rounded,
+                            label: 'Financials',
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-financials'),
+                          ),
+                          _GridAction(
+                            icon: Icons.description_rounded,
+                            label: 'Contracts',
+                            color: const Color(0xFF10B981),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-contract'),
+                          ),
+                        ],
                       ),
+
+                      const SizedBox(height: 20),
+
+                      // Ads & Marketing
+                      _CategoryRow(
+                        title: 'Ads & Marketing',
+                        children: [
+                          _GridAction(
+                            icon: Icons.featured_play_list_rounded,
+                            label: 'Restaurant Ads',
+                            color: const Color(0xFFEF4444),
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/admin-ads'),
+                          ),
+                          _GridAction(
+                            icon: Icons.campaign_rounded,
+                            label: 'Banners',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-banners'),
+                          ),
+                          _GridAction(
+                            icon: Icons.discount_rounded,
+                            label: 'Promos',
+                            color: const Color(0xFF6366F1),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-promos'),
+                          ),
+                          _GridAction(
+                            icon: Icons.bolt_rounded,
+                            label: 'Surge Zones',
+                            color: const Color(0xFFFFA630),
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/admin-surge'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Support & Feedback
+                      _CategoryRow(
+                        title: 'Support & Feedback',
+                        children: [
+                          _GridAction(
+                            icon: Icons.support_agent_rounded,
+                            label: 'Support',
+                            color: const Color(0xFFEF4444),
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/admin-chats'),
+                          ),
+                          _GridAction(
+                            icon: Icons.gavel_rounded,
+                            label: 'Disputes',
+                            color: const Color(0xFFDC2626),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-disputes'),
+                          ),
+                          _GridAction(
+                            icon: Icons.rate_review_rounded,
+                            label: 'Feedback',
+                            color: const Color(0xFF06B6D4),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-feedback'),
+                          ),
+                          _GridAction(
+                            icon: Icons.manage_search_rounded,
+                            label: 'DB Lookup',
+                            color: const Color(0xFF0EA5E9),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-lookup'),
+                          ),
+                        ],
+                      ),
+
                       const SizedBox(height: 32),
                     ],
                   );
@@ -612,7 +580,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ),
                 error: (e, _) => Padding(
                   padding: const EdgeInsets.only(top: 80),
-                  child: AppErrorState(message: '$e', onRetry: _refresh),
+                  child: AppErrorState(
+                    message: friendlyError(e),
+                    onRetry: _refresh,
+                  ),
                 ),
               ),
             ),
@@ -786,55 +757,57 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
-// ─── Management Card (grouped) ─────────────────────────────────────────────────
+// ─── Category Row (title + horizontal scroll of buttons) ───────────────────
 
-class _MgmtCard extends StatelessWidget {
-  final List<_MgmtItem> items;
-  const _MgmtCard({required this.items});
+class _CategoryRow extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _CategoryRow({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF475569),
+              letterSpacing: -0.2,
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < items.length; i++) ...[
-            items[i],
-            if (i < items.length - 1)
-              Divider(
-                height: 1,
-                indent: 62,
-                endIndent: 16,
-                color: Colors.grey.shade100,
-              ),
-          ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: children.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => children[i],
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _MgmtItem extends StatelessWidget {
+// ─── Grid Action Button (fixed width for horizontal scroll) ────────────────
+
+class _GridAction extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String sub;
   final Color color;
   final VoidCallback onTap;
 
-  const _MgmtItem({
+  const _GridAction({
     required this.icon,
     required this.label,
-    required this.sub,
     required this.color,
     required this.onTap,
   });
@@ -842,50 +815,36 @@ class _MgmtItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 19),
+                child: Icon(icon, color: color, size: 18),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    Text(
-                      sub,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
                 ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey.shade300,
-                size: 22,
               ),
             ],
           ),

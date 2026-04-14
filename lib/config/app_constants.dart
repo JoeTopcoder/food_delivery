@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'FoodDriver';
+  static const String appName = 'MealHub';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration
@@ -72,6 +72,12 @@
   static const String tableOrderItemSides = 'order_item_sides';
   static const String tableMenuOptionGroups = 'menu_option_groups';
   static const String tableMenuOptionChoices = 'menu_option_choices';
+  static const String tableUserEvents = 'user_events';
+  static const String tableUserIntelligenceProfiles =
+      'user_intelligence_profiles';
+  static const String tableAiRecommendations = 'ai_recommendations';
+  static const String tableUserCoupons = 'user_coupons';
+  static const String tableRestaurantEmbeddings = 'restaurant_embeddings';
 
   // Notification Types
   static const String notificationTypeNewOrder = 'new_order';
@@ -107,6 +113,7 @@
   // Fees
   static double taxRate = 0.10;
   static double defaultDeliveryFee = 50.0;
+  static double pickupServiceFee = 25.0;
   static double driverFeePerDelivery = 50.0;
   static double cardFeePercent = 2.5;
   static double bankTransferFeePercent = 1.0;

@@ -260,6 +260,14 @@ class _RestaurantList extends StatelessWidget {
                                 '${((restaurant.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
                             label: 'Comm.',
                           ),
+                          const SizedBox(width: 16),
+                          _RestaurantStat(
+                            icon: Icons.shopping_bag_rounded,
+                            color: const Color(0xFF0EA5E9),
+                            value:
+                                '\$${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                            label: 'Svc Fee',
+                          ),
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -364,6 +372,28 @@ class _RestaurantList extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF8B5CF6),
                             side: const BorderSide(color: Color(0xFF8B5CF6)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _showServiceFeeDialog(context, restaurant),
+                          icon: const Icon(
+                            Icons.shopping_bag_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            'Service Fee: \$${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0EA5E9),
+                            side: const BorderSide(color: Color(0xFF0EA5E9)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -520,6 +550,84 @@ class _RestaurantList extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showServiceFeeDialog(BuildContext context, Restaurant restaurant) {
+    double serviceFee = restaurant.serviceFee ?? 25;
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text('Set Service Fee: ${restaurant.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '\$${serviceFee.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0EA5E9),
+                ),
+              ),
+              Slider(
+                value: serviceFee,
+                min: 0,
+                max: 200,
+                divisions: 40,
+                activeColor: const Color(0xFF0EA5E9),
+                label: '\$${serviceFee.toStringAsFixed(0)}',
+                onChanged: (val) {
+                  setDialogState(() => serviceFee = val);
+                },
+              ),
+              const Text(
+                'Fee charged to customer for pickup orders',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await ref
+                      .read(adminServiceProvider)
+                      .updateRestaurantServiceFee(restaurant.id, serviceFee);
+                  ref.invalidate(allRestaurantsAdminProvider);
+                  if (context.mounted) {
+                    AppSnackbar.success(
+                      context,
+                      'Service fee for "${restaurant.name}" set to \$${serviceFee.toStringAsFixed(0)}',
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppSnackbar.error(context, friendlyError(e));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0EA5E9),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),

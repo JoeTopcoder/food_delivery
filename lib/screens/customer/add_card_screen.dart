@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/friendly_error.dart';
 import 'ncb_payment_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 
@@ -128,7 +129,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         );
       } catch (e) {
         if (mounted) {
-          AppSnackbar.error(context, 'Failed to start verification: $e');
+          AppSnackbar.error(context, friendlyError(e));
         }
         return;
       }
@@ -175,7 +176,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Error: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -185,8 +186,6 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF111827) : Colors.white;
-    final cardBg = isDark ? const Color(0xFF1F2937) : const Color(0xFFF3F4F6);
     final fieldBorder = isDark
         ? const Color(0xFF374151)
         : const Color(0xFF9CA3AF);

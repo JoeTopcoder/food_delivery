@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/menu_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
@@ -333,6 +336,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   bool _isNewCategory = false;
   double _discount = 0;
   bool _isAdding = false;
+  File? _pickedImage;
 
   @override
   void dispose() {
@@ -341,6 +345,62 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
     _priceController.dispose();
     _categoryController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImage = File(picked.path));
+    }
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_pickedImage == null) return null;
+    final bytes = await _pickedImage!.readAsBytes();
+    final fileName =
+        'menu-items/${widget.restaurantId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await Supabase.instance.client.storage
+        .from('profile-photos')
+        .uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+    return Supabase.instance.client.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
   }
 
   Future<void> _addMenuItem() async {
@@ -354,6 +414,17 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
     setState(() => _isAdding = true);
 
     try {
+      // Upload image if selected (non-blocking — item still saves without image)
+      String? imageUrl;
+      if (_pickedImage != null) {
+        try {
+          imageUrl = await _uploadImage();
+        } catch (_) {
+          // Image upload failed — continue without image
+          debugPrint('Image upload failed, saving item without image');
+        }
+      }
+
       await widget.menuService.addMenuItem(
         restaurantId: widget.restaurantId,
         name: _nameController.text.trim(),
@@ -363,6 +434,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
             ? _descriptionController.text.trim()
             : null,
         discount: _discount > 0 ? _discount : null,
+        imageUrl: imageUrl,
       );
 
       widget.onItemAdded();
@@ -386,142 +458,186 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Add Menu Item'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Item Name',
-                  prefixIcon: Icon(Icons.fastfood),
-                ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Please enter item name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  prefixIcon: Icon(Icons.description),
-                ),
-                minLines: 2,
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Price',
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Please enter price';
-                  }
-                  if (double.tryParse(value!) == null) {
-                    return 'Please enter valid price';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              if (widget.existingCategories.isNotEmpty && !_isNewCategory)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: Icon(Icons.category),
+                    labelText: 'Item Name',
+                    prefixIcon: Icon(Icons.fastfood),
                   ),
-                  items: [
-                    ...widget.existingCategories.map(
-                      (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
-                    ),
-                    const DropdownMenuItem(
-                      value: '__new__',
-                      child: Text('+ New Category'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value == '__new__') {
-                      setState(() {
-                        _isNewCategory = true;
-                        _selectedCategory = null;
-                      });
-                    } else {
-                      setState(() => _selectedCategory = value);
-                    }
-                  },
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a category';
+                    if (value?.isEmpty ?? true) {
+                      return 'Please enter item name';
                     }
                     return null;
                   },
-                )
-              else
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    prefixIcon: Icon(Icons.description),
+                  ),
+                  minLines: 2,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Price',
+                    prefixIcon: Icon(Icons.attach_money),
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Please enter price';
+                    }
+                    if (double.tryParse(value!) == null) {
+                      return 'Please enter valid price';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                if (widget.existingCategories.isNotEmpty && !_isNewCategory)
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    items: [
+                      ...widget.existingCategories.map(
+                        (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                      ),
+                      const DropdownMenuItem(
+                        value: '__new__',
+                        child: Text('+ New Category'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == '__new__') {
+                        setState(() {
+                          _isNewCategory = true;
+                          _selectedCategory = null;
+                        });
+                      } else {
+                        setState(() => _selectedCategory = value);
+                      }
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a category';
+                      }
+                      return null;
+                    },
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _categoryController,
+                          decoration: const InputDecoration(
+                            labelText: 'New Category',
+                            prefixIcon: Icon(Icons.category),
+                          ),
+                          validator: (value) {
+                            if (_isNewCategory ||
+                                widget.existingCategories.isEmpty) {
+                              if (value?.isEmpty ?? true) {
+                                return 'Please enter category';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      if (widget.existingCategories.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Pick existing category',
+                          onPressed: () {
+                            setState(() {
+                              _isNewCategory = false;
+                              _categoryController.clear();
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                // Image picker
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    height: 140,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: _pickedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _pickedImage!,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo_rounded,
+                                size: 36,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap to add photo',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _categoryController,
-                        decoration: const InputDecoration(
-                          labelText: 'New Category',
-                          prefixIcon: Icon(Icons.category),
-                        ),
-                        validator: (value) {
-                          if (_isNewCategory ||
-                              widget.existingCategories.isEmpty) {
-                            if (value?.isEmpty ?? true) {
-                              return 'Please enter category';
-                            }
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    if (widget.existingCategories.isNotEmpty)
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        tooltip: 'Pick existing category',
-                        onPressed: () {
+                      child: Slider(
+                        label: '${_discount.toStringAsFixed(0)}%',
+                        value: _discount,
+                        onChanged: (value) {
                           setState(() {
-                            _isNewCategory = false;
-                            _categoryController.clear();
+                            _discount = value;
                           });
                         },
+                        min: 0,
+                        max: 50,
                       ),
+                    ),
+                    Text('${_discount.toStringAsFixed(0)}%'),
                   ],
                 ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('Discount: '),
-                  Expanded(
-                    child: Slider(
-                      label: '${_discount.toStringAsFixed(0)}%',
-                      value: _discount,
-                      onChanged: (value) {
-                        setState(() {
-                          _discount = value;
-                        });
-                      },
-                      min: 0,
-                      max: 50,
-                    ),
-                  ),
-                  Text('${_discount.toStringAsFixed(0)}%'),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

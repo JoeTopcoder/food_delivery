@@ -1,11 +1,11 @@
 {
-    "name": "food_driver",
-    "short_name": "food_driver",
+    "name": "MealHub",
+    "short_name": "MealHub",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Fresh, hot meals. Delivered daily.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -14,7 +14,7 @@ const wipayCountryCode = Deno.env.get("WIPAY_COUNTRY_CODE") ?? "TT";
 const wipayCurrency = Deno.env.get("WIPAY_CURRENCY") ?? "TTD";
 const wipayEnvironment = Deno.env.get("WIPAY_ENVIRONMENT") ?? "live";
 const wipayFeeStructure = Deno.env.get("WIPAY_FEE_STRUCTURE") ?? "customer_pay";
-const wipayOrigin = Deno.env.get("WIPAY_ORIGIN") ?? "FoodDriver";
+const wipayOrigin = Deno.env.get("WIPAY_ORIGIN") ?? "MealHub";
 const callbackUrl = Deno.env.get("WIPAY_CALLBACK_URL") ?? `${supabaseUrl}/functions/v1/wipay-payment-callback`;
 const countryHost =
   wipayEnvironment === "sandbox"

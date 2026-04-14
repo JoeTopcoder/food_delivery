@@ -115,7 +115,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
       );
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'com.example.food_driver'},
+        headers: {'User-Agent': 'com.foodhub.delivery'},
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -180,7 +180,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.food_driver',
+                userAgentPackageName: 'com.foodhub.delivery',
               ),
             ],
           ),

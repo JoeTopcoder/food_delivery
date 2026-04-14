@@ -321,7 +321,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'Failed to upload photo: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

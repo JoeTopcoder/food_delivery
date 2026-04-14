@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_feedback_widgets.dart';
+import '../utils/friendly_error.dart';
 
 /// A reusable Emergency SOS button and dialog.
 /// Shows an SOS icon button that opens a bottom sheet with emergency contacts.
@@ -172,7 +173,7 @@ class _SosSheetContent extends StatelessWidget {
       await Share.share(message);
     } catch (e) {
       if (context.mounted) {
-        AppSnackbar.error(context, 'Could not get location: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     }
   }

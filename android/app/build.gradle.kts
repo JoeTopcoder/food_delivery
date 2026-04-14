@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.food_driver"
+    namespace = "com.foodhub.delivery"
     compileSdk = flutter.compileSdkVersion
     buildToolsVersion = "35.0.0"
     ndkVersion = flutter.ndkVersion
@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.food_driver"
+        applicationId = "com.foodhub.delivery"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -50,4 +50,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Force a consistent version of androidx.core to fix AAPT resource conflicts
+    // between integration_test and other plugins in release builds.
+    implementation("androidx.core:core:1.16.0")
+    implementation("androidx.core:core-ktx:1.16.0")
 }

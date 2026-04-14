@@ -24,6 +24,8 @@ import '../../utils/friendly_error.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../providers/recommendation_provider.dart';
+import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -109,12 +111,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final subtotal = ref.watch(cartSubtotalProvider);
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
+    final isPickup = ref.watch(isPickupProvider);
     final restaurantId = cart.isNotEmpty
         ? cart.first.menuItem.restaurantId
         : null;
     final restaurantAsync = restaurantId != null
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
+    final restaurant = restaurantAsync.valueOrNull;
 
     final appliedPromo = ref.watch(appliedPromoProvider);
     final redeemPoints = currentUserId != null
@@ -145,15 +149,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurgeMultiplier;
 
     final baseDeliveryFee =
-        restaurantAsync.valueOrNull?.deliveryFee ??
-        AppConstants.defaultDeliveryFee;
+        restaurant?.deliveryFee ?? AppConstants.defaultDeliveryFee;
     final deliveryFee = double.parse(
       (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
     );
+    final pickupServiceFee =
+        restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
+    final activeFee = isPickup ? pickupServiceFee : deliveryFee;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
-        (subtotal - promoDiscount - loyaltyDiscount + deliveryFee + tax).clamp(
-          deliveryFee,
+        (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
+          activeFee,
           double.infinity,
         );
     final total = orderTotal + _driverTip;
@@ -184,6 +190,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.only(
               bottom: 110,
               left: 16,
@@ -193,82 +200,138 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Delivery Address ──────────────────────────────────
-                _Section(
-                  title: 'Delivery Address',
-                  icon: Icons.location_on_rounded,
-                  child: Column(
-                    children: [
-                      // Saved address book
-                      if (addressAsync != null)
-                        addressAsync.when(
-                          loading: () => const SizedBox.shrink(),
-                          error: (error, stackTrace) => const SizedBox.shrink(),
-                          data: (addresses) => addresses.isEmpty
-                              ? const SizedBox.shrink()
-                              : SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: addresses.map((a) {
-                                      final sel = selectedAddress?.id == a.id;
-                                      return GestureDetector(
-                                        onTap: () =>
-                                            ref
-                                                .read(
-                                                  selectedAddressIdProvider
-                                                      .notifier,
-                                                )
-                                                .state = sel
-                                            ? null
-                                            : a.id,
-                                        child: _AddressChip(
-                                          address: a,
-                                          isSelected: sel,
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                        ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.place_rounded,
-                              color: AppTheme.primaryColor,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                deliveryAddress,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, '/address-book'),
-                              child: const Text(
-                                'Manage',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
+                // ── Delivery Address / Pickup Location ────────────────
+                if (isPickup)
+                  _Section(
+                    title: 'Pickup Location',
+                    icon: Icons.store_rounded,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF10B981,
+                          ).withValues(alpha: 0.25),
                         ),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.store_rounded,
+                            color: Color(0xFF10B981),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  restaurant?.name ?? 'Restaurant',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                if (restaurant?.address != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    restaurant!.address!,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  _Section(
+                    title: 'Delivery Address',
+                    icon: Icons.location_on_rounded,
+                    child: Column(
+                      children: [
+                        // Saved address book
+                        if (addressAsync != null)
+                          addressAsync.when(
+                            loading: () => const SizedBox.shrink(),
+                            error: (error, stackTrace) =>
+                                const SizedBox.shrink(),
+                            data: (addresses) => addresses.isEmpty
+                                ? const SizedBox.shrink()
+                                : SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: addresses.map((a) {
+                                        final sel = selectedAddress?.id == a.id;
+                                        return GestureDetector(
+                                          onTap: () =>
+                                              ref
+                                                  .read(
+                                                    selectedAddressIdProvider
+                                                        .notifier,
+                                                  )
+                                                  .state = sel
+                                              ? null
+                                              : a.id,
+                                          child: _AddressChip(
+                                            address: a,
+                                            isSelected: sel,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                          ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.place_rounded,
+                                color: AppTheme.primaryColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  deliveryAddress,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  '/address-book',
+                                ),
+                                child: const Text(
+                                  'Manage',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
 
                 // ── Schedule (optional / forced when closed) ─────────
@@ -289,7 +352,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     }
 
                     return _Section(
-                      title: 'Delivery Time',
+                      title: isPickup ? 'Pickup Time' : 'Delivery Time',
                       icon: Icons.schedule_rounded,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +375,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ),
                               child: Text(
                                 'This restaurant is currently closed. '
-                                '${restaurant!.nextOpenLabel}. '
+                                '${restaurant.nextOpenLabel}. '
                                 'Your order will be scheduled.',
                                 style: const TextStyle(
                                   fontSize: 12,
@@ -861,161 +924,165 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
                 const SizedBox(height: 12),
 
-                // ── Contactless Delivery ──────────────────────────────
-                _Section(
-                  title: 'Contactless Delivery',
-                  icon: Icons.contactless_rounded,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Leave order at door',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                // ── Contactless Delivery (hidden for pickup) ──────────
+                if (!isPickup)
+                  _Section(
+                    title: 'Contactless Delivery',
+                    icon: Icons.contactless_rounded,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Leave order at door',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Driver will verify with a one-time PIN',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
+                              const SizedBox(height: 2),
+                              Text(
+                                'Driver will verify with a one-time PIN',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      Switch(
-                        value: _contactlessDelivery,
-                        onChanged: (v) =>
-                            setState(() => _contactlessDelivery = v),
-                        activeThumbColor: AppTheme.primaryColor,
-                      ),
-                    ],
+                        Switch(
+                          value: _contactlessDelivery,
+                          onChanged: (v) =>
+                              setState(() => _contactlessDelivery = v),
+                          activeThumbColor: AppTheme.primaryColor,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
 
-                // ── Driver Tip ────────────────────────────────────────
-                _Section(
-                  title: 'Tip Your Driver',
-                  icon: Icons.volunteer_activism_rounded,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '100% of your tip goes directly to the driver',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          // No-tip chip
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 3,
-                              ),
-                              child: ChoiceChip(
-                                label: const Text(
-                                  'No Tip',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                selected: _driverTip == 0,
-                                selectedColor: AppTheme.primaryColor,
-                                backgroundColor: Colors.grey.shade100,
-                                labelStyle: TextStyle(
-                                  color: _driverTip == 0
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                                onSelected: (_) {
-                                  setState(() {
-                                    _driverTip = 0;
-                                    _customTipCtrl.clear();
-                                  });
-                                },
-                              ),
-                            ),
+                // ── Driver Tip (hidden for pickup) ────────────────────
+                if (!isPickup)
+                  _Section(
+                    title: 'Tip Your Driver',
+                    icon: Icons.volunteer_activism_rounded,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '100% of your tip goes directly to the driver',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
                           ),
-                          ..._presetTips.map((amount) {
-                            final isSelected = _driverTip == amount;
-                            return Expanded(
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            // No-tip chip
+                            Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 3,
                                 ),
                                 child: ChoiceChip(
-                                  label: Text(
-                                    '\$${amount.toStringAsFixed(0)}',
-                                    style: const TextStyle(
+                                  label: const Text(
+                                    'No Tip',
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                     ),
                                   ),
-                                  selected: isSelected,
-                                  selectedColor: const Color(0xFF10B981),
+                                  selected: _driverTip == 0,
+                                  selectedColor: AppTheme.primaryColor,
                                   backgroundColor: Colors.grey.shade100,
                                   labelStyle: TextStyle(
-                                    color: isSelected
+                                    color: _driverTip == 0
                                         ? Colors.white
                                         : Colors.black87,
                                   ),
                                   onSelected: (_) {
                                     setState(() {
-                                      _driverTip = isSelected ? 0 : amount;
+                                      _driverTip = 0;
                                       _customTipCtrl.clear();
                                     });
                                   },
                                 ),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _customTipCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                            ),
+                            ..._presetTips.map((amount) {
+                              final isSelected = _driverTip == amount;
+                              return Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                  ),
+                                  child: ChoiceChip(
+                                    label: Text(
+                                      '\$${amount.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    selected: isSelected,
+                                    selectedColor: const Color(0xFF10B981),
+                                    backgroundColor: Colors.grey.shade100,
+                                    labelStyle: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                    onSelected: (_) {
+                                      setState(() {
+                                        _driverTip = isSelected ? 0 : amount;
+                                        _customTipCtrl.clear();
+                                      });
+                                    },
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
                         ),
-                        decoration: InputDecoration(
-                          prefixText: '\$ ',
-                          hintText: 'Custom tip amount',
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _customTipCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                          decoration: InputDecoration(
+                            prefixText: '\$ ',
+                            hintText: 'Custom tip amount',
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            isDense: true,
                           ),
-                          isDense: true,
+                          onChanged: (val) {
+                            final parsed = double.tryParse(val);
+                            setState(() {
+                              _driverTip = (parsed != null && parsed > 0)
+                                  ? parsed
+                                  : 0;
+                            });
+                          },
                         ),
-                        onChanged: (val) {
-                          final parsed = double.tryParse(val);
-                          setState(() {
-                            _driverTip = (parsed != null && parsed > 0)
-                                ? parsed
-                                : 0;
-                          });
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
 
                 // ── Notes ─────────────────────────────────────────────
@@ -1062,15 +1129,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           '−\$${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
-                      _SummaryRow(
-                        surgeMultiplier > 1.0
-                            ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                            : 'Delivery',
-                        '\$${deliveryFee.toStringAsFixed(2)}',
-                        valueColor: surgeMultiplier > 1.0
-                            ? const Color(0xFFFFA630)
-                            : null,
-                      ),
+                      if (isPickup)
+                        _SummaryRow(
+                          'Service Fee',
+                          '\$${pickupServiceFee.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFF10B981),
+                        )
+                      else
+                        _SummaryRow(
+                          surgeMultiplier > 1.0
+                              ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
+                              : 'Delivery',
+                          '\$${deliveryFee.toStringAsFixed(2)}',
+                          valueColor: surgeMultiplier > 1.0
+                              ? const Color(0xFFFFA630)
+                              : null,
+                        ),
                       _SummaryRow('Tax (10%)', '\$${tax.toStringAsFixed(2)}'),
                       if (_driverTip > 0)
                         _SummaryRow(
@@ -1129,14 +1203,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ? () => _placeOrder(
                           userId: currentUserId,
                           subtotal: subtotal,
-                          deliveryFee: deliveryFee,
+                          deliveryFee: activeFee,
                           tax: tax,
                           total: total,
                           deliveryAddress: deliveryAddress,
                           currentUser: currentUser,
                           promoDiscount: promoDiscount,
                           loyaltyDiscount: loyaltyDiscount,
-                          driverTip: _driverTip,
+                          driverTip: isPickup ? 0 : _driverTip,
+                          isPickup: isPickup,
+                          pickupFee: isPickup ? pickupServiceFee : null,
                         )
                       : null,
                   style: ElevatedButton.styleFrom(
@@ -1159,7 +1235,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                         )
                       : Text(
-                          'Place Order \u2014 \$${total.toStringAsFixed(2)}',
+                          '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -1242,6 +1318,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required double promoDiscount,
     required double loyaltyDiscount,
     required double driverTip,
+    bool isPickup = false,
+    double? pickupFee,
   }) async {
     if (_placingOrder) {
       return;
@@ -1288,12 +1366,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final redeemPts = ref.read(redeemPointsProvider);
 
       final restaurantId = cart.first.menuItem.restaurantId;
+      final restaurantObj = ref
+          .read(restaurantByIdProvider(restaurantId))
+          .valueOrNull;
       final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
       final delLng =
           selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
 
-      // ── Delivery region check ──────────────────────────────────────────
-      if (delLat != 0.0 && delLng != 0.0) {
+      // ── Delivery region check (skip for pickup) ─────────────────────
+      if (!isPickup && delLat != 0.0 && delLng != 0.0) {
         final regionService = ref.read(deliveryRegionServiceProvider);
         final insideRegion = await regionService.isInsideActiveRegion(
           delLat,
@@ -1365,6 +1446,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           )
           .toList();
 
+      // Check if order came from a featured ad
+      final activeAd = ref.read(activeAdForOrderProvider);
+      final isFromAd =
+          activeAd != null && activeAd.restaurantId == restaurantId;
+
       final order = await orderService.createOrder(
         userId: userId,
         restaurantId: restaurantId,
@@ -1374,17 +1460,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         taxAmount: verifiedTax,
         discount: verifiedDiscount,
         totalAmount: verifiedTotal,
-        deliveryAddress: deliveryAddress,
+        deliveryAddress: isPickup
+            ? (restaurantObj?.name ?? 'Pickup')
+            : deliveryAddress,
         deliveryLatitude: delLat,
         deliveryLongitude: delLng,
         notes: _notesCtrl.text.trim().isNotEmpty
             ? _notesCtrl.text.trim()
             : null,
         paymentMethod: _selectedPayment,
-        contactlessDelivery: _contactlessDelivery,
+        contactlessDelivery: isPickup ? false : _contactlessDelivery,
         driverTip: driverTip > 0 ? driverTip : null,
         scheduledFor: _scheduledAt,
+        isPickup: isPickup,
+        pickupFee: pickupFee,
+        fromAd: isFromAd,
+        adId: isFromAd ? activeAd.id : null,
       );
+
+      // Clear active ad after order placed
+      if (isFromAd) clearActiveAd(ref);
 
       if (order == null) {
         throw Exception('Order could not be created.');
@@ -1464,14 +1559,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           .read(loyaltyServiceProvider)
           .earnPoints(userId: userId, orderId: order.id, orderTotal: total);
 
+      // Track order completion for AI engine
+      ref
+          .read(behaviorTrackingProvider)
+          .trackOrderCompleted(userId, order.id, verifiedTotal);
+
       ref.read(cartProvider.notifier).clearCart();
       ref.read(appliedPromoProvider.notifier).clear();
       ref.read(redeemPointsProvider.notifier).state = 0;
       ref.read(selectedAddressIdProvider.notifier).state = null;
+      ref.read(isPickupProvider.notifier).state = false;
       // Refresh loyalty balance so it reflects redeemed/earned points.
       if (userId.isNotEmpty) {
         ref.invalidate(loyaltyAccountProvider(userId));
       }
+      // Refresh brain engine so coupon/recommendations update after order
+      ref.invalidate(brainEngineProvider);
 
       if (!mounted) {
         return;
@@ -1483,6 +1586,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             orderId: order.id,
             contactlessDelivery: order.contactlessDelivery,
             deliveryOtp: order.deliveryOtp,
+            isPickup: order.isPickup,
           ),
         ),
       );
@@ -1589,221 +1693,6 @@ class _AddressChip extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: isSelected ? Colors.white : AppTheme.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _CardPaymentPanel extends StatelessWidget {
-  final TextEditingController cardholderController;
-  final TextEditingController emailController;
-  final TextEditingController phoneController;
-
-  const _CardPaymentPanel({
-    required this.cardholderController,
-    required this.emailController,
-    required this.phoneController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF111827), Color(0xFF1F2937)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF111827).withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.lock_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Secure Card Payment',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              // Accepted card brands
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _MiniCardBrand('VISA', const Color(0xFF1A1F71)),
-                    const SizedBox(width: 6),
-                    _MiniCardBrand('MC', const Color(0xFFFF5F00)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'You\'ll enter your card details on the secure NCB payment page. We never store your card information.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 11,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _CardField(
-            controller: cardholderController,
-            label: 'Cardholder Name',
-            icon: Icons.person_outline_rounded,
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 10),
-          _CardField(
-            controller: emailController,
-            label: 'Email Address',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 10),
-          _CardField(
-            controller: phoneController,
-            label: 'Phone Number',
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: const Color(0xFF10B981).withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.shield_outlined,
-                  color: const Color(0xFF10B981),
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Your payment is processed securely by NCB Jamaica',
-                    style: TextStyle(
-                      color: const Color(0xFF10B981),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniCardBrand extends StatelessWidget {
-  final String label;
-  final Color color;
-  const _MiniCardBrand(this.label, this.color);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w900,
-        color: color,
-        letterSpacing: 0.5,
-      ),
-    );
-  }
-}
-
-class _CardField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData? icon;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-
-  const _CardField({
-    required this.controller,
-    required this.label,
-    this.icon,
-    this.keyboardType,
-    this.textInputAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          color: Colors.white.withValues(alpha: 0.5),
-          fontSize: 13,
-        ),
-        prefixIcon: icon != null
-            ? Icon(icon, color: Colors.white.withValues(alpha: 0.4), size: 18)
-            : null,
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.06),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppTheme.primaryColor),
         ),
       ),
     );

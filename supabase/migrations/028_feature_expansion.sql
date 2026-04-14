@@ -297,7 +297,7 @@ INSERT INTO app_config (key, value, value_type, category, description) VALUES
   ('group_order_max_participants', '10', 'number', 'group_orders', 'Max participants in group order'),
   ('group_order_deadline_minutes', '60', 'number', 'group_orders', 'Default deadline for group orders'),
   ('subscription_trial_days', '7', 'number', 'subscriptions', 'Free trial period'),
-  ('receipt_company_name', 'FoodDriver Jamaica', 'string', 'receipts', 'Company name on receipts'),
+  ('receipt_company_name', 'FoodHub Jamaica', 'string', 'receipts', 'Company name on receipts'),
   ('receipt_company_address', 'Kingston, Jamaica', 'string', 'receipts', 'Company address on receipts'),
   ('receipt_company_trn', '', 'string', 'receipts', 'Tax registration number'),
   ('eta_buffer_minutes', '10', 'number', 'orders', 'Extra buffer minutes for ETA'),

@@ -29,7 +29,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         >()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
-            'food_driver_calls_v3',
+            'food_hub_calls_v3',
             'Incoming Calls',
             description: 'Incoming voice call alerts',
             importance: Importance.max,
@@ -58,7 +58,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       body: body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'food_driver_calls_v3',
+          'food_hub_calls_v3',
           'Incoming Calls',
           channelDescription: 'Incoming voice call alerts',
           importance: Importance.max,
@@ -123,8 +123,8 @@ class NotificationService {
 
   /// Android notification channel with custom long sound
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'food_driver_notifications_v3',
-    'Food Driver Order Alerts',
+    'food_hub_notifications_v3',
+    'FoodHub Order Alerts',
     description: 'Notifications for orders, deliveries, and updates',
     importance: Importance.max,
     playSound: true,
@@ -135,7 +135,7 @@ class NotificationService {
   /// Dedicated call notification channel with ringtone sound
   static const AndroidNotificationChannel _callChannel =
       AndroidNotificationChannel(
-        'food_driver_calls_v3',
+        'food_hub_calls_v3',
         'Incoming Calls',
         description: 'Incoming voice call alerts',
         importance: Importance.max,

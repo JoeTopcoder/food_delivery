@@ -26,6 +26,7 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/all_restaurants_screen.dart';
 import 'screens/customer/restaurant_detail_screen.dart';
 import 'screens/customer/cart_screen.dart';
+import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
 import 'screens/customer/order_tracking_screen.dart';
 import 'screens/customer/profile_screen.dart';
@@ -55,6 +56,7 @@ import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_lookup_screen.dart';
 import 'screens/admin/admin_contract_screen.dart';
 import 'screens/admin/admin_regions_screen.dart';
+import 'screens/admin/admin_ads_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -66,6 +68,7 @@ import 'screens/restaurant/restaurant_order_management_screen.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
+import 'screens/restaurant/grocery_management_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 // import 'utils/app_logger.dart';
@@ -182,7 +185,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       navigatorKey: _navigatorKey,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
-        title: 'FoodDriver',
+        title: 'MealHub',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
@@ -277,6 +280,10 @@ class _MyAppState extends ConsumerState<MyApp> {
               return MaterialPageRoute(
                 builder: (context) => const MenuManagementScreen(),
               );
+            case '/grocery-management':
+              return MaterialPageRoute(
+                builder: (context) => const GroceryManagementScreen(),
+              );
             case '/restaurant-detail':
               if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
@@ -288,7 +295,15 @@ class _MyAppState extends ConsumerState<MyApp> {
               return MaterialPageRoute(
                 builder: (context) => const CartScreen(),
               );
+            case '/grocery-cart':
+              return MaterialPageRoute(
+                builder: (context) => const GroceryCartScreen(),
+              );
             case '/checkout':
+              return MaterialPageRoute(
+                builder: (context) => const CheckoutScreen(),
+              );
+            case '/grocery-checkout':
               return MaterialPageRoute(
                 builder: (context) => const CheckoutScreen(),
               );
@@ -443,6 +458,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-regions':
               return MaterialPageRoute(
                 builder: (context) => const AdminRegionsScreen(),
+              );
+            case '/admin-ads':
+              return MaterialPageRoute(
+                builder: (context) => const AdminAdsScreen(),
               );
             case '/wallet':
               return MaterialPageRoute(

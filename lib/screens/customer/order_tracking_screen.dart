@@ -131,6 +131,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
 
     final hasMap =
+        !order.isPickup &&
         driverId != null &&
         driverId.isNotEmpty &&
         statusIndex >= 4 &&
@@ -180,14 +181,27 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               child: Column(
                 children: [
                   // Delivery PIN card (contactless, not yet delivered)
-                  if (order.contactlessDelivery &&
+                  if (!order.isPickup &&
+                      order.contactlessDelivery &&
                       order.deliveryOtp != null &&
                       liveOrder.status != 'delivered' &&
                       liveOrder.status != 'cancelled')
                     _DeliveryPinCard(otp: order.deliveryOtp!),
 
-                  if (order.contactlessDelivery &&
+                  if (!order.isPickup &&
+                      order.contactlessDelivery &&
                       order.deliveryOtp != null &&
+                      liveOrder.status != 'delivered' &&
+                      liveOrder.status != 'cancelled')
+                    const SizedBox(height: 12),
+
+                  // Pickup code card (pickup orders)
+                  if (order.isPickup &&
+                      liveOrder.status != 'delivered' &&
+                      liveOrder.status != 'cancelled')
+                    _PickupCodeCard(pickupCode: order.pickupCode),
+
+                  if (order.isPickup &&
                       liveOrder.status != 'delivered' &&
                       liveOrder.status != 'cancelled')
                     const SizedBox(height: 12),
@@ -461,7 +475,7 @@ class _LiveMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.food_driver',
+                userAgentPackageName: 'com.foodhub.delivery',
               ),
               MarkerLayer(markers: markers),
             ],
@@ -924,7 +938,7 @@ class _SupportChatButtonState extends ConsumerState<_SupportChatButton> {
       );
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Could not connect to support: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -1032,7 +1046,7 @@ class _CancelOrderButton extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  AppSnackbar.error(context, 'Failed to cancel: $e');
+                  AppSnackbar.error(context, friendlyError(e));
                 }
               }
             },
@@ -1341,6 +1355,144 @@ class _DeliveryPinCard extends StatelessWidget {
           const SizedBox(height: 10),
           const Text(
             'Share this PIN with the driver to confirm delivery',
+            style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Pickup Code Card ─────────────────────────────────────────────────────────
+
+class _PickupCodeCard extends StatelessWidget {
+  final String? pickupCode;
+  const _PickupCodeCard({this.pickupCode});
+
+  @override
+  Widget build(BuildContext context) {
+    if (pickupCode == null || pickupCode!.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.shopping_bag_rounded,
+                  color: Color(0xFF6366F1),
+                  size: 20,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'Pickup Order',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6366F1),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'The restaurant will provide a pickup code\nonce your order is ready.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final digits = pickupCode!.split('');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.shopping_bag_rounded,
+                color: Color(0xFF10B981),
+                size: 20,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Your Pickup Code',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: digits
+                .map(
+                  (d) => Container(
+                    width: 48,
+                    height: 56,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      d,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Show this code at the restaurant to collect your order',
             style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
             textAlign: TextAlign.center,
           ),
