@@ -106,13 +106,11 @@ final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
 );
 
 // Menu Providers — no autoDispose so data stays cached across screen visits
-final restaurantMenuProvider = FutureProvider.family<List<MenuItem>, String>((
-  ref,
-  restaurantId,
-) async {
-  final menuService = ref.watch(menuServiceProvider);
-  return menuService.getMenuByRestaurant(restaurantId);
-});
+final restaurantMenuProvider = FutureProvider.family
+    .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
+      final menuService = ref.watch(menuServiceProvider);
+      return menuService.getMenuByRestaurant(restaurantId);
+    });
 
 final menuItemByIdProvider = FutureProvider.family
     .autoDispose<MenuItem?, String>((ref, menuItemId) async {
@@ -410,6 +408,119 @@ final cartItemCountProvider = Provider.autoDispose<int>((ref) {
   final cart = ref.watch(cartProvider);
   return cart.fold(0, (sum, item) => sum + item.quantity);
 });
+
+// ── Grocery Cart (separate from restaurant cart) ──────────────────────────
+
+class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
+  static const _storageKey = 'persisted_grocery_cart';
+
+  GroceryCartNotifier() : super([]) {
+    _loadFromStorage();
+  }
+
+  Future<void> _loadFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List)
+            .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+        state = list;
+      }
+    } catch (e) {
+      AppLogger.error('Grocery cart load error: $e');
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(state.map((c) => c.toJson()).toList());
+      await prefs.setString(_storageKey, encoded);
+    } catch (e) {
+      AppLogger.error('Grocery cart save error: $e');
+    }
+  }
+
+  String? get currentStoreId =>
+      state.isNotEmpty ? state.first.menuItem.restaurantId : null;
+
+  bool isDifferentStore(MenuItem menuItem) {
+    final sid = currentStoreId;
+    return sid != null && sid != menuItem.restaurantId;
+  }
+
+  void replaceWithItem(MenuItem menuItem) {
+    state = [CartItem(menuItem: menuItem)];
+    _persist();
+  }
+
+  void addItem(MenuItem menuItem) {
+    final existingIndex = state.indexWhere(
+      (item) => item.menuItem.id == menuItem.id,
+    );
+    if (existingIndex != -1) {
+      state[existingIndex].quantity++;
+      state = [...state];
+    } else {
+      state = [...state, CartItem(menuItem: menuItem)];
+    }
+    _persist();
+  }
+
+  void removeItem(String menuItemId) {
+    state = state.where((item) => item.menuItem.id != menuItemId).toList();
+    _persist();
+  }
+
+  void updateQuantity(String menuItemId, int quantity) {
+    final index = state.indexWhere((item) => item.menuItem.id == menuItemId);
+    if (index != -1) {
+      if (quantity <= 0) {
+        removeItem(menuItemId);
+      } else {
+        state[index].quantity = quantity;
+        state = [...state];
+        _persist();
+      }
+    }
+  }
+
+  void clearCart() {
+    state = [];
+    _persist();
+  }
+
+  double getSubtotal() {
+    return state.fold(0.0, (sum, item) => sum + item.subtotal);
+  }
+
+  int getItemCount() {
+    return state.fold(0, (sum, item) => sum + item.quantity);
+  }
+}
+
+final groceryCartProvider =
+    StateNotifierProvider<GroceryCartNotifier, List<CartItem>>((ref) {
+      return GroceryCartNotifier();
+    });
+
+final groceryCartSubtotalProvider = Provider.autoDispose<double>((ref) {
+  final cart = ref.watch(groceryCartProvider);
+  return cart.fold(0.0, (sum, item) => sum + item.subtotal);
+});
+
+final groceryCartItemCountProvider = Provider.autoDispose<int>((ref) {
+  final cart = ref.watch(groceryCartProvider);
+  return cart.fold(0, (sum, item) => sum + item.quantity);
+});
+
+/// Whether the customer chose pickup for grocery orders.
+final groceryIsPickupProvider = StateProvider<bool>((ref) => false);
+
+/// Whether the customer chose pickup instead of delivery.
+final isPickupProvider = StateProvider<bool>((ref) => false);
 
 // Restaurant Owner Providers
 final restaurantByOwnerProvider = FutureProvider.family

@@ -33,9 +33,11 @@ Restaurant _$RestaurantFromJson(Map<String, dynamic> json) => Restaurant(
       bankAccountHolder: json['bank_account_holder'] as String?,
       bankAccountType: json['bank_account_type'] as String?,
       commissionRate: (json['commission_rate'] as num?)?.toDouble(),
+      serviceFee: (json['service_fee'] as num?)?.toDouble(),
       operatingHours: json['operating_hours'] as Map<String, dynamic>?,
       totalEarnings: (json['total_earnings'] as num?)?.toDouble(),
       totalPaidOut: (json['total_paid_out'] as num?)?.toDouble(),
+      storeType: json['store_type'] as String? ?? 'food',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -70,9 +72,11 @@ Map<String, dynamic> _$RestaurantToJson(Restaurant instance) =>
       'bank_account_holder': instance.bankAccountHolder,
       'bank_account_type': instance.bankAccountType,
       'commission_rate': instance.commissionRate,
+      'service_fee': instance.serviceFee,
       'operating_hours': instance.operatingHours,
       'total_earnings': instance.totalEarnings,
       'total_paid_out': instance.totalPaidOut,
+      'store_type': instance.storeType,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

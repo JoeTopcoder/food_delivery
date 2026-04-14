@@ -57,7 +57,9 @@ class AdminService {
       final response = await _supabaseClient
           .from(AppConstants.tableUsers)
           .select()
-          .or('email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%')
+          .or(
+            'email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%',
+          )
           .limit(50);
       return (response as List)
           .map((user) => user_models.User.fromJson(user))
@@ -233,6 +235,114 @@ class AdminService {
       AppLogger.info('Commission rate updated');
     } catch (e) {
       AppLogger.error('Error updating commission: $e');
+      rethrow;
+    }
+  }
+
+  // Update restaurant service fee (pickup fee)
+  Future<void> updateRestaurantServiceFee(
+    String restaurantId,
+    double serviceFee,
+  ) async {
+    try {
+      AppLogger.info(
+        'Updating service fee for restaurant $restaurantId to $serviceFee',
+      );
+
+      await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .update({'service_fee': serviceFee})
+          .eq('id', restaurantId);
+
+      AppLogger.info('Service fee updated');
+    } catch (e) {
+      AppLogger.error('Error updating service fee: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== RESTAURANT ADS ====================
+
+  /// Get all ads (optionally filtered by restaurant)
+  Future<List<Map<String, dynamic>>> getRestaurantAds({
+    String? restaurantId,
+  }) async {
+    try {
+      PostgrestFilterBuilder query = _supabaseClient
+          .from('restaurant_ads')
+          .select('*, restaurants(name, image_url, cuisine_type)');
+
+      if (restaurantId != null) {
+        query = query.eq('restaurant_id', restaurantId);
+      }
+
+      final response = await query.order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      AppLogger.error('Error fetching restaurant ads: $e');
+      rethrow;
+    }
+  }
+
+  /// Get only active ads (for customer-facing display)
+  Future<List<Map<String, dynamic>>> getActiveAds() async {
+    try {
+      final response = await _supabaseClient
+          .from('restaurant_ads')
+          .select('*, restaurants(name, image_url, cuisine_type)')
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      AppLogger.error('Error fetching active ads: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a new ad for a restaurant
+  Future<void> createRestaurantAd({
+    required String restaurantId,
+    required String title,
+    String? description,
+    String? imageUrl,
+    DateTime? endsAt,
+  }) async {
+    try {
+      AppLogger.info('Creating ad for restaurant $restaurantId');
+      await _supabaseClient.from('restaurant_ads').insert({
+        'restaurant_id': restaurantId,
+        'title': title,
+        if (description != null) 'description': description,
+        if (imageUrl != null) 'image_url': imageUrl,
+        if (endsAt != null) 'ends_at': endsAt.toIso8601String(),
+      });
+      AppLogger.info('Ad created');
+    } catch (e) {
+      AppLogger.error('Error creating ad: $e');
+      rethrow;
+    }
+  }
+
+  /// Toggle ad active/inactive
+  Future<void> toggleAdActive(String adId, bool isActive) async {
+    try {
+      await _supabaseClient
+          .from('restaurant_ads')
+          .update({'is_active': isActive})
+          .eq('id', adId);
+    } catch (e) {
+      AppLogger.error('Error toggling ad: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete an ad
+  Future<void> deleteRestaurantAd(String adId) async {
+    try {
+      await _supabaseClient.from('restaurant_ads').delete().eq('id', adId);
+    } catch (e) {
+      AppLogger.error('Error deleting ad: $e');
       rethrow;
     }
   }
@@ -732,7 +842,9 @@ class AdminService {
       // 1. Find all saved cards matching last_four
       final cards = await adminClient
           .from('saved_cards')
-          .select('id, user_id, card_brand, last_four, cardholder_name, email, phone, is_default, created_at')
+          .select(
+            'id, user_id, card_brand, last_four, cardholder_name, email, phone, is_default, created_at',
+          )
           .eq('last_four', sanitized);
 
       if ((cards as List).isEmpty) return [];
@@ -752,19 +864,25 @@ class AdminService {
         // 3. Get orders paid by card for this user
         final orders = await adminClient
             .from(AppConstants.tableOrders)
-            .select('id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address, restaurant_id')
+            .select(
+              'id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address, restaurant_id',
+            )
             .eq('user_id', userId)
             .eq('payment_method', 'card')
             .order('ordered_at', ascending: false)
             .limit(20);
 
         // 4. Get payment records for those orders
-        final orderIds = (orders as List).map((o) => o['id'] as String).toList();
+        final orderIds = (orders as List)
+            .map((o) => o['id'] as String)
+            .toList();
         List<dynamic> payments = [];
         if (orderIds.isNotEmpty) {
           payments = await adminClient
               .from(AppConstants.tablePayments)
-              .select('id, order_id, amount, method, status, transaction_id, created_at')
+              .select(
+                'id, order_id, amount, method, status, transaction_id, created_at',
+              )
               .inFilter('order_id', orderIds);
         }
 
@@ -885,7 +1003,9 @@ class AdminService {
       final users = await adminClient
           .from(AppConstants.tableUsers)
           .select('id, name, email, phone, role, is_active, created_at')
-          .or('email.ilike.%$sanitized%,phone.ilike.%$sanitized%,name.ilike.%$sanitized%')
+          .or(
+            'email.ilike.%$sanitized%,phone.ilike.%$sanitized%,name.ilike.%$sanitized%',
+          )
           .limit(5);
 
       debugPrint('Query returned ${(users as List).length} user(s)');
@@ -899,7 +1019,9 @@ class AdminService {
       // Get recent orders
       final orders = await adminClient
           .from(AppConstants.tableOrders)
-          .select('id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address')
+          .select(
+            'id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address',
+          )
           .eq('user_id', userId)
           .order('ordered_at', ascending: false)
           .limit(20);
@@ -909,7 +1031,9 @@ class AdminService {
       try {
         cards = await adminClient
             .from('saved_cards')
-            .select('id, card_brand, last_four, cardholder_name, is_default, created_at')
+            .select(
+              'id, card_brand, last_four, cardholder_name, is_default, created_at',
+            )
             .eq('user_id', userId);
       } catch (e) {
         debugPrint('saved_cards query failed (ok): $e');
@@ -925,7 +1049,9 @@ class AdminService {
             .maybeSingle();
       } catch (_) {}
 
-      debugPrint('=== LOOKUP COMPLETE: orders=${(orders as List).length}, cards=${cards.length} ===');
+      debugPrint(
+        '=== LOOKUP COMPLETE: orders=${(orders as List).length}, cards=${cards.length} ===',
+      );
 
       return {
         'customer': user,

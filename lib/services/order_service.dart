@@ -29,6 +29,10 @@ class OrderService {
     bool contactlessDelivery = false,
     double? driverTip,
     DateTime? scheduledFor,
+    bool isPickup = false,
+    double? pickupFee,
+    bool fromAd = false,
+    String? adId,
   }) async {
     try {
       AppLogger.info('Creating order for user: $userId');
@@ -39,10 +43,19 @@ class OrderService {
           .select('commission_rate')
           .eq('id', restaurantId)
           .single();
-      final commissionRate =
+      var commissionRate =
           (restaurantData['commission_rate'] ??
                   AppConstants.defaultCommissionRate)
               .toDouble();
+
+      // +5% commission boost for orders from ads
+      if (fromAd) {
+        commissionRate = commissionRate + 0.05;
+        AppLogger.info(
+          'Ad commission boost applied: +5% → ${(commissionRate * 100).toStringAsFixed(0)}%',
+        );
+      }
+
       final commissionAmount = totalAmount * commissionRate;
 
       // Generate 4-digit OTP for delivery verification
@@ -74,6 +87,10 @@ class OrderService {
             if (scheduledFor != null) 'is_scheduled': true,
             'commission_rate': commissionRate,
             'commission_amount': commissionAmount,
+            'is_pickup': isPickup,
+            if (isPickup && pickupFee != null) 'pickup_fee': pickupFee,
+            if (fromAd) 'from_ad': true,
+            if (adId != null) 'ad_id': adId,
           })
           .select()
           .single();
@@ -246,9 +263,22 @@ class OrderService {
       // Fire-and-forget: send notifications in the background so the UI
       // updates immediately instead of waiting for every push to complete.
 
-      // When order is marked ready, notify all available drivers
+      // When order is marked ready, notify all available drivers (skip pickup orders)
       if (status == AppConstants.orderReady) {
-        _notifyAvailableDrivers(orderId: orderId);
+        _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('is_pickup')
+            .eq('id', orderId)
+            .single()
+            .then((row) {
+              final isPickup = row['is_pickup'] as bool? ?? false;
+              if (!isPickup) {
+                _notifyAvailableDrivers(orderId: orderId);
+              }
+            })
+            .catchError((e) {
+              AppLogger.error('Error checking pickup status: $e');
+            });
       }
 
       // Notify the customer on every status change
@@ -286,6 +316,45 @@ class OrderService {
       AppLogger.info('Order status updated successfully');
     } catch (e) {
       AppLogger.error('Error updating order status: $e');
+      rethrow;
+    }
+  }
+
+  // Set pickup code for a pickup order (restaurant sets this)
+  Future<void> setPickupCode(String orderId, String pickupCode) async {
+    try {
+      AppLogger.info('Setting pickup code for order: $orderId');
+      await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .update({
+            'pickup_code': pickupCode,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', orderId);
+      AppLogger.info('Pickup code set successfully');
+    } catch (e) {
+      AppLogger.error('Error setting pickup code: $e');
+      rethrow;
+    }
+  }
+
+  // Verify pickup code and complete the order
+  Future<bool> verifyPickupCode(String orderId, String code) async {
+    try {
+      AppLogger.info('Verifying pickup code for order: $orderId');
+      final row = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('pickup_code')
+          .eq('id', orderId)
+          .single();
+      final storedCode = row['pickup_code'] as String?;
+      if (storedCode != null && storedCode == code) {
+        await updateOrderStatus(orderId, AppConstants.orderDelivered);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      AppLogger.error('Error verifying pickup code: $e');
       rethrow;
     }
   }

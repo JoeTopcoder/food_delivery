@@ -32,9 +32,11 @@ class Restaurant {
   final String? bankAccountHolder;
   final String? bankAccountType;
   final double? commissionRate;
+  final double? serviceFee;
   final Map<String, dynamic>? operatingHours;
   final double? totalEarnings;
   final double? totalPaidOut;
+  final String storeType; // 'food', 'grocery', or 'both'
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -65,9 +67,11 @@ class Restaurant {
     this.bankAccountHolder,
     this.bankAccountType,
     this.commissionRate,
+    this.serviceFee,
     this.operatingHours,
     this.totalEarnings,
     this.totalPaidOut,
+    this.storeType = 'food',
     required this.createdAt,
     this.updatedAt,
   });
@@ -103,9 +107,11 @@ class Restaurant {
     String? bankAccountHolder,
     String? bankAccountType,
     double? commissionRate,
+    double? serviceFee,
     Map<String, dynamic>? operatingHours,
     double? totalEarnings,
     double? totalPaidOut,
+    String? storeType,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -137,9 +143,11 @@ class Restaurant {
       bankAccountHolder: bankAccountHolder ?? this.bankAccountHolder,
       bankAccountType: bankAccountType ?? this.bankAccountType,
       commissionRate: commissionRate ?? this.commissionRate,
+      serviceFee: serviceFee ?? this.serviceFee,
       operatingHours: operatingHours ?? this.operatingHours,
       totalEarnings: totalEarnings ?? this.totalEarnings,
       totalPaidOut: totalPaidOut ?? this.totalPaidOut,
+      storeType: storeType ?? this.storeType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

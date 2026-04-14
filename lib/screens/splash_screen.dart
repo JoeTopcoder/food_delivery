@@ -162,11 +162,7 @@ class _SplashScreenState extends State<SplashScreen>
                     config.gradientEnd,
                     config.gradientStart,
                   ],
-                  stops: [
-                    0.0,
-                    (_shimmer.value).clamp(0.0, 1.0),
-                    1.0,
-                  ],
+                  stops: [0.0, (_shimmer.value).clamp(0.0, 1.0), 1.0],
                 ),
               ),
             ),
@@ -197,10 +193,7 @@ class _SplashScreenState extends State<SplashScreen>
                             height: 140,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
                           ),
                         ),
@@ -224,10 +217,14 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              config.icon,
-                              size: 56,
-                              color: config.iconColor,
+                            child: ClipOval(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Image.asset(
+                                  'assets/images/mealhub_logo.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -248,7 +245,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'FoodDriver',
+                            'MealHub',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -261,6 +258,20 @@ class _SplashScreenState extends State<SplashScreen>
                                   offset: const Offset(0, 4),
                                 ),
                               ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Opacity(
+                          opacity: _titleOpacity.value,
+                          child: Text(
+                            'Fresh, hot meals. Delivered daily.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontStyle: FontStyle.italic,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ),

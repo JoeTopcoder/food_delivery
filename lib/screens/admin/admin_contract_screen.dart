@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../config/app_constants.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/friendly_error.dart';
 
 /// Admin screen for viewing/editing the proprietor–client service agreement.
 class AdminContractScreen extends ConsumerStatefulWidget {
@@ -95,7 +95,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
       }
     } catch (e) {
       debugPrint('Contract load error: $e');
-      setState(() => _error = 'Failed to load contract: $e');
+      setState(() => _error = friendlyError(e));
       _applyDefaults();
     } finally {
       setState(() => _loading = false);
@@ -205,7 +205,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Save failed: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       setState(() => _saving = false);

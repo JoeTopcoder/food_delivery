@@ -9,8 +9,8 @@ part of 'order_model.dart';
 OrderItemSide _$OrderItemSideFromJson(Map<String, dynamic> json) =>
     OrderItemSide(
       id: json['id'] as String,
-      sideName: json['side_name'] as String? ?? '',
-      sidePrice: (json['side_price'] as num?)?.toDouble() ?? 0.0,
+      sideName: json['side_name'] as String,
+      sidePrice: (json['side_price'] as num).toDouble(),
     );
 
 Map<String, dynamic> _$OrderItemSideToJson(OrderItemSide instance) =>
@@ -103,6 +103,11 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
           ? null
           : DateTime.parse(json['estimated_delivery_at'] as String),
       estimatedPrepMinutes: (json['estimated_prep_minutes'] as num?)?.toInt(),
+      isPickup: json['is_pickup'] as bool? ?? false,
+      pickupFee: (json['pickup_fee'] as num?)?.toDouble(),
+      pickupCode: json['pickup_code'] as String?,
+      fromAd: json['from_ad'] as bool? ?? false,
+      adId: json['ad_id'] as String?,
     );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -149,4 +154,9 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
       'receipt_generated_at': instance.receiptGeneratedAt?.toIso8601String(),
       'estimated_delivery_at': instance.estimatedDeliveryAt?.toIso8601String(),
       'estimated_prep_minutes': instance.estimatedPrepMinutes,
+      'is_pickup': instance.isPickup,
+      'pickup_fee': instance.pickupFee,
+      'pickup_code': instance.pickupCode,
+      'from_ad': instance.fromAd,
+      'ad_id': instance.adId,
     };

@@ -14,7 +14,7 @@ function html(status: string, message: string) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>FoodDriver Payment</title>
+    <title>MealHub Payment</title>
     <style>
       body { font-family: Arial, sans-serif; background: #f6f7fb; color: #111827; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
       .card { width:min(92vw,420px); background:white; border-radius:16px; padding:24px; box-shadow:0 16px 48px rgba(17,24,39,.12); }

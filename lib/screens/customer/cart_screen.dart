@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
-import '../../utils/app_feedback_widgets.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -25,6 +24,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final subtotal = ref.watch(cartSubtotalProvider);
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
+    final isPickup = ref.watch(isPickupProvider);
     final defaultAddrAsync = currentUserId != null
         ? ref.watch(defaultAddressProvider(currentUserId))
         : null;
@@ -38,9 +38,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final restaurantAsync = restaurantId != null
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
+    final restaurant = restaurantAsync.valueOrNull;
     final baseDeliveryFee =
-        restaurantAsync.valueOrNull?.deliveryFee ??
-        AppConstants.defaultDeliveryFee;
+        restaurant?.deliveryFee ?? AppConstants.defaultDeliveryFee;
 
     // Surge multiplier based on delivery location
     final defaultAddr = defaultAddrAsync?.valueOrNull;
@@ -54,9 +54,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final deliveryFee = double.parse(
       (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
     );
+    final pickupServiceFee =
+        restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
+    final activeFee = isPickup ? pickupServiceFee : deliveryFee;
 
     final tax = subtotal * AppConstants.taxRate;
-    final total = subtotal + deliveryFee + tax;
+    final total = subtotal + activeFee + tax;
 
     return Scaffold(
       appBar: AppBar(
@@ -116,26 +119,124 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           : Stack(
               children: [
                 SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      // Deliver to
-                      GestureDetector(
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/address-book'),
-                        child: Container(
-                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      // ── Delivery / Pickup Toggle ──────────────────────
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    ref.read(isPickupProvider.notifier).state =
+                                        false,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: !isPickup
+                                        ? AppTheme.primaryColor
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.delivery_dining_rounded,
+                                        size: 18,
+                                        color: !isPickup
+                                            ? Colors.white
+                                            : AppTheme.textSecondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Delivery',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: !isPickup
+                                              ? Colors.white
+                                              : AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    ref.read(isPickupProvider.notifier).state =
+                                        true,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isPickup
+                                        ? AppTheme.primaryColor
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.store_rounded,
+                                        size: 18,
+                                        color: isPickup
+                                            ? Colors.white
+                                            : AppTheme.textSecondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Pickup',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: isPickup
+                                              ? Colors.white
+                                              : AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // ── Address / Pickup Location ─────────────────────
+                      if (isPickup)
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(
-                              alpha: 0.07,
-                            ),
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.location_on_rounded,
-                                color: AppTheme.primaryColor,
+                              const Icon(
+                                Icons.store_rounded,
+                                color: Color(0xFF10B981),
                                 size: 20,
                               ),
                               const SizedBox(width: 10),
@@ -144,14 +245,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Deliver to',
+                                      'Pick up from',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: AppTheme.textSecondary,
                                       ),
                                     ),
                                     Text(
-                                      deliveryAddress,
+                                      restaurant?.name ?? 'Restaurant',
                                       style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
@@ -163,15 +264,64 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: AppTheme.textSecondary,
-                                size: 20,
-                              ),
                             ],
                           ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/address-book'),
+                          child: Container(
+                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.07,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_rounded,
+                                  color: AppTheme.primaryColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Deliver to',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                      Text(
+                                        deliveryAddress,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textPrimary,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppTheme.textSecondary,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 8),
                       // Cart Items
                       ListView.builder(
@@ -215,15 +365,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               '\$${subtotal.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
-                            _PriceRow(
-                              surgeMultiplier > 1.0
-                                  ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                                  : 'Delivery Fee',
-                              '\$${deliveryFee.toStringAsFixed(2)}',
-                              valueColor: surgeMultiplier > 1.0
-                                  ? const Color(0xFFFFA630)
-                                  : null,
-                            ),
+                            if (isPickup)
+                              _PriceRow(
+                                'Service Fee',
+                                '\$${pickupServiceFee.toStringAsFixed(2)}',
+                                valueColor: const Color(0xFF10B981),
+                              )
+                            else
+                              _PriceRow(
+                                surgeMultiplier > 1.0
+                                    ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
+                                    : 'Delivery Fee',
+                                '\$${deliveryFee.toStringAsFixed(2)}',
+                                valueColor: surgeMultiplier > 1.0
+                                    ? const Color(0xFFFFA630)
+                                    : null,
+                              ),
                             const SizedBox(height: 8),
                             _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
                             Divider(color: Colors.grey[300], height: 16),
@@ -235,38 +392,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ],
                         ),
                       ),
+
                       // Promo Code
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Enter promo code',
-                              border: InputBorder.none,
-                              suffix: GestureDetector(
-                                onTap: () {
-                                  AppSnackbar.info(
-                                    context,
-                                    'Apply promo codes at checkout',
-                                  );
-                                },
-                                child: Text(
-                                  'Apply',
-                                  style: TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: 120),
                     ],
                   ),

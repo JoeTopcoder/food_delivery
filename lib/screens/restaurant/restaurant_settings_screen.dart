@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
@@ -27,6 +30,8 @@ class _RestaurantSettingsScreenState
   bool _isOpen = true;
   bool _isSaving = false;
   bool _hasInitialized = false;
+  File? _pickedImage;
+  String? _currentImageUrl;
 
   // Operating hours per day
   final Map<String, Map<String, dynamic>> _operatingHours = {
@@ -67,6 +72,20 @@ class _RestaurantSettingsScreenState
     _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Widget _imagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.grey[400]),
+        const SizedBox(height: 8),
+        Text(
+          'Tap to add restaurant photo',
+          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+        ),
+      ],
+    );
   }
 
   Future<void> _signOut() async {
@@ -111,6 +130,7 @@ class _RestaurantSettingsScreenState
     _deliveryFee = restaurant.deliveryFee ?? 50.0;
     _estimatedDeliveryTime = restaurant.estimatedDeliveryTime ?? 30;
     _isOpen = restaurant.isOpen;
+    _currentImageUrl = restaurant.imageUrl;
 
     // Load operating hours from restaurant
     if (restaurant.operatingHours != null) {
@@ -127,10 +147,75 @@ class _RestaurantSettingsScreenState
     }
   }
 
+  Future<void> _pickRestaurantImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImage = File(picked.path));
+    }
+  }
+
+  Future<String?> _uploadRestaurantImage(String restaurantId) async {
+    if (_pickedImage == null) return null;
+    final bytes = await _pickedImage!.readAsBytes();
+    final fileName = 'restaurant-images/$restaurantId.jpg';
+    await Supabase.instance.client.storage
+        .from('profile-photos')
+        .uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+    return Supabase.instance.client.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
+  }
+
   Future<void> _saveSettings(String restaurantId) async {
     setState(() => _isSaving = true);
 
     try {
+      // Upload new restaurant image if one was picked (non-blocking)
+      String? imageUrl;
+      if (_pickedImage != null) {
+        try {
+          imageUrl = await _uploadRestaurantImage(restaurantId);
+        } catch (_) {
+          debugPrint('Restaurant image upload failed, saving without image');
+        }
+      }
+
       final restaurantService = ref.read(restaurantServiceProvider);
       await restaurantService.updateRestaurant(
         restaurantId: restaurantId,
@@ -143,6 +228,7 @@ class _RestaurantSettingsScreenState
         estimatedDeliveryTime: _estimatedDeliveryTime,
         isOpen: _isOpen,
         operatingHours: Map<String, dynamic>.from(_operatingHours),
+        imageUrl: imageUrl,
       );
 
       final currentUserId = ref.read(currentUserIdProvider);
@@ -155,7 +241,7 @@ class _RestaurantSettingsScreenState
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Error saving settings: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) {
@@ -183,7 +269,7 @@ class _RestaurantSettingsScreenState
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Restaurant Settings')),
         body: AppErrorState(
-          message: 'Error loading restaurant: $error',
+          message: friendlyError(error),
           onRetry: () =>
               ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
@@ -224,8 +310,80 @@ class _RestaurantSettingsScreenState
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
+                // Restaurant image upload
+                GestureDetector(
+                  onTap: _pickRestaurantImage,
+                  child: Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: _pickedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.file(
+                              _pickedImage!,
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : _currentImageUrl != null &&
+                              _currentImageUrl!.isNotEmpty
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.network(
+                                  _currentImageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) =>
+                                      _imagePlaceholder(),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Change',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : _imagePlaceholder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  controller: _restaurantNameController,
                   decoration: InputDecoration(
                     labelText: 'Restaurant Name',
                     border: OutlineInputBorder(

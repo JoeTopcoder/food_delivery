@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/premium_providers.dart';
+import '../../utils/friendly_error.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/recommendation_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
 import '../../widgets/menu_item_detail_sheet.dart';
@@ -33,6 +34,26 @@ class _RestaurantDetailScreenState
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+
+    // Track restaurant view for AI engine
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        ref
+            .read(behaviorTrackingProvider)
+            .trackRestaurantView(
+              userId,
+              widget.restaurant.id,
+              cuisineType: widget.restaurant.cuisineType,
+            );
+        // Record for real-time session boost
+        if (widget.restaurant.cuisineType != null) {
+          ref
+              .read(realtimeBoostProvider.notifier)
+              .recordInteraction(widget.restaurant.cuisineType!);
+        }
+      }
+    });
   }
 
   @override
@@ -98,7 +119,7 @@ class _RestaurantDetailScreenState
                     color: AppTheme.textPrimary,
                   ),
                   onPressed: () => Share.share(
-                    'Check out ${widget.restaurant.name} on FoodDriver!',
+                    'Check out ${widget.restaurant.name} on FoodHub!',
                   ),
                 ),
               ],
@@ -108,6 +129,7 @@ class _RestaurantDetailScreenState
         children: [
           SingleChildScrollView(
             controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -548,7 +570,7 @@ class _RestaurantDetailScreenState
                     ),
                   ),
                   error: (err, stack) =>
-                      AppErrorState(message: 'Error loading menu: $err'),
+                      AppErrorState(message: friendlyError(err)),
                 ),
                 const SizedBox(height: 100),
               ],

@@ -1,7 +1,5 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-// ignore_for_file: unused_element
-
 part of 'menu_model.dart';
 
 // **************************************************************************
@@ -85,6 +83,12 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
       sides: (json['sides'] as List<dynamic>?)
           ?.map((e) => MenuItemSide.fromJson(e as Map<String, dynamic>))
           .toList(),
+      unit: json['unit'] as String?,
+      brand: json['brand'] as String?,
+      weight: json['weight'] as String?,
+      inStock: json['in_stock'] as bool? ?? true,
+      maxQuantity: (json['max_quantity'] as num?)?.toInt() ?? 99,
+      productType: json['product_type'] as String? ?? 'food',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -104,6 +108,12 @@ Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
       'tags': instance.tags,
       'preparation_time': instance.preparationTime,
       'sides': instance.sides?.map((e) => e.toJson()).toList(),
+      'unit': instance.unit,
+      'brand': instance.brand,
+      'weight': instance.weight,
+      'in_stock': instance.inStock,
+      'max_quantity': instance.maxQuantity,
+      'product_type': instance.productType,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

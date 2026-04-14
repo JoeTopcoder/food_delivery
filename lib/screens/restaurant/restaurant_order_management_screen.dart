@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/friendly_error.dart';
 
 class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
   const RestaurantOrderManagementScreen({super.key});
@@ -64,7 +65,7 @@ class _RestaurantOrderManagementScreenState
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Order Management')),
         body: AppErrorState(
-          message: 'Failed to load restaurant:\n$error',
+          message: friendlyError(error),
           onRetry: () =>
               ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
@@ -109,7 +110,7 @@ class _RestaurantOrderManagementScreenState
       body: ordersAsync.when(
         loading: () => const AppLoadingIndicator(message: 'Loading orders...'),
         error: (error, _) => AppErrorState(
-          message: 'Failed to load orders:\n$error',
+          message: friendlyError(error),
           onRetry: () => ref.invalidate(restaurantOrdersProvider(restaurantId)),
         ),
         data: (allOrders) {
@@ -200,7 +201,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, 'Failed to update order: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -246,13 +247,53 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    'Order #${order.id.substring(0, 8).toUpperCase()}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Order #${order.id.substring(0, 8).toUpperCase()}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (order.isPickup) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag_rounded,
+                                size: 12,
+                                color: Color(0xFF6366F1),
+                              ),
+                              SizedBox(width: 3),
+                              Text(
+                                'PICKUP',
+                                style: TextStyle(
+                                  color: Color(0xFF6366F1),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 Container(
@@ -382,6 +423,82 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               ),
             ],
 
+            // Pickup order notice
+            if (order.isPickup) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.directions_walk_rounded,
+                          size: 18,
+                          color: Color(0xFF6366F1),
+                        ),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Customer is coming to pick up this order',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Color(0xFF6366F1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (order.pickupCode != null &&
+                        order.pickupCode!.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Text(
+                            'Pickup Code: ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF374151),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              order.pickupCode!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 12),
 
             // Action buttons based on current status
@@ -441,6 +558,36 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
         );
 
       case AppConstants.orderReady:
+        if (order.isPickup) {
+          // Pickup order: set code or verify customer code
+          if (order.pickupCode == null || order.pickupCode!.isEmpty) {
+            return SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showSetPickupCodeDialog(order),
+                icon: const Icon(Icons.pin_rounded, size: 18),
+                label: const Text('Set Pickup Code'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            );
+          } else {
+            return SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showVerifyPickupCodeDialog(order),
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: const Text('Verify Code & Complete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            );
+          }
+        }
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -456,6 +603,180 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  void _showSetPickupCodeDialog(Order order) {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set Pickup Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter a 4-digit code the customer must provide when picking up their order.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
+              ),
+              decoration: InputDecoration(
+                hintText: '0000',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.length != 4) {
+                AppSnackbar.error(ctx, 'Please enter a 4-digit code');
+                return;
+              }
+              Navigator.of(ctx).pop();
+              setState(() => _isUpdating = true);
+              try {
+                final orderService = ref.read(orderServiceProvider);
+                await orderService.setPickupCode(order.id, code);
+                ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
+                if (mounted) {
+                  AppSnackbar.success(context, 'Pickup code set to $code');
+                }
+              } catch (e) {
+                if (mounted) {
+                  AppSnackbar.error(context, friendlyError(e));
+                }
+              } finally {
+                if (mounted) setState(() => _isUpdating = false);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Set Code'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVerifyPickupCodeDialog(Order order) {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify Pickup Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ask the customer for their pickup code and enter it below to complete the order.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
+              ),
+              decoration: InputDecoration(
+                hintText: '0000',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.green, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.length != 4) {
+                AppSnackbar.error(ctx, 'Please enter a 4-digit code');
+                return;
+              }
+              Navigator.of(ctx).pop();
+              setState(() => _isUpdating = true);
+              try {
+                final orderService = ref.read(orderServiceProvider);
+                final verified = await orderService.verifyPickupCode(
+                  order.id,
+                  code,
+                );
+                if (verified) {
+                  ref.invalidate(restaurantOrdersProvider(widget.restaurantId));
+                  if (mounted) {
+                    AppSnackbar.success(
+                      context,
+                      'Pickup verified! Order completed.',
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    AppSnackbar.error(
+                      context,
+                      'Invalid pickup code. Please try again.',
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  AppSnackbar.error(context, friendlyError(e));
+                }
+              } finally {
+                if (mounted) setState(() => _isUpdating = false);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Verify & Complete'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmReject(Order order) {

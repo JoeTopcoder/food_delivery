@@ -180,6 +180,7 @@ class DriverService {
           .from(AppConstants.tableOrders)
           .select()
           .filter('driver_id', 'is', null)
+          .eq('is_pickup', false)
           .or(
             'status.eq.${AppConstants.orderReady},and(status.eq.${AppConstants.orderPending},ordered_at.lt.$cutoff)',
           )
@@ -438,8 +439,7 @@ class DriverService {
             .select('cash_float')
             .eq('id', driverId)
             .single();
-        final currentFloat =
-            (driver['cash_float'] as num?)?.toDouble() ?? 0.0;
+        final currentFloat = (driver['cash_float'] as num?)?.toDouble() ?? 0.0;
         await _supabaseClient
             .from(AppConstants.tableDrivers)
             .update({

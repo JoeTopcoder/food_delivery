@@ -43,9 +43,10 @@ class RestaurantCard extends StatelessWidget {
                           height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _PlaceholderImage(),
+                          cacheWidth: 800,
+                          errorBuilder: (_, _, _) => const _PlaceholderImage(),
                         )
-                      : _PlaceholderImage(),
+                      : const _PlaceholderImage(),
                 ),
                 // Rating badge
                 Positioned(
@@ -59,12 +60,6 @@ class RestaurantCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                        ),
-                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -209,6 +204,14 @@ class RestaurantCard extends StatelessWidget {
 }
 
 class _PlaceholderImage extends StatelessWidget {
+  static final _gradientColors = [
+    AppTheme.primaryColor.withValues(alpha: 0.15),
+    AppTheme.primaryColor.withValues(alpha: 0.05),
+  ];
+  static final _iconColor = AppTheme.primaryColor.withValues(alpha: 0.4);
+
+  const _PlaceholderImage();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -218,20 +221,13 @@ class _PlaceholderImage extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.15),
-            AppTheme.primaryColor.withValues(alpha: 0.05),
-          ],
+          colors: _gradientColors,
         ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.restaurant_rounded,
-            size: 48,
-            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-          ),
+          Icon(Icons.restaurant_rounded, size: 48, color: _iconColor),
           const SizedBox(height: 6),
           Text(
             'No image available',

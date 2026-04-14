@@ -44,6 +44,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
         foregroundColor: AppTheme.textPrimary,
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +59,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'How are you enjoying FoodDriver?',
+                      'How are you enjoying FoodHub?',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

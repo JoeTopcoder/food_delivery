@@ -41,6 +41,7 @@ class _RestaurantDashboardScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Sign Out'),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
@@ -50,6 +51,12 @@ class _RestaurantDashboardScreenState
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Sign Out'),
           ),
         ],
@@ -106,7 +113,6 @@ class _RestaurantDashboardScreenState
         restaurantId: restaurantId,
         isOpen: !currentIsOpen,
       );
-      // Invalidate to refresh the restaurant data
       final currentUserId = ref.read(currentUserIdProvider);
       if (currentUserId != null) {
         ref.invalidate(restaurantByOwnerProvider(currentUserId));
@@ -119,6 +125,13 @@ class _RestaurantDashboardScreenState
       if (mounted) {
         setState(() => _togglingAvailability = false);
       }
+    }
+  }
+
+  Future<void> _refresh() async {
+    final currentUserId = ref.read(currentUserIdProvider);
+    if (currentUserId != null) {
+      ref.invalidate(restaurantByOwnerProvider(currentUserId));
     }
   }
 
@@ -138,13 +151,9 @@ class _RestaurantDashboardScreenState
         body: AppLoadingIndicator(message: 'Loading restaurant...'),
       ),
       error: (error, stack) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Restaurant Dashboard'),
-          centerTitle: true,
-          elevation: 0,
-        ),
+        backgroundColor: const Color(0xFFF8F9FB),
         body: AppErrorState(
-          message: error.toString(),
+          message: friendlyError(error),
           onRetry: () {
             ref.invalidate(restaurantByOwnerProvider(currentUserId));
           },
@@ -155,260 +164,542 @@ class _RestaurantDashboardScreenState
           return _buildSetupRestaurant(currentUserId);
         }
 
-        // Keep realtime subscription alive for new order notifications
         ref.watch(restaurantNewOrderRealtimeProvider(restaurant.id));
-
         final ordersAsync = ref.watch(restaurantOrdersProvider(restaurant.id));
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Restaurant Dashboard'),
-            centerTitle: true,
-            elevation: 0,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Sign Out',
-                onPressed: _signOut,
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome, ${authState.user!.name}!',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(restaurant.name),
-                        const SizedBox(height: 12),
-                        Row(
+          backgroundColor: const Color(0xFFF8F9FB),
+          body: RefreshIndicator(
+            onRefresh: _refresh,
+            color: AppTheme.primaryColor,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // ── Hero Header ──────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1E293B), Color(0xFF334155)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 16, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              restaurant.isOpen
-                                  ? Icons.check_circle
-                                  : Icons.cancel,
-                              color: restaurant.isOpen
-                                  ? Colors.green
-                                  : Colors.red,
-                              size: 20,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        AppTheme.primaryColor,
+                                        Color(0xFFFF8C5A),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.storefront_rounded,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Welcome, ${authState.user!.name?.split(' ').first ?? 'User'}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        restaurant.name,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Material(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: _signOut,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(10),
+                                      child: Icon(
+                                        Icons.logout_rounded,
+                                        color: Colors.white70,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              restaurant.isOpen
-                                  ? 'Currently Open'
-                                  : 'Currently Closed',
-                              style: TextStyle(
+                            const SizedBox(height: 20),
+                            // ── Status toggle banner ──
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
                                 color: restaurant.isOpen
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontWeight: FontWeight.w500,
+                                    ? const Color(
+                                        0xFF10B981,
+                                      ).withValues(alpha: 0.15)
+                                    : Colors.red.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: restaurant.isOpen
+                                      ? const Color(
+                                          0xFF10B981,
+                                        ).withValues(alpha: 0.3)
+                                      : Colors.red.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: restaurant.isOpen
+                                          ? const Color(0xFF10B981)
+                                          : Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      restaurant.isOpen
+                                          ? 'Your restaurant is OPEN'
+                                          : 'Your restaurant is CLOSED',
+                                      style: TextStyle(
+                                        color: restaurant.isOpen
+                                            ? const Color(0xFF10B981)
+                                            : Colors.red.shade300,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  _togglingAvailability
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white70,
+                                          ),
+                                        )
+                                      : Switch(
+                                          value: restaurant.isOpen,
+                                          activeColor: const Color(0xFF10B981),
+                                          onChanged: (_) => _toggleAvailability(
+                                            restaurant.id,
+                                            restaurant.isOpen,
+                                          ),
+                                        ),
+                                ],
                               ),
                             ),
-                            const Spacer(),
-                            _togglingAvailability
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Switch(
-                                    value: restaurant.isOpen,
-                                    onChanged: (value) {
-                                      _toggleAvailability(
-                                        restaurant.id,
-                                        restaurant.isOpen,
-                                      );
-                                    },
-                                  ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Quick Actions
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  children: [
-                    _DashboardCard(
-                      icon: Icons.menu,
-                      title: 'Manage Menu',
-                      onTap: () {
-                        Navigator.of(context).pushNamed('/menu-management');
-                      },
-                    ),
-                    _DashboardCard(
-                      icon: Icons.shopping_bag,
-                      title: 'Orders',
-                      onTap: () {
-                        Navigator.of(context).pushNamed('/restaurant-orders');
-                      },
-                    ),
-                    _DashboardCard(
-                      icon: Icons.settings,
-                      title: 'Settings',
-                      onTap: () {
-                        Navigator.of(context).pushNamed('/restaurant-settings');
-                      },
-                    ),
-                    _DashboardCard(
-                      icon: Icons.analytics,
-                      title: 'Analytics',
-                      onTap: () {
-                        Navigator.of(
-                          context,
-                        ).pushNamed('/restaurant-analytics');
-                      },
-                    ),
-                    _DashboardCard(
-                      icon: Icons.account_balance,
-                      title: 'Bank Info',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const BankInfoScreen(role: 'restaurant'),
-                          ),
-                        );
-                      },
-                    ),
-                    _DashboardCard(
-                      icon: Icons.payments_rounded,
-                      title: 'Request Payout',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const PayoutRequestScreen(role: 'restaurant'),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Key Metrics
-                const Text(
-                  'Today\'s Metrics',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                ordersAsync.when(
-                  loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: AppLoadingIndicator(
-                        fullScreen: false,
-                        message: 'Loading metrics...',
                       ),
                     ),
                   ),
-                  error: (error, stack) => Card(
+                ),
+
+                // ── KPI Cards ────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Transform.translate(
+                    offset: const Offset(0, -16),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: AppErrorState(
-                        message: 'Failed to load metrics',
-                        onRetry: () {
-                          ref.invalidate(
-                            restaurantOrdersProvider(restaurant.id),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ordersAsync.when(
+                        loading: () => const SizedBox(height: 100),
+                        error: (_, _) => const SizedBox(height: 100),
+                        data: (orders) {
+                          final totalOrders = orders.length;
+                          final pendingOrders = orders
+                              .where(
+                                (o) =>
+                                    o.status == 'pending' ||
+                                    o.status == 'confirmed' ||
+                                    o.status == 'preparing',
+                              )
+                              .length;
+                          final deliveredOrders = orders
+                              .where((o) => o.status == 'delivered')
+                              .length;
+                          final totalRevenue = orders.fold<double>(
+                            0,
+                            (sum, order) => sum + order.totalAmount,
+                          );
+
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _KpiCard(
+                                  label: 'Orders',
+                                  value: '$totalOrders',
+                                  icon: Icons.receipt_long_rounded,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _KpiCard(
+                                  label: 'Pending',
+                                  value: '$pendingOrders',
+                                  icon: Icons.pending_actions_rounded,
+                                  color: const Color(0xFFF59E0B),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _KpiCard(
+                                  label: 'Delivered',
+                                  value: '$deliveredOrders',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  color: const Color(0xFF10B981),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
                     ),
                   ),
-                  data: (orders) {
-                    final totalOrders = orders.length;
-                    final pendingOrders = orders
-                        .where(
-                          (o) =>
-                              o.status == 'pending' ||
-                              o.status == 'confirmed' ||
-                              o.status == 'preparing',
-                        )
-                        .length;
-                    final totalRevenue = orders.fold<double>(
-                      0,
-                      (sum, order) => sum + order.totalAmount,
-                    );
+                ),
 
-                    return Row(
+                // ── Revenue banner ───────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ordersAsync.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
+                      data: (orders) {
+                        final totalRevenue = orders.fold<double>(
+                          0,
+                          (sum, order) => sum + order.totalAmount,
+                        );
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF818CF8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.attach_money_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Revenue',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '\$${totalRevenue.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/restaurant-analytics'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Details',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: Colors.white,
+                                        size: 12,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                // ── Quick Actions ────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Text(
+                      'Quick Actions',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.95,
                       children: [
-                        Expanded(
-                          child: _MetricCard(
-                            label: 'Total Orders',
-                            value: '$totalOrders',
-                            color: Colors.blue,
+                        _QuickAction(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Orders',
+                          color: const Color(0xFF6366F1),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-orders'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.restaurant_menu_rounded,
+                          label: 'Menu',
+                          color: const Color(0xFFEC4899),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/menu-management'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.local_grocery_store_rounded,
+                          label: 'Grocery',
+                          color: const Color(0xFF14B8A6),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/grocery-management'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.analytics_rounded,
+                          label: 'Analytics',
+                          color: const Color(0xFF10B981),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-analytics'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.settings_rounded,
+                          label: 'Settings',
+                          color: const Color(0xFF8B5CF6),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-settings'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.account_balance_rounded,
+                          label: 'Bank Info',
+                          color: const Color(0xFF0EA5E9),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const BankInfoScreen(role: 'restaurant'),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MetricCard(
-                            label: 'Pending',
-                            value: '$pendingOrders',
-                            color: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MetricCard(
-                            label: 'Revenue',
-                            value: '\$${totalRevenue.toStringAsFixed(2)}',
-                            color: Colors.green,
+                        _QuickAction(
+                          icon: Icons.payments_rounded,
+                          label: 'Payout',
+                          color: const Color(0xFFF59E0B),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PayoutRequestScreen(role: 'restaurant'),
+                            ),
                           ),
                         ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
                 ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                // ── Recent Orders ────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Recent Orders',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-orders'),
+                          child: Text(
+                            'See all',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ordersAsync.when(
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (error, _) => Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: AppErrorState(
+                          message: 'Failed to load orders',
+                          onRetry: () => ref.invalidate(
+                            restaurantOrdersProvider(restaurant.id),
+                          ),
+                        ),
+                      ),
+                      data: (orders) {
+                        if (orders.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Column(
+                              children: [
+                                Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 48,
+                                  color: Color(0xFFD1D5DB),
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  'No orders yet',
+                                  style: TextStyle(
+                                    color: Color(0xFF9CA3AF),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        final recent = orders.take(5).toList();
+                        return Column(
+                          children: recent
+                              .map((order) => _RecentOrderTile(order: order))
+                              .toList(),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
               ],
             ),
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: 'Orders',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-            onTap: (index) {
-              if (index == 0) {
-                // Stay on dashboard
-              } else if (index == 1) {
-                Navigator.of(context).pushNamed('/restaurant-orders');
-              } else if (index == 2) {
-                Navigator.of(context).pushNamed('/restaurant-settings');
-              }
-            },
           ),
         );
       },
@@ -417,140 +708,261 @@ class _RestaurantDashboardScreenState
 
   Widget _buildSetupRestaurant(String ownerId) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Set Up Restaurant'),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _setupFormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.restaurant,
-                    size: 56,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Center(
-                child: Text(
-                  'Create Your Restaurant',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'Fill in your restaurant details to get started.',
-                  style: TextStyle(color: AppTheme.textSecondary),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 32),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Restaurant Name *',
-                  prefixIcon: Icon(Icons.storefront),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _cuisineController,
-                decoration: const InputDecoration(
-                  labelText: 'Cuisine Type (e.g. Pizza, Burger)',
-                  prefixIcon: Icon(Icons.local_dining),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Address',
-                  prefixIcon: Icon(Icons.location_on),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _creatingRestaurant
-                      ? null
-                      : () => _createRestaurant(ownerId),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+      backgroundColor: const Color(0xFFF8F9FB),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _setupFormKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 32),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      size: 56,
+                      color: Colors.white,
                     ),
                   ),
-                  child: _creatingRestaurant
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Create Restaurant',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                const Center(
+                  child: Text(
+                    'Create Your Restaurant',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Text(
+                    'Fill in your restaurant details to get started',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 36),
+                _buildSetupField(
+                  controller: _nameController,
+                  label: 'Restaurant Name',
+                  icon: Icons.storefront_rounded,
+                  required: true,
+                ),
+                const SizedBox(height: 16),
+                _buildSetupField(
+                  controller: _cuisineController,
+                  label: 'Cuisine Type (e.g. Pizza, Burger)',
+                  icon: Icons.local_dining_rounded,
+                ),
+                const SizedBox(height: 16),
+                _buildSetupField(
+                  controller: _addressController,
+                  label: 'Address',
+                  icon: Icons.location_on_rounded,
+                ),
+                const SizedBox(height: 16),
+                _buildSetupField(
+                  controller: _phoneController,
+                  label: 'Phone Number',
+                  icon: Icons.phone_rounded,
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _creatingRestaurant
+                        ? null
+                        : () => _createRestaurant(ownerId),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _creatingRestaurant
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            'Create Restaurant',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildSetupField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool required = false,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+      decoration: InputDecoration(
+        labelText: required ? '$label *' : label,
+        labelStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+        ),
+      ),
+      validator: required
+          ? (v) => v == null || v.isEmpty ? 'Required' : null
+          : null,
+    );
+  }
 }
 
-class _DashboardCard extends StatelessWidget {
+// ─── KPI Card ──────────────────────────────────────────────────────────────────
+
+class _KpiCard extends StatelessWidget {
+  final String label;
+  final String value;
   final IconData icon;
-  final String title;
+  final Color color;
+
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF9CA3AF),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Quick Action ──────────────────────────────────────────────────────────────
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
   final VoidCallback onTap;
 
-  const _DashboardCard({
+  const _QuickAction({
     required this.icon,
-    required this.title,
+    required this.label,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Theme.of(context).primaryColor),
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 10),
             Text(
-              title,
+              label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF4B5563),
+              ),
             ),
           ],
         ),
@@ -559,40 +971,95 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
+// ─── Recent Order Tile ─────────────────────────────────────────────────────────
 
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+class _RecentOrderTile extends StatelessWidget {
+  final dynamic order;
+  const _RecentOrderTile({required this.order});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    final status = order.status as String;
+    Color statusColor;
+    IconData statusIcon;
+    switch (status) {
+      case 'pending':
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.hourglass_top_rounded;
+        break;
+      case 'confirmed':
+      case 'preparing':
+        statusColor = const Color(0xFF6366F1);
+        statusIcon = Icons.local_fire_department_rounded;
+        break;
+      case 'ready':
+        statusColor = const Color(0xFF0EA5E9);
+        statusIcon = Icons.check_circle_rounded;
+        break;
+      case 'delivered':
+        statusColor = const Color(0xFF10B981);
+        statusIcon = Icons.done_all_rounded;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel_rounded;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.info_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
+            child: Icon(statusIcon, color: statusColor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Order #${order.id.toString().substring(0, 8)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  status[0].toUpperCase() + status.substring(1),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Text(
+            '\$${order.totalAmount.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+        ],
       ),
     );
   }

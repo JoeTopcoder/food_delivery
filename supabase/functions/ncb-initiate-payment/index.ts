@@ -313,7 +313,7 @@ Deno.serve(async (request) => {
     ? `Card Verification $${requestAmount}`
     : txnType === "wallet_topup"
     ? `Wallet Top-up $${requestAmount}`
-    : `FoodDriver Order ${orderId}`;
+    : `MealHub Order ${orderId}`;
 
   const paymentPayload = {
     amount: requestAmount,

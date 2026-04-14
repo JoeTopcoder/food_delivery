@@ -6,11 +6,13 @@ class OrderSuccessScreen extends StatefulWidget {
   final String orderId;
   final bool contactlessDelivery;
   final String? deliveryOtp;
+  final bool isPickup;
   const OrderSuccessScreen({
     super.key,
     required this.orderId,
     this.contactlessDelivery = false,
     this.deliveryOtp,
+    this.isPickup = false,
   });
 
   @override
@@ -88,10 +90,12 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Your order has been placed successfully.\nSit back and relax while we prepare it!',
+                    Text(
+                      widget.isPickup
+                          ? 'Your pickup order has been placed!\nThe restaurant will provide a pickup code when ready.'
+                          : 'Your order has been placed successfully.\nSit back and relax while we prepare it!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 15,
                         color: Color(0xFF6B7280),
                         height: 1.5,
