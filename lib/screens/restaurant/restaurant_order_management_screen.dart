@@ -541,7 +541,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                             const SizedBox(width: 8),
                             Expanded(child: Text(item.itemName)),
                             Text(
-                              '\$${item.subtotal.toStringAsFixed(2)}',
+                              '${AppConstants.currencySymbol}${item.subtotal.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                               ),

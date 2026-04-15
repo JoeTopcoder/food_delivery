@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
@@ -63,7 +64,7 @@ class MenuItemCard extends StatelessWidget {
                     children: [
                       if (item.discount != null && item.discount! > 0) ...[
                         Text(
-                          '\$${item.price.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.textLight,
@@ -73,7 +74,7 @@ class MenuItemCard extends StatelessWidget {
                         const SizedBox(width: 6),
                       ],
                       Text(
-                        '\$${item.discountedPrice.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,

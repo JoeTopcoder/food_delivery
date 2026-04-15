@@ -3,6 +3,7 @@ import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class AdminFinancialsScreen extends ConsumerWidget {
   const AdminFinancialsScreen({super.key});
@@ -92,7 +93,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        '\$${totalSales.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${totalSales.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
@@ -304,7 +305,7 @@ class _FinancialCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '\$${mainValue.toStringAsFixed(2)}',
+                  '${AppConstants.currencySymbol}${mainValue.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -369,7 +370,7 @@ class _BreakdownRow extends StatelessWidget {
             ),
           ),
           Text(
-            '\$${value.toStringAsFixed(2)}',
+            '${AppConstants.currencySymbol}${value.toStringAsFixed(2)}',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

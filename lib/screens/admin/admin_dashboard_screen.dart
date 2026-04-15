@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -209,7 +210,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '\$${totalRevenue.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${totalRevenue.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
@@ -487,6 +488,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-contract'),
+                          ),
+                          _GridAction(
+                            icon: Icons.loyalty_rounded,
+                            label: 'Loyalty',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-loyalty'),
                           ),
                         ],
                       ),

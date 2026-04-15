@@ -6,6 +6,7 @@ import '../../models/order_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 enum _Period { today, week, month, all }
 
@@ -106,19 +107,63 @@ class _RestaurantAnalyticsScreenState
     final topItems = itemCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Daily revenue for bar chart (last 7 days)
+    // Revenue bar chart — adapts to selected period
     final dailyRevenue = <String, double>{};
     final now = DateTime.now();
-    for (int i = 6; i >= 0; i--) {
-      final day = now.subtract(Duration(days: i));
-      final key = DateFormat('EEE').format(day);
-      dailyRevenue[key] = 0;
-    }
-    for (final o in allOrders.where((o) => o.status == 'delivered')) {
-      if (o.orderedAt.isAfter(now.subtract(const Duration(days: 7)))) {
-        final key = DateFormat('EEE').format(o.orderedAt);
-        dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
-      }
+    final int chartDays;
+    final String Function(DateTime) chartKeyFmt;
+    final String chartTitle;
+
+    switch (_period) {
+      case _Period.today:
+        // Hourly buckets for today
+        chartDays = 0;
+        chartKeyFmt = (d) => '${d.hour.toString().padLeft(2, '0')}:00';
+        chartTitle = 'Revenue — Today (Hourly)';
+        for (int h = 0; h < 24; h += 3) {
+          dailyRevenue['${h.toString().padLeft(2, '0')}:00'] = 0;
+        }
+        for (final o in delivered) {
+          final hour = (o.orderedAt.hour ~/ 3) * 3;
+          final key = '${hour.toString().padLeft(2, '0')}:00';
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+        }
+      case _Period.week:
+        chartDays = 7;
+        chartKeyFmt = (d) => DateFormat('EEE').format(d);
+        chartTitle = 'Revenue — Last 7 Days';
+        for (int i = 6; i >= 0; i--) {
+          final day = now.subtract(Duration(days: i));
+          dailyRevenue[chartKeyFmt(day)] = 0;
+        }
+        for (final o in delivered) {
+          final key = chartKeyFmt(o.orderedAt);
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+        }
+      case _Period.month:
+        chartDays = 30;
+        chartKeyFmt = (d) => DateFormat('d/M').format(d);
+        chartTitle = 'Revenue — Last 30 Days (Weekly)';
+        // 5 weekly buckets
+        for (int w = 4; w >= 0; w--) {
+          final day = now.subtract(Duration(days: w * 7));
+          dailyRevenue['Wk ${5 - w}'] = 0;
+        }
+        for (final o in delivered) {
+          final daysAgo = now.difference(o.orderedAt).inDays;
+          final weekIdx = 4 - (daysAgo ~/ 7).clamp(0, 4);
+          final key = 'Wk ${weekIdx + 1}';
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+        }
+      case _Period.all:
+        chartDays = 0;
+        chartKeyFmt = (d) => DateFormat('MMM yy').format(d);
+        chartTitle = 'Revenue — All Time (Monthly)';
+        // Group by month
+        for (final o in delivered) {
+          final key = chartKeyFmt(o.orderedAt);
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+        }
     }
 
     return Scaffold(
@@ -203,7 +248,8 @@ class _RestaurantAnalyticsScreenState
                     children: [
                       _KpiCard(
                         label: 'Revenue',
-                        value: '\$${totalRevenue.toStringAsFixed(0)}',
+                        value:
+                            '${AppConstants.currencySymbol}${totalRevenue.toStringAsFixed(0)}',
                         icon: Icons.attach_money_rounded,
                         color: const Color(0xFF10B981),
                       ),
@@ -221,7 +267,8 @@ class _RestaurantAnalyticsScreenState
                       ),
                       _KpiCard(
                         label: 'Avg. Order',
-                        value: '\$${avgOrderValue.toStringAsFixed(0)}',
+                        value:
+                            '${AppConstants.currencySymbol}${avgOrderValue.toStringAsFixed(0)}',
                         icon: Icons.trending_up_rounded,
                         color: const Color(0xFFF59E0B),
                       ),
@@ -229,9 +276,9 @@ class _RestaurantAnalyticsScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // Revenue bar chart (7-day)
+                  // Revenue bar chart
                   _SectionCard(
-                    title: 'Revenue — Last 7 Days',
+                    title: chartTitle,
                     child: _BarChart(data: dailyRevenue),
                   ),
                   const SizedBox(height: 12),
@@ -508,7 +555,7 @@ class _BarChart extends StatelessWidget {
               children: [
                 if (e.value > 0)
                   Text(
-                    '\$${e.value.toStringAsFixed(0)}',
+                    '${AppConstants.currencySymbol}${e.value.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 8,
                       color: Color(0xFF6B7280),

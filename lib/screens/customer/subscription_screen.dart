@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -153,7 +154,7 @@ class _PlanCard extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  '\$${plan.price.toStringAsFixed(0)}',
+                  '${AppConstants.currencySymbol}${plan.price.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

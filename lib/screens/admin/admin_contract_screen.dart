@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 /// Admin screen for viewing/editing the proprietor–client service agreement.
 class AdminContractScreen extends ConsumerStatefulWidget {
@@ -501,7 +502,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
                       'original menu item cost plus any General Consumption Tax (GCT). '
                       'For example, if the cost of a meal is \$100 plus GCT, resulting '
                       'in a total of \$115, the transfer amount will be '
-                      '\$${100 - (int.tryParse(_feePercent.text) ?? 10)} '
+                      '${AppConstants.currencySymbol}${100 - (int.tryParse(_feePercent.text) ?? 10)} '
                       '(${100 - (int.tryParse(_feePercent.text) ?? 10)}% of \$100) '
                       'plus GCT, totaling \$${((100 - (int.tryParse(_feePercent.text) ?? 10)) * 1.15).toStringAsFixed(2)}. '
                       'These transfers will be made by THE PROPRIETOR to THE CLIENT\'S '

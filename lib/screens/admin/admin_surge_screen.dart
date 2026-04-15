@@ -18,9 +18,9 @@ class AdminSurgeScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
-  // Default to Kingston, Jamaica
-  static const _defaultLat = 18.1096;
-  static const _defaultLng = -77.2975;
+  // Default to George Town, Grand Cayman
+  static const _defaultLat = 19.2869;
+  static const _defaultLng = -81.3812;
 
   final MapController _mapController = MapController();
   String? _selectedZoneId;
@@ -694,7 +694,7 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
                   controller: nameCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Zone Name',
-                    hintText: 'e.g. Downtown Kingston',
+                    hintText: 'e.g. George Town Centre',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) =>

@@ -32,19 +32,15 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Use service role to bypass RLS for call lookup
+    // Use service role to bypass RLS and verify user JWT
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    // Verify the user JWT
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
+    // Verify the user JWT using service role client (avoids ES256 algorithm issues)
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await serviceClient.auth.getUser(jwt)
     if (authError || !user) {
       console.error('Auth error:', authError?.message)
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -109,7 +105,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Generating token: appId=${AGORA_APP_ID.substring(0, 8)}..., channel=${channelName}`)
 
-    const token = RtcTokenBuilder.buildTokenWithUid(
+    const agoraToken = RtcTokenBuilder.buildTokenWithUid(
       AGORA_APP_ID,
       AGORA_APP_CERTIFICATE,
       channelName,
@@ -118,16 +114,16 @@ Deno.serve(async (req: Request) => {
       privilegeExpiredTs,
     )
 
-    console.log(`Token generated: length=${token.length}`)
+    console.log(`Token generated: length=${agoraToken.length}`)
 
     // Write token to calls table using service role
     await serviceClient
       .from('calls')
-      .update({ agora_token: token })
+      .update({ agora_token: agoraToken })
       .eq('id', callId)
 
     return new Response(JSON.stringify({
-      token,
+      token: agoraToken,
       appId: AGORA_APP_ID,
       channelName,
       uid,

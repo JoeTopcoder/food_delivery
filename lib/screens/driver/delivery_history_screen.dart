@@ -6,6 +6,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class DeliveryHistoryScreen extends ConsumerWidget {
   const DeliveryHistoryScreen({super.key});
@@ -165,7 +166,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
 
                                 // Amount
                                 Text(
-                                  '\$${delivery.totalAmount.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -283,7 +284,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '\$${delivery.totalAmount.toStringAsFixed(2)}',
+                      '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF22C55E),

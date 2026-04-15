@@ -3,6 +3,7 @@ import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/premium_providers.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class DriverLeaderboardScreen extends ConsumerWidget {
   const DriverLeaderboardScreen({super.key});
@@ -272,7 +273,7 @@ class _LeaderboardTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      '\$${earnings.toStringAsFixed(0)}',
+                      '${AppConstants.currencySymbol}${earnings.toStringAsFixed(0)}',
                       style: const TextStyle(
                         color: Color(0xFF6B7280),
                         fontSize: 11,

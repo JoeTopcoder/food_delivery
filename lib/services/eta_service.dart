@@ -120,7 +120,7 @@ class EtaService {
   double _estimateDistance(double lat1, double lng1, double lat2, double lng2) {
     // Simple approximation in km (Euclidean on equirectangular projection)
     final dLat = (lat2 - lat1) * 111.0;
-    final dLng = (lng2 - lng1) * 111.0 * 0.85; // Jamaica ~18°N
+    final dLng = (lng2 - lng1) * 111.0 * 0.94; // Cayman Islands ~19°N
     return sqrt(dLat * dLat + dLng * dLng);
   }
 }

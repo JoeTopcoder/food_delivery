@@ -7,6 +7,7 @@ import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class GroceryStoreDetailScreen extends ConsumerStatefulWidget {
   final Restaurant store;
@@ -426,7 +427,7 @@ class _ProductCard extends ConsumerWidget {
                               ? Row(
                                   children: [
                                     Text(
-                                      '\$${product.discountedPrice.toStringAsFixed(2)}',
+                                      '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w800,
@@ -435,7 +436,7 @@ class _ProductCard extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '\$${product.price.toStringAsFixed(2)}',
+                                      '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey[400],
@@ -445,7 +446,7 @@ class _ProductCard extends ConsumerWidget {
                                   ],
                                 )
                               : Text(
-                                  '\$${product.price.toStringAsFixed(2)}',
+                                  '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
@@ -660,7 +661,7 @@ class _GroceryCartBar extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '\$${subtotal.toStringAsFixed(2)}',
+                  '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,

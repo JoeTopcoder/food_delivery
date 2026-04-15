@@ -37,14 +37,10 @@ async function verifyAdmin(req: Request): Promise<string | null> {
   const token = authHeader.replace("Bearer ", "");
   if (!token) return null;
 
-  const anonClient = createClient(
-    supabaseUrl,
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
   const {
     data: { user },
     error,
-  } = await anonClient.auth.getUser(token);
+  } = await admin.auth.getUser(token);
   if (error || !user) return null;
 
   const { data: profile } = await admin
@@ -55,6 +51,27 @@ async function verifyAdmin(req: Request): Promise<string | null> {
 
   if (profile?.role !== "admin") return null;
   return user.id;
+}
+
+// Get authenticated user id and role
+async function getAuthUser(req: Request): Promise<{ id: string; role: string } | null> {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+
+  const {
+    data: { user },
+    error,
+  } = await admin.auth.getUser(token);
+  if (error || !user) return null;
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  return { id: user.id, role: profile?.role ?? "user" };
 }
 
 // Allowed columns for insert/update
@@ -81,6 +98,16 @@ const ALLOWED_FIELDS = [
   "ceo_company",
   "ceo_date",
   "status",
+  // V2 fields
+  "intro_days",
+  "commission_min",
+  "commission_max",
+  "own_driver_commission_min",
+  "own_driver_commission_max",
+  "payment_hours",
+  "termination_days",
+  "support_phone",
+  "restaurant_id",
 ];
 
 function pickFields(body: Record<string, unknown>): Record<string, unknown> {
@@ -96,13 +123,47 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Auth check
-  const adminId = await verifyAdmin(req);
-  if (!adminId) {
-    return json({ error: "Unauthorized – admin access required" }, 401);
+  // Auth check — admin for all methods, restaurant for GET only
+  const authUser = await getAuthUser(req);
+  if (!authUser) {
+    return json({ error: "Unauthorized" }, 401);
   }
 
+  const isAdmin = authUser.role === "admin";
   const url = new URL(req.url);
+
+  // Restaurant owners can only GET their own contract
+  if (req.method === "GET" && !isAdmin && authUser.role === "restaurant") {
+    try {
+      // Find restaurants owned by this user
+      const { data: restaurants } = await admin
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", authUser.id);
+      
+      const restaurantIds = (restaurants ?? []).map((r: { id: string }) => r.id);
+      if (restaurantIds.length === 0) {
+        return json({ contracts: [] });
+      }
+
+      const { data, error } = await admin
+        .from("contracts")
+        .select("*")
+        .in_("restaurant_id", restaurantIds)
+        .neq("status", "terminated")
+        .order("created_at", { ascending: false });
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ contracts: data ?? [] });
+    } catch (e) {
+      return json({ error: (e as Error).message ?? "Internal error" }, 500);
+    }
+  }
+
+  // All other operations require admin
+  if (!isAdmin) {
+    return json({ error: "Unauthorized – admin access required" }, 401);
+  }
 
   try {
     // ── GET ─────────────────────────────────────────────────────────

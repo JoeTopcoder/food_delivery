@@ -12,6 +12,7 @@ import '../../widgets/order_countdown_timer.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -464,7 +465,7 @@ class _DeliveryCard extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '\$${delivery.totalAmount.toStringAsFixed(0)}',
+                  '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,

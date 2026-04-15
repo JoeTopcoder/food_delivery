@@ -743,7 +743,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                                   ),
                                   child: ChoiceChip(
                                     label: Text(
-                                      '\$${amount.toStringAsFixed(0)}',
+                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
@@ -836,7 +836,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                     children: [
                       _SummaryRow(
                         'Subtotal',
-                        '\$${subtotal.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                       ),
                       if (promoDiscount > 0)
                         _SummaryRow(
@@ -853,7 +853,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                       if (isPickup)
                         _SummaryRow(
                           'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                          '\$${activeFee.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         )
                       else
@@ -861,22 +861,22 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                           surgeMultiplier > 1.0
                               ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                               : 'Delivery${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                          '\$${activeFee.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
                           valueColor: surgeMultiplier > 1.0
                               ? const Color(0xFFFFA630)
                               : null,
                         ),
-                      _SummaryRow('Tax (10%)', '\$${tax.toStringAsFixed(2)}'),
+                      _SummaryRow('Tax (10%)', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
-                          '\$${_driverTip.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       Divider(color: Colors.grey[200], height: 16),
                       _SummaryRow(
                         'Total',
-                        '\$${total.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                     ],

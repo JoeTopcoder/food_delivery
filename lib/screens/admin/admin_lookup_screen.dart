@@ -5,6 +5,7 @@ import '../../providers/admin_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 /// Admin database lookup screen.
 /// Search by card last-4, order ID, or customer email/phone/name.
@@ -519,20 +520,20 @@ class _OrderResultView extends StatelessWidget {
                 ),
                 _InfoRow(
                   'Total',
-                  '\$${(order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  '${AppConstants.currencySymbol}${(order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                 ),
                 _InfoRow(
                   'Subtotal',
-                  '\$${(order['subtotal'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  '${AppConstants.currencySymbol}${(order['subtotal'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                 ),
                 _InfoRow(
                   'Delivery Fee',
-                  '\$${(order['delivery_fee'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  '${AppConstants.currencySymbol}${(order['delivery_fee'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                 ),
                 if (order['discount'] != null)
                   _InfoRow(
                     'Discount',
-                    '\$${(order['discount'] as num).toStringAsFixed(2)}',
+                    '${AppConstants.currencySymbol}${(order['discount'] as num).toStringAsFixed(2)}',
                   ),
                 _InfoRow(
                   'Payment',
@@ -576,7 +577,7 @@ class _OrderResultView extends StatelessWidget {
                 rows: [
                   _InfoRow(
                     'Amount',
-                    '\$${(payment['amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                    '${AppConstants.currencySymbol}${(payment['amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                   ),
                   _InfoRow('Method', payment['method'] as String? ?? 'N/A'),
                   _InfoRow('Status', payment['status'] as String? ?? 'N/A'),
@@ -717,7 +718,7 @@ class _CustomerResultView extends StatelessWidget {
                 rows: [
                   _InfoRow(
                     'Balance',
-                    '\$${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                    '${AppConstants.currencySymbol}${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                   ),
                 ],
               ),
@@ -1010,7 +1011,7 @@ class _OrderRow extends StatelessWidget {
           Row(
             children: [
               Text(
-                '\$${total.toStringAsFixed(2)}',
+                '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

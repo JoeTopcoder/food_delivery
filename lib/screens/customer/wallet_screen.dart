@@ -15,6 +15,7 @@ import '../../utils/friendly_error.dart';
 import 'add_card_screen.dart';
 import 'ncb_payment_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -562,7 +563,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (mounted) {
         AppSnackbar.success(
           context,
-          '\$${amount.toStringAsFixed(2)} added to wallet',
+          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
         );
         _amountCtrl.clear();
       }
@@ -815,7 +816,7 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '\$${total.toStringAsFixed(2)}',
+            '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 36,

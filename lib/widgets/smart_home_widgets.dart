@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/recommendation_model.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../utils/app_theme.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 // ════════════════════════════════════════════════════════════════
 // Smart Offer Banner — shows AI-generated coupon at top of screen
@@ -514,7 +515,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                         const SizedBox(width: 8),
                       ],
                       Text(
-                        '\$${rec.deliveryFee.toStringAsFixed(0)} delivery',
+                        '${AppConstants.currencySymbol}${rec.deliveryFee.toStringAsFixed(0)} delivery',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,

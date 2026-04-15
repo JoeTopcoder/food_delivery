@@ -11,6 +11,7 @@ import '../utils/app_theme.dart';
 import '../utils/friendly_error.dart';
 import '../widgets/restaurant_card.dart';
 import '../widgets/order_countdown_timer.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -264,7 +265,7 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: '\$${order.totalAmount.toStringAsFixed(2)}',
+                      total: '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       orderedAt: order.orderedAt,
@@ -292,7 +293,7 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: '\$${order.totalAmount.toStringAsFixed(2)}',
+                      total: '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       onTap: () {

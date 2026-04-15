@@ -13,8 +13,10 @@ class AgoraService {
   static final AgoraService instance = AgoraService._();
 
   RtcEngine? _engine;
+  RtcEngineEventHandler? _eventHandler;
   bool _initialized = false;
   bool _isInChannel = false;
+  int _joinFailures = 0; // consecutive join failures → trigger reinit
 
   // ── Public state callbacks (set by CallScreen) ──────────────────────────
   VoidCallback? onEngineReady;
@@ -43,6 +45,23 @@ class AgoraService {
       return true;
     }
 
+    // Clean up any stale engine before creating a new one
+    if (_engine != null) {
+      debugPrint('AgoraService: cleaning up stale engine before reinit');
+      try {
+        await _engine!.leaveChannel();
+      } catch (_) {}
+      try {
+        _engine!.unregisterEventHandler(_eventHandler!);
+      } catch (_) {}
+      try {
+        await _engine!.release();
+      } catch (_) {}
+      _engine = null;
+      _initialized = false;
+      _isInChannel = false;
+    }
+
     try {
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(
@@ -52,65 +71,59 @@ class AgoraService {
         ),
       );
 
-      _engine!.registerEventHandler(
-        RtcEngineEventHandler(
-          onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
-            debugPrint(
-              'AgoraService: ✅ joined ${conn.channelId} uid=${conn.localUid}',
-            );
-            _isInChannel = true;
-            onJoined?.call(conn.localUid ?? 0);
-          },
-          onUserJoined: (RtcConnection conn, int remoteUid, int elapsed) {
-            debugPrint('AgoraService: remote user $remoteUid joined');
-            onUserJoined?.call(remoteUid);
-          },
-          onUserOffline:
-              (
-                RtcConnection conn,
-                int remoteUid,
-                UserOfflineReasonType reason,
-              ) {
-                debugPrint(
-                  'AgoraService: remote user $remoteUid left ($reason)',
-                );
-                onUserLeft?.call(remoteUid);
-              },
-          onRemoteAudioStateChanged:
-              (
-                RtcConnection conn,
-                int remoteUid,
-                RemoteAudioState state,
-                RemoteAudioStateReason reason,
-                int elapsed,
-              ) {
-                if (state == RemoteAudioState.remoteAudioStateDecoding) {
-                  onUserJoined?.call(remoteUid);
-                  onRemoteAudioActive?.call();
-                }
-              },
-          onConnectionStateChanged:
-              (
-                RtcConnection conn,
-                ConnectionStateType state,
-                ConnectionChangedReasonType reason,
-              ) {
-                debugPrint('AgoraService: conn state=$state reason=$reason');
-                if (state == ConnectionStateType.connectionStateFailed) {
-                  _isInChannel = false;
-                  onConnectionFailed?.call();
-                }
-              },
-          onTokenPrivilegeWillExpire: (RtcConnection conn, String token) {
-            debugPrint('AgoraService: token expiring soon');
-            onTokenExpiring?.call();
-          },
-          onError: (ErrorCodeType code, String msg) {
-            debugPrint('AgoraService: error $code — $msg');
-            onError?.call('$code: $msg');
-          },
-        ),
+      _eventHandler = RtcEngineEventHandler(
+        onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
+          debugPrint(
+            'AgoraService: ✅ joined ${conn.channelId} uid=${conn.localUid}',
+          );
+          _isInChannel = true;
+          _joinFailures = 0;
+          onJoined?.call(conn.localUid ?? 0);
+        },
+        onUserJoined: (RtcConnection conn, int remoteUid, int elapsed) {
+          debugPrint('AgoraService: remote user $remoteUid joined');
+          onUserJoined?.call(remoteUid);
+        },
+        onUserOffline:
+            (RtcConnection conn, int remoteUid, UserOfflineReasonType reason) {
+              debugPrint('AgoraService: remote user $remoteUid left ($reason)');
+              onUserLeft?.call(remoteUid);
+            },
+        onRemoteAudioStateChanged:
+            (
+              RtcConnection conn,
+              int remoteUid,
+              RemoteAudioState state,
+              RemoteAudioStateReason reason,
+              int elapsed,
+            ) {
+              if (state == RemoteAudioState.remoteAudioStateDecoding) {
+                onUserJoined?.call(remoteUid);
+                onRemoteAudioActive?.call();
+              }
+            },
+        onConnectionStateChanged:
+            (
+              RtcConnection conn,
+              ConnectionStateType state,
+              ConnectionChangedReasonType reason,
+            ) {
+              debugPrint('AgoraService: conn state=$state reason=$reason');
+              if (state == ConnectionStateType.connectionStateFailed) {
+                _isInChannel = false;
+                onConnectionFailed?.call();
+              }
+            },
+        onTokenPrivilegeWillExpire: (RtcConnection conn, String token) {
+          debugPrint('AgoraService: token expiring soon');
+          onTokenExpiring?.call();
+        },
+        onError: (ErrorCodeType code, String msg) {
+          debugPrint('AgoraService: error $code — $msg');
+          onError?.call('$code: $msg');
+        },
       );
+      _engine!.registerEventHandler(_eventHandler!);
 
       await _engine!.setAudioProfile(
         profile: AudioProfileType.audioProfileDefault,
@@ -145,7 +158,9 @@ class AgoraService {
       return false;
     }
     if (_isInChannel) {
-      debugPrint('AgoraService: stale isInChannel — forcing leave before re-join');
+      debugPrint(
+        'AgoraService: stale isInChannel — forcing leave before re-join',
+      );
       await leaveChannel();
     }
     try {
@@ -171,10 +186,37 @@ class AgoraService {
       return true;
     } catch (e) {
       debugPrint('AgoraService: joinChannel failed: $e');
+      _joinFailures++;
       onError?.call('Join failed: $e');
       return false;
     }
   }
+
+  /// Force full engine teardown + re-create. Use when the engine is in a
+  /// corrupt state after repeated join failures.
+  Future<bool> forceReinit() async {
+    debugPrint('AgoraService: forceReinit — tearing down engine');
+    clearCallbacks();
+    _isInChannel = false;
+    try {
+      if (_eventHandler != null)
+        _engine?.unregisterEventHandler(_eventHandler!);
+    } catch (_) {}
+    try {
+      await _engine?.leaveChannel();
+    } catch (_) {}
+    try {
+      await _engine?.release();
+    } catch (_) {}
+    _engine = null;
+    _eventHandler = null;
+    _initialized = false;
+    _joinFailures = 0;
+    return init();
+  }
+
+  /// Whether the engine appears corrupted (too many consecutive join failures).
+  bool get needsReinit => _joinFailures >= 2;
 
   // ── Leave channel (keep engine alive for next call) ──────────────────────
   Future<void> leaveChannel() async {
@@ -230,10 +272,16 @@ class AgoraService {
     clearCallbacks();
     await leaveChannel();
     try {
+      if (_eventHandler != null)
+        _engine?.unregisterEventHandler(_eventHandler!);
+    } catch (_) {}
+    try {
       await _engine?.release();
     } catch (_) {}
     _engine = null;
+    _eventHandler = null;
     _initialized = false;
+    _joinFailures = 0;
     debugPrint('AgoraService: fully disposed');
   }
 }
