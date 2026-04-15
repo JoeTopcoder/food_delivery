@@ -1,0 +1,4 @@
+app_identifier("com.foodhub.delivery")
+# apple_id("your-apple-email@example.com")  # ← Set when you have Apple Developer
+# itc_team_id("YOUR_ITC_TEAM_ID")           # ← App Store Connect Team ID
+# team_id("YOUR_DEV_TEAM_ID")               # ← Apple Developer Team ID

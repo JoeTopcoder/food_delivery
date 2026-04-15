@@ -1,0 +1,78 @@
+# This workflow is pre-configured but will only work once you:
+# 1. Enroll in Apple Developer Program ($99/yr)
+# 2. Create an app record in App Store Connect
+# 3. Create an App Store Connect API key
+# 4. Add the required secrets to GitHub
+#
+# Required GitHub Secrets:
+#   APP_STORE_KEY_ID        - API Key ID from App Store Connect
+#   APP_STORE_ISSUER_ID     - Issuer ID from App Store Connect
+#   APP_STORE_PRIVATE_KEY   - Contents of the .p8 private key file
+#
+# To enable: remove 'if: false' from the job below
+
+name: Deploy to App Store
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'supabase/**'
+
+jobs:
+  deploy-ios:
+    name: Build & Deploy iOS
+    runs-on: macos-latest
+    if: false  # ← Remove this line when Apple Developer is set up
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install
+
+      - name: Create App Store Connect API key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          cat > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_KEY_ID }}.p8 <<EOF
+          ${{ secrets.APP_STORE_PRIVATE_KEY }}
+          EOF
+          cat > /tmp/asc-api-key.json <<EOF
+          {
+            "key_id": "${{ secrets.APP_STORE_KEY_ID }}",
+            "issuer_id": "${{ secrets.APP_STORE_ISSUER_ID }}",
+            "key_filepath": "~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_KEY_ID }}.p8"
+          }
+          EOF
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Build & Upload to App Store
+        working-directory: ios
+        env:
+          APP_STORE_CONNECT_API_KEY_PATH: /tmp/asc-api-key.json
+        run: bundle exec fastlane release
+
+      - name: Cleanup secrets
+        if: always()
+        run: |
+          rm -rf ~/.appstoreconnect
+          rm -f /tmp/asc-api-key.json

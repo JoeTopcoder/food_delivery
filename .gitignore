@@ -47,5 +47,7 @@ app.*.map.json
 # Sensitive / environment files
 /android/app/google-services.json
 /android/local.properties
+/android/key.properties
+/android/app/upload-keystore.jks
 *.env
 *.hprof
