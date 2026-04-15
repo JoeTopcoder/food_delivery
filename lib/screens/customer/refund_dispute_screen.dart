@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class RefundDisputeScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -42,15 +43,11 @@ class _RefundDisputeScreenState extends ConsumerState<RefundDisputeScreen>
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Refunds & Disputes',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.refundsDisputes,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: AppTheme.primaryColor,
@@ -110,19 +107,26 @@ class _RefundsList extends ConsumerWidget {
       error: (e, _) => Center(child: Text(friendlyError(e))),
       data: (refunds) {
         if (refunds.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.receipt_long, size: 48, color: Color(0xFFD1D5DB)),
-                SizedBox(height: 8),
-                Text(
+                const Icon(
+                  Icons.receipt_long,
+                  size: 48,
+                  color: Color(0xFFD1D5DB),
+                ),
+                const SizedBox(height: 8),
+                const Text(
                   'No refund requests',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   'Your refund history will appear here',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -251,19 +255,22 @@ class _DisputesList extends ConsumerWidget {
       error: (e, _) => Center(child: Text(friendlyError(e))),
       data: (disputes) {
         if (disputes.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.gavel, size: 48, color: Color(0xFFD1D5DB)),
-                SizedBox(height: 8),
-                Text(
+                const Icon(Icons.gavel, size: 48, color: Color(0xFFD1D5DB)),
+                const SizedBox(height: 8),
+                const Text(
                   'No disputes',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   'Your dispute history will appear here',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -343,9 +350,9 @@ class _DisputeCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   DateFormat('MMM d, y').format(dispute.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

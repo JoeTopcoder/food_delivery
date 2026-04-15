@@ -15,6 +15,7 @@ import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -62,12 +63,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         data: (orders) {
           if (orders.isEmpty) {
             return Scaffold(
-              appBar: AppBar(
-                title: const Text('Order Tracking'),
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.white,
-                foregroundColor: AppTheme.textPrimary,
-              ),
+              appBar: AppBar(title: const Text('Order Tracking')),
               body: const AppEmptyState(
                 icon: Icons.receipt_long_rounded,
                 title: 'No Orders Found',
@@ -139,15 +135,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         liveOrder.status != 'delivered';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Order #${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         actions: const [SosButton()],
       ),
@@ -684,7 +676,7 @@ class _OrderDetailsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
@@ -726,10 +718,19 @@ class _OrderDetailsCard extends StatelessWidget {
             ),
           ),
           Divider(color: Colors.grey[200], height: 20),
-          _Row('Subtotal', '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(0)}'),
-          _Row('Delivery Fee', '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}'),
+          _Row(
+            context.l10n.subtotal,
+            '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(0)}',
+          ),
+          _Row(
+            'Delivery Fee',
+            '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}',
+          ),
           if (order.taxAmount != null)
-            _Row('Tax', '${AppConstants.currencySymbol}${order.taxAmount!.toStringAsFixed(0)}'),
+            _Row(
+              context.l10n.tax,
+              '${AppConstants.currencySymbol}${order.taxAmount!.toStringAsFixed(0)}',
+            ),
           const SizedBox(height: 4),
           _Row(
             'Total',
@@ -791,7 +792,7 @@ class _AddressCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
@@ -816,17 +817,20 @@ class _AddressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Delivering to',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   address,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF1F2937),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],

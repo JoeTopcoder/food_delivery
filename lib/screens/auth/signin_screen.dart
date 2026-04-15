@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
@@ -102,7 +103,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -185,25 +185,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Sign In',
+                    Text(
+                      context.l10n.signIn,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: context.colors.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Enter your credentials to continue',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.colors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 28),
 
                     // Email
                     _buildField(
                       controller: _emailController,
-                      label: 'Email address',
+                      label: context.l10n.email,
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
@@ -221,7 +224,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     // Password
                     _buildField(
                       controller: _passwordController,
-                      label: 'Password',
+                      label: context.l10n.password,
                       icon: Icons.lock_outline,
                       obscureText: _obscurePassword,
                       suffixIcon: IconButton(
@@ -254,9 +257,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           foregroundColor: AppTheme.primaryColor,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        child: Text(
+                          context.l10n.forgotPassword,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -266,7 +269,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     _GradientButton(
                       onPressed: authState.isLoading ? null : _handleSignIn,
                       isLoading: authState.isLoading,
-                      label: 'Sign In',
+                      label: context.l10n.signIn,
                     ),
                     const SizedBox(height: 24),
 
@@ -331,9 +334,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Don't have an account?",
-                          style: TextStyle(color: Color(0xFF6B7280)),
+                        Text(
+                          context.l10n.dontHaveAccount,
+                          style: TextStyle(
+                            color: context.colors.onSurfaceVariant,
+                          ),
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(
@@ -343,9 +348,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             foregroundColor: AppTheme.primaryColor,
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                           ),
-                          child: const Text(
-                            'Sign Up',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          child: Text(
+                            context.l10n.signUp,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -382,14 +387,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+      style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        labelStyle: TextStyle(
+          color: context.colors.onSurfaceVariant,
+          fontSize: 14,
+        ),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+        fillColor: context.isDark
+            ? context.colors.surfaceContainerHighest
+            : const Color(0xFFF9FAFB),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -500,9 +510,8 @@ class _SocialButton extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: BorderSide(color: Theme.of(context).dividerColor),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        backgroundColor: Colors.white,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -511,10 +520,10 @@ class _SocialButton extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

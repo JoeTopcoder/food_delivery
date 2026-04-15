@@ -58,22 +58,32 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
             return Column(
               children: [
                 Expanded(flex: 2, child: _buildMap(zones)),
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.bolt, size: 48, color: Color(0xFF9CA3AF)),
-                        SizedBox(height: 8),
+                        const Icon(
+                          Icons.bolt,
+                          size: 48,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           'No surge zones configured',
-                          style: TextStyle(color: Color(0xFF6B7280)),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Tap + to place one on the map',
                           style: TextStyle(
-                            color: Color(0xFF9CA3AF),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -249,9 +259,9 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
                 const SizedBox(height: 4),
                 Text(
                   zone['reason'],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -575,9 +585,11 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
                         const Spacer(),
                         Text(
                           'max ${maxRadius.toStringAsFixed(1)} km',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFF9CA3AF),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -743,9 +755,11 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
                       Expanded(
                         child: Text(
                           '${_pin.latitude.toStringAsFixed(4)}, ${_pin.longitude.toStringAsFixed(4)} · ${_radiusKm.toStringAsFixed(1)} km',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),

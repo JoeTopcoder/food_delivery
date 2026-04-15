@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -7,7 +8,7 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      appBar: AppBar(title: Text(context.l10n.createAccount)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -15,7 +16,11 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 48),
-              const Icon(Icons.fastfood, size: 72, color: AppTheme.primaryColor),
+              const Icon(
+                Icons.fastfood,
+                size: 72,
+                color: AppTheme.primaryColor,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Order delicious food',
@@ -25,7 +30,10 @@ class RoleSelectionScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Sign up as a customer to start ordering',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),

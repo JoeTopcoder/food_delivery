@@ -128,13 +128,19 @@ class _FeedbackCard extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'v${feedback.appVersion}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
             const SizedBox(height: 2),
             Text(
               DateFormat.yMMMd().format(feedback.createdAt),
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (feedback.adminResponse != null) ...[
               const Divider(height: 16),

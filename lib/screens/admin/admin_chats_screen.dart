@@ -38,17 +38,17 @@ class AdminChatsScreen extends ConsumerWidget {
         ),
         data: (chats) {
           if (chats.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.chat_bubble_outline_rounded,
                     size: 56,
                     color: Color(0xFF4B5563),
                   ),
-                  SizedBox(height: 12),
-                  Text(
+                  const SizedBox(height: 12),
+                  const Text(
                     'No chats yet',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -56,10 +56,12 @@ class AdminChatsScreen extends ConsumerWidget {
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Customer support chats will appear here',
-                    style: TextStyle(color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -240,17 +242,17 @@ class _ChatTile extends StatelessWidget {
                         : lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     fmt.format(time),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF4B5563),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],

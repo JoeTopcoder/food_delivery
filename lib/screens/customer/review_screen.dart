@@ -99,14 +99,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'Rate Your Order',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
@@ -157,9 +154,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         ),
                         Text(
                           '${widget.order.items.length} item(s) · \$${widget.order.totalAmount.toStringAsFixed(0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -232,7 +231,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -244,12 +243,12 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Write a Review (optional)',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      color: Color(0xFF1F2937),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -259,8 +258,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Share your experience with this restaurant...',
-                      hintStyle: const TextStyle(
-                        color: Color(0xFF9CA3AF),
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                       filled: true,
@@ -294,7 +293,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: const Color(0xFFE5E7EB),
@@ -325,7 +324,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                           fontSize: 13,
                           color: _photo != null
                               ? Colors.green
-                              : const Color(0xFF6B7280),
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: _photo != null
                               ? FontWeight.w600
                               : FontWeight.normal,
@@ -414,7 +413,7 @@ class _RatingCategory extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
@@ -440,17 +439,17 @@ class _RatingCategory extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

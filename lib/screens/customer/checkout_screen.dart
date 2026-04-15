@@ -16,6 +16,7 @@ import '../../providers/payment_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 import '../../providers/wallet_provider.dart';
 import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
@@ -172,21 +173,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Checkout',
-          style: TextStyle(
+        title: Text(
+          context.l10n.checkout,
+          style: const TextStyle(
             color: AppTheme.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -295,7 +293,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: Colors.grey.shade200),
                           ),
@@ -553,7 +551,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                                 TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(ctx, false),
-                                                  child: const Text('Cancel'),
+                                                  child: Text(
+                                                    context.l10n.cancel,
+                                                  ),
                                                 ),
                                                 TextButton(
                                                   onPressed: () =>
@@ -1108,13 +1108,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     children: [
                       _SummaryRow(
-                        'Subtotal',
+                        context.l10n.subtotal,
                         '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                       ),
                       if (promoDiscount > 0)
@@ -1145,7 +1145,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ? const Color(0xFFFFA630)
                               : null,
                         ),
-                      _SummaryRow('Tax (10%)', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
+                      _SummaryRow(
+                        'Tax (10%)',
+                        '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                      ),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',

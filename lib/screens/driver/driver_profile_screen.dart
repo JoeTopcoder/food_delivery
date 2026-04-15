@@ -7,6 +7,7 @@ import '../../providers/driver_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class DriverProfileScreen extends ConsumerStatefulWidget {
   const DriverProfileScreen({super.key});
@@ -81,8 +82,8 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                 backgroundColor: const Color(0xFF0F1117),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                title: const Text(
-                  'Driver Profile',
+                title: Text(
+                  context.l10n.driverProfile,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -191,9 +192,11 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                             const SizedBox(height: 4),
                             Text(
                               authState.user!.email,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF6B7280),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             if (driver != null)
@@ -264,10 +267,14 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                             color: Colors.white,
                             fontSize: 14,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Vehicle Type',
-                            labelStyle: TextStyle(color: Color(0xFF6B7280)),
-                            prefixIcon: Icon(
+                            labelStyle: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                            prefixIcon: const Icon(
                               Icons.two_wheeler,
                               color: AppTheme.primaryColor,
                             ),
@@ -451,7 +458,9 @@ class _DarkTextField extends StatelessWidget {
       style: const TextStyle(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
         filled: true,
         fillColor: const Color(0xFF1E2030),
@@ -524,7 +533,10 @@ class _StatTile extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

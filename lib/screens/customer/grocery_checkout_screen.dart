@@ -150,8 +150,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -164,7 +162,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
           ),
         ),
       ),
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -210,7 +207,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                             '${cart.where((c) => c.menuItem.restaurantId == sid).fold(0, (s, c) => s + c.quantity)} items',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -866,7 +865,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                               ? const Color(0xFFFFA630)
                               : null,
                         ),
-                      _SummaryRow('Tax (10%)', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
+                      _SummaryRow(
+                        'Tax (10%)',
+                        '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                      ),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
@@ -896,7 +898,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                     Expanded(
                       child: Text(
                         'I agree to FoodHub terms and conditions',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ],
@@ -1421,13 +1426,16 @@ class _TimeChip extends StatelessWidget {
                 fontSize: 13,
                 color: selected
                     ? AppTheme.primaryColor
-                    : const Color(0xFF1F2937),
+                    : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

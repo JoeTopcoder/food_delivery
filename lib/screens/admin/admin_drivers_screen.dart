@@ -150,7 +150,7 @@ class _DriverList extends StatelessWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
@@ -198,10 +198,12 @@ class _DriverList extends StatelessWidget {
                                   driver.vehicleNumber?.isNotEmpty == true
                                       ? driver.vehicleNumber!
                                       : 'No vehicle number',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
-                                    color: Color(0xFF1F2937),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                   ),
                                 ),
                                 Text(
@@ -209,9 +211,11 @@ class _DriverList extends StatelessWidget {
                                       ? (driver.vehicleType![0].toUpperCase() +
                                             driver.vehicleType!.substring(1))
                                       : 'Unknown type',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF6B7280),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -538,9 +542,9 @@ class _DriverList extends StatelessWidget {
               children: [
                 Text(
                   'Driver: ${driver.vehicleNumber ?? driver.id.substring(0, 8)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -746,15 +750,18 @@ class _DriverStat extends StatelessWidget {
           children: [
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

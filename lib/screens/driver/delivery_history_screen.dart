@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class DeliveryHistoryScreen extends ConsumerWidget {
   const DeliveryHistoryScreen({super.key});
@@ -45,8 +46,8 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                 backgroundColor: const Color(0xFF0F1117),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                title: const Text(
-                  'Delivery History',
+                title: Text(
+                  context.l10n.deliveryHistory,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -121,9 +122,11 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                       const SizedBox(height: 3),
                                       Text(
                                         '${delivery.items.length} item(s) · ${fmt.format(delivery.orderedAt)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
-                                          color: Color(0xFF6B7280),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       if (delivery.userRating != null)
@@ -253,8 +256,10 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           '${item.itemName} × ${item.quantity}',
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -276,11 +281,11 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Total',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     Text(
@@ -314,8 +319,8 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                   ),
                   child: Text(
                     delivery.userReview!,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
@@ -327,9 +332,11 @@ class DeliveryHistoryScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               'Close',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],

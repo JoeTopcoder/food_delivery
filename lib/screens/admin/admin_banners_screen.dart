@@ -21,15 +21,11 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     final bannersAsync = ref.watch(allBannersProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'Manage Banners',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(

@@ -20,11 +20,8 @@ class ReferralScreen extends ConsumerWidget {
     final referredAsync = ref.watch(referredUsersProvider(user.id));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Refer & Earn'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         foregroundColor: AppTheme.textPrimary,
       ),
       body: SingleChildScrollView(
@@ -77,7 +74,7 @@ class ReferralScreen extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(

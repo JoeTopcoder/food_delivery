@@ -46,7 +46,6 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
         : ref.watch(groceryStoreSearchProvider(_searchQuery));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
@@ -79,7 +78,10 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Fresh groceries delivered to your door',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     // Search bar
@@ -248,7 +250,9 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                                 : 'No stores found for "$_searchQuery"',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],

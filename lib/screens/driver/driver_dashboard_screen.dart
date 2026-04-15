@@ -209,8 +209,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                     const SizedBox(width: 8),
                                     Text(
                                       driver.vehicleType!.toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Color(0xFF6B7280),
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                         letterSpacing: 0.5,
@@ -308,7 +310,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                   style: TextStyle(
                                     color: isOnline
                                         ? Colors.white.withValues(alpha: 0.8)
-                                        : const Color(0xFF6B7280),
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -602,11 +606,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Peak hours: 12–2 pm & 6–9 pm',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -614,11 +618,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             fontSize: 13,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           'Stay online during peak hours for more orders.',
                           style: TextStyle(
-                            color: Color(0xFF6B7280),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -672,9 +678,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Create your profile to start accepting\ndelivery requests and earning.',
-                style: TextStyle(fontSize: 15, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 36),
@@ -801,9 +810,9 @@ class _MetricTile extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: Color(0xFF6B7280),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -871,8 +880,8 @@ class _ActionTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF6B7280),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 11,
                     ),
                   ),
