@@ -195,7 +195,7 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
                   ),
                   Switch(
                     value: region.isActive,
-                    activeColor: const Color(0xFF10B981),
+                    activeThumbColor: const Color(0xFF10B981),
                     onChanged: (_) => _toggleRegion(region),
                   ),
                 ],

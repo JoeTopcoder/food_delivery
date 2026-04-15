@@ -1031,7 +1031,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                     Expanded(
                       flex: 2,
                       child: DropdownButtonFormField<String>(
-                        value: _selectedUnit,
+                        initialValue: _selectedUnit,
                         decoration: _inputDecor('Unit'),
                         items: _units
                             .map(
@@ -1068,7 +1068,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
 
                 // Category
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: _inputDecor('Category *'),
                   isExpanded: true,
                   items: [

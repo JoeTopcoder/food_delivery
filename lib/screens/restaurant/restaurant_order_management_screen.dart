@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
-import '../../models/restaurant_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -42,8 +41,6 @@ class _RestaurantOrderManagementScreenState
     AppConstants.orderReady,
     AppConstants.orderDelivered,
   ];
-
-  static const _statusLabels = ['Pending', 'Preparing', 'Ready', 'Delivered'];
 
   @override
   void dispose() {

@@ -36,14 +36,14 @@ final orderCalculationServiceProvider = Provider<OrderCalculationService>((
 final allRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>((
   ref,
 ) async {
-  final link = ref.keepAlive();
+  ref.keepAlive();
   final restaurantService = ref.watch(restaurantServiceProvider);
   return restaurantService.getAllRestaurants();
 });
 
 final topRatedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
-      final link = ref.keepAlive();
+      ref.keepAlive();
       final restaurantService = ref.watch(restaurantServiceProvider);
       return restaurantService.getTopRatedRestaurants();
     });
@@ -59,7 +59,7 @@ final restaurantSearchProvider = FutureProvider.family
 
 final restaurantByIdProvider = FutureProvider.family
     .autoDispose<Restaurant?, String>((ref, restaurantId) async {
-      final link = ref.keepAlive();
+      ref.keepAlive();
       final restaurantService = ref.watch(restaurantServiceProvider);
 
       // Real-time: refresh when this restaurant row changes
@@ -94,19 +94,19 @@ final restaurantsByCuisineProvider = FutureProvider.family
 
 final newlyAddedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
-      final link = ref.keepAlive();
+      ref.keepAlive();
       return ref.watch(restaurantServiceProvider).getNewlyAddedRestaurants();
     });
 
 final breakfastRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
-      final link = ref.keepAlive();
+      ref.keepAlive();
       return ref.watch(restaurantServiceProvider).getBreakfastRestaurants();
     });
 
 final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
   (ref) async {
-    final link = ref.keepAlive();
+    ref.keepAlive();
     return ref.watch(restaurantServiceProvider).getMustTryRestaurants();
   },
 );
@@ -114,7 +114,7 @@ final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
 // Menu Providers — no autoDispose so data stays cached across screen visits
 final restaurantMenuProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
-      final link = ref.keepAlive();
+      ref.keepAlive();
       final menuService = ref.watch(menuServiceProvider);
       return menuService.getMenuByRestaurant(restaurantId);
     });

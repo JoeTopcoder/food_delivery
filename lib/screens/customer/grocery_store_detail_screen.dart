@@ -67,7 +67,7 @@ class _GroceryStoreDetailScreenState
     }
 
     final cartItems = ref.watch(groceryCartProvider);
-    final cartCount = cartItems.fold(0, (sum, c) => sum + c.quantity);
+    cartItems.fold(0, (sum, c) => sum + c.quantity);
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(
