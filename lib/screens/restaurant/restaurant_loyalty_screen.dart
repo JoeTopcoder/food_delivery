@@ -770,7 +770,7 @@ class _TierBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 14,
-              backgroundColor: const Color(0xFFF3F4F6),
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),

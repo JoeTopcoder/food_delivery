@@ -353,7 +353,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         margin: const EdgeInsets.all(16),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -406,7 +406,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   right: 0,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       border: Border(
                         top: BorderSide(color: Colors.grey.shade200),
                       ),
@@ -465,7 +465,7 @@ class _CartItemWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),

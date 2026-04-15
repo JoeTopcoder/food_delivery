@@ -79,9 +79,9 @@ class _GroceryStoreDetailScreenState
           expandedHeight: 200,
           pinned: true,
           leading: IconButton(
-            icon: const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+            icon: CircleAvatar(
+              backgroundColor: Theme.of(context).cardColor,
+              child: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
             ),
             onPressed: () => Navigator.pop(context),
           ),

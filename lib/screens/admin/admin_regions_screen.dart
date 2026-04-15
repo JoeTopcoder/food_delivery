@@ -32,7 +32,6 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
   Widget build(BuildContext context) {
     final regionsAsync = ref.watch(allRegionsProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Delivery Regions',

@@ -52,7 +52,6 @@ class _AdminPayoutsScreenState extends ConsumerState<AdminPayoutsScreen>
     final fmt = NumberFormat('#,##0.00');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Payout Management',

@@ -204,7 +204,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
             bottom: 180,
             child: FloatingActionButton.small(
               heroTag: 'myLoc',
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).cardColor,
               onPressed: _goToCurrentLocation,
               child: const Icon(Icons.my_location, color: Color(0xFF374151)),
             ),

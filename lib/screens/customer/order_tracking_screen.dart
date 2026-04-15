@@ -862,8 +862,8 @@ class _RateButton extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          backgroundColor: Theme.of(context).cardColor,
+          surfaceTintColor: Theme.of(context).cardColor,
           foregroundColor: AppTheme.textPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

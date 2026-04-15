@@ -77,10 +77,63 @@ class AppTheme {
     ),
     cardTheme: CardThemeData(
       elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: borderColor, width: 0.5),
       ),
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: textPrimary,
+      ),
+      contentTextStyle: TextStyle(fontSize: 14, color: textSecondary),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: textPrimary,
+      contentTextStyle: const TextStyle(color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      behavior: SnackBarBehavior.floating,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.white,
+      selectedItemColor: primaryColor,
+      unselectedItemColor: textSecondary,
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: backgroundColor,
+      selectedColor: primaryColor,
+      labelStyle: const TextStyle(color: textPrimary),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    listTileTheme: const ListTileThemeData(
+      textColor: textPrimary,
+      subtitleTextStyle: TextStyle(fontSize: 13, color: textSecondary),
+      iconColor: textSecondary,
+    ),
+    dividerColor: dividerColor,
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: textPrimary,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
     ),
   );
 
@@ -146,8 +199,32 @@ class AppTheme {
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Color(0xFF1F2937),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
     ),
-    dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1F2937)),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Color(0xFF1F2937),
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      contentTextStyle: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: const Color(0xFF1F2937),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: const Color(0xFF374151),
+      contentTextStyle: const TextStyle(color: Colors.white),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      behavior: SnackBarBehavior.floating,
+    ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Color(0xFF1F2937),
       selectedItemColor: Color(0xFFFF8C5E),
@@ -159,6 +236,18 @@ class AppTheme {
       selectedColor: primaryColor,
       labelStyle: const TextStyle(color: Colors.white),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    listTileTheme: const ListTileThemeData(
+      textColor: Colors.white,
+      subtitleTextStyle: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+      iconColor: Color(0xFF9CA3AF),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: const Color(0xFF374151),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
     ),
   );
 

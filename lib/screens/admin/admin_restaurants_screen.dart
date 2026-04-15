@@ -40,7 +40,6 @@ class _AdminRestaurantsScreenState extends ConsumerState<AdminRestaurantsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Restaurant Management',
@@ -196,7 +195,7 @@ class _RestaurantList extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 12),
-                      const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
                       const SizedBox(height: 10),
 
                       // Details

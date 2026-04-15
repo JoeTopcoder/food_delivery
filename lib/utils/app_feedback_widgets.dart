@@ -19,6 +19,13 @@ class AppSnackbar {
     VoidCallback? onAction,
   }) {
     final config = _SnackConfig.of(type);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final snackBg = isDark ? const Color(0xFF1F2937) : Colors.white;
+    final msgColor = isDark
+        ? Colors.white.withValues(alpha: 0.85)
+        : AppTheme.textPrimary.withValues(alpha: 0.85);
+    final dismissBg = isDark ? const Color(0xFF374151) : Colors.grey.shade200;
+    final dismissIcon = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
@@ -58,7 +65,7 @@ class AppSnackbar {
                       Text(
                         message,
                         style: TextStyle(
-                          color: AppTheme.textPrimary.withValues(alpha: 0.85),
+                          color: msgColor,
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -77,20 +84,20 @@ class AppSnackbar {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: dismissBg,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.close_rounded,
                       size: 14,
-                      color: Colors.grey.shade600,
+                      color: dismissIcon,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: snackBg,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

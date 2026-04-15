@@ -285,7 +285,7 @@ class _CreateGroceryStoreViewState
         labelStyle: const TextStyle(fontSize: 13),
         prefixIcon: icon != null ? Icon(icon, size: 20) : null,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,

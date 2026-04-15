@@ -72,7 +72,6 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
     final isDriver = widget.role == 'driver';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Banking Information',
@@ -348,7 +347,7 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Theme.of(context).inputDecorationTheme.fillColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFFD1D5DB)),

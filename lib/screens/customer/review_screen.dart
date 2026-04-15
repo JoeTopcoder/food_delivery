@@ -266,11 +266,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -296,7 +296,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: const Color(0xFFE5E7EB),
+                    color: Theme.of(context).dividerColor,
                     style: BorderStyle.solid,
                   ),
                 ),

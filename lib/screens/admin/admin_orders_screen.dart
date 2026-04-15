@@ -143,7 +143,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     final ordersAsync = ref.watch(_adminAllOrdersProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Order Management',
@@ -172,9 +171,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           Container(
             color: AppTheme.primaryColor,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               child: TextField(
@@ -357,7 +356,7 @@ class _OrderCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFF3F4F6)),
+            Divider(height: 1, color: Theme.of(context).dividerColor),
             const SizedBox(height: 10),
 
             // Countdown timer (active orders only)
@@ -885,7 +884,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
+                color: Theme.of(context).dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -959,7 +958,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                   size: 18,
                 ),
                 filled: true,
-                fillColor: const Color(0xFFF3F4F6),
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1027,7 +1026,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                         child: Row(
                           children: [
