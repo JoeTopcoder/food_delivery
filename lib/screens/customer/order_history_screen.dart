@@ -403,8 +403,8 @@ class _OrderCard extends ConsumerWidget {
                     icon: const Icon(Icons.refresh_rounded, size: 15),
                     label: const Text('Re-order'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      surfaceTintColor: Colors.white,
+                      backgroundColor: Theme.of(context).cardColor,
+                      surfaceTintColor: Theme.of(context).cardColor,
                       foregroundColor: AppTheme.textPrimary,
                       padding: const EdgeInsets.symmetric(
                         vertical: 10,

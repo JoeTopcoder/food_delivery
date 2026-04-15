@@ -485,8 +485,8 @@ class _Bubble extends StatelessWidget {
               ),
             Text(
               msg.message,
-              style: TextStyle(
-                color: isMine ? Colors.white : const Color(0xFFE5E7EB),
+              style: const TextStyle(
+                color: Colors.white,
                 fontSize: 14,
               ),
             ),

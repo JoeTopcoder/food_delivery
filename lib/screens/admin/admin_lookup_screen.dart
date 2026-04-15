@@ -142,7 +142,7 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
                             });
                           },
                           selectedColor: AppTheme.primaryColor,
-                          backgroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).cardColor,
                           checkmarkColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),

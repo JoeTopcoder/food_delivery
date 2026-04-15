@@ -16,7 +16,6 @@ class AdminPromosScreen extends ConsumerWidget {
     final promosAsync = ref.watch(allPromosProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Promo Codes',
@@ -321,7 +320,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
+                      color: Theme.of(context).dividerColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

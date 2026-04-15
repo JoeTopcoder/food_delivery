@@ -43,7 +43,6 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Request Payout',

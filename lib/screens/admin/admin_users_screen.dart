@@ -102,7 +102,6 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         : ref.watch(usersByRoleProvider(_selectedRole));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'User Management',
@@ -118,9 +117,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           Container(
             color: AppTheme.primaryColor,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Column(
@@ -205,7 +204,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             onSelected: (_) =>
                                 setState(() => _selectedRole = role),
                             selectedColor: AppTheme.primaryColor,
-                            backgroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).cardColor,
                             checkmarkColor: Colors.white,
                             side: BorderSide(
                               color: selected

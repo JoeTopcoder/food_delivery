@@ -35,7 +35,6 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
   Widget build(BuildContext context) {
     final zonesAsync = ref.watch(allSurgeZonesProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
           'Surge Zones',
@@ -741,7 +740,7 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
