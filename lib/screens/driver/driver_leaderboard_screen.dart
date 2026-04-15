@@ -96,11 +96,13 @@ class DriverLeaderboardScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Rankings will appear once deliveries start.',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF6B7280),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -140,7 +142,9 @@ class DriverLeaderboardScreen extends ConsumerWidget {
               child: Center(
                 child: Text(
                   friendlyError(e),
-                  style: const TextStyle(color: Color(0xFF9CA3AF)),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -227,10 +231,10 @@ class _LeaderboardTile extends StatelessWidget {
                 ? Icon(Icons.emoji_events_rounded, color: _rankColor, size: 20)
                 : Text(
                     '$rank',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
           ),
@@ -260,8 +264,8 @@ class _LeaderboardTile extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '$deliveries deliveries',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),
@@ -274,8 +278,8 @@ class _LeaderboardTile extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(
                       '${AppConstants.currencySymbol}${earnings.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),

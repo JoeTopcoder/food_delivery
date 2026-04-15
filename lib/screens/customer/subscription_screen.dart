@@ -22,14 +22,11 @@ class SubscriptionScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text(
             'Meal Plans',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
           foregroundColor: AppTheme.textPrimary,
           bottom: TabBar(
             indicatorColor: AppTheme.primaryColor,
@@ -125,9 +122,11 @@ class _PlanCard extends ConsumerWidget {
                       if (plan.description != null)
                         Text(
                           plan.description!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF9CA3AF),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 2,
                         ),
@@ -162,9 +161,9 @@ class _PlanCard extends ConsumerWidget {
                 ),
                 Text(
                   '/${plan.frequency}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF9CA3AF),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const Spacer(),
@@ -222,11 +221,18 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFF6B7280)),
+          Icon(
+            icon,
+            size: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -335,7 +341,10 @@ class _SubscriptionCard extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Next delivery: ${DateFormat('MMM d, y').format(sub.nextDelivery!)}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
             const SizedBox(height: 10),
@@ -423,7 +432,7 @@ class _ActionBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? const Color(0xFF6B7280);
+    final c = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),

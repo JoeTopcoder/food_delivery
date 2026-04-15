@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/premium_providers.dart';
 import '../../models/restaurant_model.dart';
 import 'restaurant_detail_screen.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/context_extensions.dart';
 
 class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
@@ -18,13 +18,7 @@ class FavoritesScreen extends ConsumerWidget {
     final favoritesAsync = ref.watch(favoriteRestaurantsProvider(user.id));
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('My Favorites'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
-      ),
+      appBar: AppBar(title: Text(context.l10n.favorites)),
       body: favoritesAsync.when(
         data: (favorites) {
           if (favorites.isEmpty) {

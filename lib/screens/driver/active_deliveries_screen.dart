@@ -13,6 +13,7 @@ import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -103,8 +104,8 @@ class _ActiveDeliveriesScreenState
                 backgroundColor: const Color(0xFF0F1117),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                title: const Text(
-                  'Active Deliveries',
+                title: Text(
+                  context.l10n.activeDeliveries,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -289,9 +290,11 @@ class _ActiveDeliveriesScreenState
               ),
             ],
           ),
-          content: const Text(
+          content: Text(
             'This is a contactless delivery. You must verify the customer\'s 4-digit PIN before marking it as delivered.',
-            style: TextStyle(color: Color(0xFF9CA3AF)),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -322,14 +325,18 @@ class _ActiveDeliveriesScreenState
         ),
         content: Text(
           'Confirm delivery of Order #${delivery.id.substring(0, 8).toUpperCase()}?',
-          style: const TextStyle(color: Color(0xFF9CA3AF)),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           ElevatedButton(
@@ -449,9 +456,9 @@ class _DeliveryCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   '#${delivery.id.substring(0, 8).toUpperCase()}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -475,9 +482,9 @@ class _DeliveryCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '· ${delivery.items.length} item(s)',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -509,9 +516,9 @@ class _DeliveryCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       delivery.deliveryAddress!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -540,9 +547,9 @@ class _DeliveryCard extends StatelessWidget {
                       ),
                       child: Text(
                         '${item.itemName} ×${item.quantity}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF9CA3AF),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),

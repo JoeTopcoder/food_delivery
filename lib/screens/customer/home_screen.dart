@@ -486,7 +486,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     final allRestaurantsAsync = ref.watch(allRestaurantsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
@@ -495,8 +494,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         slivers: [
           SliverAppBar(
             floating: true,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
             elevation: 0,
             title: Row(
               children: [
@@ -965,7 +962,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         children: [
           Icon(Icons.restaurant_outlined, size: 64, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text(text, style: TextStyle(color: Colors.grey[600])),
+          Text(
+            text,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     ),
@@ -1047,7 +1049,7 @@ class _CompactRestaurantCard extends StatelessWidget {
       child: Container(
         width: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200, width: 0.5),
         ),
@@ -1389,7 +1391,7 @@ class _AdPopupDialog extends StatelessWidget {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -1488,10 +1490,10 @@ class _AdPopupDialog extends StatelessWidget {
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                         height: 1.2,
                       ),
                     ),
@@ -1505,9 +1507,9 @@ class _AdPopupDialog extends StatelessWidget {
                       child: Text(
                         ad.description!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF6B7280),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           height: 1.4,
                         ),
                         maxLines: 3,
@@ -1538,7 +1540,9 @@ class _AdPopupDialog extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[600],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),

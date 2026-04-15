@@ -9,6 +9,7 @@ import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class GroupOrderScreen extends ConsumerStatefulWidget {
   const GroupOrderScreen({super.key});
@@ -27,15 +28,11 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
     final groupOrdersAsync = ref.watch(userGroupOrdersProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Group Orders',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.groupOrders,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code),
@@ -96,16 +93,19 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Choose a restaurant after creating the group, then share the invite code with friends.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -146,7 +146,7 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -263,9 +263,9 @@ class _GroupOrderCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   fmt.format(group.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -278,7 +278,10 @@ class _GroupOrderCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${group.participants.length} participants',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
@@ -300,10 +303,10 @@ class _GroupOrderCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.content_copy,
                           size: 14,
-                          color: Color(0xFF6B7280),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Text(

@@ -450,9 +450,9 @@ class _RegionMapPickerState extends State<_RegionMapPicker> {
                   Text(
                     'Lat ${_pin.latitude.toStringAsFixed(5)}, '
                     'Lng ${_pin.longitude.toStringAsFixed(5)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),

@@ -101,7 +101,7 @@ class _PromoCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
@@ -446,9 +446,9 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                           _expiresAt == null
                               ? 'No expiry date'
                               : 'Expires: ${DateFormat('MMM d, y').format(_expiresAt!)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF4B5563),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const Spacer(),

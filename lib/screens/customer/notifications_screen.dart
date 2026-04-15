@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/context_extensions.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -70,15 +71,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final notifier = ref.read(notificationNotifierProvider.notifier);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.notifications,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         actions: [
           if (notifications.isNotEmpty)
@@ -182,7 +179,7 @@ class _NotifCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: notification.isRead
-                ? Colors.white
+                ? Theme.of(context).cardColor
                 : _color.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(14),
             border: notification.isRead
@@ -223,7 +220,7 @@ class _NotifCard extends StatelessWidget {
                                   ? FontWeight.w500
                                   : FontWeight.bold,
                               fontSize: 13,
-                              color: const Color(0xFF1F2937),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -241,9 +238,9 @@ class _NotifCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       notification.body,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF6B7280),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -251,9 +248,9 @@ class _NotifCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       timeStr,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -290,19 +287,22 @@ class _EmptyNotifications extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'All caught up!',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'No notifications yet.\nYour order updates will appear here.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

@@ -168,7 +168,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             Text(
               'Order #${widget.orderId.length >= 8 ? widget.orderId.substring(0, 8).toUpperCase() : widget.orderId.toUpperCase()}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -243,7 +246,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       onChanged: _onTextChanged,
                       decoration: InputDecoration(
                         hintText: 'Type a message...',
-                        hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF0F1117),
                         contentPadding: const EdgeInsets.symmetric(
@@ -324,10 +329,10 @@ class _TypingBar extends ConsumerWidget {
             children: [
               _DotAnimation(),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'typing...',
                 style: TextStyle(
-                  color: Color(0xFF6B7280),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                   fontStyle: FontStyle.italic,
                 ),
@@ -420,7 +425,10 @@ class _SystemBubble extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               msg.message,
-              style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -467,10 +475,10 @@ class _Bubble extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 2),
                 child: Text(
                   msg.senderRole.toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -492,7 +500,7 @@ class _Bubble extends StatelessWidget {
                     fontSize: 10,
                     color: isMine
                         ? Colors.white.withValues(alpha: 0.7)
-                        : const Color(0xFF6B7280),
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 if (isMine) ...[

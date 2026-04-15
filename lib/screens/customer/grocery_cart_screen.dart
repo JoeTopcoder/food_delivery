@@ -74,8 +74,6 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -103,7 +101,6 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
             ),
         ],
       ),
-      backgroundColor: Colors.white,
       body: cartItems.isEmpty
           ? Center(
               child: Column(
@@ -120,7 +117,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -443,7 +440,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                         margin: const EdgeInsets.all(16),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Colors.grey.shade200,
@@ -474,7 +471,10 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     : null,
                               ),
                             const SizedBox(height: 8),
-                            _PriceRow('Tax', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
+                            _PriceRow(
+                              'Tax',
+                              '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                            ),
                             Divider(color: Colors.grey[300], height: 16),
                             _PriceRow(
                               'Total',
@@ -496,7 +496,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                   right: 0,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       border: Border(
                         top: BorderSide(color: Colors.grey.shade200),
                       ),
@@ -565,7 +565,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
@@ -715,7 +715,9 @@ class _PriceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: isBold ? Colors.black : Colors.grey[600],
+              color: isBold
+                  ? Colors.black
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             overflow: TextOverflow.ellipsis,
           ),

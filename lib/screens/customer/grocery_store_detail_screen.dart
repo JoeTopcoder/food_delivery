@@ -29,7 +29,6 @@ class _GroceryStoreDetailScreenState
     final productsAsync = ref.watch(groceryProductsProvider(widget.store.id));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: productsAsync.when(
         data: (products) => _buildContent(products),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -79,8 +78,6 @@ class _GroceryStoreDetailScreenState
         SliverAppBar(
           expandedHeight: 200,
           pinned: true,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
           leading: IconButton(
             icon: const CircleAvatar(
               backgroundColor: Colors.white,
@@ -122,7 +119,10 @@ class _GroceryStoreDetailScreenState
                   const SizedBox(height: 4),
                   Text(
                     widget.store.address!,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -251,7 +251,9 @@ class _GroceryStoreDetailScreenState
                       const SizedBox(height: 12),
                       Text(
                         'No products found',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),

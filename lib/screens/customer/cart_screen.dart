@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -64,8 +65,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -78,7 +77,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
         ),
       ),
-      backgroundColor: Colors.white,
       body: cartItems.isEmpty
           ? Center(
               child: Column(
@@ -95,7 +93,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -361,7 +359,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         child: Column(
                           children: [
                             _PriceRow(
-                              'Subtotal',
+                              context.l10n.subtotal,
                               '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
@@ -382,7 +380,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     : null,
                               ),
                             const SizedBox(height: 8),
-                            _PriceRow('Tax', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
+                            _PriceRow(
+                              context.l10n.tax,
+                              '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                            ),
                             Divider(color: Colors.grey[300], height: 16),
                             _PriceRow(
                               'Total',
@@ -569,7 +570,9 @@ class _PriceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: isBold ? Colors.black : Colors.grey[600],
+              color: isBold
+                  ? Colors.black
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             overflow: TextOverflow.ellipsis,
           ),

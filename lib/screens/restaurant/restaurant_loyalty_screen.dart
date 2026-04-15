@@ -158,7 +158,6 @@ class RestaurantLoyaltyScreen extends ConsumerWidget {
         );
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FB),
           body: CustomScrollView(
             slivers: [
               // ── Header ─────────────────────────────────────────
@@ -303,7 +302,7 @@ class _LoyaltyBody extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
@@ -331,12 +330,12 @@ class _LoyaltyBody extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'Customer Retention',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F2937),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -398,7 +397,7 @@ class _LoyaltyBody extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
@@ -426,12 +425,12 @@ class _LoyaltyBody extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'Loyalty Tier Breakdown',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -535,7 +534,7 @@ class _LoyaltyBody extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
@@ -563,12 +562,12 @@ class _LoyaltyBody extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'Recent Activity',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -723,9 +722,9 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: Color(0xFF6B7280),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),

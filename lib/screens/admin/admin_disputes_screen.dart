@@ -137,14 +137,20 @@ class _AdminRefundCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               'Order: ${refund.orderId.substring(0, 8)}...',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text(refund.reason, style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 4),
             Text(
               DateFormat.yMMMd().add_jm().format(refund.createdAt),
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (isPending) ...[
               const SizedBox(height: 10),
@@ -295,7 +301,10 @@ class _AdminDisputeCard extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(
               'Order: ${dispute.orderId.substring(0, 8)}...',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (dispute.resolution != null) ...[
               const Divider(height: 16),

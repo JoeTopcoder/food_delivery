@@ -462,7 +462,10 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             const SizedBox(height: 4),
             Text(
               '${dateFormat.format(order.orderedAt)} at ${timeFormat.format(order.orderedAt)}',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
             ),
 
             // Countdown timer (active orders only)

@@ -154,7 +154,6 @@ class _RestaurantDashboardScreenState
         body: AppLoadingIndicator(message: 'Loading restaurant...'),
       ),
       error: (error, stack) => Scaffold(
-        backgroundColor: const Color(0xFFF8F9FB),
         body: AppErrorState(
           message: friendlyError(error),
           onRetry: () {
@@ -171,7 +170,6 @@ class _RestaurantDashboardScreenState
         final ordersAsync = ref.watch(ownerAllOrdersProvider(currentUserId));
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FB),
           body: RefreshIndicator(
             onRefresh: _refresh,
             color: AppTheme.primaryColor,
@@ -515,12 +513,12 @@ class _RestaurantDashboardScreenState
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: const Text(
+                    child: Text(
                       'Quick Actions',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -638,12 +636,12 @@ class _RestaurantDashboardScreenState
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        const Text(
+                        Text(
                           'Recent Orders',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1F2937),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const Spacer(),
@@ -678,7 +676,7 @@ class _RestaurantDashboardScreenState
                       error: (error, _) => Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: AppErrorState(
@@ -693,7 +691,7 @@ class _RestaurantDashboardScreenState
                           return Container(
                             padding: const EdgeInsets.all(32),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: const Column(
@@ -737,7 +735,6 @@ class _RestaurantDashboardScreenState
 
   Widget _buildSetupRestaurant(String ownerId) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -764,13 +761,13 @@ class _RestaurantDashboardScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Center(
+                Center(
                   child: Text(
                     'Create Your Restaurant',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1F2937),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -937,7 +934,7 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -954,18 +951,18 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: Color(0xFF9CA3AF),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -993,7 +990,7 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -1013,10 +1010,10 @@ class _QuickAction extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF4B5563),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -1068,7 +1065,7 @@ class _RecentOrderTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1088,10 +1085,10 @@ class _RecentOrderTile extends StatelessWidget {
               children: [
                 Text(
                   'Order #${order.id.toString().substring(0, 8)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: Color(0xFF1F2937),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1108,10 +1105,10 @@ class _RecentOrderTile extends StatelessWidget {
           ),
           Text(
             '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

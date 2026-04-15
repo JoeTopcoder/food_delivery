@@ -89,12 +89,9 @@ class _RestaurantDetailScreenState
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: _showAppBar
           ? AppBar(
               elevation: 0,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
                 onPressed: () => Navigator.pop(context),
@@ -282,7 +279,9 @@ class _RestaurantDetailScreenState
                                   widget.restaurant.address!,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey[600],
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -352,14 +351,18 @@ class _RestaurantDetailScreenState
                                   Icon(
                                     Icons.schedule_rounded,
                                     size: 14,
-                                    color: Colors.grey[600],
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.restaurant.formattedTodayHours!,
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.grey[600],
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -395,7 +398,9 @@ class _RestaurantDetailScreenState
                                     ' (${widget.restaurant.reviewCount})',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[600],
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -585,7 +590,7 @@ class _RestaurantDetailScreenState
             right: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -729,7 +734,9 @@ class _RestaurantDetailScreenState
                   const SizedBox(height: 4),
                   Text(
                     'Select any extras you\'d like',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ...availableSides.map(

@@ -139,9 +139,11 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                         Flexible(
                           child: Text(
                             widget.order.deliveryAddress!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF6B7280),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -216,7 +218,10 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                 isContactless
                     ? 'Ask the customer for their 4-digit PIN'
                     : 'Enter the 4-digit PIN from the customer',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
@@ -360,9 +365,12 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'You can now complete the delivery',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -416,17 +424,23 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                           ),
                         ],
                       ),
-                      content: const Text(
+                      content: Text(
                         'Only skip if the customer is unavailable. '
                         'This will be noted in the delivery record.',
-                        style: TextStyle(color: Color(0xFF9CA3AF)),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text(
+                          child: Text(
                             'Cancel',
-                            style: TextStyle(color: Color(0xFF6B7280)),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
                         ElevatedButton(
@@ -447,9 +461,12 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                     ),
                   );
                 },
-                child: const Text(
+                child: Text(
                   'Customer unavailable? Skip verification',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
           ],

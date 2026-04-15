@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/context_extensions.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -54,7 +55,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset Password'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(context.l10n.forgotPassword),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: _isSubmitted
@@ -126,7 +130,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: const Text('Back to Sign In'),
+            child: Text(context.l10n.signIn),
           ),
         ],
       ),

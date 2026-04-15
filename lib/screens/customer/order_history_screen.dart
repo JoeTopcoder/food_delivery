@@ -14,6 +14,7 @@ import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
   const OrderHistoryScreen({super.key});
@@ -30,15 +31,11 @@ class OrderHistoryScreen extends ConsumerWidget {
     ref.watch(customerOrderRealtimeProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Order History',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.orderHistory,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
       body: ordersAsync.when(
@@ -102,7 +99,7 @@ class _OrderCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -153,9 +150,9 @@ class _OrderCard extends ConsumerWidget {
                 const Spacer(),
                 Text(
                   '#${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF9CA3AF),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -171,10 +168,10 @@ class _OrderCard extends ConsumerWidget {
               children: [
                 Text(
                   '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -182,9 +179,9 @@ class _OrderCard extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
                     fmt.format(order.orderedAt),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF9CA3AF),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -211,9 +208,9 @@ class _OrderCard extends ConsumerWidget {
                       ),
                       child: Text(
                         '${item.itemName} ×${item.quantity}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF4B5563),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     );
@@ -231,9 +228,11 @@ class _OrderCard extends ConsumerWidget {
                               ),
                               child: Text(
                                 '+${order.items.length - 3} more',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF6B7280),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -262,9 +261,9 @@ class _OrderCard extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Text(
                     order.userRating!.toStringAsFixed(1),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -501,7 +500,7 @@ class _OrderCard extends ConsumerWidget {
                       child: OutlinedButton.icon(
                         onPressed: () => _confirmCancel(context, ref, order),
                         icon: const Icon(Icons.cancel_outlined, size: 15),
-                        label: const Text('Cancel'),
+                        label: Text(context.l10n.cancel),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
@@ -718,11 +717,11 @@ class _OrderCard extends ConsumerWidget {
               ),
             ),
             const Divider(height: 16),
-            _ReceiptRow('Subtotal', order.subtotal),
+            _ReceiptRow(context.l10n.subtotal, order.subtotal),
             if (order.deliveryFee > 0)
               _ReceiptRow('Delivery Fee', order.deliveryFee),
             if (order.taxAmount != null && order.taxAmount! > 0)
-              _ReceiptRow('Tax', order.taxAmount!),
+              _ReceiptRow(context.l10n.tax, order.taxAmount!),
             if (order.discount != null && order.discount! > 0)
               _ReceiptRow('Discount', -order.discount!),
             if (order.driverTip != null && order.driverTip! > 0)

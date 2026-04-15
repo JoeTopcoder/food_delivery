@@ -9,6 +9,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../utils/context_extensions.dart';
 
 class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
@@ -25,17 +26,19 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: context.isDark ? null : Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: context.colors.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'My Profile',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.myProfile,
+          style: TextStyle(
+            color: context.colors.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -47,7 +50,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.theme.cardColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -98,14 +101,22 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     currentUser?.email ?? '',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.colors.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     currentUser?.createdAt != null
-                        ? 'Member since ${DateFormat.yMMM().format(currentUser!.createdAt)}'
+                        ? context.l10n.memberSince(
+                            DateFormat.yMMM().format(currentUser!.createdAt),
+                          )
                         : '',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.colors.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   if (currentUserId != null) _buildOrderStats(currentUserId),
@@ -115,93 +126,93 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             const SizedBox(height: 24),
 
             // My Activity
-            _SectionTitle('My Activity'),
+            _SectionTitle(context.l10n.myActivity),
             _SettingsTile(
               icon: Icons.account_balance_wallet_outlined,
-              title: 'Digital Wallet',
-              subtitle: 'Add funds, view balance & cashback',
+              title: context.l10n.digitalWallet,
+              subtitle: context.l10n.digitalWalletSub,
               onTap: () => Navigator.of(context).pushNamed('/wallet'),
             ),
             _SettingsTile(
               icon: Icons.receipt_long_outlined,
-              title: 'Order History',
-              subtitle: 'View your past orders',
+              title: context.l10n.orderHistory,
+              subtitle: context.l10n.orderHistorySub,
               onTap: () => Navigator.of(context).pushNamed('/order-history'),
             ),
             _SettingsTile(
               icon: Icons.location_on_outlined,
-              title: 'Address Book',
-              subtitle: 'Manage saved addresses',
+              title: context.l10n.addressBook,
+              subtitle: context.l10n.addressBookSub,
               onTap: () => Navigator.of(context).pushNamed('/address-book'),
             ),
             _SettingsTile(
               icon: Icons.card_giftcard_outlined,
-              title: 'Loyalty Points',
-              subtitle: 'Earn & redeem points',
+              title: context.l10n.loyaltyPoints,
+              subtitle: context.l10n.loyaltyPointsSub,
               onTap: () => Navigator.of(context).pushNamed('/loyalty'),
             ),
             _SettingsTile(
               icon: Icons.favorite_outlined,
-              title: 'Favorites',
-              subtitle: 'Your favorite restaurants',
+              title: context.l10n.favorites,
+              subtitle: context.l10n.favoritesSub,
               onTap: () => Navigator.of(context).pushNamed('/favorites'),
             ),
             _SettingsTile(
               icon: Icons.people_outlined,
-              title: 'Refer a Friend',
-              subtitle: 'Earn rewards for referrals',
+              title: context.l10n.referFriend,
+              subtitle: context.l10n.referFriendSub,
               onTap: () => Navigator.of(context).pushNamed('/referrals'),
             ),
             _SettingsTile(
               icon: Icons.search_rounded,
-              title: 'Search & Discover',
-              subtitle: 'Find restaurants with filters',
+              title: context.l10n.searchDiscover,
+              subtitle: context.l10n.searchDiscoverSub,
               onTap: () => Navigator.of(context).pushNamed('/search'),
             ),
             _SettingsTile(
               icon: Icons.receipt_long_outlined,
-              title: 'Refunds & Disputes',
-              subtitle: 'Request refunds or report issues',
+              title: context.l10n.refundsDisputes,
+              subtitle: context.l10n.refundsDisputesSub,
               onTap: () => Navigator.of(context).pushNamed('/refund-dispute'),
             ),
             _SettingsTile(
               icon: Icons.group_outlined,
-              title: 'Group Orders',
-              subtitle: 'Order together with friends',
+              title: context.l10n.groupOrders,
+              subtitle: context.l10n.groupOrdersSub,
               onTap: () => Navigator.of(context).pushNamed('/group-orders'),
             ),
             _SettingsTile(
               icon: Icons.card_membership_outlined,
-              title: 'Subscriptions',
-              subtitle: 'Meal plans & subscriptions',
+              title: context.l10n.subscriptions,
+              subtitle: context.l10n.subscriptionsSub,
               onTap: () => Navigator.of(context).pushNamed('/subscriptions'),
             ),
             _SettingsTile(
               icon: Icons.feedback_outlined,
-              title: 'Rate & Feedback',
-              subtitle: 'Tell us how we\'re doing',
+              title: context.l10n.rateFeedback,
+              subtitle: context.l10n.rateFeedbackSub,
               onTap: () => Navigator.of(context).pushNamed('/feedback'),
             ),
             const SizedBox(height: 24),
 
             // Account Settings
-            _SectionTitle('Account Settings'),
+            _SectionTitle(context.l10n.accountSettings),
             _SettingsTile(
               icon: Icons.phone_outlined,
-              title: 'Phone Number',
-              subtitle: currentUser?.phone ?? 'Not set',
+              title: context.l10n.phoneNumber,
+              subtitle: currentUser?.phone ?? context.l10n.notSet,
               onTap: () => _showEditPhoneDialog(context, ref, currentUser),
             ),
             _SettingsTile(
               icon: Icons.location_on_outlined,
-              title: 'Address',
-              subtitle: currentUser?.address ?? 'Not set',
+              title: context.l10n.address,
+              subtitle: currentUser?.address ?? context.l10n.notSet,
               onTap: () => Navigator.of(context).pushNamed('/address-book'),
             ),
             _SettingsTile(
               icon: Icons.payment_outlined,
-              title: 'Payment Methods',
-              subtitle: 'Manage payment methods',
+              title: context.l10n.paymentMethods,
+              subtitle: context.l10n.paymentMethodsSub,
               onTap: () {
                 AppSnackbar.info(
                   context,
@@ -212,16 +223,16 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             const SizedBox(height: 24),
 
             // Preferences
-            _SectionTitle('Preferences'),
+            _SectionTitle(context.l10n.preferences),
             _SettingsTile(
               icon: Icons.notifications_outlined,
-              title: 'Notifications',
-              subtitle: 'Manage notification settings',
+              title: context.l10n.notifications,
+              subtitle: context.l10n.notificationsSub,
               onTap: () => Navigator.of(context).pushNamed('/notifications'),
             ),
             _SettingsTile(
               icon: Icons.language_outlined,
-              title: 'Language & Region',
+              title: context.l10n.languageRegion,
               subtitle: 'Language, theme & display',
               onTap: () => Navigator.of(context).pushNamed('/settings'),
             ),
@@ -348,7 +359,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -376,7 +387,10 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
             ),
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
+            child: Text(
+              context.l10n.save,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -446,7 +460,13 @@ class _ProfileStat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
@@ -500,7 +520,7 @@ class _SettingsTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -514,15 +534,18 @@ class _SettingsTile extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 15,
-            color: Color(0xFF1F2937),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         trailing: const Icon(Icons.arrow_forward, size: 20, color: Colors.grey),
         onTap: onTap,

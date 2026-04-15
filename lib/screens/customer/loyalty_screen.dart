@@ -6,6 +6,7 @@ import '../../config/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/loyalty_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/context_extensions.dart';
 
 class LoyaltyScreen extends ConsumerWidget {
   const LoyaltyScreen({super.key});
@@ -21,15 +22,11 @@ class LoyaltyScreen extends ConsumerWidget {
     final txAsync = ref.watch(loyaltyTransactionsProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Loyalty Points',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.loyaltyPoints,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
       body: accountAsync.when(
@@ -123,7 +120,7 @@ class LoyaltyScreen extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -211,7 +208,7 @@ class LoyaltyScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -252,12 +249,12 @@ class LoyaltyScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
 
                 // Transaction history
-                const Text(
+                Text(
                   'History',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -266,13 +263,17 @@ class LoyaltyScreen extends ConsumerWidget {
                       const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(child: Text(friendlyError(e))),
                   data: (txs) => txs.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Padding(
-                            padding: EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(24),
                             child: Text(
                               'No transactions yet.\nStart ordering to earn points!',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFF9CA3AF)),
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         )
@@ -283,7 +284,7 @@ class LoyaltyScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).cardColor,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
@@ -332,9 +333,11 @@ class LoyaltyScreen extends ConsumerWidget {
                                           DateFormat(
                                             'MMM d, y',
                                           ).format(tx.createdAt),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF9CA3AF),
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -453,7 +456,10 @@ class _HowRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
         ],

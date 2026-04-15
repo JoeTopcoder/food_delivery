@@ -75,10 +75,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
     final restaurantsAsync = ref.watch(allRestaurantsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
         title: const Text(
           'Search & Discover',
@@ -87,7 +84,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: AppTheme.primaryColor,
-          unselectedLabelColor: const Color(0xFF9CA3AF),
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
           indicatorColor: AppTheme.primaryColor,
           tabs: const [
             Tab(text: 'Restaurants'),
@@ -99,7 +96,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
         children: [
           // Search bar
           Container(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: TextField(
               controller: _searchCtrl,
@@ -140,7 +137,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
                   children: [
                     // Filter chips
                     Container(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,7 +513,7 @@ class _FilterChipButton extends StatelessWidget {
               size: 14,
               color: isSelected
                   ? AppTheme.primaryColor
-                  : const Color(0xFF6B7280),
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 4),
             Text(
@@ -526,7 +523,7 @@ class _FilterChipButton extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: isSelected
                     ? AppTheme.primaryColor
-                    : const Color(0xFF6B7280),
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             if (isSelected) ...[
@@ -560,7 +557,7 @@ class _RestaurantSearchCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -652,9 +649,11 @@ class _RestaurantSearchCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Text(
                           '${restaurant.estimatedDeliveryTime ?? 30} min',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF6B7280),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -844,7 +843,7 @@ class _MenuItemCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(

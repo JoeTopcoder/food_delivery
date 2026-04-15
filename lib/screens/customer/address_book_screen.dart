@@ -7,6 +7,7 @@ import '../../providers/address_provider.dart';
 import 'map_location_picker_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/context_extensions.dart';
 
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({super.key});
@@ -20,15 +21,11 @@ class AddressBookScreen extends ConsumerWidget {
     final addressAsync = ref.watch(userAddressesProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Address Book',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.addressBook,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(
@@ -106,7 +103,7 @@ class _AddressCard extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: address.isDefault
             ? Border.all(color: AppTheme.primaryColor, width: 1.5)
@@ -166,9 +163,9 @@ class _AddressCard extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   address.address,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -177,7 +174,10 @@ class _AddressCard extends ConsumerWidget {
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF9CA3AF)),
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             onSelected: (v) async {
               if (v == 'default') {
                 await service.setDefault(address.id, userId);
@@ -198,15 +198,18 @@ class _AddressCard extends ConsumerWidget {
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
               if (!address.isDefault)
                 const PopupMenuItem(
                   value: 'default',
                   child: Text('Set as Default'),
                 ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
-                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  context.l10n.delete,
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ],
           ),
@@ -324,7 +327,7 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
                       labelStyle: TextStyle(
                         color: selected
                             ? AppTheme.primaryColor
-                            : const Color(0xFF6B7280),
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: selected
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -517,7 +520,7 @@ class _AddressSheetState extends ConsumerState<_AddressSheet> {
                       labelStyle: TextStyle(
                         color: selected
                             ? AppTheme.primaryColor
-                            : const Color(0xFF6B7280),
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: selected
                             ? FontWeight.bold
                             : FontWeight.normal,

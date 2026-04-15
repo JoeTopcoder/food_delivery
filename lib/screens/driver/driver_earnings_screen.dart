@@ -208,7 +208,8 @@ class DriverEarningsScreen extends ConsumerWidget {
                               Expanded(
                                 child: _StatBox(
                                   label: 'Tips',
-                                  value: '${AppConstants.currencySymbol}${totalTips.toStringAsFixed(0)}',
+                                  value:
+                                      '${AppConstants.currencySymbol}${totalTips.toStringAsFixed(0)}',
                                   icon: Icons.volunteer_activism_rounded,
                                   color: const Color(0xFF22C55E),
                                 ),
@@ -278,9 +279,11 @@ class DriverEarningsScreen extends ConsumerWidget {
                                         cashFloat > 0
                                             ? 'Cash collected — hand over to admin'
                                             : 'No outstanding cash float',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 11,
-                                          color: Color(0xFF6B7280),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -427,12 +430,16 @@ class DriverEarningsScreen extends ConsumerWidget {
                           ],
 
                           if (deliveries.isEmpty)
-                            const Center(
+                            Center(
                               child: Padding(
-                                padding: EdgeInsets.all(32),
+                                padding: const EdgeInsets.all(32),
                                 child: Text(
                                   'No completed deliveries yet.',
-                                  style: TextStyle(color: Color(0xFF6B7280)),
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             )
@@ -539,7 +546,10 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -600,9 +610,9 @@ class _DeliveryRow extends StatelessWidget {
                 ),
                 Text(
                   fmt.format(delivery.orderedAt as DateTime),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF6B7280),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

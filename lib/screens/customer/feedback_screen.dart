@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/context_extensions.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -33,15 +34,11 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Rate & Feedback',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.rateFeedback,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -87,8 +84,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                     const SizedBox(height: 8),
                     Text(
                       _ratingLabel,
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),

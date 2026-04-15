@@ -162,8 +162,6 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
           'Pick Delivery Location',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
@@ -220,7 +218,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
@@ -245,10 +243,12 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _loadingAddress
-                            ? const Text(
+                            ? Text(
                                 'Finding address...',
                                 style: TextStyle(
-                                  color: Color(0xFF9CA3AF),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   fontSize: 14,
                                 ),
                               )

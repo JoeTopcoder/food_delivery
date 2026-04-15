@@ -8,6 +8,7 @@ import 'customer/profile_screen.dart';
 import '../providers/user_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/context_extensions.dart';
 import '../utils/friendly_error.dart';
 import '../widgets/restaurant_card.dart';
 import '../widgets/order_countdown_timer.dart';
@@ -42,34 +43,34 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           setState(() => _selectedIndex = index);
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: context.theme.cardColor,
         selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
+        unselectedItemColor: context.colors.onSurfaceVariant,
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: context.l10n.home,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.local_grocery_store_outlined),
-            activeIcon: Icon(Icons.local_grocery_store),
-            label: 'Grocery',
+            icon: const Icon(Icons.local_grocery_store_outlined),
+            activeIcon: const Icon(Icons.local_grocery_store),
+            label: context.l10n.grocery,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search_outlined),
-            activeIcon: Icon(Icons.search),
-            label: 'Search',
+            icon: const Icon(Icons.search_outlined),
+            activeIcon: const Icon(Icons.search),
+            label: context.l10n.search,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_outlined),
-            activeIcon: Icon(Icons.receipt),
-            label: 'Orders',
+            icon: const Icon(Icons.receipt_outlined),
+            activeIcon: const Icon(Icons.receipt),
+            label: context.l10n.orders,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_outlined),
-            activeIcon: Icon(Icons.account_circle),
-            label: 'Profile',
+            icon: const Icon(Icons.account_circle_outlined),
+            activeIcon: const Icon(Icons.account_circle),
+            label: context.l10n.profile,
           ),
         ],
       ),
@@ -109,7 +110,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
+        title: Text(context.l10n.search),
         centerTitle: true,
         elevation: 0,
       ),
@@ -127,7 +128,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: context.isDark
+                    ? context.colors.surfaceContainerHighest
+                    : Colors.grey[100],
               ),
             ),
           ),
@@ -192,7 +195,7 @@ class OrdersScreen extends ConsumerWidget {
     if (currentUserId == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Orders'),
+          title: Text(context.l10n.orders),
           centerTitle: true,
           elevation: 0,
         ),
@@ -207,7 +210,7 @@ class OrdersScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Orders'),
+        title: Text(context.l10n.orders),
         centerTitle: true,
         elevation: 0,
       ),
@@ -265,7 +268,8 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                      total:
+                          '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       orderedAt: order.orderedAt,
@@ -293,7 +297,8 @@ class OrdersScreen extends ConsumerWidget {
                       orderId: '#${order.id.substring(0, 8)}',
                       status: order.status.replaceAll('_', ' '),
                       date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total: '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                      total:
+                          '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                       itemCount: order.items.length,
                       statusColor: _getStatusColor(order.status),
                       onTap: () {
@@ -366,7 +371,7 @@ class _OrderCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(

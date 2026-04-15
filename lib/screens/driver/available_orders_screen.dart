@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/context_extensions.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -37,8 +38,8 @@ class AvailableOrdersScreen extends ConsumerWidget {
             backgroundColor: const Color(0xFF0F1117),
             foregroundColor: Colors.white,
             elevation: 0,
-            title: const Text(
-              'Available Orders',
+            title: Text(
+              context.l10n.availableOrders,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
@@ -198,8 +199,8 @@ class _OrderCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   'Ordered $_waitTime',
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
                   ),
                 ),
@@ -235,9 +236,9 @@ class _OrderCard extends StatelessWidget {
                       ),
                       child: Text(
                         '${item.itemName} x${item.quantity}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF9CA3AF),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -312,9 +313,9 @@ class _OrderCard extends StatelessWidget {
                       order.deliveryAddress!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF6B7280),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -339,9 +340,9 @@ class _OrderCard extends StatelessWidget {
                       order.notes!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF6B7280),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -466,7 +467,9 @@ class _OrderCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   '${item.itemName} x${item.quantity}',
-                  style: const TextStyle(color: Color(0xFF9CA3AF)),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               );
             }),
@@ -483,9 +486,9 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Note: ${order.notes}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontStyle: FontStyle.italic,
-                  color: Color(0xFF6B7280),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,
                 ),
               ),
@@ -528,9 +531,11 @@ class _OrderCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           ElevatedButton(

@@ -287,7 +287,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
@@ -328,7 +328,10 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Max: ${AppConstants.currencySymbol}${fmt.format(available < 0 ? 0 : available)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -457,7 +460,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -496,7 +499,10 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       p.adminNotes!,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
               ],

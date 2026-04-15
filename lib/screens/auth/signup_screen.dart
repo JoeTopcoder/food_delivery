@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
@@ -73,7 +74,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -138,8 +138,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Create Account',
+                      Text(
+                        context.l10n.createAccount,
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -185,7 +185,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     // Email
                     _buildField(
                       controller: _emailController,
-                      label: 'Email address',
+                      label: context.l10n.email,
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
@@ -203,7 +203,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     // Password
                     _buildField(
                       controller: _passwordController,
-                      label: 'Password',
+                      label: context.l10n.password,
                       icon: Icons.lock_outline,
                       obscureText: _obscurePassword,
                       suffixIcon: IconButton(
@@ -263,7 +263,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     _GradientButton(
                       onPressed: authState.isLoading ? null : _handleSignUp,
                       isLoading: authState.isLoading,
-                      label: 'Create Account',
+                      label: context.l10n.createAccount,
                     ),
                     const SizedBox(height: 20),
 
@@ -271,9 +271,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'Already have an account?',
-                          style: TextStyle(color: Color(0xFF6B7280)),
+                        Text(
+                          context.l10n.alreadyHaveAccount,
+                          style: TextStyle(
+                            color: context.colors.onSurfaceVariant,
+                          ),
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(
@@ -283,8 +285,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             foregroundColor: AppTheme.primaryColor,
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                           ),
-                          child: const Text(
-                            'Sign In',
+                          child: Text(
+                            context.l10n.signIn,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -315,14 +317,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+      style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        labelStyle: TextStyle(
+          color: context.colors.onSurfaceVariant,
+          fontSize: 14,
+        ),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+        fillColor: context.isDark
+            ? context.colors.surfaceContainerHighest
+            : const Color(0xFFF9FAFB),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,

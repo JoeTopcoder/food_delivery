@@ -150,7 +150,9 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}'),
+                                Text(
+                                  '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
+                                ),
                                 if (item.discount != null && item.discount! > 0)
                                   Text(
                                     '${item.discount!.toStringAsFixed(0)}% off',
@@ -752,7 +754,9 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(side.name),
-                  subtitle: Text('${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}'),
+                  subtitle: Text(
+                    '${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}',
+                  ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, size: 20, color: Colors.red),
                     onPressed: () => _deleteSide(side),

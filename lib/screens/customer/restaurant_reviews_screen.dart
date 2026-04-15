@@ -23,13 +23,7 @@ class RestaurantReviewsScreen extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text('$restaurantName Reviews'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: Text('$restaurantName Reviews'), elevation: 0),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: ref
             .read(restaurantServiceProvider)
@@ -161,7 +155,7 @@ class _ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -221,9 +215,9 @@ class _ReviewCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               reviewText,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF4B5563),
+                color: Theme.of(context).colorScheme.onSurface,
                 height: 1.4,
               ),
             ),
@@ -262,9 +256,9 @@ class _ReviewCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     responseText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF4B5563),
+                      color: Theme.of(context).colorScheme.onSurface,
                       height: 1.4,
                     ),
                   ),

@@ -123,7 +123,7 @@ class _RestaurantList extends StatelessWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
@@ -169,19 +169,23 @@ class _RestaurantList extends StatelessWidget {
                               children: [
                                 Text(
                                   restaurant.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
-                                    color: Color(0xFF1F2937),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   restaurant.cuisineType ?? 'Cuisine N/A',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF6B7280),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -288,7 +292,9 @@ class _RestaurantList extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                                 color: isOpen
                                     ? Colors.green[700]
-                                    : Colors.grey[600],
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -515,9 +521,12 @@ class _RestaurantList extends StatelessWidget {
                   setDialogState(() => commission = val);
                 },
               ),
-              const Text(
+              Text(
                 'Platform commission on each order',
-                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -591,14 +600,18 @@ class _RestaurantList extends StatelessWidget {
                 max: 200,
                 divisions: 40,
                 activeColor: const Color(0xFF0EA5E9),
-                label: '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(0)}',
+                label:
+                    '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(0)}',
                 onChanged: (val) {
                   setDialogState(() => serviceFee = val);
                 },
               ),
-              const Text(
+              Text(
                 'Fee charged to customer for pickup orders',
-                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -698,7 +711,10 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -731,15 +747,18 @@ class _RestaurantStat extends StatelessWidget {
           children: [
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

@@ -6,6 +6,7 @@ import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
+import '../../utils/context_extensions.dart';
 
 const _filterCategories = [
   {'emoji': '\u{1F4AB}', 'name': 'All'},
@@ -50,18 +51,14 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
         : ref.watch(restaurantSearchProvider(_searchQuery));
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'Restaurants',
-          style: TextStyle(
+        title: Text(
+          context.l10n.restaurants,
+          style: const TextStyle(
             fontWeight: FontWeight.w700,
             color: AppTheme.textPrimary,
           ),
         ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
       body: Column(
@@ -153,7 +150,11 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'No restaurants found',
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),

@@ -577,9 +577,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'Connecting...',
-            style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
           ),
         ],
       );
@@ -632,9 +635,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
           style: TextStyle(color: Color(0xFF22C55E), fontSize: 15),
         );
       case CallStatus.ended:
-        return const Text(
+        return Text(
           'Call ended',
-          style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 15,
+          ),
         );
       case CallStatus.declined:
         return const Text(
@@ -721,9 +727,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
           ],
         );
       default:
-        return const Text(
+        return Text(
           'Call Ended',
-          style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 16,
+          ),
         );
     }
   }
@@ -766,7 +775,10 @@ class _CallButton extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
       ],
     );

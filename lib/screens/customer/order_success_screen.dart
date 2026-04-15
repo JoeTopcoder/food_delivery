@@ -1,6 +1,7 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/context_extensions.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
   final String orderId;
@@ -49,7 +50,6 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
         if (!didPop) _goHome();
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
         body: Stack(
           children: [
             // ── Main content ──
@@ -73,21 +73,21 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Order Placed!',
+                    Text(
+                      context.l10n.orderPlaced,
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Order #${widget.receiptNumber ?? widget.orderId.substring(0, 8).toUpperCase()}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -97,9 +97,9 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                           ? 'Your pickup order has been placed!\nThe restaurant will provide a pickup code when ready.'
                           : 'Your order has been placed successfully.\nSit back and relax while we prepare it!',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
-                        color: Color(0xFF6B7280),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.5,
                       ),
                     ),
@@ -224,7 +224,9 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                       child: OutlinedButton(
                         onPressed: _goHome,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6B7280),
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
