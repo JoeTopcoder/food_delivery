@@ -38,8 +38,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
   bool _isSpeaker = false;
 
   // ── Stage indicators ───────────────────────────────────────────────────────
+  // ignore: unused_field
   bool _micReady = false;
+  // ignore: unused_field
   bool _engineReady = false;
+  // ignore: unused_field
   bool _tokenReady = false;
   bool _channelReady = false;
   bool _audioReady = false;
