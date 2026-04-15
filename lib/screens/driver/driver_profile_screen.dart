@@ -89,6 +89,12 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                   ),
                 ),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.translate_rounded),
+                    tooltip: 'App Settings',
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/settings'),
+                  ),
                   Container(
                     margin: const EdgeInsets.only(right: 12),
                     child: Material(

@@ -115,6 +115,25 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               borderRadius: BorderRadius.circular(12),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/settings'),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: Icon(
+                                    Icons.translate_rounded,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Material(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
                                 onTap: () => ref
                                     .read(authNotifierProvider.notifier)
                                     .signOut(),

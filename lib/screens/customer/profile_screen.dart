@@ -222,8 +222,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             _SettingsTile(
               icon: Icons.language_outlined,
               title: 'Language & Region',
-              subtitle: 'English (US)',
-              onTap: () => _showLanguageDialog(context),
+              subtitle: 'Language, theme & display',
+              onTap: () => Navigator.of(context).pushNamed('/settings'),
             ),
             const SizedBox(height: 24),
 
@@ -325,56 +325,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         AppSnackbar.error(context, friendlyError(e));
       }
     }
-  }
-
-  void _showLanguageDialog(BuildContext context) {
-    String selected = 'English (US)';
-    final languages = [
-      'English (US)',
-      'Patois (Cayman)',
-      'Español',
-      'Français',
-    ];
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Language & Region'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: languages
-                .map(
-                  (lang) => RadioListTile<String>(
-                    title: Text(lang),
-                    value: lang,
-                    // ignore: deprecated_member_use
-                    groupValue: selected,
-                    activeColor: AppTheme.primaryColor,
-                    // ignore: deprecated_member_use
-                    onChanged: (v) => setDialogState(() => selected = v!),
-                  ),
-                )
-                .toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                AppSnackbar.success(context, 'Language set to $selected');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-              ),
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showEditPhoneDialog(

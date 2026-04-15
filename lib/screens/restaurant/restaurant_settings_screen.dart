@@ -293,6 +293,11 @@ class _RestaurantSettingsScreenState
             title: const Text('Restaurant Settings'),
             actions: [
               IconButton(
+                icon: const Icon(Icons.translate_rounded),
+                tooltip: 'App Settings',
+                onPressed: () => Navigator.of(context).pushNamed('/settings'),
+              ),
+              IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: 'Sign Out',
                 onPressed: _signOut,

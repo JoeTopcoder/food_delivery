@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'l10n/app_localizations.dart';
 import 'config/supabase_config.dart';
 import 'services/app_config_service.dart';
 import 'models/restaurant_model.dart';
 import 'models/order_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/theme_provider.dart';
+import 'providers/locale_provider.dart';
 import 'services/notification_service.dart';
 import 'config/app_constants.dart';
 import 'screens/auth/signin_screen.dart';
@@ -74,6 +77,7 @@ import 'screens/restaurant/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
+import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 // import 'utils/app_logger.dart';
@@ -183,6 +187,8 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
     // Initialize notifications
     ref.watch(initNotificationProvider);
 
@@ -194,7 +200,10 @@ class _MyAppState extends ConsumerState<MyApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
+        themeMode: themeMode,
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: authState.isAuthenticated
             ? _getHomeForRole(authState.user?.role)
             : const SignInScreen(),
@@ -487,6 +496,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-loyalty':
               return MaterialPageRoute(
                 builder: (context) => const AdminLoyaltyScreen(),
+              );
+            case '/settings':
+              return MaterialPageRoute(
+                builder: (context) => const AppSettingsScreen(),
               );
             default:
               return MaterialPageRoute(
