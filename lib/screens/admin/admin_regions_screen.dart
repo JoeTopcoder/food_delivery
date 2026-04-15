@@ -419,7 +419,7 @@ class _RegionMapPickerState extends State<_RegionMapPicker> {
                     controller: _nameCtrl,
                     decoration: InputDecoration(
                       labelText: 'Region Name',
-                      hintText: 'e.g. Kingston Metro',
+                      hintText: 'e.g. George Town',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),

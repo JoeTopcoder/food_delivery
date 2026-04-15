@@ -41,9 +41,9 @@ class MapLocationPickerScreen extends StatefulWidget {
 class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
   final MapController _mapController = MapController();
 
-  // Default to Kingston, Jamaica
-  static const _defaultLat = 18.1096;
-  static const _defaultLng = -77.2975;
+  // Default to George Town, Grand Cayman
+  static const _defaultLat = 19.2869;
+  static const _defaultLng = -81.3812;
 
   late LatLng _selectedPosition;
   String _address = 'Move the pin to select address';

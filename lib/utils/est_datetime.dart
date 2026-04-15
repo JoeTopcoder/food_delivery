@@ -1,5 +1,5 @@
 /// Eastern Standard Time (UTC-5) helpers.
-/// Jamaica does not observe daylight saving, so EST is used year-round.
+/// Cayman Islands does not observe daylight saving, so EST is used year-round.
 class EstDateTime {
   EstDateTime._();
 

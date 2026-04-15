@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/driver_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class DriverProfileScreen extends ConsumerStatefulWidget {
   const DriverProfileScreen({super.key});
@@ -334,7 +335,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                           _StatTile(
                             label: 'Total Earnings',
                             value:
-                                '\$${(driver?.totalEarnings ?? 0).toStringAsFixed(0)}',
+                                '${AppConstants.currencySymbol}${(driver?.totalEarnings ?? 0).toStringAsFixed(0)}',
                             icon: Icons.payments_rounded,
                             color: const Color(0xFF6366F1),
                           ),

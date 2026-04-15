@@ -6,6 +6,7 @@ import '../../models/refund_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class RefundDisputeScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -195,7 +196,7 @@ class _RefundCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '\$${refund.amount.toStringAsFixed(0)}',
+              '${AppConstants.currencySymbol}${refund.amount.toStringAsFixed(0)}',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),

@@ -13,6 +13,7 @@ import '../../widgets/rate_driver_sheet.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
   const OrderHistoryScreen({super.key});
@@ -169,7 +170,7 @@ class _OrderCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$${order.totalAmount.toStringAsFixed(0)}',
+                  '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

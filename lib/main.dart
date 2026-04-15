@@ -55,7 +55,7 @@ import 'screens/admin/admin_surge_screen.dart';
 import 'screens/admin/admin_banners_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_lookup_screen.dart';
-import 'screens/admin/admin_contract_screen.dart';
+import 'screens/admin/admin_contract_screen_v2.dart';
 import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
 import 'widgets/incoming_call_listener.dart';
@@ -70,6 +70,10 @@ import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/restaurant/grocery_management_screen.dart';
+import 'screens/restaurant/restaurant_loyalty_screen.dart';
+import 'screens/restaurant/restaurant_offer_screen.dart';
+import 'screens/restaurant/restaurant_contract_screen.dart';
+import 'screens/admin/admin_loyalty_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 // import 'utils/app_logger.dart';
@@ -467,6 +471,22 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/wallet':
               return MaterialPageRoute(
                 builder: (context) => const WalletScreen(),
+              );
+            case '/restaurant-loyalty':
+              return MaterialPageRoute(
+                builder: (context) => const RestaurantLoyaltyScreen(),
+              );
+            case '/restaurant-offer':
+              return MaterialPageRoute(
+                builder: (context) => const RestaurantOfferScreen(),
+              );
+            case '/restaurant-contract':
+              return MaterialPageRoute(
+                builder: (context) => const RestaurantContractScreen(),
+              );
+            case '/admin-loyalty':
+              return MaterialPageRoute(
+                builder: (context) => const AdminLoyaltyScreen(),
               );
             default:
               return MaterialPageRoute(

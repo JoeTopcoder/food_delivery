@@ -8,6 +8,7 @@ import '../config/supabase_config.dart';
 import '../screens/customer/ncb_payment_screen.dart';
 import '../utils/friendly_error.dart';
 import '../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 /// Bottom sheet that lets a customer rate a driver (1-5 stars)
 /// and optionally tip them via card payment.
@@ -143,7 +144,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: ChoiceChip(
                       label: Text(
-                        '\$${amount.toStringAsFixed(0)}',
+                        '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,

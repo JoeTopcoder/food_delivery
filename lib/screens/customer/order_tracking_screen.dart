@@ -14,6 +14,7 @@ import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -410,9 +411,9 @@ class _LiveMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final driverLat =
-        (driverLocation?['latitude'] as num?)?.toDouble() ?? 23.8103;
+        (driverLocation?['latitude'] as num?)?.toDouble() ?? 19.2869;
     final driverLng =
-        (driverLocation?['longitude'] as num?)?.toDouble() ?? 90.4125;
+        (driverLocation?['longitude'] as num?)?.toDouble() ?? -81.3812;
     final driverPos = LatLng(driverLat, driverLng);
 
     final markers = <Marker>[
@@ -714,7 +715,7 @@ class _OrderDetailsCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '\$${item.subtotal.toStringAsFixed(0)}',
+                    '${AppConstants.currencySymbol}${item.subtotal.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -725,14 +726,14 @@ class _OrderDetailsCard extends StatelessWidget {
             ),
           ),
           Divider(color: Colors.grey[200], height: 20),
-          _Row('Subtotal', '\$${order.subtotal.toStringAsFixed(0)}'),
-          _Row('Delivery Fee', '\$${order.deliveryFee.toStringAsFixed(0)}'),
+          _Row('Subtotal', '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(0)}'),
+          _Row('Delivery Fee', '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}'),
           if (order.taxAmount != null)
-            _Row('Tax', '\$${order.taxAmount!.toStringAsFixed(0)}'),
+            _Row('Tax', '${AppConstants.currencySymbol}${order.taxAmount!.toStringAsFixed(0)}'),
           const SizedBox(height: 4),
           _Row(
             'Total',
-            '\$${order.totalAmount.toStringAsFixed(0)}',
+            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}',
             bold: true,
           ),
         ],

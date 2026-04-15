@@ -6,6 +6,7 @@ import '../../models/promo_model.dart';
 import '../../providers/promo_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class AdminPromosScreen extends ConsumerWidget {
   const AdminPromosScreen({super.key});
@@ -207,7 +208,7 @@ class _PromoCard extends ConsumerWidget {
               _InfoPill(
                 label: promo.discountType == 'percentage'
                     ? '${promo.discountValue.toStringAsFixed(0)}% off'
-                    : '\$${promo.discountValue.toStringAsFixed(0)} off',
+                    : '${AppConstants.currencySymbol}${promo.discountValue.toStringAsFixed(0)} off',
                 icon: Icons.discount_rounded,
                 color: const Color(0xFF6366F1),
               ),

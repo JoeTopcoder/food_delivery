@@ -7,6 +7,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/search_provider.dart';
 import 'restaurant_detail_screen.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class SmartSearchScreen extends ConsumerStatefulWidget {
   const SmartSearchScreen({super.key});
@@ -436,8 +437,8 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
                     divisions: 10,
                     activeColor: AppTheme.primaryColor,
                     labels: RangeLabels(
-                      '\$${_priceRange.start.toInt()}',
-                      '\$${_priceRange.end.toInt()}',
+                      '${AppConstants.currencySymbol}${_priceRange.start.toInt()}',
+                      '${AppConstants.currencySymbol}${_priceRange.end.toInt()}',
                     ),
                     onChanged: (v) => setSheetState(() {
                       _priceRange = v;
@@ -658,7 +659,7 @@ class _RestaurantSearchCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          '\$${restaurant.deliveryFee ?? 0}',
+                          '${AppConstants.currencySymbol}${restaurant.deliveryFee ?? 0}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.primaryColor,
@@ -905,7 +906,7 @@ class _MenuItemCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '\$${price.toStringAsFixed(0)}',
+                        '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -915,7 +916,7 @@ class _MenuItemCard extends StatelessWidget {
                       if (originalPrice != null) ...[
                         const SizedBox(width: 6),
                         Text(
-                          '\$${originalPrice!.toStringAsFixed(0)}',
+                          '${AppConstants.currencySymbol}${originalPrice!.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[400],

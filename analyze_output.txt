@@ -1,0 +1,76 @@
+Analyzing food_driver...                                        
+
+warning - The declaration '_$OptionGroupFromJson' isn't referenced - lib\models\menu_model.g.dart:28:13 - unused_element
+warning - The value of the local variable 'link' isn't used - lib\providers\grocery_provider.dart:20:9 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\grocery_provider.dart:57:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\grocery_provider.dart:103:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:39:9 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:46:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:62:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:97:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:103:13 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:109:11 - unused_local_variable
+warning - The value of the local variable 'link' isn't used - lib\providers\user_provider.dart:117:13 - unused_local_variable
+   info - Statements in an if should be enclosed in a block - lib\screens\admin\admin_ads_screen.dart:31:9 - curly_braces_in_flow_control_structures
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\screens\admin\admin_ads_screen.dart:388:15 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\screens\admin\admin_dashboard_screen.dart:800:35 - unnecessary_underscores
+warning - Unused import: '../../utils/app_theme.dart' - lib\screens\admin\admin_loyalty_screen.dart:5:8 - unused_import
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\admin\admin_regions_screen.dart:198:21 - deprecated_member_use
+   info - The variable name '_InfoChip' isn't a lowerCamelCase identifier - lib\screens\admin\admin_regions_screen.dart:240:10 - non_constant_identifier_names
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_category_products_screen.dart:198:44 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_checkout_screen.dart:293:40 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_checkout_screen.dart:442:40 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_checkout_screen.dart:630:32 - unnecessary_underscores
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\screens\customer\grocery_checkout_screen.dart:1153:9 - prefer_conditional_assignment
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_screen.dart:119:45 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_screen.dart:178:28 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_screen.dart:413:46 - unnecessary_underscores
+warning - The value of the local variable 'cartCount' isn't used - lib\screens\customer\grocery_store_detail_screen.dart:70:11 - unused_local_variable
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_store_detail_screen.dart:99:38 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_store_detail_screen.dart:199:39 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\customer\grocery_store_detail_screen.dart:337:44 - unnecessary_underscores
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:179:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:182:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:187:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:192:13 - curly_braces_in_flow_control_structures
+warning - The receiver can't be null, so the null-aware operator '?.' is unnecessary - lib\screens\customer\home_screen.dart:237:60 - invalid_null_aware_operator
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:293:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:296:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\home_screen.dart:299:11 - curly_braces_in_flow_control_structures
+   info - Unnecessary use of multiple underscores - lib\screens\customer\home_screen.dart:1069:40 - unnecessary_underscores
+   info - Statements in an if should be enclosed in a block - lib\screens\customer\wallet_screen.dart:71:7 - curly_braces_in_flow_control_structures
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\screens\restaurant\grocery_management_screen.dart:1034:25 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\screens\restaurant\grocery_management_screen.dart:1071:19 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\restaurant\restaurant_dashboard_screen.dart:324:43 - deprecated_member_use
+warning - The value of the local variable 'totalRevenue' isn't used - lib\screens\restaurant\restaurant_dashboard_screen.dart:362:33 - unused_local_variable
+warning - Unused import: '../../utils/app_theme.dart' - lib\screens\restaurant\restaurant_loyalty_screen.dart:5:8 - unused_import
+warning - Unused import: '../../models/restaurant_model.dart' - lib\screens\restaurant\restaurant_order_management_screen.dart:7:8 - unused_import
+warning - The value of the field '_statusLabels' isn't used - lib\screens\restaurant\restaurant_order_management_screen.dart:46:16 - unused_field
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\admin_service.dart:316:9 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\admin_service.dart:317:9 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\behavior_tracking_service.dart:80:7 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\behavior_tracking_service.dart:104:7 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\behavior_tracking_service.dart:105:7 - use_null_aware_elements
+   info - Statements in an if should be enclosed in a block - lib\services\grocery_service.dart:200:11 - curly_braces_in_flow_control_structures
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\grocery_service.dart:386:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\grocery_service.dart:387:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\grocery_service.dart:388:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\grocery_service.dart:391:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\grocery_service.dart:393:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\order_service.dart:110:13 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:99:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:100:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:101:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:160:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:161:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\payment_service.dart:162:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\recommendation_service.dart:52:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\recommendation_service.dart:53:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\recommendation_service.dart:144:11 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\recommendation_service.dart:145:11 - use_null_aware_elements
+   info - Unnecessary use of multiple underscores - lib\widgets\restaurant_card.dart:49:44 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\widgets\smart_home_widgets.dart:85:22 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\widgets\smart_home_widgets.dart:85:26 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\widgets\smart_home_widgets.dart:87:39 - unnecessary_underscores
+
+72 issues found. (ran in 75.4s)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../config/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/loyalty_provider.dart';
 import '../../utils/friendly_error.dart';
@@ -38,7 +39,7 @@ class LoyaltyScreen extends ConsumerWidget {
           final points = account?.points ?? 0;
           final totalEarned = account?.totalEarned ?? 0;
           final totalRedeemed = account?.totalRedeemed ?? 0;
-          final cashValue = points * 0.10; // \$0.10 per point
+          final cashValue = points * AppConstants.loyaltyPointValue;
           final tier = account?.tier ?? 'bronze';
           final tierMultiplier = account?.tierMultiplier ?? 1.0;
           final pointsToNext = account?.pointsToNextTier ?? 500;

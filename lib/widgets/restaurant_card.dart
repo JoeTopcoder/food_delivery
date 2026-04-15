@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
@@ -190,7 +191,7 @@ class RestaurantCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '\$${restaurant.deliveryFee ?? 0}',
+                        '${AppConstants.currencySymbol}${restaurant.deliveryFee ?? 0}',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],

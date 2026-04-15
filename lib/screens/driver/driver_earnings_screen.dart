@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class DriverEarningsScreen extends ConsumerWidget {
   const DriverEarningsScreen({super.key});
@@ -155,7 +156,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '\$${totalEarnings.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${totalEarnings.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 36,
@@ -168,13 +169,13 @@ class DriverEarningsScreen extends ConsumerWidget {
                                     _EarnChip(
                                       label: 'This Week',
                                       value:
-                                          '\$${weekEarnings.toStringAsFixed(0)}',
+                                          '${AppConstants.currencySymbol}${weekEarnings.toStringAsFixed(0)}',
                                     ),
                                     const SizedBox(width: 10),
                                     _EarnChip(
                                       label: 'This Month',
                                       value:
-                                          '\$${monthEarnings.toStringAsFixed(0)}',
+                                          '${AppConstants.currencySymbol}${monthEarnings.toStringAsFixed(0)}',
                                     ),
                                   ],
                                 ),
@@ -207,7 +208,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                               Expanded(
                                 child: _StatBox(
                                   label: 'Tips',
-                                  value: '\$${totalTips.toStringAsFixed(0)}',
+                                  value: '${AppConstants.currencySymbol}${totalTips.toStringAsFixed(0)}',
                                   icon: Icons.volunteer_activism_rounded,
                                   color: const Color(0xFF22C55E),
                                 ),
@@ -286,7 +287,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  '\$${cashFloat.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${cashFloat.toStringAsFixed(0)}',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
@@ -611,7 +612,7 @@ class _DeliveryRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\$${earning.toStringAsFixed(0)}',
+                '${AppConstants.currencySymbol}${earning.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

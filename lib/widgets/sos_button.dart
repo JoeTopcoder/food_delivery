@@ -98,10 +98,10 @@ class _SosSheetContent extends StatelessWidget {
           const SizedBox(height: 10),
           _SosOption(
             icon: Icons.local_police_rounded,
-            label: 'Call Police (119)',
-            subtitle: 'Jamaica Constabulary Force',
+            label: 'Call Police (911)',
+            subtitle: 'Royal Cayman Islands Police Service',
             color: const Color(0xFF1E40AF),
-            onTap: () => _makeCall('119'),
+            onTap: () => _makeCall('911'),
           ),
           const SizedBox(height: 10),
           _SosOption(

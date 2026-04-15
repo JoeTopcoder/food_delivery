@@ -326,7 +326,7 @@ class _DriverList extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      '\$${driver.cashFloat!.toStringAsFixed(0)}',
+                                      '${AppConstants.currencySymbol}${driver.cashFloat!.toStringAsFixed(0)}',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -630,7 +630,7 @@ class _DriverList extends StatelessWidget {
                     if (context.mounted) {
                       AppSnackbar.success(
                         context,
-                        '\$${collectAmt.toStringAsFixed(0)} float collected successfully',
+                        '${AppConstants.currencySymbol}${collectAmt.toStringAsFixed(0)} float collected successfully',
                       );
                     }
                   } catch (e) {

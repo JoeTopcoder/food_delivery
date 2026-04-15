@@ -24,7 +24,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
   final _cardNumberCtrl = TextEditingController();
   final _expiryCtrl = TextEditingController();
   final _cvvCtrl = TextEditingController();
-  String _selectedCurrency = 'JMD';
+  String _selectedCurrency = 'USD';
   bool _isSaving = false;
 
   // Live preview state
@@ -378,8 +378,8 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                     ),
                     items: const [
                       DropdownMenuItem(
-                        value: 'JMD',
-                        child: Text('JMD - Jamaican Dollar'),
+                        value: 'KYD',
+                        child: Text('KYD - Cayman Islands Dollar'),
                       ),
                       DropdownMenuItem(
                         value: 'USD',

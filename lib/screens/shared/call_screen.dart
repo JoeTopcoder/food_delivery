@@ -49,6 +49,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
   String? _token;
   bool _isJoining = false;
   int _joinRetryCount = 0;
+  Timer? _remoteLeftTimer; // grace period before ending call on user leave
 
   // ── Animation ──────────────────────────────────────────────────────────────
   late AnimationController _pulseCtrl;
@@ -82,6 +83,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
   void dispose() {
     _durationTimer?.cancel();
     _ringTimer?.cancel();
+    _remoteLeftTimer?.cancel();
     _pulseCtrl.dispose();
     _agora.clearCallbacks();
     _agora.leaveChannel();
@@ -109,6 +111,24 @@ class _CallScreenState extends ConsumerState<CallScreen>
     setState(() => _micReady = true);
 
     // 2. Wire up engine callbacks
+    _wireCallbacks();
+
+    // 3. Initialize engine (idempotent)
+    final ok = await _agora.init();
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _stageError = 'Engine failed to start');
+      return;
+    }
+
+    // 4. Caller joins immediately; receiver joins after accepting
+    if (widget.isCaller || _callStatus == CallStatus.accepted) {
+      await _joinChannel();
+    }
+  }
+
+  /// Wire Agora callbacks. Extracted so we can re-wire after forceReinit.
+  void _wireCallbacks() {
     _agora.onEngineReady = () {
       if (mounted) setState(() => _engineReady = true);
     };
@@ -125,13 +145,27 @@ class _CallScreenState extends ConsumerState<CallScreen>
     };
     _agora.onUserJoined = (_) {
       if (mounted) setState(() => _audioReady = true);
+      // Remote user reconnected — cancel any pending end-call timer
+      _remoteLeftTimer?.cancel();
+      _remoteLeftTimer = null;
     };
     _agora.onRemoteAudioActive = () {
       if (mounted) setState(() => _audioReady = true);
+      _remoteLeftTimer?.cancel();
+      _remoteLeftTimer = null;
     };
     _agora.onUserLeft = (_) {
       if (mounted) setState(() => _audioReady = false);
-      if (mounted && _callStatus != CallStatus.ended) _endCall();
+      // Don't end immediately — give 10s for the remote party to reconnect
+      // (covers brief network hiccups, app backgrounding, etc.)
+      if (mounted && _callStatus == CallStatus.accepted) {
+        _remoteLeftTimer?.cancel();
+        _remoteLeftTimer = Timer(const Duration(seconds: 10), () {
+          if (mounted && _callStatus != CallStatus.ended) _endCall();
+        });
+      } else if (mounted && _callStatus == CallStatus.ringing) {
+        // During ringing, the other party hasn't connected yet — ignore
+      }
     };
     _agora.onConnectionFailed = () {
       if (!mounted) return;
@@ -146,19 +180,6 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _agora.onError = (err) {
       if (mounted) setState(() => _stageError = err);
     };
-
-    // 3. Initialize engine (idempotent)
-    final ok = await _agora.init();
-    if (!mounted) return;
-    if (!ok) {
-      setState(() => _stageError = 'Engine failed to start');
-      return;
-    }
-
-    // 4. Caller joins immediately; receiver joins after accepting
-    if (widget.isCaller || _callStatus == CallStatus.accepted) {
-      await _joinChannel();
-    }
   }
 
   // ── Fetch Agora token ──────────────────────────────────────────────────────
@@ -250,6 +271,25 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     debugPrint('CallScreen: retry #$_joinRetryCount — re-joining...');
+
+    // If the engine has accumulated failures, force a full reinit
+    if (_agora.needsReinit) {
+      debugPrint('CallScreen: engine corrupted — forcing reinit');
+      if (mounted) setState(() => _stageError = 'Reinitializing audio...');
+      final ok = await _agora.forceReinit();
+      if (!mounted) return;
+      if (!ok) {
+        setState(() => _stageError = 'Engine reinit failed');
+        return;
+      }
+      // Re-wire callbacks after reinit since forceReinit clears them
+      _wireCallbacks();
+      setState(() {
+        _engineReady = true;
+        _stageError = null;
+      });
+    }
+
     if (mounted) {
       setState(() {
         _stageError = 'Retrying (#$_joinRetryCount)...';
@@ -310,6 +350,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Future<void> _endCall() async {
     if (_callStatus == CallStatus.ended) return;
     _durationTimer?.cancel();
+    _remoteLeftTimer?.cancel();
+    _remoteLeftTimer = null;
     _stopRinging();
     NotificationService().cancelCallNotification();
     if (mounted) setState(() => _callStatus = CallStatus.ended);

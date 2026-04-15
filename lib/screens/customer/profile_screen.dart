@@ -8,6 +8,7 @@ import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
@@ -330,7 +331,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     String selected = 'English (US)';
     final languages = [
       'English (US)',
-      'Patois (Jamaica)',
+      'Patois (Cayman)',
       'Español',
       'Français',
     ];
@@ -450,7 +451,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             Container(width: 1, height: 30, color: Colors.grey[300]),
             _ProfileStat(
               label: 'Spent',
-              value: '\$${totalSpent.toStringAsFixed(0)}',
+              value:
+                  '${AppConstants.currencySymbol}${totalSpent.toStringAsFixed(0)}',
             ),
             Container(width: 1, height: 30, color: Colors.grey[300]),
             _ProfileStat(label: 'Member', value: 'Active'),

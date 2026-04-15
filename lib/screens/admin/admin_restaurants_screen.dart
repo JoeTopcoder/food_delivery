@@ -6,6 +6,7 @@ import '../../models/restaurant_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class AdminRestaurantsScreen extends ConsumerStatefulWidget {
   const AdminRestaurantsScreen({super.key});
@@ -242,7 +243,7 @@ class _RestaurantList extends StatelessWidget {
                             icon: Icons.delivery_dining_rounded,
                             color: const Color(0xFF10B981),
                             value:
-                                '\$${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
+                                '${AppConstants.currencySymbol}${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
                             label: 'Delivery',
                           ),
                           const SizedBox(width: 16),
@@ -265,7 +266,7 @@ class _RestaurantList extends StatelessWidget {
                             icon: Icons.shopping_bag_rounded,
                             color: const Color(0xFF0EA5E9),
                             value:
-                                '\$${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                                '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
                             label: 'Svc Fee',
                           ),
                           const Spacer(),
@@ -577,7 +578,7 @@ class _RestaurantList extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '\$${serviceFee.toStringAsFixed(0)}',
+                '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -590,7 +591,7 @@ class _RestaurantList extends StatelessWidget {
                 max: 200,
                 divisions: 40,
                 activeColor: const Color(0xFF0EA5E9),
-                label: '\$${serviceFee.toStringAsFixed(0)}',
+                label: '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(0)}',
                 onChanged: (val) {
                   setDialogState(() => serviceFee = val);
                 },

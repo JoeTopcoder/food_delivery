@@ -12,6 +12,7 @@ import '../../widgets/restaurant_card.dart';
 import '../../widgets/smart_home_widgets.dart';
 import 'grocery_store_detail_screen.dart';
 import 'grocery_category_products_screen.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class GroceryScreen extends ConsumerStatefulWidget {
   const GroceryScreen({super.key});
@@ -502,8 +503,8 @@ class _SearchProductCard extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             product.discount != null && product.discount! > 0
-                                ? '\$${product.discountedPrice.toStringAsFixed(2)}'
-                                : '\$${product.price.toStringAsFixed(2)}',
+                                ? '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}'
+                                : '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,

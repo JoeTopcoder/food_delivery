@@ -279,7 +279,7 @@ class PayoutService {
         'ncb-process-payout',
         body: {
           'amount': amount,
-          'currency': 'JMD',
+          'currency': 'USD',
           'name': recipientName,
           'bank_account': bankAccount,
           'bank_name': bankName,

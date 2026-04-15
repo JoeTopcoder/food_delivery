@@ -362,13 +362,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           children: [
                             _PriceRow(
                               'Subtotal',
-                              '\$${subtotal.toStringAsFixed(2)}',
+                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
                             if (isPickup)
                               _PriceRow(
                                 'Service Fee',
-                                '\$${pickupServiceFee.toStringAsFixed(2)}',
+                                '${AppConstants.currencySymbol}${pickupServiceFee.toStringAsFixed(2)}',
                                 valueColor: const Color(0xFF10B981),
                               )
                             else
@@ -376,17 +376,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                                     : 'Delivery Fee',
-                                '\$${deliveryFee.toStringAsFixed(2)}',
+                                '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                                 valueColor: surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,
                               ),
                             const SizedBox(height: 8),
-                            _PriceRow('Tax', '\$${tax.toStringAsFixed(2)}'),
+                            _PriceRow('Tax', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
                             Divider(color: Colors.grey[300], height: 16),
                             _PriceRow(
                               'Total',
-                              '\$${total.toStringAsFixed(2)}',
+                              '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                               isBold: true,
                             ),
                           ],
@@ -493,7 +493,7 @@ class _CartItemWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '\$${(price * quantity).toStringAsFixed(2)}',
+                  '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
                   style: const TextStyle(
                     color: AppTheme.priceColor,
                     fontWeight: FontWeight.w700,

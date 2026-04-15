@@ -7,6 +7,8 @@ import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
+import 'restaurant_offer_screen.dart';
 
 class RestaurantDashboardScreen extends ConsumerStatefulWidget {
   const RestaurantDashboardScreen({super.key});
@@ -452,7 +454,7 @@ class _RestaurantDashboardScreenState
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '\$${totalRevenue.toStringAsFixed(2)}',
+                                      '${AppConstants.currencySymbol}${totalRevenue.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 28,
@@ -596,6 +598,30 @@ class _RestaurantDashboardScreenState
                                   const PayoutRequestScreen(role: 'restaurant'),
                             ),
                           ),
+                        ),
+                        _QuickAction(
+                          icon: Icons.loyalty_rounded,
+                          label: 'Loyalty',
+                          color: const Color(0xFF7C3AED),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-loyalty'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.local_fire_department_rounded,
+                          label: 'Our Offer',
+                          color: const Color(0xFFEF4444),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-offer'),
+                        ),
+                        _QuickAction(
+                          icon: Icons.description_rounded,
+                          label: 'Contract',
+                          color: const Color(0xFF0891B2),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-contract'),
                         ),
                       ],
                     ),
@@ -754,7 +780,33 @@ class _RestaurantDashboardScreenState
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 36),
+                const SizedBox(height: 16),
+                // ── See Our Offer link ──
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const RestaurantOfferScreen(showGetStarted: true),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 18,
+                      color: Color(0xFFEF4444),
+                    ),
+                    label: const Text(
+                      'See Why Restaurants Love MealHub',
+                      style: TextStyle(
+                        color: Color(0xFFEF4444),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 _buildSetupField(
                   controller: _nameController,
                   label: 'Restaurant Name',
@@ -1053,7 +1105,7 @@ class _RecentOrderTile extends StatelessWidget {
             ),
           ),
           Text(
-            '\$${order.totalAmount.toStringAsFixed(2)}',
+            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,

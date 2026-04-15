@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 /// Result returned when the user taps "Add Item".
 class MenuItemSheetResult {
@@ -225,7 +226,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       children: [
                         if (item.discount != null && item.discount! > 0) ...[
                           Text(
-                            '\$${item.price.toStringAsFixed(0)}',
+                            '${AppConstants.currencySymbol}${item.price.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[400],
@@ -235,7 +236,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           const SizedBox(width: 8),
                         ],
                         Text(
-                          '\$${item.discountedPrice.toStringAsFixed(0)}',
+                          '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -465,7 +466,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                               ),
                             ),
                             Text(
-                              '\$${subtotal.toStringAsFixed(0)}',
+                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -584,7 +585,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Text(
-                  '\$${price.toStringAsFixed(0)}',
+                  '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

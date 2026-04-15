@@ -5,6 +5,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 /// Provider that fetches all orders with restaurant name joined.
 final _adminAllOrdersProvider =
@@ -443,7 +444,7 @@ class _OrderCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '\$${totalAmount.toStringAsFixed(0)}',
+                    '${AppConstants.currencySymbol}${totalAmount.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,

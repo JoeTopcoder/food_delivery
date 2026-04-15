@@ -31,7 +31,7 @@
 
   // WiPay configuration fully removed after migration
 
-  static const String appBaseUrl = 'https://applizonecentralja.com';
+  static const String appBaseUrl = 'https://mealhubcayman.com';
 
   static String get supabaseFunctionsBaseUrl => '$supabaseUrl/functions/v1';
   static String get ncbCallbackUrlFull =>
@@ -105,29 +105,31 @@
   // Pagination
   static int pageSize = 20;
 
-  // Currency
+  // Currency (US Dollar)
   static const String currencySymbol = '\$';
+  static const String currencyCode = 'USD';
+  static const String countryName = 'Cayman Islands';
 
   // ── Business Constants (defaults — overridden from app_config table) ──────
 
-  // Fees
-  static double taxRate = 0.10;
-  static double defaultDeliveryFee = 50.0;
-  static double pickupServiceFee = 25.0;
-  static double driverFeePerDelivery = 50.0;
+  // Fees (in USD)
+  static double taxRate = 0.0; // No income tax in Cayman Islands
+  static double defaultDeliveryFee = 5.0;
+  static double pickupServiceFee = 2.0;
+  static double driverFeePerDelivery = 5.0;
   static double cardFeePercent = 2.5;
   static double bankTransferFeePercent = 1.0;
   static double cashFeePercent = 0;
 
-  // Delivery (distance-based)
-  static double deliveryBaseFee = 50.0;
-  static double deliveryPerKmFee = 30.0;
+  // Delivery (distance-based, USD)
+  static double deliveryBaseFee = 5.0;
+  static double deliveryPerKmFee = 1.50;
   static double deliveryBaseKm = 3.0;
-  static double deliveryMaxKm = 25.0;
+  static double deliveryMaxKm = 30.0;
   static double deliverySurgeMultiplier = 1.0;
 
   // Loyalty
-  static double loyaltyPointValue = 0.10;
+  static double loyaltyPointValue = 0.01;
   static double loyaltyMaxRedemptionPercent = 0.20;
   static int loyaltyPointsPer100 = 10;
   static int loyaltyTierSilverThreshold = 500;
@@ -141,8 +143,8 @@
   // Commission
   static double defaultCommissionRate = 0.15;
 
-  // Tips
-  static List<double> presetTips = [50, 100, 200, 500];
+  // Tips (in USD)
+  static List<double> presetTips = [2, 5, 10, 20];
 
   // System
   static int orderAssignmentCutoffMinutes = 30;

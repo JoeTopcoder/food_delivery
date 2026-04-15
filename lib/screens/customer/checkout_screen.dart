@@ -908,7 +908,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 child: Text(
                                   'Redeeming $redeemPoints pts = '
-                                  '\$${loyaltyDiscount.toStringAsFixed(2)} off',
+                                  '${AppConstants.currencySymbol}${loyaltyDiscount.toStringAsFixed(2)} off',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF6366F1),
@@ -1022,7 +1022,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                   child: ChoiceChip(
                                     label: Text(
-                                      '\$${amount.toStringAsFixed(0)}',
+                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
@@ -1115,7 +1115,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     children: [
                       _SummaryRow(
                         'Subtotal',
-                        '\$${subtotal.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                       ),
                       if (promoDiscount > 0)
                         _SummaryRow(
@@ -1132,7 +1132,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       if (isPickup)
                         _SummaryRow(
                           'Service Fee',
-                          '\$${pickupServiceFee.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${pickupServiceFee.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         )
                       else
@@ -1140,22 +1140,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           surgeMultiplier > 1.0
                               ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                               : 'Delivery',
-                          '\$${deliveryFee.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                           valueColor: surgeMultiplier > 1.0
                               ? const Color(0xFFFFA630)
                               : null,
                         ),
-                      _SummaryRow('Tax (10%)', '\$${tax.toStringAsFixed(2)}'),
+                      _SummaryRow('Tax (10%)', '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}'),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
-                          '\$${_driverTip.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       Divider(color: Colors.grey[200], height: 16),
                       _SummaryRow(
                         'Total',
-                        '\$${total.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                     ],

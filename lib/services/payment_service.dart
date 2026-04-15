@@ -127,7 +127,7 @@ class PaymentService {
     }
   }
 
-  /// Create a small random card verification charge ($1–$5 JMD) to confirm
+  /// Create a small random card verification charge ($1–$5 USD) to confirm
   /// card ownership. After the charge the user must enter the exact amount
   /// to prove they can see it on their bank statement.
   Future<NcbPaymentSession> createCardVerificationCheckout({
@@ -332,7 +332,9 @@ class PaymentService {
     required double amount,
   }) async {
     try {
-      AppLogger.info('Processing cash payment: $orderId - \$$amount');
+      AppLogger.info(
+        'Processing cash payment: $orderId - ${AppConstants.currencySymbol}$amount',
+      );
 
       // Cash payments are recorded but not processed
       // Driver will collect payment on delivery
@@ -381,7 +383,9 @@ class PaymentService {
     String? reason,
   }) async {
     try {
-      AppLogger.info('Processing refund: $transactionId - \$$amount');
+      AppLogger.info(
+        'Processing refund: $transactionId - ${AppConstants.currencySymbol}$amount',
+      );
 
       if (reason != null) {
         AppLogger.info('Refund reason: $reason');
@@ -411,12 +415,12 @@ class PaymentService {
         
         Amount Breakdown:
         ─────────────────────────────────
-        Subtotal:       \$${order.subtotal.toStringAsFixed(2)}
-        Tax:            \$${order.taxAmount?.toStringAsFixed(2) ?? '0.00'}
-        Delivery Fee:   \$${order.deliveryFee.toStringAsFixed(2)}
-        Discount:       -\$${order.discount?.toStringAsFixed(2) ?? '0.00'}
+        Subtotal:       ${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}
+        Tax:            ${AppConstants.currencySymbol}${order.taxAmount?.toStringAsFixed(2) ?? '0.00'}
+        Delivery Fee:   ${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(2)}
+        Discount:       -${AppConstants.currencySymbol}${order.discount?.toStringAsFixed(2) ?? '0.00'}
         ─────────────────────────────────
-        TOTAL:          \$${order.totalAmount.toStringAsFixed(2)}
+        TOTAL:          ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}
         
         Payment Method: ${paymentResponse.paymentMethod}
         Status: ${paymentResponse.status.toUpperCase()}
@@ -729,7 +733,7 @@ class PaymentService {
         'ncb-process-payout',
         body: {
           'amount': amount,
-          'currency': 'JMD',
+          'currency': 'USD',
           'name': recipientName,
           'bank_account': bankAccount,
           'bank_name': bankName,

@@ -12,6 +12,7 @@ import '../../services/grocery_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
+import 'package:food_driver/config/app_constants.dart';
 
 class GroceryManagementScreen extends ConsumerStatefulWidget {
   const GroceryManagementScreen({super.key});
@@ -639,7 +640,7 @@ class _GroceryProductTile extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '\$${product.price.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppTheme.primaryColor,
