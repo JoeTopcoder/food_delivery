@@ -549,48 +549,49 @@ class _CallScreenState extends ConsumerState<CallScreen>
   }
 
   Widget _buildConnectionStages() {
-    final hasFailed = _stageError != null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
-      child: Column(
+    // Show nothing while ringing (status text already covers it)
+    if (_callStatus == CallStatus.ringing &&
+        !_channelReady &&
+        _stageError == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Determine overall connection state
+    final bool isConnected = _channelReady && _audioReady;
+    final bool hasFailed = _stageError != null;
+
+    if (!isConnected && !hasFailed) {
+      // Still connecting — show a subtle spinner
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _StageRow(
-            label: 'Microphone',
-            done: _micReady,
-            failed: hasFailed && !_micReady,
-          ),
-          _StageRow(
-            label: 'Engine',
-            done: _engineReady,
-            failed: hasFailed && !_engineReady,
-          ),
-          _StageRow(
-            label: 'Token',
-            done: _tokenReady,
-            failed: hasFailed && !_tokenReady,
-          ),
-          _StageRow(
-            label: 'Channel',
-            done: _channelReady,
-            failed: hasFailed && !_channelReady,
-          ),
-          _StageRow(
-            label: 'Audio',
-            done: _audioReady,
-            failed: hasFailed && !_audioReady,
-          ),
-          if (_stageError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                _stageError!,
-                style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF6B7280),
             ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Connecting...',
+            style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+          ),
         ],
-      ),
-    );
+      );
+    }
+
+    if (hasFailed) {
+      return Text(
+        'Connection failed',
+        style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    // Connected — nothing extra needed (status text shows "Connected")
+    return const SizedBox.shrink();
   }
 
   Widget _buildStatusText() {
@@ -765,64 +766,6 @@ class _CallButton extends StatelessWidget {
           style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
         ),
       ],
-    );
-  }
-}
-
-class _StageRow extends StatelessWidget {
-  final String label;
-  final bool done;
-  final bool failed;
-
-  const _StageRow({
-    required this.label,
-    required this.done,
-    required this.failed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color color;
-    final IconData icon;
-    if (failed) {
-      color = const Color(0xFFEF4444);
-      icon = Icons.close_rounded;
-    } else if (done) {
-      color = const Color(0xFF22C55E);
-      icon = Icons.check_circle_rounded;
-    } else {
-      color = const Color(0xFF6B7280);
-      icon = Icons.radio_button_unchecked_rounded;
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            done ? 'Ready' : 'Waiting...',
-            style: TextStyle(
-              color: failed
-                  ? const Color(0xFFEF4444)
-                  : done
-                  ? const Color(0xFF22C55E)
-                  : const Color(0xFF6B7280),
-              fontSize: 12,
-            ),
-            textAlign: TextAlign.end,
-          ),
-        ],
-      ),
     );
   }
 }
