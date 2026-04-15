@@ -321,7 +321,9 @@ class _RestaurantDashboardScreenState
                                         )
                                       : Switch(
                                           value: restaurant.isOpen,
-                                          activeColor: const Color(0xFF10B981),
+                                          activeThumbColor: const Color(
+                                            0xFF10B981,
+                                          ),
                                           onChanged: (_) => _toggleAvailability(
                                             restaurant.id,
                                             restaurant.isOpen,
@@ -359,7 +361,7 @@ class _RestaurantDashboardScreenState
                           final deliveredOrders = orders
                               .where((o) => o.status == 'delivered')
                               .length;
-                          final totalRevenue = orders.fold<double>(
+                          orders.fold<double>(
                             0,
                             (sum, order) => sum + order.totalAmount,
                           );

@@ -385,7 +385,7 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
           children: [
             // Restaurant dropdown
             DropdownButtonFormField<Restaurant>(
-              value: _selectedRestaurant,
+              initialValue: _selectedRestaurant,
               decoration: InputDecoration(
                 labelText: 'Restaurant *',
                 border: OutlineInputBorder(

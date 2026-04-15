@@ -234,7 +234,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         double cuisineScore = 0;
         if (adCuisine.isNotEmpty) {
           // Direct match with #1 cuisine
-          if (topCuisine != null && adCuisine == topCuisine?.toLowerCase()) {
+          if (topCuisine != null && adCuisine == topCuisine.toLowerCase()) {
             cuisineScore += 20;
           }
           // Weighted score from cuisine_scores map (0-1 normalized → 0-15)

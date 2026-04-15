@@ -17,7 +17,7 @@ final groceryStoresProvider = FutureProvider.autoDispose<List<Restaurant>>((
   ref,
 ) {
   // Keep data alive so it's not re-fetched on every tab switch
-  final link = ref.keepAlive();
+  ref.keepAlive();
   // Real-time: refresh when any grocery store row changes
   final channel = Supabase.instance.client.realtime.channel(
     'grocery_stores_${DateTime.now().microsecondsSinceEpoch}',
@@ -54,7 +54,7 @@ final groceryStoreSearchProvider = FutureProvider.family
 final groceryProductsProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, storeId) {
       // Keep products alive while browsing
-      final link = ref.keepAlive();
+      ref.keepAlive();
       // Real-time: refresh when products for this store change
       final channel = Supabase.instance.client.realtime.channel(
         'grocery_products_${storeId}_${DateTime.now().microsecondsSinceEpoch}',
@@ -100,7 +100,7 @@ final groceryProductsByCategoryProvider = FutureProvider.family
 final groceryCategoriesProvider =
     FutureProvider.autoDispose<List<GroceryCategory>>((ref) {
       // Keep alive across tab switches
-      final link = ref.keepAlive();
+      ref.keepAlive();
       // Real-time: refresh when grocery_categories or menus table changes
       // so custom categories from new products appear immediately
       final channel = Supabase.instance.client.realtime.channel(

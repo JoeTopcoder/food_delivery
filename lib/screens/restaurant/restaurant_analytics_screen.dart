@@ -110,14 +110,12 @@ class _RestaurantAnalyticsScreenState
     // Revenue bar chart — adapts to selected period
     final dailyRevenue = <String, double>{};
     final now = DateTime.now();
-    final int chartDays;
     final String Function(DateTime) chartKeyFmt;
     final String chartTitle;
 
     switch (_period) {
       case _Period.today:
         // Hourly buckets for today
-        chartDays = 0;
         chartKeyFmt = (d) => '${d.hour.toString().padLeft(2, '0')}:00';
         chartTitle = 'Revenue — Today (Hourly)';
         for (int h = 0; h < 24; h += 3) {
@@ -129,7 +127,6 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
         }
       case _Period.week:
-        chartDays = 7;
         chartKeyFmt = (d) => DateFormat('EEE').format(d);
         chartTitle = 'Revenue — Last 7 Days';
         for (int i = 6; i >= 0; i--) {
@@ -141,12 +138,11 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
         }
       case _Period.month:
-        chartDays = 30;
         chartKeyFmt = (d) => DateFormat('d/M').format(d);
         chartTitle = 'Revenue — Last 30 Days (Weekly)';
         // 5 weekly buckets
         for (int w = 4; w >= 0; w--) {
-          final day = now.subtract(Duration(days: w * 7));
+          now.subtract(Duration(days: w * 7));
           dailyRevenue['Wk ${5 - w}'] = 0;
         }
         for (final o in delivered) {
@@ -156,7 +152,6 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
         }
       case _Period.all:
-        chartDays = 0;
         chartKeyFmt = (d) => DateFormat('MMM yy').format(d);
         chartTitle = 'Revenue — All Time (Monthly)';
         // Group by month
