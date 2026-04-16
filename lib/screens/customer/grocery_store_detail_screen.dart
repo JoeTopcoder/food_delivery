@@ -81,7 +81,10 @@ class _GroceryStoreDetailScreenState
           leading: IconButton(
             icon: CircleAvatar(
               backgroundColor: Theme.of(context).cardColor,
-              child: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+              child: Icon(
+                Icons.arrow_back,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             onPressed: () => Navigator.pop(context),
           ),
@@ -109,10 +112,10 @@ class _GroceryStoreDetailScreenState
               children: [
                 Text(
                   widget.store.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (widget.store.address != null) ...[
@@ -406,10 +409,10 @@ class _ProductCard extends ConsumerWidget {
                       product.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -486,10 +489,12 @@ class _ProductCard extends ConsumerWidget {
                                         color: Colors.grey[200],
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.remove,
                                         size: 14,
-                                        color: AppTheme.textPrimary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
@@ -499,10 +504,12 @@ class _ProductCard extends ConsumerWidget {
                                     ),
                                     child: Text(
                                       '$inCartQty',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w800,
-                                        color: AppTheme.textPrimary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),

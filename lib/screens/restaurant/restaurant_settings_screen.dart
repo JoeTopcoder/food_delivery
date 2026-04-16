@@ -560,13 +560,15 @@ class _RestaurantSettingsScreenState
                             label: dayHours['open'] as String,
                             onTap: () => _pickTime(day, 'open'),
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             child: Text(
                               '–',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Color(0xFF6B7280),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),

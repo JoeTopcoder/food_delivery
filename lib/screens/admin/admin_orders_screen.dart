@@ -173,7 +173,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               child: TextField(
@@ -1026,7 +1028,9 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Theme.of(context).dividerColor),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -1062,35 +1066,43 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                                   const SizedBox(height: 3),
                                   Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.two_wheeler_rounded,
                                         size: 12,
-                                        color: Color(0xFF6B7280),
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 3),
                                       Text(
                                         vehicleNum.isNotEmpty
                                             ? '$vehicleLabel · $vehicleNum'
                                             : vehicleLabel,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 11,
-                                          color: Color(0xFF6B7280),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       if (phone.isNotEmpty) ...[
                                         const SizedBox(width: 8),
-                                        const Icon(
+                                        Icon(
                                           Icons.phone,
                                           size: 11,
-                                          color: Color(0xFF6B7280),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                         const SizedBox(width: 3),
                                         Flexible(
                                           child: Text(
                                             phone,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 11,
-                                              color: Color(0xFF6B7280),
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                             ),
                                             overflow: TextOverflow.ellipsis,
                                           ),

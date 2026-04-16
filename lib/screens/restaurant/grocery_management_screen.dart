@@ -408,10 +408,10 @@ class _GroceryStoreBody extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           category,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const Spacer(),

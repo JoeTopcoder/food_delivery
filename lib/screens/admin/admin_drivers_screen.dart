@@ -952,12 +952,12 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
               const SizedBox(height: 14),
 
               // Vehicle Type
-              const Text(
+              Text(
                 'Vehicle Type',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),

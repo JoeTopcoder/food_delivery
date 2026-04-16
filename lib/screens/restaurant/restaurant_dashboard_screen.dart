@@ -883,7 +883,10 @@ class _RestaurantDashboardScreenState
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+      style: TextStyle(
+        fontSize: 15,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       decoration: InputDecoration(
         labelText: required ? '$label *' : label,
         labelStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),

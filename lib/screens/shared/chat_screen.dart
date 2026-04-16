@@ -485,10 +485,7 @@ class _Bubble extends StatelessWidget {
               ),
             Text(
               msg.message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
             ),
             const SizedBox(height: 3),
             Row(

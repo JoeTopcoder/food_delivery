@@ -186,7 +186,9 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
           color: selected ? AppTheme.primaryColor : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).dividerColor,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).dividerColor,
           ),
         ),
         child: Row(

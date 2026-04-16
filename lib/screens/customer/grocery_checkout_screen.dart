@@ -151,13 +151,16 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Grocery Checkout',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -196,10 +199,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                           Expanded(
                             child: Text(
                               storeData[sid]!.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -255,19 +258,23 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                                     children: [
                                       Text(
                                         storeData[sid]?.name ?? 'Store',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                         ),
                                       ),
                                       if (storeData[sid]?.address != null) ...[
                                         const SizedBox(height: 2),
                                         Text(
                                           storeData[sid]!.address!,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 12,
-                                            color: AppTheme.textSecondary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -335,9 +342,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                               Expanded(
                                 child: Text(
                                   deliveryAddress,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: AppTheme.textSecondary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -1343,10 +1352,10 @@ class _Section extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -1381,7 +1390,9 @@ class _AddressChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: isSelected ? Colors.white : AppTheme.textSecondary,
+          color: isSelected
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -1479,7 +1490,9 @@ class _PaymentTile extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color: selected ? AppTheme.primaryColor : AppTheme.textSecondary,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1493,14 +1506,14 @@ class _PaymentTile extends StatelessWidget {
                       fontSize: 14,
                       color: selected
                           ? AppTheme.primaryColor
-                          : AppTheme.textPrimary,
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1556,7 +1569,9 @@ class _SavedCardTile extends StatelessWidget {
             Icon(
               Icons.credit_card_rounded,
               size: 20,
-              color: selected ? AppTheme.primaryColor : AppTheme.textSecondary,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1570,14 +1585,14 @@ class _SavedCardTile extends StatelessWidget {
                       fontSize: 14,
                       color: selected
                           ? AppTheme.primaryColor
-                          : AppTheme.textPrimary,
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     card.cardholderName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1765,7 +1780,7 @@ class _SummaryRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 15 : 13,
               fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           Text(
@@ -1773,7 +1788,7 @@ class _SummaryRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 15 : 13,
               fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-              color: valueColor ?? AppTheme.textPrimary,
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

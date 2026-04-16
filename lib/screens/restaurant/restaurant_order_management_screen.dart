@@ -666,12 +666,14 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             'Pickup Code: ',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF374151),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           Container(
@@ -816,9 +818,12 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Enter a 4-digit code the customer must provide when picking up their order.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -897,9 +902,12 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Ask the customer for their pickup code and enter it below to complete the order.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             TextField(

@@ -352,7 +352,9 @@ class _RestaurantAnalyticsScreenState
                                 const SizedBox(height: 4),
                                 LinearProgressIndicator(
                                   value: pct,
-                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   color: AppTheme.primaryColor,
                                   borderRadius: BorderRadius.circular(4),
                                   minHeight: 6,
@@ -506,7 +508,9 @@ class _StatusRow extends StatelessWidget {
         Expanded(
           child: LinearProgressIndicator(
             value: pct,
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
             color: color,
             borderRadius: BorderRadius.circular(4),
             minHeight: 8,

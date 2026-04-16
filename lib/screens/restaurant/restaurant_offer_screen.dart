@@ -558,9 +558,9 @@ class _OfferCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       h.text,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF374151),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                         height: 1.3,
                       ),
@@ -601,10 +601,10 @@ class _CompareRow extends StatelessWidget {
             flex: 3,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF374151),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),

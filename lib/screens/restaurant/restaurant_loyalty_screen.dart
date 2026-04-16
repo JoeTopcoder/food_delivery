@@ -632,10 +632,12 @@ class _LoyaltyBody extends StatelessWidget {
                                             ? 'Points Earned'
                                             : 'Points Redeemed')
                                       : desc,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF374151),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                                 Text(
@@ -757,10 +759,10 @@ class _TierBar extends StatelessWidget {
           width: 70,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF374151),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -770,7 +772,9 @@ class _TierBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 14,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),

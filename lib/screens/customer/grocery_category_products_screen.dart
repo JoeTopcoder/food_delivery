@@ -37,7 +37,10 @@ class _GroceryCategoryProductsScreenState
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -52,8 +55,8 @@ class _GroceryCategoryProductsScreenState
               ),
             Text(
               widget.categoryName,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
                 fontSize: 20,
               ),
@@ -274,10 +277,10 @@ class _CategoryProductCard extends ConsumerWidget {
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (product.weight != null)
@@ -475,7 +478,9 @@ class _StepperBtn extends StatelessWidget {
         child: Icon(
           icon,
           size: 14,
-          color: filled || disabled ? Colors.white : AppTheme.textPrimary,
+          color: filled || disabled
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );
@@ -496,9 +501,9 @@ class _CartBadge extends ConsumerWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            const Icon(
+            Icon(
               Icons.shopping_cart_outlined,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               size: 24,
             ),
             if (count > 0)

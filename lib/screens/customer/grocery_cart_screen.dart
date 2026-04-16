@@ -75,13 +75,16 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Grocery Cart',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -184,7 +187,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                         size: 18,
                                         color: !isPickup
                                             ? Colors.white
-                                            : AppTheme.textSecondary,
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -194,7 +199,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                           fontSize: 14,
                                           color: !isPickup
                                               ? Colors.white
-                                              : AppTheme.textSecondary,
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -230,7 +237,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                         size: 18,
                                         color: isPickup
                                             ? Colors.white
-                                            : AppTheme.textSecondary,
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -240,7 +249,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                           fontSize: 14,
                                           color: isPickup
                                               ? Colors.white
-                                              : AppTheme.textSecondary,
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -268,7 +279,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                children: const [
+                                children: [
                                   Icon(
                                     Icons.store_rounded,
                                     color: Color(0xFF10B981),
@@ -279,7 +290,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     'Pick up from',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: AppTheme.textSecondary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -293,10 +306,12 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                   ),
                                   child: Text(
                                     storeData[sid]?.name ?? 'Store',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -331,19 +346,23 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Deliver to',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: AppTheme.textSecondary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       Text(
                                         deliveryAddress,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -351,9 +370,11 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     ],
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.chevron_right_rounded,
-                                  color: AppTheme.textSecondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   size: 20,
                                 ),
                               ],
@@ -389,10 +410,12 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                               Expanded(
                                 child: Text(
                                   storeData[sid]?.name ?? 'Store',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),

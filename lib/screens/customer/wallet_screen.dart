@@ -352,7 +352,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             TextButton.icon(
@@ -623,7 +623,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -636,7 +636,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       label: Text(
                         '\$$a',
                         style: TextStyle(
-                          color: isDark ? Colors.white : AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -655,7 +655,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   child: TextField(
                     controller: _amountCtrl,
                     style: TextStyle(
-                      color: isDark ? Colors.white : AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
@@ -667,7 +667,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     decoration: InputDecoration(
                       prefixText: '\$ ',
                       prefixStyle: TextStyle(
-                        color: isDark ? Colors.white : AppTheme.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -715,7 +715,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppTheme.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
@@ -911,7 +911,7 @@ class _TransactionTile extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: isDark ? Colors.white : AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1050,9 +1050,7 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: isDark
-                                  ? Colors.white
-                                  : AppTheme.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1136,9 +1134,7 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isDark
-                                    ? Colors.grey.shade300
-                                    : AppTheme.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(width: 12),

@@ -52,7 +52,7 @@ class _RefundDisputeScreenState extends ConsumerState<RefundDisputeScreen>
           controller: _tabCtrl,
           indicatorColor: AppTheme.primaryColor,
           labelColor: AppTheme.primaryColor,
-          unselectedLabelColor: AppTheme.textSecondary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
           tabs: const [
             Tab(text: 'Refunds'),
             Tab(text: 'Disputes'),
@@ -206,7 +206,10 @@ class _RefundCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               refund.reason,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (refund.adminNotes != null) ...[
               const SizedBox(height: 8),

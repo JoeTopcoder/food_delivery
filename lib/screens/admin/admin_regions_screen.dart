@@ -246,7 +246,11 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFF6B7280)),
+          Icon(
+            icon,
+            size: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 4),
           Text(label, style: const TextStyle(fontSize: 11)),
         ],
