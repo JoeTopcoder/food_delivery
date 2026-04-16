@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/user_model.dart';
@@ -22,7 +23,6 @@ import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
-import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
 
 class GroceryCheckoutScreen extends ConsumerStatefulWidget {
@@ -1048,18 +1048,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     if (_placingOrder) return;
 
     if (_selectedPayment == 'card') {
-      if (_selectedSavedCard == null) {
-        AppSnackbar.error(context, 'Please select a saved card to pay with.');
-        return;
-      }
-      final cvc = _cvcCtrl.text.trim();
-      if (cvc.length < 3) {
-        AppSnackbar.error(
-          context,
-          'Enter the 3 or 4 digit CVC from the back of your card.',
-        );
-        return;
-      }
+      // Stripe handles card input natively via Payment Sheet
     }
 
     if (_selectedPayment == 'wallet') {
@@ -1208,41 +1197,48 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
 
       // ── Card payment (total across all orders) ──────────────────────
       if (_selectedPayment == 'card') {
-        NcbPaymentSession checkoutSession;
+        StripePaymentSession stripeSession;
         try {
-          checkoutSession = await paymentService.createCardCheckout(
+          final authUser = Supabase.instance.client.auth.currentUser;
+          final email = authUser?.email ?? '';
+          final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
+
+          stripeSession = await paymentService.createStripeCheckout(
             orderId: orderIds.first,
             amount: runningTotal,
-            customerEmail: _selectedSavedCard!.email,
-            customerPhone: _selectedSavedCard!.phone,
-            customerName: _selectedSavedCard!.cardholderName,
-            billingAddress: deliveryAddress,
-            savedCardId: _selectedSavedCard!.id,
-            cvv: _cvcCtrl.text.trim(),
+            customerEmail: email,
+            customerName: name,
+          );
+
+          if (!mounted) return;
+
+          final paymentCompleted = await paymentService
+              .presentStripePaymentSheet(
+                session: stripeSession,
+                customerEmail: email,
+                customerName: name,
+              );
+
+          if (!mounted) return;
+
+          if (!paymentCompleted) {
+            for (final oid in orderIds) {
+              await _deleteOrder(oid);
+            }
+            setState(() => _placingOrder = false);
+            return;
+          }
+
+          // Confirm server-side
+          await paymentService.confirmStripePayment(
+            paymentIntentId: stripeSession.paymentIntentId,
+            orderId: orderIds.first,
           );
         } catch (e) {
           for (final oid in orderIds) {
             await _deleteOrder(oid);
           }
           rethrow;
-        }
-
-        if (!mounted) return;
-
-        final paymentCompleted = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (_) => NcbPaymentScreen(session: checkoutSession),
-          ),
-        );
-
-        if (!mounted) return;
-
-        if (paymentCompleted != true) {
-          for (final oid in orderIds) {
-            await _deleteOrder(oid);
-          }
-          setState(() => _placingOrder = false);
-          return;
         }
       }
 
