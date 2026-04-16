@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
 import '../../models/address_model.dart';
@@ -18,7 +19,6 @@ import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../providers/wallet_provider.dart';
-import 'ncb_payment_screen.dart';
 import 'order_success_screen.dart';
 import '../../utils/est_datetime.dart';
 import '../../utils/friendly_error.dart';
@@ -1338,18 +1338,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     if (_selectedPayment == 'card') {
-      if (_selectedSavedCard == null) {
-        AppSnackbar.error(context, 'Please select a saved card to pay with.');
-        return;
-      }
-      final cvc = _cvcCtrl.text.trim();
-      if (cvc.length < 3) {
-        AppSnackbar.error(
-          context,
-          'Enter the 3 or 4 digit CVC from the back of your card.',
-        );
-        return;
-      }
+      // Stripe handles card input natively via Payment Sheet
+      // No need to pre-select a saved card or enter CVC
     }
 
     // Wallet: block order if balance is too low
@@ -1510,48 +1500,48 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
 
       if (_selectedPayment == 'card') {
-        NcbPaymentSession checkoutSession;
+        StripePaymentSession stripeSession;
         try {
-          checkoutSession = await paymentService.createCardCheckout(
+          final authUser = Supabase.instance.client.auth.currentUser;
+          final email = _selectedSavedCard?.email.isNotEmpty == true
+              ? _selectedSavedCard!.email
+              : (authUser?.email ?? _paymentEmailCtrl.text.trim());
+          final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
+              ? _selectedSavedCard!.cardholderName
+              : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
+
+          stripeSession = await paymentService.createStripeCheckout(
             orderId: order.id,
             amount: verifiedTotal,
-            customerEmail: _selectedSavedCard!.email.isNotEmpty
-                ? _selectedSavedCard!.email
-                : _paymentEmailCtrl.text.trim(),
-            customerPhone: _selectedSavedCard!.phone.isNotEmpty
-                ? _selectedSavedCard!.phone
-                : _paymentPhoneCtrl.text.trim(),
-            customerName: _selectedSavedCard!.cardholderName,
-            billingAddress: deliveryAddress,
-            savedCardId: _selectedSavedCard!.id,
-            cvv: _cvcCtrl.text.trim(),
+            customerEmail: email,
+            customerName: name,
+          );
+
+          if (!mounted) return;
+
+          final paymentCompleted = await paymentService
+              .presentStripePaymentSheet(
+                session: stripeSession,
+                customerEmail: email,
+                customerName: name,
+              );
+
+          if (!mounted) return;
+
+          if (!paymentCompleted) {
+            await _deleteOrder(order.id);
+            setState(() => _placingOrder = false);
+            return;
+          }
+
+          // Confirm server-side
+          await paymentService.confirmStripePayment(
+            paymentIntentId: stripeSession.paymentIntentId,
+            orderId: order.id,
           );
         } catch (e) {
-          // Payment session failed – delete the order so nothing lingers.
           await _deleteOrder(order.id);
           rethrow;
-        }
-
-        if (!mounted) {
-          return;
-        }
-
-        final paymentCompleted = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (routeContext) =>
-                NcbPaymentScreen(session: checkoutSession),
-          ),
-        );
-
-        if (!mounted) {
-          return;
-        }
-
-        if (paymentCompleted != true) {
-          // User dismissed or payment was not completed – remove the order entirely.
-          await _deleteOrder(order.id);
-          setState(() => _placingOrder = false);
-          return;
         }
       }
 

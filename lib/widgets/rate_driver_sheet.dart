@@ -5,7 +5,6 @@ import '../models/order_model.dart';
 import '../providers/user_provider.dart';
 import '../providers/payment_provider.dart';
 import '../config/supabase_config.dart';
-import '../screens/customer/ncb_payment_screen.dart';
 import '../utils/friendly_error.dart';
 import '../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -261,34 +260,39 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
       // 1. Save driver rating
       await orderService.rateDriver(orderId: widget.order.id, rating: _rating);
 
-      // 2. If tip amount > 0, open NCB card checkout
+      // 2. If tip amount > 0, process via Stripe
       if (_tipAmount > 0) {
         final paymentService = ref.read(paymentServiceProvider);
 
         // Get user info from Supabase auth
         final authUser = SupabaseConfig.client.auth.currentUser;
         final email = authUser?.email ?? '';
-        final phone = authUser?.phone ?? '';
         final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
-        final session = await paymentService.createCardCheckout(
+        final session = await paymentService.createStripeCheckout(
           orderId: widget.order.id,
           amount: _tipAmount,
           customerEmail: email,
-          customerPhone: phone,
           customerName: name,
         );
 
         if (!mounted) return;
 
-        // Close the bottom sheet before opening payment screen
+        // Close the bottom sheet before presenting Stripe Payment Sheet
         Navigator.of(context).pop();
 
-        final paymentCompleted = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => NcbPaymentScreen(session: session)),
+        final paymentCompleted = await paymentService.presentStripePaymentSheet(
+          session: session,
+          customerEmail: email,
+          customerName: name,
         );
 
-        if (paymentCompleted == true) {
+        if (paymentCompleted) {
+          // Confirm server-side
+          await paymentService.confirmStripePayment(
+            paymentIntentId: session.paymentIntentId,
+            orderId: widget.order.id,
+          );
           // Record tip in order after successful payment
           await orderService.tipDriver(
             orderId: widget.order.id,
@@ -297,7 +301,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
         }
 
         if (mounted) {
-          if (paymentCompleted == true) {
+          if (paymentCompleted) {
             AppSnackbar.success(
               context,
               'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent',

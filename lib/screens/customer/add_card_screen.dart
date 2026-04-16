@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
-import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
-import 'ncb_payment_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 
 class AddCardScreen extends ConsumerStatefulWidget {
@@ -95,85 +93,43 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       if (userId == null) throw Exception('Not signed in');
 
       final paymentService = ref.read(paymentServiceProvider);
+      final authUser = Supabase.instance.client.auth.currentUser;
+      final email = authUser?.email ?? '';
       final firstName = _firstNameCtrl.text.trim();
       final lastName = _lastNameCtrl.text.trim();
       final fullName = '$firstName $lastName'.trim();
-      final cardDigits = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
-      final last4 = cardDigits.substring(cardDigits.length - 4);
 
-      String brand = 'visa';
-      if (cardDigits.startsWith('5') || cardDigits.startsWith('2')) {
-        brand = 'mastercard';
-      } else if (cardDigits.startsWith('3')) {
-        brand = 'keycard';
+      // Create a Stripe SetupIntent to save card without charging
+      final setupData = await paymentService.createSetupIntent(
+        customerEmail: email,
+      );
+
+      final clientSecret = setupData['clientSecret'] as String?;
+      if (clientSecret == null) {
+        throw Exception('Failed to create card setup session.');
       }
 
-      final authUser = Supabase.instance.client.auth.currentUser;
-      final email = authUser?.email ?? '';
-      final phone = authUser?.phone ?? '';
+      if (!mounted) return;
 
-      // Create a verification checkout with the cardholder details + card info
-      final cardNumber = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
-      final cardExpiry = _expiryCtrl.text.trim();
-      final cardCvv = _cvvCtrl.text.trim();
+      // Present the Stripe payment sheet in setup mode
+      final saved = await paymentService.presentSetupSheet(
+        clientSecret: clientSecret,
+        customerName: fullName,
+        customerEmail: email,
+      );
 
-      NcbPaymentSession session;
-      try {
-        session = await paymentService.createCardVerificationCheckout(
-          customerEmail: email,
-          customerPhone: phone,
-          customerName: fullName,
-          cardNumber: cardNumber,
-          cardExpiry: cardExpiry,
-          cardCvv: cardCvv,
-        );
-      } catch (e) {
+      if (!saved) {
         if (mounted) {
-          AppSnackbar.error(context, friendlyError(e));
+          AppSnackbar.warning(context, 'Card setup was cancelled');
         }
         return;
       }
 
       if (!mounted) return;
 
-      // Open NCB payment screen for the verification charge
-      final chargeCompleted = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => NcbPaymentScreen(session: session)),
-      );
-
-      if (chargeCompleted != true || !mounted) {
-        if (mounted) {
-          AppSnackbar.warning(context, 'Card verification was not completed');
-        }
-        return;
-      }
-
-      // Charge succeeded — save card as 'pending' with 15 min expiry
-      final expiresAt = DateTime.now().toUtc().add(const Duration(minutes: 15));
-      final saved = await paymentService.savePendingCard(
-        userId: userId,
-        cardBrand: brand,
-        lastFour: last4,
-        cardholderName: fullName,
-        email: email,
-        phone: phone,
-        verificationId: session.orderId,
-        expiresAt: expiresAt,
-      );
-
-      if (!mounted) return;
-
-      if (saved != null) {
-        ref.invalidate(savedCardsProvider(userId));
-        AppSnackbar.success(
-          context,
-          'Card charged! Check your bank statement and verify '
-          'the amount within 15 minutes.',
-        );
-        Navigator.of(context).pop(true);
-      } else {
-        AppSnackbar.error(context, 'Failed to save card. Please try again.');
-      }
+      ref.invalidate(savedCardsProvider(userId));
+      AppSnackbar.success(context, 'Card saved successfully via Stripe!');
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         AppSnackbar.error(context, friendlyError(e));

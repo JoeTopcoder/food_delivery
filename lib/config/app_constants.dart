@@ -8,28 +8,21 @@
   static const String supabaseAnonKey =
       'sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6';
 
-  // NCB Payment Gateway Configuration (TEST MODE)
-  // TODO: Replace test keys and endpoints with real NCB API details
+  // Stripe Payment Configuration (TEST MODE)
+  static const String stripePublishableKey =
+      'pk_test_51TMsI4IxFR3jJr2aLgGfT5qfocXNz5MB2wQnGBkEfbW95VU3tRmxKbo0UjcrRbLtbyZ9kVxDSGXkeVPCB8zx3z0100VdZHXefJ';
+  static const String stripePaymentFunction = 'stripe-payment';
+  static const String stripeMerchantId = 'merchant.com.foodhub.delivery';
+
+  // Legacy NCB configuration (kept for reference, no longer used in app)
   static const String ncbApiKey = String.fromEnvironment(
     'NCB_API_KEY',
     defaultValue: 'test_ncb_api_key',
   );
-  static const String ncbApiUrl = String.fromEnvironment(
-    'NCB_API_URL',
-    defaultValue: 'https://sandbox.ncb.com/api/payments',
-  );
-  static const String ncbPayoutUrl = String.fromEnvironment(
-    'NCB_PAYOUT_URL',
-    defaultValue: 'https://sandbox.ncb.com/api/payouts',
-  );
   static const String ncbCallbackUrl =
       '$supabaseUrl/functions/v1/ncb-payment-callback';
-  static const String ncbBanksFunction = '/ncb-banks';
   static const String ncbInitiatePaymentFunction = '/ncb-initiate-payment';
-  static const String ncbProcessPayoutFunction = '/ncb-process-payout';
   static const String ncbPaymentCallbackFunction = '/ncb-payment-callback';
-
-  // WiPay configuration fully removed after migration
 
   static const String appBaseUrl = 'https://mealhubcayman.com';
 

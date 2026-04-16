@@ -9,11 +9,9 @@ import '../../models/wallet_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/payment_provider.dart';
-import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import 'add_card_screen.dart';
-import 'ncb_payment_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 
@@ -56,195 +54,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     _cardsSub?.cancel();
     _amountCtrl.dispose();
     super.dispose();
-  }
-
-  /// Returns true if the user has at least one saved card, or if card
-  /// verification succeeds. Shows the NCB verification flow when needed.
-  Future<bool> _ensureCardVerified({bool forceNew = false}) async {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId == null) return false;
-
-    final paymentService = ref.read(paymentServiceProvider);
-    final cards = await paymentService.getSavedCards(userId);
-    final verifiedCards = cards.where((c) => c.isVerified).toList();
-    if (!forceNew && verifiedCards.isNotEmpty)
-      return true; // already has a verified card
-
-    final isFirstCard = verifiedCards.isEmpty;
-
-    // Explain the verification charge
-    if (!mounted) return false;
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Verify Your Card'),
-        content: Text(
-          isFirstCard
-              ? 'Since this is your first card, a small charge between '
-                    '\$1.00 and \$5.00 will be placed on your card. You will '
-                    'then need to enter the exact amount charged to confirm '
-                    'you own this card. The charge is automatically reversed.'
-              : 'A small charge between \$1.00 and \$5.00 will be placed '
-                    'on your card to verify ownership. You will need to enter '
-                    'the exact amount charged. The charge is automatically reversed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Verify Card'),
-          ),
-        ],
-      ),
-    );
-
-    if (proceed != true || !mounted) return false;
-
-    // Launch the random verification charge
-    final authUser = Supabase.instance.client.auth.currentUser;
-    final email = authUser?.email ?? '';
-    final phone = authUser?.phone ?? '';
-    final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
-
-    NcbPaymentSession session;
-    try {
-      session = await paymentService.createCardVerificationCheckout(
-        customerEmail: email,
-        customerPhone: phone,
-        customerName: name,
-      );
-    } catch (e) {
-      if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
-      }
-      return false;
-    }
-
-    if (!mounted) return false;
-
-    // Open NCB payment screen for the charge
-    final chargeCompleted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => NcbPaymentScreen(session: session)),
-    );
-
-    if (chargeCompleted != true || !mounted) {
-      if (mounted) {
-        AppSnackbar.warning(context, 'Card verification was not completed');
-      }
-      return false;
-    }
-
-    // Charge succeeded — now ask user to enter the exact amount
-    final amountConfirmed = await _showAmountConfirmationDialog(
-      session.orderId,
-      paymentService,
-    );
-
-    if (amountConfirmed && mounted) {
-      ref.invalidate(savedCardsProvider(userId));
-      AppSnackbar.success(
-        context,
-        'Card verified! The charge will be reversed.',
-      );
-      return true;
-    }
-
-    if (mounted) {
-      AppSnackbar.error(context, 'Amount did not match. Verification failed.');
-    }
-    return false;
-  }
-
-  /// Shows a dialog asking the user to enter the exact amount that was charged.
-  /// Returns true if it matches the verification record.
-  Future<bool> _showAmountConfirmationDialog(
-    String verificationId,
-    PaymentService paymentService,
-  ) async {
-    final controller = TextEditingController();
-    var attempts = 0;
-    const maxAttempts = 3;
-
-    while (attempts < maxAttempts) {
-      if (!mounted) return false;
-
-      final entered = await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Confirm Charge Amount'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                attempts == 0
-                    ? 'Check your bank statement or notification and enter '
-                          'the exact amount that was charged to your card.'
-                    : 'That amount didn\'t match. You have '
-                          '${maxAttempts - attempts} '
-                          '${maxAttempts - attempts == 1 ? "attempt" : "attempts"} '
-                          'remaining.',
-                style: TextStyle(
-                  color: attempts > 0 ? Colors.red.shade700 : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller..clear(),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                decoration: const InputDecoration(
-                  prefixText: '\$ ',
-                  hintText: 'e.g. 3.00',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-              child: const Text('Confirm'),
-            ),
-          ],
-        ),
-      );
-
-      if (entered == null || entered.isEmpty) return false; // cancelled
-
-      final enteredAmount = double.tryParse(entered);
-      if (enteredAmount == null) {
-        attempts++;
-        continue;
-      }
-
-      final matched = await paymentService.confirmVerificationAmount(
-        verificationId,
-        enteredAmount,
-      );
-
-      if (matched) {
-        controller.dispose();
-        return true;
-      }
-
-      attempts++;
-    }
-
-    controller.dispose();
-    return false;
   }
 
   Future<void> _addNewCard() async {
@@ -519,43 +328,45 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (amount <= 0) return;
     setState(() => _isDepositing = true);
     try {
-      // 0. Make sure the user has a verified card first
-      final cardOk = await _ensureCardVerified();
-      if (!cardOk) return;
-
-      // 1. Create a card checkout session via NCB
+      // 1. Create a Stripe PaymentIntent for the wallet top-up
       final paymentService = ref.read(paymentServiceProvider);
       final authUser = Supabase.instance.client.auth.currentUser;
       final email = authUser?.email ?? '';
-      final phone = authUser?.phone ?? '';
       final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
-      // Use a unique wallet-topup ID so NCB can track it
+      // Use a unique wallet-topup ID
       final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
 
-      final session = await paymentService.createCardCheckout(
+      final session = await paymentService.createStripeCheckout(
         orderId: topupId,
         amount: amount,
         customerEmail: email,
-        customerPhone: phone,
         customerName: name,
         type: 'wallet_topup',
       );
 
       if (!mounted) return;
 
-      // 2. Open the NCB payment screen and wait for result
-      final paymentCompleted = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => NcbPaymentScreen(session: session)),
+      // 2. Present Stripe Payment Sheet
+      final paymentCompleted = await paymentService.presentStripePaymentSheet(
+        session: session,
+        customerEmail: email,
+        customerName: name,
       );
 
       if (!mounted) return;
 
-      if (paymentCompleted != true) {
-        // User cancelled or payment failed
+      if (!paymentCompleted) {
         AppSnackbar.warning(context, 'Wallet top-up cancelled');
         return;
       }
+
+      // Confirm payment server-side
+      await paymentService.confirmStripePayment(
+        paymentIntentId: session.paymentIntentId,
+        orderId: topupId,
+        type: 'wallet_topup',
+      );
 
       // 3. Card payment succeeded — credit the wallet
       await ref.read(walletNotifierProvider.notifier).deposit(amount);

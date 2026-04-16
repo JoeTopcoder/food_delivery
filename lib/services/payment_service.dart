@@ -1,5 +1,5 @@
-import 'dart:math';
-
+import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/order_model.dart';
@@ -9,6 +9,24 @@ import '../utils/app_logger.dart';
 /// Payment method enum
 enum PaymentMethod { card, bankTransfer, cash }
 
+/// Result from creating a Stripe PaymentIntent via the edge function
+class StripePaymentSession {
+  final String orderId;
+  final String paymentIntentId;
+  final String clientSecret;
+  final double amount;
+  final String currency;
+
+  const StripePaymentSession({
+    required this.orderId,
+    required this.paymentIntentId,
+    required this.clientSecret,
+    required this.amount,
+    required this.currency,
+  });
+}
+
+/// Legacy NCB session kept for backward compat references (unused in new flow)
 class NcbPaymentSession {
   final String orderId;
   final String transactionId;
@@ -59,7 +77,7 @@ class PaymentResponse {
   };
 }
 
-/// Handles payment processing via NCB
+/// Handles payment processing via Stripe
 class PaymentService {
   final SupabaseClient _supabaseClient;
 
@@ -68,6 +86,179 @@ class PaymentService {
 
   bool get isNcbConfigured => AppConstants.ncbApiKey.isNotEmpty;
 
+  /// Create a Stripe PaymentIntent via the edge function and present
+  /// the Stripe Payment Sheet to the user.
+  ///
+  /// Returns a [StripePaymentSession] containing the clientSecret needed
+  /// for the Payment Sheet. The actual payment sheet presentation is
+  /// handled by the calling screen.
+  Future<StripePaymentSession> createStripeCheckout({
+    required String orderId,
+    required double amount,
+    required String customerEmail,
+    required String customerName,
+    String type = 'order',
+  }) async {
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'create_payment_intent',
+          'orderId': orderId,
+          'amount': amount,
+          'email': customerEmail,
+          'name': customerName,
+          'type': type,
+          'currency': AppConstants.currencyCode.toLowerCase(),
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected Stripe session response.');
+      }
+
+      final clientSecret = data['clientSecret'] as String?;
+      final paymentIntentId = data['paymentIntentId'] as String?;
+
+      if (clientSecret == null || paymentIntentId == null) {
+        throw Exception(data['error'] ?? 'Stripe session is incomplete.');
+      }
+
+      return StripePaymentSession(
+        orderId: orderId,
+        paymentIntentId: paymentIntentId,
+        clientSecret: clientSecret,
+        amount: amount,
+        currency: (data['currency'] as String?) ?? 'usd',
+      );
+    } catch (e) {
+      AppLogger.error('Stripe checkout creation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Present the Stripe Payment Sheet and wait for the user to complete payment.
+  /// Returns true if payment succeeded, false otherwise.
+  Future<bool> presentStripePaymentSheet({
+    required StripePaymentSession session,
+    required String customerEmail,
+    required String customerName,
+  }) async {
+    try {
+      // Initialize the Payment Sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: session.clientSecret,
+          merchantDisplayName: AppConstants.appName,
+          style: ThemeMode.system,
+          billingDetails: BillingDetails(
+            email: customerEmail,
+            name: customerName,
+          ),
+        ),
+      );
+
+      // Present the Payment Sheet
+      await Stripe.instance.presentPaymentSheet();
+
+      // If we reach here, payment was successful
+      return true;
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        AppLogger.info('Stripe payment cancelled by user');
+        return false;
+      }
+      AppLogger.error('Stripe payment error: ${e.error.localizedMessage}');
+      rethrow;
+    } catch (e) {
+      AppLogger.error('Stripe payment sheet error: $e');
+      rethrow;
+    }
+  }
+
+  /// Confirm payment status server-side after the payment sheet completes
+  Future<bool> confirmStripePayment({
+    required String paymentIntentId,
+    required String orderId,
+    String type = 'order',
+  }) async {
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'confirm_payment',
+          'paymentIntentId': paymentIntentId,
+          'orderId': orderId,
+          'type': type,
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return false;
+      return data['success'] == true;
+    } catch (e) {
+      AppLogger.error('Stripe payment confirmation error: $e');
+      return false;
+    }
+  }
+
+  /// Create a Stripe SetupIntent for saving a card without charging it
+  Future<Map<String, dynamic>> createSetupIntent({
+    required String customerEmail,
+  }) async {
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {'action': 'create_setup_intent', 'email': customerEmail},
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected setup intent response.');
+      }
+
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      return data;
+    } catch (e) {
+      AppLogger.error('Setup intent creation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Present the Stripe Payment Sheet in setup mode to save a card
+  Future<bool> presentSetupSheet({
+    required String clientSecret,
+    required String customerName,
+    required String customerEmail,
+  }) async {
+    try {
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          setupIntentClientSecret: clientSecret,
+          merchantDisplayName: AppConstants.appName,
+          style: ThemeMode.system,
+          billingDetails: BillingDetails(
+            email: customerEmail,
+            name: customerName,
+          ),
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
+      return true;
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        return false;
+      }
+      rethrow;
+    }
+  }
+
+  /// Legacy: Create NCB card checkout (kept for any residual reference)
   Future<NcbPaymentSession> createCardCheckout({
     required String orderId,
     required double amount,
@@ -79,57 +270,12 @@ class PaymentService {
     String? savedCardId,
     String? cvv,
   }) async {
-    if (!isNcbConfigured) {
-      throw Exception(
-        'NCB is not configured. Set NCB_API_KEY in your Flutter build and deploy the Supabase payment functions with NCB secrets.',
-      );
-    }
-
-    try {
-      final response = await _supabaseClient.functions.invoke(
-        AppConstants.ncbInitiatePaymentFunction.replaceAll('/', ''),
-        body: {
-          'orderId': orderId,
-          'amount': _formatAmount(amount),
-          'email': customerEmail,
-          'phone': customerPhone,
-          'name': customerName,
-          if (billingAddress != null && billingAddress.trim().isNotEmpty)
-            'billingAddress': billingAddress.trim(),
-          if (type != null) 'type': type,
-          if (savedCardId != null) 'savedCardId': savedCardId,
-          if (cvv != null) 'cvv': cvv,
-        },
-      );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected NCB session response.');
-      }
-
-      final paymentUrl = data['payment_url'] as String?;
-      final transactionId = data['reference'] as String?;
-      final callbackUrl = AppConstants.ncbCallbackUrl;
-
-      if (paymentUrl == null || transactionId == null) {
-        throw Exception(data['error'] ?? 'NCB session is incomplete.');
-      }
-
-      return NcbPaymentSession(
-        orderId: orderId,
-        transactionId: transactionId,
-        paymentUrl: paymentUrl,
-        callbackUrl: callbackUrl,
-      );
-    } catch (e) {
-      AppLogger.error('NCB checkout creation error: $e');
-      rethrow;
-    }
+    throw Exception(
+      'NCB payments have been replaced by Stripe. Use createStripeCheckout() instead.',
+    );
   }
 
-  /// Create a small random card verification charge ($1–$5 USD) to confirm
-  /// card ownership. After the charge the user must enter the exact amount
-  /// to prove they can see it on their bank statement.
+  /// Legacy: Create card verification checkout (no longer needed with Stripe)
   Future<NcbPaymentSession> createCardVerificationCheckout({
     required String customerEmail,
     required String customerPhone,
@@ -138,79 +284,9 @@ class PaymentService {
     String? cardExpiry,
     String? cardCvv,
   }) async {
-    if (!isNcbConfigured) {
-      throw Exception('NCB is not configured.');
-    }
-
-    try {
-      final verifyId = 'verify-card-${DateTime.now().millisecondsSinceEpoch}';
-      // Random amount between $1.00 and $5.00 with cents
-      final verificationAmount =
-          (Random().nextInt(400) + 100) / 100.0; // e.g. 1.00 – 5.00
-
-      final response = await _supabaseClient.functions.invoke(
-        AppConstants.ncbInitiatePaymentFunction.replaceAll('/', ''),
-        body: {
-          'orderId': verifyId,
-          'amount': _formatAmount(verificationAmount),
-          'email': customerEmail,
-          'phone': customerPhone,
-          'name': customerName,
-          'type': 'verify_card',
-          if (cardNumber != null) 'cardNumber': cardNumber,
-          if (cardExpiry != null) 'cardExpiry': cardExpiry,
-          if (cardCvv != null) 'cardCvv': cardCvv,
-        },
-      );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected NCB session response.');
-      }
-
-      final paymentUrl = data['payment_url'] as String?;
-      final transactionId = data['reference'] as String?;
-      final callbackUrl = AppConstants.ncbCallbackUrl;
-
-      if (paymentUrl == null || transactionId == null) {
-        throw Exception(data['error'] ?? 'NCB session is incomplete.');
-      }
-
-      return NcbPaymentSession(
-        orderId: verifyId,
-        transactionId: transactionId,
-        paymentUrl: paymentUrl,
-        callbackUrl: callbackUrl,
-        verificationAmount: verificationAmount,
-      );
-    } catch (e) {
-      AppLogger.error('Card verification checkout error: $e');
-      rethrow;
-    }
-  }
-
-  /// Check if the user-entered amount matches the verification charge.
-  Future<bool> confirmVerificationAmount(
-    String verificationId,
-    double enteredAmount,
-  ) async {
-    try {
-      final row = await _supabaseClient
-          .from('card_verifications')
-          .select('amount, status')
-          .eq('id', verificationId)
-          .maybeSingle();
-
-      if (row == null) return false;
-      final chargedAmount = (row['amount'] as num).toDouble();
-      final status = row['status'] as String?;
-
-      // Must be a completed charge and the amounts must match exactly
-      return status == 'completed' && chargedAmount == enteredAmount;
-    } catch (e) {
-      AppLogger.error('Error confirming verification amount: $e');
-      return false;
-    }
+    throw Exception(
+      'Card verification is no longer needed with Stripe. Use createSetupIntent() instead.',
+    );
   }
 
   Future<String> waitForOrderPaymentStatus(
@@ -262,13 +338,14 @@ class PaymentService {
       // Route to appropriate payment method processor
       switch (paymentMethod) {
         case PaymentMethod.card:
-          // Card payments require createCardCheckout()
+          // Card payments are handled via Stripe Payment Sheet
+          // Use createStripeCheckout() + presentStripePaymentSheet()
           return _createFailedResponse(
             orderId: orderId,
             amount: amount,
             paymentMethod: 'card',
             errorMessage:
-                'Card payments require createCardCheckout() so NCB can securely host card entry.',
+                'Card payments use Stripe Payment Sheet. Use createStripeCheckout() flow instead.',
           );
 
         case PaymentMethod.bankTransfer:
@@ -460,8 +537,6 @@ class PaymentService {
 
     return (amount * feePercent) / 100;
   }
-
-  String _formatAmount(double amount) => amount.toStringAsFixed(2);
 
   // ── Saved Cards ──────────────────────────────────────────────
 

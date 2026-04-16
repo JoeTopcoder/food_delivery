@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'l10n/app_localizations.dart';
 import 'config/supabase_config.dart';
 import 'services/app_config_service.dart';
@@ -89,6 +90,9 @@ void main() async {
   await Firebase.initializeApp();
   await SupabaseConfig.initialize();
   await CacheService.init();
+  // Initialize Stripe with publishable key
+  Stripe.publishableKey = AppConstants.stripePublishableKey;
+  Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
   // Load DB-driven config (non-blocking — falls back to compiled defaults on error)
   await AppConfigService(SupabaseConfig.client).load();
   runApp(const ProviderScope(child: MyApp()));
