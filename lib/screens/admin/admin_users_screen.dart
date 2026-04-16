@@ -119,7 +119,9 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Column(
@@ -606,12 +608,13 @@ class _UserDetailsSheet extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Details
-          _row(Icons.email_outlined, 'Email', user.email),
+          _row(context, Icons.email_outlined, 'Email', user.email),
           if (user.phone != null)
-            _row(Icons.phone_outlined, 'Phone', user.phone!),
+            _row(context, Icons.phone_outlined, 'Phone', user.phone!),
           if (user.address != null)
-            _row(Icons.location_on_outlined, 'Address', user.address!),
+            _row(context, Icons.location_on_outlined, 'Address', user.address!),
           _row(
+            context,
             Icons.calendar_today_outlined,
             'Joined',
             _formatDate(user.createdAt),
@@ -702,7 +705,7 @@ class _UserDetailsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _row(IconData icon, String label, String value) {
+  Widget _row(BuildContext context, IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -720,10 +723,10 @@ class _UserDetailsSheet extends ConsumerWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF1F2937),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),

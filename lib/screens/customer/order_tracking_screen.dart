@@ -237,9 +237,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             const SizedBox(width: 6),
                             Text(
                               '(${liveOrder.estimatedDeliveryAt!.difference(DateTime.now()).inMinutes} min)',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF6B7280),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -772,7 +774,7 @@ class _Row extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-              color: const Color(0xFF1F2937),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -864,7 +866,7 @@ class _RateButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).cardColor,
           surfaceTintColor: Theme.of(context).cardColor,
-          foregroundColor: AppTheme.textPrimary,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

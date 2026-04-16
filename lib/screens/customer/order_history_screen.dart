@@ -405,7 +405,7 @@ class _OrderCard extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).cardColor,
                       surfaceTintColor: Theme.of(context).cardColor,
-                      foregroundColor: AppTheme.textPrimary,
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
                       padding: const EdgeInsets.symmetric(
                         vertical: 10,
                         horizontal: 12,
@@ -520,7 +520,9 @@ class _OrderCard extends ConsumerWidget {
                         icon: const Icon(Icons.flag_outlined, size: 15),
                         label: const Text('Report Issue'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6B7280),
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
                           side: const BorderSide(color: Color(0xFFD1D5DB)),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
@@ -693,7 +695,10 @@ class _OrderCard extends ConsumerWidget {
             Center(
               child: Text(
                 'Receipt #${order.receiptNumber ?? order.id.substring(0, 8)}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const Divider(height: 24),
@@ -717,17 +722,17 @@ class _OrderCard extends ConsumerWidget {
               ),
             ),
             const Divider(height: 16),
-            _ReceiptRow(context.l10n.subtotal, order.subtotal),
+            _ReceiptRow(context, context.l10n.subtotal, order.subtotal),
             if (order.deliveryFee > 0)
-              _ReceiptRow('Delivery Fee', order.deliveryFee),
+              _ReceiptRow(context, 'Delivery Fee', order.deliveryFee),
             if (order.taxAmount != null && order.taxAmount! > 0)
-              _ReceiptRow(context.l10n.tax, order.taxAmount!),
+              _ReceiptRow(context, context.l10n.tax, order.taxAmount!),
             if (order.discount != null && order.discount! > 0)
-              _ReceiptRow('Discount', -order.discount!),
+              _ReceiptRow(context, 'Discount', -order.discount!),
             if (order.driverTip != null && order.driverTip! > 0)
-              _ReceiptRow('Driver Tip', order.driverTip!),
+              _ReceiptRow(context, 'Driver Tip', order.driverTip!),
             if (order.postDeliveryTip != null && order.postDeliveryTip! > 0)
-              _ReceiptRow('Post-Delivery Tip', order.postDeliveryTip!),
+              _ReceiptRow(context, 'Post-Delivery Tip', order.postDeliveryTip!),
             const Divider(height: 16),
             Row(
               children: [
@@ -749,13 +754,19 @@ class _OrderCard extends ConsumerWidget {
             Text(
               'Paid via ${order.paymentMethod?.toUpperCase() ?? 'CASH'}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               DateFormat.yMMMd().add_jm().format(order.orderedAt),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 20),
             const Center(
@@ -775,7 +786,7 @@ class _OrderCard extends ConsumerWidget {
   }
 
   // ignore: non_constant_identifier_names
-  Widget _ReceiptRow(String label, double amount) {
+  Widget _ReceiptRow(BuildContext context, String label, double amount) {
     final isNegative = amount < 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -783,7 +794,10 @@ class _OrderCard extends ConsumerWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const Spacer(),
           Text(

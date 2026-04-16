@@ -162,7 +162,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
           'Pick Delivery Location',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        foregroundColor: AppTheme.textPrimary,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         elevation: 0,
       ),
       body: Stack(
@@ -206,7 +206,10 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
               heroTag: 'myLoc',
               backgroundColor: Theme.of(context).cardColor,
               onPressed: _goToCurrentLocation,
-              child: const Icon(Icons.my_location, color: Color(0xFF374151)),
+              child: Icon(
+                Icons.my_location,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
 

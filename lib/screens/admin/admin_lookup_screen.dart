@@ -342,14 +342,14 @@ class _CardResultsView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         for (final entry in results) ...[
-          _buildCardEntry(entry),
+          _buildCardEntry(context, entry),
           const SizedBox(height: 16),
         ],
       ],
     );
   }
 
-  Widget _buildCardEntry(Map<String, dynamic> entry) {
+  Widget _buildCardEntry(BuildContext context, Map<String, dynamic> entry) {
     final card = entry['card'] as Map<String, dynamic>? ?? {};
     final customer = entry['customer'] as Map<String, dynamic>?;
     final orders = entry['orders'] as List? ?? [];
@@ -386,10 +386,10 @@ class _CardResultsView extends StatelessWidget {
                     children: [
                       Text(
                         '$brand •••• $last4',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: Color(0xFF1F2937),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       if (isDefault) ...[
@@ -419,9 +419,9 @@ class _CardResultsView extends StatelessWidget {
                   ),
                   Text(
                     holder,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -742,15 +742,15 @@ class _CustomerResultView extends StatelessWidget {
                       Icon(
                         Icons.credit_card,
                         size: 16,
-                        color: const Color(0xFF6B7280),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${((card as Map)['card_brand'] as String? ?? '').toUpperCase()} •••• ${card['last_four'] ?? ''}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       if (card['is_default'] == true) ...[
@@ -901,14 +901,18 @@ class _InfoSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+            Icon(
+              icon,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 6),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 0.3,
               ),
             ),
@@ -935,10 +939,10 @@ class _InfoSection extends StatelessWidget {
                   Expanded(
                     child: SelectableText(
                       row.value,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF1F2937),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -997,10 +1001,10 @@ class _OrderRow extends StatelessWidget {
             children: [
               Text(
                 '#$shortId',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F2937),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -1021,7 +1025,10 @@ class _OrderRow extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 '$method ($paymentStatus)',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

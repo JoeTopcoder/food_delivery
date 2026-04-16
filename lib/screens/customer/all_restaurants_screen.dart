@@ -54,9 +54,9 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
       appBar: AppBar(
         title: Text(
           context.l10n.restaurants,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         elevation: 0,
@@ -122,7 +122,7 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                             fontWeight: FontWeight.w600,
                             color: isSelected
                                 ? Colors.white
-                                : AppTheme.textPrimary,
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],

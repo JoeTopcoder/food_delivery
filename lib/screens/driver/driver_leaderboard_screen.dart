@@ -259,7 +259,7 @@ class _LeaderboardTile extends StatelessWidget {
                     Icon(
                       _vehicleIcon,
                       size: 13,
-                      color: const Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -270,10 +270,10 @@ class _LeaderboardTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.payments_rounded,
                       size: 12,
-                      color: Color(0xFF6B7280),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 3),
                     Text(

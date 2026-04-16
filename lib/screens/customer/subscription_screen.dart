@@ -27,11 +27,13 @@ class SubscriptionScreen extends ConsumerWidget {
             'Meal Plans',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          foregroundColor: AppTheme.textPrimary,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
           bottom: TabBar(
             indicatorColor: AppTheme.primaryColor,
             labelColor: AppTheme.primaryColor,
-            unselectedLabelColor: AppTheme.textSecondary,
+            unselectedLabelColor: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant,
             tabs: [
               Tab(text: 'Browse Plans'),
               Tab(text: 'My Subscriptions'),

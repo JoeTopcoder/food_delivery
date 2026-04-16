@@ -184,7 +184,10 @@ class _BannerTile extends StatelessWidget {
         ),
         subtitle: Text(
           banner.restaurantName ?? 'Unknown restaurant',
-          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -302,10 +305,10 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
         children: [
           Text(
             widget.existing != null ? 'Edit Banner' : 'New Banner',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 16),
@@ -341,12 +344,12 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
           const SizedBox(height: 12),
 
           // Restaurant picker
-          const Text(
+          Text(
             'Link to Restaurant *',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 6),

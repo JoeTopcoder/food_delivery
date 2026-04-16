@@ -997,10 +997,10 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
                 isDriver
                     ? 'Create Driver Account'
                     : 'Create Restaurant Account',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
@@ -1008,7 +1008,10 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
                 isDriver
                     ? 'The driver will receive login credentials'
                     : 'The owner will receive login credentials',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -1040,7 +1043,10 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
                   if (v!.length < 6) return 'Min 6 characters';
                   return null;
                 },
-                style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 decoration: _dec('Password', Icons.lock_outline).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -1062,12 +1068,12 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
 
               // Role-specific fields
               if (isDriver) ...[
-                const Text(
+                Text(
                   'Vehicle Details',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
-                    color: Color(0xFF374151),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1093,12 +1099,12 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
                 const SizedBox(height: 10),
                 _field(_licenseCtrl, 'License Number', Icons.badge_outlined),
               ] else ...[
-                const Text(
+                Text(
                   'Restaurant Details',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
-                    color: Color(0xFF374151),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1205,7 +1211,10 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
       controller: ctrl,
       keyboardType: type,
       validator: validator,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+      style: TextStyle(
+        fontSize: 14,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
       decoration: _dec(label, icon),
     );
   }

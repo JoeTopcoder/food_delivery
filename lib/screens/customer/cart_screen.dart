@@ -66,13 +66,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Shopping Cart',
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -154,7 +157,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         size: 18,
                                         color: !isPickup
                                             ? Colors.white
-                                            : AppTheme.textSecondary,
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -164,7 +169,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                           fontSize: 14,
                                           color: !isPickup
                                               ? Colors.white
-                                              : AppTheme.textSecondary,
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -196,7 +203,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         size: 18,
                                         color: isPickup
                                             ? Colors.white
-                                            : AppTheme.textSecondary,
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -206,7 +215,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                           fontSize: 14,
                                           color: isPickup
                                               ? Colors.white
-                                              : AppTheme.textSecondary,
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -242,19 +253,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Pick up from',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: AppTheme.textSecondary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                     Text(
                                       restaurant?.name ?? 'Restaurant',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.textPrimary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                       ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
@@ -291,19 +306,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Deliver to',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: AppTheme.textSecondary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       Text(
                                         deliveryAddress,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -311,9 +330,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     ],
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.chevron_right_rounded,
-                                  color: AppTheme.textSecondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   size: 20,
                                 ),
                               ],

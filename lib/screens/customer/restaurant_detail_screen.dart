@@ -93,28 +93,33 @@ class _RestaurantDetailScreenState
           ? AppBar(
               elevation: 0,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
                 widget.restaurant.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               actions: [
                 IconButton(
                   icon: Icon(
                     isFav ? Icons.favorite : Icons.favorite_outline,
-                    color: isFav ? AppTheme.accentColor : AppTheme.textPrimary,
+                    color: isFav
+                        ? AppTheme.accentColor
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                   onPressed: toggleFav,
                 ),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.share_outlined,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   onPressed: () => Share.share(
                     'Check out ${widget.restaurant.name} on FoodHub!',
@@ -256,10 +261,10 @@ class _RestaurantDetailScreenState
                     children: [
                       Text(
                         widget.restaurant.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
-                          color: AppTheme.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -446,17 +451,21 @@ class _RestaurantDetailScreenState
                         children: [
                           Text(
                             widget.restaurant.cuisineType ?? 'Multi-cuisine',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppTheme.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(width: 16),
                           Text(
                             'Delivery: \$${widget.restaurant.deliveryFee ?? 0}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppTheme.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -466,9 +475,11 @@ class _RestaurantDetailScreenState
                         const SizedBox(height: 12),
                         Text(
                           widget.restaurant.description!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppTheme.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             height: 1.5,
                           ),
                         ),
@@ -536,7 +547,9 @@ class _RestaurantDetailScreenState
                                     style: TextStyle(
                                       color: isActive
                                           ? Colors.white
-                                          : AppTheme.textPrimary,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),

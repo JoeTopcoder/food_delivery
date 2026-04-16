@@ -511,12 +511,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   'FoodHub',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -525,9 +525,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.shopping_cart_outlined,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     onPressed: () => Navigator.pushNamed(context, '/cart'),
                   ),
@@ -564,9 +564,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ],
               ),
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.notifications_none_rounded,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 onPressed: () => Navigator.pushNamed(context, '/notifications'),
               ),
@@ -600,21 +600,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Deliver to',
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppTheme.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           Text(
                             userAddress,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -673,12 +675,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   horizontal: 16,
                   vertical: 4,
                 ),
-                child: const Text(
+                child: Text(
                   'Browse by Category',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -742,10 +744,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: AppTheme.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -809,12 +811,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   horizontal: 16,
                   vertical: 8,
                 ),
-                child: const Text(
+                child: Text(
                   'All Restaurants',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -992,10 +994,10 @@ class _HorizontalRestaurantRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1082,10 +1084,10 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1093,9 +1095,9 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.cuisineType ?? 'Multi-cuisine',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 6),
