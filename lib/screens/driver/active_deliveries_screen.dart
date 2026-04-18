@@ -360,6 +360,11 @@ class _ActiveDeliveriesScreenState
 
                 await driverService.completeDelivery(delivery.id);
                 ref.invalidate(activeDeliveriesProvider(driverId));
+                ref.invalidate(deliveryHistoryProvider(driverId));
+                final userId = ref.read(currentUserIdProvider);
+                if (userId != null) {
+                  ref.invalidate(driverProfileProvider(userId));
+                }
                 if (context.mounted) {
                   AppSnackbar.success(context, 'Delivery completed!');
                 }

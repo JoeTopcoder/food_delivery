@@ -163,10 +163,40 @@ class PayoutService {
           .select()
           .single();
       AppLogger.info('Driver payout request created: ${response['id']}');
+
+      // Immediately update total_paid_out to include all active payouts
+      // so Available Balance decreases right away
+      await _recalcDriverPaidOut(driverId);
+
       return PayoutRequest.fromJson(response);
     } catch (e) {
       AppLogger.error('Error requesting driver payout: $e');
       rethrow;
+    }
+  }
+
+  /// Recalculate total_paid_out for a driver from all active payout requests
+  /// (pending, approved, processing, completed — excludes rejected/failed).
+  Future<void> _recalcDriverPaidOut(String driverId) async {
+    try {
+      final rows = await _client
+          .from('payout_requests')
+          .select('amount, status')
+          .eq('driver_id', driverId)
+          .not('status', 'in', '(rejected,failed)');
+      final total = (rows as List).fold<double>(
+        0.0,
+        (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0.0),
+      );
+      await _client
+          .from(AppConstants.tableDrivers)
+          .update({
+            'total_paid_out': total,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', driverId);
+    } catch (e) {
+      AppLogger.error('Error recalculating driver paid out: $e');
     }
   }
 

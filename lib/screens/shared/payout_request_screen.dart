@@ -559,6 +559,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
       );
       _amountCtrl.clear();
       ref.invalidate(myPayoutsProvider(userId));
+      ref.invalidate(driverProfileProvider(userId));
       if (mounted) {
         AppSnackbar.success(context, 'Payout request submitted!');
       }
