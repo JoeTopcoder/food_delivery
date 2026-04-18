@@ -104,6 +104,11 @@ class DriverEarningsScreen extends ConsumerWidget {
             );
             final avgRating = driver.rating ?? 0.0;
             final cashFloat = driver.cashFloat ?? 0.0;
+            final totalPaidOut = driver.totalPaidOut ?? 0.0;
+            final availableBalance = (totalEarnings - totalPaidOut).clamp(
+              0.0,
+              double.infinity,
+            );
 
             return Scaffold(
               backgroundColor: const Color(0xFF0F1117),
@@ -148,7 +153,7 @@ class DriverEarningsScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Total Earnings',
+                                  'Available Balance',
                                   style: TextStyle(
                                     color: Colors.white70,
                                     fontSize: 13,
@@ -156,13 +161,23 @@ class DriverEarningsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${AppConstants.currencySymbol}${totalEarnings.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${availableBalance.toStringAsFixed(0)}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 36,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
+                                if (totalPaidOut > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Total earned: ${AppConstants.currencySymbol}${totalEarnings.toStringAsFixed(0)}  •  Paid out: ${AppConstants.currencySymbol}${totalPaidOut.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 16),
                                 Row(
                                   children: [

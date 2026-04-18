@@ -551,10 +551,22 @@ class DriverService {
       );
       final totalEarnings = totalDriverPay + totalTips;
 
+      // Recalculate total_paid_out from completed payouts
+      final payoutRows = await _supabaseClient
+          .from('payout_requests')
+          .select('amount')
+          .eq('driver_id', driverId)
+          .eq('status', 'completed');
+      final totalPaidOut = (payoutRows as List).fold<double>(
+        0.0,
+        (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0.0),
+      );
+
       final updateData = <String, dynamic>{
         'completed_deliveries': count,
         'cancelled_deliveries': cancelledCount,
         'total_earnings': totalEarnings,
+        'total_paid_out': totalPaidOut,
         'updated_at': DateTime.now().toIso8601String(),
       };
       if (avgRating != null) {
