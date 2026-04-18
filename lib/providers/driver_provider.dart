@@ -5,6 +5,7 @@ import '../models/order_model.dart';
 import '../services/driver_service.dart';
 import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
+import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 
 // Driver Service Provider
@@ -53,6 +54,69 @@ final deliveryHistoryProvider = FutureProvider.family
       final driverService = ref.watch(driverServiceProvider);
       return driverService.getDeliveryHistory(driverId);
     });
+
+/// Realtime listener that auto-refreshes driver earnings data.
+/// Watches:
+/// - `drivers` table for profile changes (cash_float, total_paid_out, rating)
+/// - `orders` table for completed deliveries (new earnings, tips)
+final driverEarningsRealtimeProvider = Provider.autoDispose.family<void, String>((
+  ref,
+  driverId,
+) {
+  final client = SupabaseConfig.client;
+
+  // Watch driver profile changes (cash_float, total_paid_out, rating, etc.)
+  final driverChannel = client
+      .channel('driver_profile_$driverId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: AppConstants.tableDrivers,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: driverId,
+        ),
+        callback: (_) {
+          AppLogger.info(
+            'Realtime: driver profile updated — refreshing earnings',
+          );
+          // Find the userId for this driver to invalidate the profile provider
+          final userId = client.auth.currentUser?.id;
+          if (userId != null) {
+            ref.invalidate(driverProfileProvider(userId));
+          }
+        },
+      )
+      .subscribe();
+
+  // Watch orders table for this driver (new deliveries, status changes, tips)
+  final ordersChannel = client
+      .channel('driver_orders_$driverId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: AppConstants.tableOrders,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'driver_id',
+          value: driverId,
+        ),
+        callback: (_) {
+          AppLogger.info(
+            'Realtime: driver orders changed — refreshing history',
+          );
+          ref.invalidate(deliveryHistoryProvider(driverId));
+          ref.invalidate(activeDeliveriesProvider(driverId));
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    client.removeChannel(driverChannel);
+    client.removeChannel(ordersChannel);
+  });
+});
 
 // Driver Availability State
 class DriverAvailabilityNotifier extends StateNotifier<bool> {

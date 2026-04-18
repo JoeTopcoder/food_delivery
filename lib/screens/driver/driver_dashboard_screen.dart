@@ -21,6 +21,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _togglingAvailability = false;
   bool _creatingProfile = false;
   late AnimationController _pulseController;
+  Driver? _lastDriver;
 
   @override
   void initState() {
@@ -81,20 +82,37 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       return const Scaffold(body: AppLoadingIndicator());
     }
 
+    // Use cached driver to avoid full-screen spinner on realtime refresh
+    final driver = driverProfileAsync?.valueOrNull ?? _lastDriver;
+    if (driverProfileAsync?.hasValue == true &&
+        driverProfileAsync?.valueOrNull != null) {
+      _lastDriver = driverProfileAsync!.valueOrNull;
+    }
+
+    if (driver == null) {
+      if (driverProfileAsync?.hasError == true) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F1117),
+          body: _buildError(currentUserId, driverProfileAsync!.error!),
+        );
+      }
+      if (driverProfileAsync == null) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F1117),
+          body: _buildNoProfile(currentUserId),
+        );
+      }
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F1117),
+        body: Center(
+          child: AppLoadingIndicator(message: 'Loading dashboard...'),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
-      body: driverProfileAsync == null
-          ? _buildNoProfile(currentUserId)
-          : driverProfileAsync.when(
-              data: (driver) {
-                if (driver == null) return _buildNoProfile(currentUserId);
-                return _buildDashboard(driver, authState, currentUserId);
-              },
-              loading: () => const Center(
-                child: AppLoadingIndicator(message: 'Loading dashboard...'),
-              ),
-              error: (error, _) => _buildError(currentUserId, error),
-            ),
+      body: _buildDashboard(driver, authState, currentUserId),
     );
   }
 
@@ -103,6 +121,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     dynamic authState,
     String currentUserId,
   ) {
+    // Keep realtime subscription alive so Balance / stats update live
+    ref.watch(driverEarningsRealtimeProvider(driver.id));
+
     final isOnline = driver.isAvailable;
     final screenWidth = MediaQuery.of(context).size.width;
 

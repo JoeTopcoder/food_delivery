@@ -551,12 +551,13 @@ class DriverService {
       );
       final totalEarnings = totalDriverPay + totalTips;
 
-      // Recalculate total_paid_out from completed payouts
+      // Recalculate total_paid_out from all active payouts
+      // (pending, approved, processing, completed — excludes rejected/failed)
       final payoutRows = await _supabaseClient
           .from('payout_requests')
           .select('amount')
           .eq('driver_id', driverId)
-          .eq('status', 'completed');
+          .not('status', 'in', '(rejected,failed)');
       final totalPaidOut = (payoutRows as List).fold<double>(
         0.0,
         (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0.0),

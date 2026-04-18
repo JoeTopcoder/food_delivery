@@ -3,6 +3,7 @@ import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 
@@ -75,6 +76,16 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
     try {
       final service = ref.read(driverServiceProvider);
       await service.completeDelivery(widget.order.id);
+      // Refresh earnings data immediately
+      final driverId = widget.order.driverId;
+      if (driverId != null) {
+        ref.invalidate(deliveryHistoryProvider(driverId));
+        ref.invalidate(activeDeliveriesProvider(driverId));
+      }
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) {
+        ref.invalidate(driverProfileProvider(userId));
+      }
       if (mounted) {
         Navigator.of(context).pop(true);
         AppSnackbar.success(context, 'Delivery completed successfully!');
