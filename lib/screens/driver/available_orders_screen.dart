@@ -342,6 +342,28 @@ class _OrderCard extends ConsumerWidget {
                               ),
                             ),
                           ),
+                        ] else ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              order.status.toUpperCase().replaceAll('_', ' '),
+                              style: const TextStyle(
+                                color: Color(0xFFF59E0B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
