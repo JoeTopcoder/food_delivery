@@ -309,6 +309,7 @@ class SmartRecommendationSection extends StatelessWidget {
   final List<SmartRecommendation> recommendations;
   final VoidCallback? onSeeAll;
   final void Function(SmartRecommendation rec)? onTap;
+  final Color? accentColor;
 
   const SmartRecommendationSection({
     super.key,
@@ -317,42 +318,81 @@ class SmartRecommendationSection extends StatelessWidget {
     required this.recommendations,
     this.onSeeAll,
     this.onTap,
+    this.accentColor,
   });
 
   @override
   Widget build(BuildContext context) {
     if (recommendations.isEmpty) return const SizedBox.shrink();
 
+    final accent = accentColor ?? AppTheme.primaryColor;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // ── Vibrant section header ──────────────────────────
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                accent.withValues(alpha: 0.12),
+                accent.withValues(alpha: 0.04),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withValues(alpha: 0.15)),
+          ),
           child: Row(
             children: [
               if (emoji.isNotEmpty) ...[
-                Text(emoji, style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                ),
+                const SizedBox(width: 10),
               ],
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: accent.computeLuminance() > 0.5
+                        ? const Color(0xFF1F2937)
+                        : accent,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
               if (onSeeAll != null)
                 GestureDetector(
                   onTap: onSeeAll,
-                  child: Text(
-                    'See all',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'See all',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
                     ),
                   ),
                 ),
@@ -397,8 +437,20 @@ class _SmartRestaurantCard extends StatelessWidget {
         width: 180,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade100, width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,11 +530,19 @@ class _SmartRestaurantCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: 3,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryColor.withValues(alpha: 0.15),
+                          AppTheme.primaryColor.withValues(alpha: 0.06),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                      ),
                     ),
                     child: Text(
                       rec.reason,
@@ -490,7 +550,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: AppTheme.primaryColor,
                       ),
                     ),
@@ -584,6 +644,7 @@ class SmartHomeSections extends ConsumerWidget {
             SmartRecommendationSection(
               title: 'Made for You',
               emoji: '\u{1F9E0}',
+              accentColor: const Color(0xFF6366F1),
               recommendations: brain.forYou,
               onTap: onRestaurantTap,
             ),
@@ -593,6 +654,7 @@ class SmartHomeSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Because you love ${brain.topCuisine}',
                 emoji: '\u{1F355}',
+                accentColor: const Color(0xFFE11D48),
                 recommendations: brain.becauseYouLove,
                 onTap: onRestaurantTap,
               ),
@@ -602,6 +664,7 @@ class SmartHomeSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Deals you\'ll like',
                 emoji: '\u{1F381}',
+                accentColor: const Color(0xFF10B981),
                 recommendations: brain.dealsForYou,
                 onTap: onRestaurantTap,
               ),
@@ -611,6 +674,7 @@ class SmartHomeSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Quick delivery',
                 emoji: '\u{26A1}',
+                accentColor: const Color(0xFFF59E0B),
                 recommendations: brain.quickDelivery,
                 onTap: onRestaurantTap,
               ),
@@ -688,6 +752,7 @@ class GrocerySmartSections extends ConsumerWidget {
             SmartRecommendationSection(
               title: 'Stores for You',
               emoji: '\u{1F6D2}',
+              accentColor: const Color(0xFF6366F1),
               recommendations: brain.forYou,
               onTap: onStoreTap,
             ),
@@ -696,6 +761,7 @@ class GrocerySmartSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Top Rated Stores',
                 emoji: '\u{2B50}',
+                accentColor: const Color(0xFFE11D48),
                 recommendations: brain.becauseYouLove,
                 onTap: onStoreTap,
               ),
@@ -704,6 +770,7 @@ class GrocerySmartSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Great Delivery Deals',
                 emoji: '\u{1F4B0}',
+                accentColor: const Color(0xFF10B981),
                 recommendations: brain.dealsForYou,
                 onTap: onStoreTap,
               ),
@@ -712,6 +779,7 @@ class GrocerySmartSections extends ConsumerWidget {
               SmartRecommendationSection(
                 title: 'Quick Delivery',
                 emoji: '\u{26A1}',
+                accentColor: const Color(0xFFF59E0B),
                 recommendations: brain.quickDelivery,
                 onTap: onStoreTap,
               ),

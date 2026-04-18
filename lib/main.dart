@@ -41,6 +41,7 @@ import 'screens/customer/loyalty_screen.dart';
 import 'screens/customer/address_book_screen.dart';
 import 'screens/customer/order_history_screen.dart';
 import 'screens/customer/referral_screen.dart';
+import 'screens/customer/earnings_screen.dart';
 import 'screens/customer/favorites_screen.dart';
 import 'screens/customer/smart_search_screen.dart';
 import 'screens/customer/restaurant_reviews_screen.dart';
@@ -62,6 +63,7 @@ import 'screens/admin/admin_lookup_screen.dart';
 import 'screens/admin/admin_contract_screen_v2.dart';
 import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
+import 'screens/admin/admin_pricing_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -78,12 +80,13 @@ import 'screens/restaurant/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
+import 'screens/admin/admin_earnings_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
-import 'screens/splash_screen.dart';
 // import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
+import 'providers/feature_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,8 +96,11 @@ void main() async {
   // Initialize Stripe with publishable key
   Stripe.publishableKey = AppConstants.stripePublishableKey;
   Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-  // Load DB-driven config (non-blocking — falls back to compiled defaults on error)
+  // Load DB-driven config before rendering so admin pricing is available
   await AppConfigService(SupabaseConfig.client).load();
+  print(
+    '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
+  );
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -111,6 +117,9 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
+
+    // Start listening for admin pricing changes in real time
+    ref.read(appConfigRealtimeProvider);
 
     // Share navigator key with notification service for tap navigation
     NotificationService.navigatorKey = _navigatorKey;
@@ -166,25 +175,13 @@ class _MyAppState extends ConsumerState<MyApp> {
   static Widget _getHomeForRole(String? role) {
     switch (role) {
       case 'driver':
-        return const SplashScreen(
-          role: 'driver',
-          destination: DriverDashboardScreen(),
-        );
+        return const DriverDashboardScreen();
       case 'restaurant':
-        return const SplashScreen(
-          role: 'restaurant',
-          destination: RestaurantDashboardScreen(),
-        );
+        return const RestaurantDashboardScreen();
       case 'admin':
-        return const SplashScreen(
-          role: 'admin',
-          destination: AdminDashboardScreen(),
-        );
+        return const AdminDashboardScreen();
       default:
-        return const SplashScreen(
-          role: 'customer',
-          destination: MainNavigationScreen(),
-        );
+        return const MainNavigationScreen();
     }
   }
 
@@ -376,6 +373,10 @@ class _MyAppState extends ConsumerState<MyApp> {
               return MaterialPageRoute(
                 builder: (context) => const AdminFinancialsScreen(),
               );
+            case '/admin-earnings':
+              return MaterialPageRoute(
+                builder: (context) => const AdminEarningsScreen(),
+              );
             case '/admin-orders':
               return MaterialPageRoute(
                 builder: (context) => const AdminOrdersScreen(),
@@ -405,6 +406,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/referrals':
               return MaterialPageRoute(
                 builder: (context) => const ReferralScreen(),
+              );
+            case '/earnings':
+              return MaterialPageRoute(
+                builder: (context) => const EarningsScreen(),
               );
             case '/favorites':
               return MaterialPageRoute(
@@ -480,6 +485,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/admin-ads':
               return MaterialPageRoute(
                 builder: (context) => const AdminAdsScreen(),
+              );
+            case '/admin-pricing':
+              return MaterialPageRoute(
+                builder: (context) => const AdminPricingScreen(),
               );
             case '/wallet':
               return MaterialPageRoute(

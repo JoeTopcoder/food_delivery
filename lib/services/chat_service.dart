@@ -41,12 +41,16 @@ class ChatService {
 
       // Send push notification to other participants (non-blocking)
       if (messageType == MessageType.text) {
-        _notifyNewMessage(orderId: orderId, senderId: senderId, message: message);
+        _notifyNewMessage(
+          orderId: orderId,
+          senderId: senderId,
+          message: message,
+        );
       }
 
       return result as String?;
     } catch (e) {
-      debugPrint('ChatService.sendMessage error: $e');
+      if (kDebugMode) debugPrint('ChatService.sendMessage error: $e');
       rethrow;
     }
   }
@@ -108,7 +112,7 @@ class ChatService {
         );
       }
     } catch (e) {
-      debugPrint('Failed to send message notification: $e');
+      if (kDebugMode) debugPrint('Failed to send message notification: $e');
     }
   }
 
@@ -116,28 +120,28 @@ class ChatService {
 
   Future<void> markRead(String orderId, String readerId) async {
     try {
-    // First get the conversation for this order
-    final convRows = await _client
-        .from('conversations')
-        .select('id')
-        .eq('order_id', orderId)
-        .limit(1);
-    if ((convRows as List).isNotEmpty) {
-      final convId = convRows[0]['id'] as String;
-      await _client.rpc(
-        'mark_messages_status',
-        params: {'p_conversation_id': convId, 'p_new_status': 'seen'},
-      );
-    } else {
-      // Fallback: direct update for old messages without conversations
-      await _client
-          .from('chat_messages')
-          .update({'is_read': true})
+      // First get the conversation for this order
+      final convRows = await _client
+          .from('conversations')
+          .select('id')
           .eq('order_id', orderId)
-          .neq('sender_id', readerId);
-    }
+          .limit(1);
+      if ((convRows as List).isNotEmpty) {
+        final convId = convRows[0]['id'] as String;
+        await _client.rpc(
+          'mark_messages_status',
+          params: {'p_conversation_id': convId, 'p_new_status': 'seen'},
+        );
+      } else {
+        // Fallback: direct update for old messages without conversations
+        await _client
+            .from('chat_messages')
+            .update({'is_read': true})
+            .eq('order_id', orderId)
+            .neq('sender_id', readerId);
+      }
     } catch (e) {
-      debugPrint('ChatService.markRead error: $e');
+      if (kDebugMode) debugPrint('ChatService.markRead error: $e');
     }
   }
 
@@ -211,27 +215,34 @@ class ChatService {
     String channelName,
   ) async {
     try {
-      debugPrint(
-        'Agora token: invoking edge function callId=$callId channel=$channelName',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Agora token: invoking edge function callId=$callId channel=$channelName',
+        );
+      }
       final res = await _client.functions.invoke(
         'agora-token',
         body: {'callId': callId, 'channelName': channelName},
       );
-      debugPrint(
-        'Agora token: response status=${res.status} type=${res.data.runtimeType}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Agora token: response status=${res.status} type=${res.data.runtimeType}',
+        );
+      }
       if (res.data is Map<String, dynamic>) {
         final data = res.data as Map<String, dynamic>;
         if (data.containsKey('error')) {
-          debugPrint('Agora token: server error: ${data['error']}');
+          if (kDebugMode)
+            debugPrint('Agora token: server error: ${data['error']}');
           throw Exception('Server: ${data['error']}');
         }
         final serverAppId = data['appId'] as String? ?? '';
         final token = data['token'] as String?;
-        debugPrint(
-          'Agora token: got token ${token?.length ?? 0} chars, appId=${serverAppId.isNotEmpty ? serverAppId.substring(0, 8) : "EMPTY"}...',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'Agora token: got token ${token?.length ?? 0} chars, appId=${serverAppId.isNotEmpty ? serverAppId.substring(0, 8) : "EMPTY"}...',
+          );
+        }
         if (token != null && token.isNotEmpty) {
           return (token: token, appId: serverAppId);
         }
@@ -240,9 +251,11 @@ class ChatService {
       throw Exception('Bad response type: ${res.data.runtimeType}');
     } on FunctionException catch (e) {
       // FunctionException carries the HTTP status and body
-      debugPrint(
-        'Agora token: FunctionException status=${e.status} details=${e.details}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Agora token: FunctionException status=${e.status} details=${e.details}',
+        );
+      }
       final details = e.details;
       String msg = 'HTTP ${e.status}';
       if (details is Map<String, dynamic> && details.containsKey('error')) {
@@ -252,7 +265,7 @@ class ChatService {
       }
       throw Exception(msg);
     } catch (e) {
-      debugPrint('Failed to fetch Agora token: $e');
+      if (kDebugMode) debugPrint('Failed to fetch Agora token: $e');
       rethrow;
     }
   }
@@ -283,9 +296,11 @@ class ChatService {
         callRecord = callRecord.copyWith(agoraToken: result.token);
       }
     } catch (e) {
-      debugPrint(
-        'initiateCall: token pre-fetch failed (will retry in CallScreen): $e',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'initiateCall: token pre-fetch failed (will retry in CallScreen): $e',
+        );
+      }
     }
 
     // Send a system message about the call
@@ -332,7 +347,7 @@ class ChatService {
       );
     } catch (e) {
       // Non-critical — the realtime listener will also pick up the call
-      debugPrint('Failed to send call notification: $e');
+      if (kDebugMode) debugPrint('Failed to send call notification: $e');
     }
   }
 

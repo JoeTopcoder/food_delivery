@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -206,11 +207,13 @@ class _CallScreenState extends ConsumerState<CallScreen>
   // ── Join Agora channel ─────────────────────────────────────────────────────
   Future<void> _joinChannel() async {
     if (_isJoining) {
-      debugPrint('CallScreen: _joinChannel skipped — already joining');
+      if (kDebugMode)
+        debugPrint('CallScreen: _joinChannel skipped — already joining');
       return;
     }
     if (_agora.isInChannel) {
-      debugPrint('CallScreen: already in channel — marking ready');
+      if (kDebugMode)
+        debugPrint('CallScreen: already in channel — marking ready');
       if (mounted) {
         setState(() {
           _channelReady = true;
@@ -228,7 +231,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
     if (_token == null || _token!.isEmpty) {
-      debugPrint('CallScreen: token null/empty — will retry in 3s');
+      if (kDebugMode)
+        debugPrint('CallScreen: token null/empty — will retry in 3s');
       _isJoining = false;
       // Auto-retry after 3 s
       Future.delayed(const Duration(seconds: 3), () {
@@ -239,9 +243,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return;
     }
 
-    debugPrint(
-      'CallScreen: calling joinChannel with token (${_token!.length} chars)',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'CallScreen: calling joinChannel with token (${_token!.length} chars)',
+      );
+    }
     final joined = await _agora.joinChannel(
       token: _token!,
       channelName: widget.call.channelName,
@@ -273,11 +279,13 @@ class _CallScreenState extends ConsumerState<CallScreen>
       }
       return;
     }
-    debugPrint('CallScreen: retry #$_joinRetryCount — re-joining...');
+    if (kDebugMode)
+      debugPrint('CallScreen: retry #$_joinRetryCount — re-joining...');
 
     // If the engine has accumulated failures, force a full reinit
     if (_agora.needsReinit) {
-      debugPrint('CallScreen: engine corrupted — forcing reinit');
+      if (kDebugMode)
+        debugPrint('CallScreen: engine corrupted — forcing reinit');
       if (mounted) setState(() => _stageError = 'Reinitializing audio...');
       final ok = await _agora.forceReinit();
       if (!mounted) return;

@@ -40,14 +40,15 @@ class AgoraService {
   // ── Initialize (idempotent — safe to call multiple times) ────────────────
   Future<bool> init() async {
     if (_initialized && _engine != null) {
-      debugPrint('AgoraService: already initialized');
+      if (kDebugMode) debugPrint('AgoraService: already initialized');
       onEngineReady?.call();
       return true;
     }
 
     // Clean up any stale engine before creating a new one
     if (_engine != null) {
-      debugPrint('AgoraService: cleaning up stale engine before reinit');
+      if (kDebugMode)
+        debugPrint('AgoraService: cleaning up stale engine before reinit');
       try {
         await _engine!.leaveChannel();
       } catch (_) {}
@@ -73,20 +74,26 @@ class AgoraService {
 
       _eventHandler = RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection conn, int elapsed) {
-          debugPrint(
-            'AgoraService: ✅ joined ${conn.channelId} uid=${conn.localUid}',
-          );
+          if (kDebugMode) {
+            debugPrint(
+              'AgoraService: ✅ joined ${conn.channelId} uid=${conn.localUid}',
+            );
+          }
           _isInChannel = true;
           _joinFailures = 0;
           onJoined?.call(conn.localUid ?? 0);
         },
         onUserJoined: (RtcConnection conn, int remoteUid, int elapsed) {
-          debugPrint('AgoraService: remote user $remoteUid joined');
+          if (kDebugMode)
+            debugPrint('AgoraService: remote user $remoteUid joined');
           onUserJoined?.call(remoteUid);
         },
         onUserOffline:
             (RtcConnection conn, int remoteUid, UserOfflineReasonType reason) {
-              debugPrint('AgoraService: remote user $remoteUid left ($reason)');
+              if (kDebugMode)
+                debugPrint(
+                  'AgoraService: remote user $remoteUid left ($reason)',
+                );
               onUserLeft?.call(remoteUid);
             },
         onRemoteAudioStateChanged:
@@ -108,18 +115,19 @@ class AgoraService {
               ConnectionStateType state,
               ConnectionChangedReasonType reason,
             ) {
-              debugPrint('AgoraService: conn state=$state reason=$reason');
+              if (kDebugMode)
+                debugPrint('AgoraService: conn state=$state reason=$reason');
               if (state == ConnectionStateType.connectionStateFailed) {
                 _isInChannel = false;
                 onConnectionFailed?.call();
               }
             },
         onTokenPrivilegeWillExpire: (RtcConnection conn, String token) {
-          debugPrint('AgoraService: token expiring soon');
+          if (kDebugMode) debugPrint('AgoraService: token expiring soon');
           onTokenExpiring?.call();
         },
         onError: (ErrorCodeType code, String msg) {
-          debugPrint('AgoraService: error $code — $msg');
+          if (kDebugMode) debugPrint('AgoraService: error $code — $msg');
           onError?.call('$code: $msg');
         },
       );
@@ -134,11 +142,11 @@ class AgoraService {
       await _engine!.setDefaultAudioRouteToSpeakerphone(false);
 
       _initialized = true;
-      debugPrint('AgoraService: engine ready');
+      if (kDebugMode) debugPrint('AgoraService: engine ready');
       onEngineReady?.call();
       return true;
     } catch (e, st) {
-      debugPrint('AgoraService: init failed: $e\n$st');
+      if (kDebugMode) debugPrint('AgoraService: init failed: $e\n$st');
       _engine = null;
       _initialized = false;
       onError?.call('Engine init failed: $e');
@@ -152,21 +160,27 @@ class AgoraService {
     required String channelName,
   }) async {
     if (_engine == null || !_initialized) {
-      debugPrint(
-        'AgoraService: cannot join — engine not ready (engine=${_engine != null}, init=$_initialized)',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AgoraService: cannot join — engine not ready (engine=${_engine != null}, init=$_initialized)',
+        );
+      }
       return false;
     }
     if (_isInChannel) {
-      debugPrint(
-        'AgoraService: stale isInChannel — forcing leave before re-join',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AgoraService: stale isInChannel — forcing leave before re-join',
+        );
+      }
       await leaveChannel();
     }
     try {
-      debugPrint(
-        'AgoraService: joining channel=$channelName tokenLen=${token.length}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AgoraService: joining channel=$channelName tokenLen=${token.length}',
+        );
+      }
       await _engine!.joinChannel(
         token: token,
         channelId: channelName,
@@ -180,12 +194,14 @@ class AgoraService {
           channelProfile: ChannelProfileType.channelProfileCommunication,
         ),
       );
-      debugPrint(
-        'AgoraService: joinChannel call completed (waiting for onJoinChannelSuccess)',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'AgoraService: joinChannel call completed (waiting for onJoinChannelSuccess)',
+        );
+      }
       return true;
     } catch (e) {
-      debugPrint('AgoraService: joinChannel failed: $e');
+      if (kDebugMode) debugPrint('AgoraService: joinChannel failed: $e');
       _joinFailures++;
       onError?.call('Join failed: $e');
       return false;
@@ -195,7 +211,8 @@ class AgoraService {
   /// Force full engine teardown + re-create. Use when the engine is in a
   /// corrupt state after repeated join failures.
   Future<bool> forceReinit() async {
-    debugPrint('AgoraService: forceReinit — tearing down engine');
+    if (kDebugMode)
+      debugPrint('AgoraService: forceReinit — tearing down engine');
     clearCallbacks();
     _isInChannel = false;
     try {
@@ -226,7 +243,7 @@ class AgoraService {
     try {
       await _engine!.leaveChannel();
     } catch (e) {
-      debugPrint('AgoraService: leaveChannel: $e');
+      if (kDebugMode) debugPrint('AgoraService: leaveChannel: $e');
     }
   }
 
@@ -235,7 +252,7 @@ class AgoraService {
     try {
       await _engine?.renewToken(token);
     } catch (e) {
-      debugPrint('AgoraService: renewToken failed: $e');
+      if (kDebugMode) debugPrint('AgoraService: renewToken failed: $e');
     }
   }
 
@@ -282,6 +299,6 @@ class AgoraService {
     _eventHandler = null;
     _initialized = false;
     _joinFailures = 0;
-    debugPrint('AgoraService: fully disposed');
+    if (kDebugMode) debugPrint('AgoraService: fully disposed');
   }
 }

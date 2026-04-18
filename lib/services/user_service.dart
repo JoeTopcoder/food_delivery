@@ -104,7 +104,9 @@ class UserService {
       final response = await _supabaseClient
           .from(AppConstants.tableUsers)
           .select()
-          .or('email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%');
+          .or(
+            'email.ilike.%${_sanitizeQuery(query)}%,name.ilike.%${_sanitizeQuery(query)}%',
+          );
 
       final users = (response as List)
           .map((user) => User.fromJson(user))
@@ -157,22 +159,24 @@ class UserService {
     }
   }
 
-  // Update user active status
+  // Update user active status – uses the same safe RPC as admin ban/unban
   Future<void> updateUserActiveStatus(String userId, bool isActive) async {
     try {
-      AppLogger.info('Updating user active status: $userId -> $isActive');
+      if (userId.isEmpty) {
+        throw Exception('User ID cannot be empty');
+      }
+      AppLogger.info(
+        'Updating user active status via RPC: $userId -> $isActive',
+      );
 
-      await _supabaseClient
-          .from(AppConstants.tableUsers)
-          .update({
-            'is_active': isActive,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', userId);
+      final updatedId = await _supabaseClient.rpc(
+        'admin_toggle_user_status',
+        params: {'p_user_id': userId, 'p_is_active': isActive},
+      );
 
-      AppLogger.info('User active status updated');
+      AppLogger.info('User active status updated: returned id=$updatedId');
     } catch (e) {
-      AppLogger.error('Error updating user active status: $e');
+      AppLogger.error('Error updating user active status for $userId: $e');
       rethrow;
     }
   }

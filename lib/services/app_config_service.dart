@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
-import '../utils/app_logger.dart';
+import '../models/earning_model.dart';
 
 /// Service that loads app_config from the database and updates AppConstants.
 /// Call [load] once at startup (e.g. in main.dart after Supabase init).
@@ -9,33 +9,61 @@ class AppConfigService {
   final SupabaseClient _client;
   AppConfigService(this._client);
 
-  /// Fetches all config from `get-app-config` edge function and hydrates
+  /// Fetches all config from the `app_config` table and hydrates
   /// [AppConstants] with the DB values. Falls back to compiled defaults on error.
   Future<void> load() async {
     try {
-      final response = await _client.functions.invoke(
-        'get-app-config',
-        method: HttpMethod.get,
-      );
-      final body = response.data is String
-          ? jsonDecode(response.data as String)
-          : response.data;
-      if (body == null || body['config'] == null) {
-        AppLogger.warning('AppConfigService: empty response, using defaults');
+      print('[AppConfig] fetching app_config table...');
+      final rows = await _client
+          .from('app_config')
+          .select('key, value, value_type')
+          .timeout(const Duration(seconds: 5));
+
+      print('[AppConfig] got ${rows.length} rows');
+
+      if (rows.isEmpty) {
+        print('[AppConfig] EMPTY — using defaults');
         return;
       }
-      final Map<String, dynamic> config = Map<String, dynamic>.from(
-        body['config'] as Map,
-      );
+
+      final config = <String, dynamic>{};
+      for (final row in rows) {
+        final key = row['key'] as String;
+        final rawValue = row['value'] as String? ?? '';
+        final valueType = row['value_type'] as String? ?? 'string';
+        config[key] = _parseValue(rawValue, valueType);
+      }
+
       _applyConfig(config);
-      AppLogger.info(
-        'AppConfigService: loaded ${config.length} settings from DB',
+      print(
+        '[AppConfig] LOADED ${config.length} settings — '
+        'deliveryBaseFee=${AppConstants.deliveryBaseFee}, '
+        'deliveryPerKmFee=${AppConstants.deliveryPerKmFee}, '
+        'defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, '
+        'minDeliveryFee=${AppConstants.minDeliveryFee}, '
+        'surgeMult=${AppConstants.deliverySurgeMultiplier}',
       );
-    } catch (e) {
-      // Non-fatal: app works with compiled defaults
-      AppLogger.warning(
-        'AppConfigService: could not load remote config ($e), using defaults',
-      );
+    } catch (e, st) {
+      print('[AppConfig] FAILED: $e');
+      print('[AppConfig] stack: $st');
+    }
+  }
+
+  /// Parse a raw string value from the DB into its typed form.
+  dynamic _parseValue(String raw, String valueType) {
+    switch (valueType) {
+      case 'number':
+        return num.tryParse(raw) ?? 0;
+      case 'boolean':
+        return raw == 'true';
+      case 'json':
+        try {
+          return jsonDecode(raw);
+        } catch (_) {
+          return raw;
+        }
+      default:
+        return raw;
     }
   }
 
@@ -93,6 +121,16 @@ class AppConfigService {
       c,
       'delivery_surge_multiplier',
       AppConstants.deliverySurgeMultiplier,
+    );
+    AppConstants.driverPayPercent = _double(
+      c,
+      'driver_pay_percent',
+      AppConstants.driverPayPercent,
+    );
+    AppConstants.minDeliveryFee = _double(
+      c,
+      'min_delivery_fee',
+      AppConstants.minDeliveryFee,
     );
 
     // Loyalty
@@ -152,6 +190,93 @@ class AppConfigService {
       c,
       'default_commission_rate',
       AppConstants.defaultCommissionRate,
+    );
+
+    // ── Earning system ──────────────────────────────────────────────
+    EarningConfig.referrerSignupBonus = _double(
+      c,
+      'earning_referrer_signup_bonus',
+      EarningConfig.referrerSignupBonus,
+    );
+    EarningConfig.referredFirstOrderBonus = _double(
+      c,
+      'earning_referred_first_order',
+      EarningConfig.referredFirstOrderBonus,
+    );
+    EarningConfig.directOrderRate = _double(
+      c,
+      'earning_direct_order_rate',
+      EarningConfig.directOrderRate,
+    );
+    EarningConfig.indirectOrderRate = _double(
+      c,
+      'earning_indirect_order_rate',
+      EarningConfig.indirectOrderRate,
+    );
+    EarningConfig.builderMinRefs = _int(
+      c,
+      'earning_builder_min_refs',
+      EarningConfig.builderMinRefs,
+    );
+    EarningConfig.builderMinOrders = _int(
+      c,
+      'earning_builder_min_orders',
+      EarningConfig.builderMinOrders,
+    );
+    EarningConfig.leaderMinRefs = _int(
+      c,
+      'earning_leader_min_refs',
+      EarningConfig.leaderMinRefs,
+    );
+    EarningConfig.leaderMinOrders = _int(
+      c,
+      'earning_leader_min_orders',
+      EarningConfig.leaderMinOrders,
+    );
+    EarningConfig.volumeBonus300 = _double(
+      c,
+      'earning_volume_bonus_300',
+      EarningConfig.volumeBonus300,
+    );
+    EarningConfig.volumeBonus1000 = _double(
+      c,
+      'earning_volume_bonus_1000',
+      EarningConfig.volumeBonus1000,
+    );
+    EarningConfig.volumeBonus3000 = _double(
+      c,
+      'earning_volume_bonus_3000',
+      EarningConfig.volumeBonus3000,
+    );
+    EarningConfig.monthlyCap = _double(
+      c,
+      'earning_monthly_cap',
+      EarningConfig.monthlyCap,
+    );
+    EarningConfig.creditExpiryDays = _int(
+      c,
+      'earning_credit_expiry_days',
+      EarningConfig.creditExpiryDays,
+    );
+    EarningConfig.minOrderToUse = _double(
+      c,
+      'earning_min_order_to_use',
+      EarningConfig.minOrderToUse,
+    );
+    EarningConfig.maxCreditPct = _double(
+      c,
+      'earning_max_credit_pct',
+      EarningConfig.maxCreditPct,
+    );
+    EarningConfig.restaurantRefCredits = _double(
+      c,
+      'earning_restaurant_ref_credits',
+      EarningConfig.restaurantRefCredits,
+    );
+    EarningConfig.restaurantRefCommissionDiscount = _double(
+      c,
+      'earning_restaurant_ref_commission_discount',
+      EarningConfig.restaurantRefCommissionDiscount,
     );
 
     // Tips

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/order_model.dart';
 import '../services/driver_service.dart';
+import '../services/earning_service.dart';
 import '../utils/app_logger.dart';
 
 class OrderService {
@@ -329,6 +330,38 @@ class OrderService {
         AppLogger.error('Error sending admin notification: $e');
         return; // satisfy catchError return type
       });
+
+      // Fire-and-forget: process referral earnings when order is delivered
+      if (status == AppConstants.orderDelivered) {
+        _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('user_id')
+            .eq('id', orderId)
+            .single()
+            .then((row) async {
+              final customerId = row['user_id'] as String?;
+              if (customerId == null) return;
+              final earningService = EarningService(_supabaseClient);
+              // Process per-order referral earnings (direct + indirect)
+              await earningService.processOrderEarnings(
+                orderId: orderId,
+                customerId: customerId,
+              );
+              // Check & award signup bonus if this is the user's first delivered order
+              final delivered = await _supabaseClient
+                  .from(AppConstants.tableOrders)
+                  .select('id')
+                  .eq('user_id', customerId)
+                  .eq('status', AppConstants.orderDelivered)
+                  .limit(2);
+              if ((delivered as List).length == 1) {
+                await earningService.processSignupBonus(customerId);
+              }
+            })
+            .catchError((e) {
+              AppLogger.error('Error processing referral earnings: $e');
+            });
+      }
 
       AppLogger.info('Order status updated successfully');
     } catch (e) {

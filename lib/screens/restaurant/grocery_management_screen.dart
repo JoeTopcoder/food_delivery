@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -872,7 +873,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
           .from('profile-photos')
           .getPublicUrl(fileName);
     } catch (e) {
-      debugPrint('Grocery image upload failed: $e');
+      if (kDebugMode) debugPrint('Grocery image upload failed: $e');
       return null;
     }
   }

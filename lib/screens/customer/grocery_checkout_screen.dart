@@ -45,7 +45,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
   String? _promoError;
   DateTime? _scheduledAt;
   double _driverTip = 0;
-  double _lastSurge = 1.0;
   final _customTipCtrl = TextEditingController();
   final List<double> _presetTips = AppConstants.presetTips;
 
@@ -116,14 +115,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     final promoDiscount = appliedPromo?.computeDiscount(subtotal) ?? 0.0;
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
-    // Surge multiplier
+    // Admin-configured delivery fee via Edge Function (per store)
     final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
     final delLng = selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
-    final surgeKey =
-        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
-    final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
-    if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
-    final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
 
     // Accumulate fee across all stores
     double activeFee = 0;
@@ -131,9 +125,15 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
       final s = storeData[sid];
       if (isPickup) {
         activeFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
+      } else if (s != null) {
+        final feeKey =
+            '$sid|${delLat ?? ''}|${delLng ?? ''}|${s.latitude ?? ''}|${s.longitude ?? ''}|${s.deliveryFee ?? ''}';
+        final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
+        activeFee +=
+            feeAsync.valueOrNull?.deliveryFee ??
+            AppConstants.defaultDeliveryFee;
       } else {
-        final base = s?.deliveryFee ?? AppConstants.defaultDeliveryFee;
-        activeFee += double.parse((base * surgeMultiplier).toStringAsFixed(2));
+        activeFee += AppConstants.defaultDeliveryFee;
       }
     }
     final tax = subtotal * AppConstants.taxRate;
@@ -866,13 +866,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          surgeMultiplier > 1.0
-                              ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                              : 'Delivery${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                          'Delivery${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
                           '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
-                          valueColor: surgeMultiplier > 1.0
-                              ? const Color(0xFFFFA630)
-                              : null,
                         ),
                       _SummaryRow(
                         'Tax (10%)',
@@ -1065,10 +1060,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
 
     // Delivery region check
     final selectedAddress = ref.read(selectedAddressProvider);
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
+    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
+    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
 
-    if (!isPickup && delLat != 0.0 && delLng != 0.0) {
+    if (!isPickup && delLat != null && delLng != null) {
       final regionService = ref.read(deliveryRegionServiceProvider);
       final inside = await regionService.isInsideActiveRegion(delLat, delLng);
       if (!inside) {
@@ -1134,8 +1129,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
           isPickup: isPickup,
           paymentMethod: _selectedPayment,
           deliveryAddress: isPickup ? null : deliveryAddress,
-          deliveryLatitude: isPickup ? null : (delLat != 0.0 ? delLat : null),
-          deliveryLongitude: isPickup ? null : (delLng != 0.0 ? delLng : null),
+          deliveryLatitude: isPickup ? null : delLat,
+          deliveryLongitude: isPickup ? null : delLng,
           driverTip: double.parse(tipShare.toStringAsFixed(2)),
           specialInstructions: _notesCtrl.text.trim().isNotEmpty
               ? _notesCtrl.text.trim()
@@ -1283,6 +1278,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
         ref.invalidate(loyaltyAccountProvider(userId));
       }
       ref.invalidate(brainEngineProvider);
+      // Ensure the new order shows in order history immediately
+      ref.invalidate(userOrdersProvider(userId));
 
       if (!mounted) return;
 

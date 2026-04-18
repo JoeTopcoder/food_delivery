@@ -1,5 +1,6 @@
 // calculate-delivery-fee — Distance-based delivery fee calculation
 // Uses haversine formula + DB-driven config for base fee, per-km rate, surge, max distance
+// Returns driver_pay (driver_pay_percent of fee) and honours min_delivery_fee
 
 // deno-lint-ignore-file
 declare const Deno: { env: { get(key: string): string | undefined }; serve(handler: (req: Request) => Response | Promise<Response>): void };
@@ -23,6 +24,10 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -36,6 +41,32 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 async function getConfig(key: string, fallback: number): Promise<number> {
   const { data } = await admin.from("app_config").select("value").eq("key", key).maybeSingle();
   return data ? parseFloat(data.value) : fallback;
+}
+
+// ── Cache helpers ────────────────────────────────────────────────────────────
+// Coordinate precision for cache: ~11 m (4 decimal places)
+function roundCoord(v: number): number { return Math.round(v * 10000) / 10000; }
+
+async function getCached(restaurantId: string, lat: number, lng: number) {
+  const rLat = roundCoord(lat);
+  const rLng = roundCoord(lng);
+  const { data } = await admin
+    .from("delivery_fee_cache")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("delivery_lat", rLat)
+    .eq("delivery_lng", rLng)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
+async function setCache(row: Record<string, unknown>) {
+  try {
+    await admin.from("delivery_fee_cache").insert(row);
+  } catch { /* non-fatal */ }
 }
 
 Deno.serve(async (request) => {
@@ -52,12 +83,28 @@ Deno.serve(async (request) => {
   const restaurantId = body.restaurant_id as string;
   const deliveryLat = body.delivery_latitude as number;
   const deliveryLng = body.delivery_longitude as number;
+  const skipCache = body.skip_cache === true;
 
   if (!restaurantId || deliveryLat === undefined || deliveryLng === undefined) {
     return json({ error: "Missing restaurant_id, delivery_latitude, delivery_longitude" }, 400);
   }
 
   try {
+    // ── Check cache first ────────────────────────────────────────────────────
+    if (!skipCache) {
+      const cached = await getCached(restaurantId, deliveryLat, deliveryLng);
+      if (cached) {
+        return json({
+          delivery_fee: parseFloat(cached.delivery_fee),
+          driver_pay: parseFloat(cached.driver_pay),
+          distance_km: parseFloat(cached.distance_km),
+          calculation: cached.calculation,
+          surge_multiplier: parseFloat(cached.surge_multiplier),
+          cached: true,
+        });
+      }
+    }
+
     // Fetch restaurant location and custom delivery_fee override
     const { data: restaurant, error } = await admin
       .from("restaurants")
@@ -69,14 +116,16 @@ Deno.serve(async (request) => {
       return json({ error: "Restaurant not found" }, 404);
     }
 
-    // Fetch config values
-    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee] = await Promise.all([
-      getConfig("delivery_base_fee", 50.0),
-      getConfig("delivery_per_km_fee", 30.0),
+    // Fetch config values (including new driver_pay_percent + min_delivery_fee)
+    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee, driverPayPercent, minFee] = await Promise.all([
+      getConfig("delivery_base_fee", 5.0),
+      getConfig("delivery_per_km_fee", 1.5),
       getConfig("delivery_base_km", 3.0),
-      getConfig("delivery_max_km", 25.0),
+      getConfig("delivery_max_km", 30.0),
       getConfig("delivery_surge_multiplier", 1.0),
-      getConfig("default_delivery_fee", 50.0),
+      getConfig("default_delivery_fee", 5.0),
+      getConfig("driver_pay_percent", 0.80),
+      getConfig("min_delivery_fee", 3.0),
     ]);
 
     // Check surge_zones table for zone-specific multiplier at delivery location
@@ -91,7 +140,7 @@ Deno.serve(async (request) => {
       if (zones && zones.length > 0) {
         for (const z of zones) {
           const dist = haversineKm(deliveryLat, deliveryLng, z.latitude, z.longitude);
-          if (dist > z.radius_km && z.multiplier > surgeMultiplier) {
+          if (dist <= z.radius_km && z.multiplier > surgeMultiplier) {
             surgeMultiplier = z.multiplier;
           }
         }
@@ -100,9 +149,27 @@ Deno.serve(async (request) => {
 
     // If restaurant has no coordinates, return flat fee (still apply surge)
     if (!restaurant.latitude || !restaurant.longitude) {
-      const flatFee = Math.round((restaurant.delivery_fee ?? defaultFee) * surgeMultiplier * 100) / 100;
+      const rawFee = (restaurant.delivery_fee ?? defaultFee) * surgeMultiplier;
+      const flatFee = round2(Math.max(rawFee, minFee));
+      const driverPay = round2(flatFee * driverPayPercent);
+      const platformFee = round2(flatFee - driverPay);
+
+      await setCache({
+        restaurant_id: restaurantId,
+        delivery_lat: roundCoord(deliveryLat),
+        delivery_lng: roundCoord(deliveryLng),
+        distance_km: 0,
+        delivery_fee: flatFee,
+        driver_pay: driverPay,
+        surge_multiplier: surgeMultiplier,
+        calculation: "flat_fee",
+      });
+
       return json({
         delivery_fee: flatFee,
+        driver_pay: driverPay,
+        platform_fee: platformFee,
+        driver_pay_percent: driverPayPercent,
         distance_km: null,
         calculation: "flat_fee",
         surge_multiplier: surgeMultiplier,
@@ -123,20 +190,41 @@ Deno.serve(async (request) => {
     }
 
     const extraKm = Math.max(0, distanceKm - baseKm);
-    const calculatedFee = Math.round((baseFee + extraKm * perKmFee) * surgeMultiplier * 100) / 100;
+    const rawCalculated = (baseFee + extraKm * perKmFee) * surgeMultiplier;
     // Use higher of restaurant override or distance-based fee
     const restaurantOverride = restaurant.delivery_fee ?? 0;
-    const finalFee = Math.max(restaurantOverride, calculatedFee);
+    // Enforce minimum fee
+    const finalFee = round2(Math.max(rawCalculated, restaurantOverride, minFee));
+    const driverPay = round2(finalFee * driverPayPercent);
+    const platformFee = round2(finalFee - driverPay);
+    const distanceRounded = Math.round(distanceKm * 10) / 10;
+
+    // ── Write to cache ───────────────────────────────────────────────────────
+    await setCache({
+      restaurant_id: restaurantId,
+      delivery_lat: roundCoord(deliveryLat),
+      delivery_lng: roundCoord(deliveryLng),
+      distance_km: distanceRounded,
+      delivery_fee: finalFee,
+      driver_pay: driverPay,
+      surge_multiplier: surgeMultiplier,
+      calculation: "distance_based",
+    });
 
     return json({
       delivery_fee: finalFee,
-      distance_km: Math.round(distanceKm * 10) / 10,
+      driver_pay: driverPay,
+      platform_fee: platformFee,
+      driver_pay_percent: driverPayPercent,
+      distance_km: distanceRounded,
+      distance_miles: round2(distanceKm * 0.621371),
       calculation: "distance_based",
       base_fee: baseFee,
       per_km_fee: perKmFee,
       base_km: baseKm,
       extra_km: Math.round(extraKm * 10) / 10,
       surge_multiplier: surgeMultiplier,
+      min_fee: minFee,
       restaurant_override: restaurantOverride,
     });
   } catch (err) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -95,7 +96,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
         _applyDefaults();
       }
     } catch (e) {
-      debugPrint('Contract load error: $e');
+      if (kDebugMode) debugPrint('Contract load error: $e');
       setState(() => _error = friendlyError(e));
       _applyDefaults();
     } finally {

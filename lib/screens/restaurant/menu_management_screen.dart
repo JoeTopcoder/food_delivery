@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -424,7 +425,8 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
           imageUrl = await _uploadImage();
         } catch (_) {
           // Image upload failed — continue without image
-          debugPrint('Image upload failed, saving item without image');
+          if (kDebugMode)
+            debugPrint('Image upload failed, saving item without image');
         }
       }
 

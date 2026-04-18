@@ -49,7 +49,7 @@ final _restaurantLoyaltyStatsProvider =
           );
           final txns = await client
               .from('loyalty_transactions')
-              .select()
+              .select('*, users:user_id(name)')
               .inFilter('order_id', batch)
               .order('created_at', ascending: false);
           loyaltyTransactions.addAll(txns as List);
@@ -591,6 +591,10 @@ class _LoyaltyBody extends StatelessWidget {
                     final type = t['type'] as String? ?? 'earn';
                     final pts = (t['points'] as num?)?.toInt() ?? 0;
                     final desc = t['description'] as String? ?? '';
+                    final usersData = t['users'];
+                    final userName = usersData is Map
+                        ? usersData['name'] as String?
+                        : null;
                     final date =
                         DateTime.tryParse(t['created_at'] as String? ?? '') ??
                         DateTime.now();
@@ -641,7 +645,7 @@ class _LoyaltyBody extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${date.month}/${date.day}/${date.year}',
+                                  '${userName != null ? '$userName · ' : ''}${date.month}/${date.day}/${date.year}',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Color(0xFF9CA3AF),

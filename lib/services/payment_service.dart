@@ -439,21 +439,23 @@ class PaymentService {
 
   // No mobile money for NCB
 
-  /// Verify payment status
+  /// Verify payment status via Stripe API (through Edge Function).
   Future<String> verifyPaymentStatus(String transactionId) async {
     try {
       AppLogger.info('Verifying payment status: $transactionId');
-
-      // TODO: Call NCB API to verify payment status
-      // For now, return mock status
-      return AppConstants.paymentCompleted;
+      final response = await _supabaseClient.functions.invoke(
+        'stripe-payment',
+        body: {'action': 'verify', 'transaction_id': transactionId},
+      );
+      final data = response.data as Map<String, dynamic>?;
+      return data?['status'] as String? ?? AppConstants.paymentFailed;
     } catch (e) {
       AppLogger.error('Payment verification error: $e');
       return AppConstants.paymentFailed;
     }
   }
 
-  /// Refund payment
+  /// Refund payment via Stripe API (through Edge Function).
   Future<bool> refundPayment({
     required String transactionId,
     required double amount,
@@ -463,13 +465,20 @@ class PaymentService {
       AppLogger.info(
         'Processing refund: $transactionId - ${AppConstants.currencySymbol}$amount',
       );
-
-      if (reason != null) {
-        AppLogger.info('Refund reason: $reason');
+      final response = await _supabaseClient.functions.invoke(
+        'stripe-payment',
+        body: {
+          'action': 'refund',
+          'transaction_id': transactionId,
+          'amount': (amount * 100).round(), // cents
+          if (reason != null) 'reason': reason,
+        },
+      );
+      final data = response.data as Map<String, dynamic>?;
+      if (data?['error'] != null) {
+        AppLogger.error('Refund error: ${data!['error']}');
+        return false;
       }
-
-      // TODO: Call NCB refund API
-      // For now, mock successful refund
       AppLogger.info('Refund processed successfully');
       return true;
     } catch (e) {
@@ -790,10 +799,10 @@ class PaymentService {
     }
   }
 
-  // ── NCB Payout Processing ────────────────────────────────────
+  // ── Stripe Payout Processing ────────────────────────────────────
 
-  /// Process payout to a bank account via NCB gateway
-  Future<Map<String, dynamic>> processNcbPayout({
+  /// Process payout to a bank account via Stripe
+  Future<Map<String, dynamic>> processStripePayout({
     required String payoutId,
     required double amount,
     required String recipientName,
@@ -802,34 +811,36 @@ class PaymentService {
     String? description,
   }) async {
     try {
-      AppLogger.info('Processing NCB payout: $payoutId, amount=$amount');
+      AppLogger.info('Processing Stripe payout: $payoutId, amount=$amount');
 
       final response = await _supabaseClient.functions.invoke(
-        'ncb-process-payout',
+        'stripe-payment',
         body: {
+          'action': 'create_payout',
+          'payoutId': payoutId,
           'amount': amount,
-          'currency': 'USD',
-          'name': recipientName,
-          'bank_account': bankAccount,
-          'bank_name': bankName,
+          'currency': 'usd',
+          'recipientName': recipientName,
+          'bankAccount': bankAccount,
+          'bankName': bankName,
           'description': description ?? 'Payout $payoutId',
         },
       );
 
       final data = response.data;
       if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected NCB payout response');
+        throw Exception('Unexpected Stripe payout response');
       }
 
       final status = data['status'] as String?;
       if (status != 'success') {
-        throw Exception(data['error'] ?? 'NCB payout failed');
+        throw Exception(data['error'] ?? 'Stripe payout failed');
       }
 
-      AppLogger.info('NCB payout successful: ${data['payout_reference']}');
+      AppLogger.info('Stripe payout successful: ${data['payout_reference']}');
       return data;
     } catch (e) {
-      AppLogger.error('NCB payout error: $e');
+      AppLogger.error('Stripe payout error: $e');
       rethrow;
     }
   }

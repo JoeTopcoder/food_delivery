@@ -56,5 +56,11 @@
 	</array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>MealHub needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MealHub needs microphone access for voice calls between customers, drivers, and restaurants.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MealHub needs photo library access to upload menu item images and profile pictures.</string>
 </dict>
 </plist>
