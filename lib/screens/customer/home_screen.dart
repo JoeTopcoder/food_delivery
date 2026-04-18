@@ -1,4 +1,5 @@
-﻿import 'dart:math';
+﻿import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,15 @@ import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
+
+/// Emits the current peak-hour status every 30 seconds so the UI updates
+/// in real time when a peak window starts or ends.
+final isPeakHourProvider = StreamProvider<bool>((ref) {
+  return Stream.periodic(
+    const Duration(seconds: 30),
+    (_) => AppConstants.isPeakHour,
+  ).distinct();
+});
 
 // Emoji categories for the Browse by Category grid
 const _emojiCategories = <Map<String, String>>[
@@ -533,11 +543,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                if (AppConstants.isPeakHour) ...[
+                if (ref.watch(isPeakHourProvider).valueOrNull ??
+                    AppConstants.isPeakHour) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
@@ -547,8 +560,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.local_fire_department,
-                            color: Colors.white, size: 12),
+                        Icon(
+                          Icons.local_fire_department,
+                          color: Colors.white,
+                          size: 12,
+                        ),
                         SizedBox(width: 3),
                         Text(
                           'PEAK',
