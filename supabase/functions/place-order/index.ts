@@ -254,6 +254,13 @@ Deno.serve(async (request) => {
       );
     }
 
+    // Send receipt email to customer (fire-and-forget)
+    notifications.push(
+      admin.functions.invoke("send-receipt-email", {
+        body: { order_id: orderId },
+      }).catch(() => {})
+    );
+
     // Don't await notifications — fire and forget
     Promise.allSettled(notifications);
 

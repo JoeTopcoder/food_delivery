@@ -269,6 +269,11 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order items", details: itemsErr.message }, 500);
     }
 
+    // Send receipt email to customer (fire-and-forget)
+    admin.functions.invoke("send-receipt-email", {
+      body: { order_id: order.id },
+    }).catch(() => {});
+
     return json({
       success: true,
       order: {
