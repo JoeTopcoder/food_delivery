@@ -85,6 +85,10 @@ final deliveryFeeServiceProvider = Provider<DeliveryFeeService>(
 /// Family key: `'$restaurantId|$deliveryLat|$deliveryLng|$restLat|$restLng|$restFee'`.
 final deliveryFeeProvider = FutureProvider.autoDispose
     .family<DeliveryFeeResult?, String>((ref, key) async {
+      // Keep alive for 30s so rapid key rebuilds don't restart from scratch
+      final link = ref.keepAlive();
+      Future.delayed(const Duration(seconds: 30), () => link.close());
+
       // Re-run whenever admin pricing changes in real time
       ref.watch(configVersionProvider);
       final parts = key.split('|');
@@ -96,24 +100,33 @@ final deliveryFeeProvider = FutureProvider.autoDispose
       var restLng = parts.length > 4 ? double.tryParse(parts[4]) : null;
       var restFee = parts.length > 5 ? double.tryParse(parts[5]) : null;
 
-      // If restaurant coords not in key, fetch from DB
+      // If restaurant coords not in key, await from DB (not valueOrNull)
       if (restLat == null || restLng == null) {
-        final restAsync = ref.watch(restaurantByIdProvider(restaurantId));
-        final rest = restAsync.valueOrNull;
-        if (rest != null) {
-          restLat ??= rest.latitude;
-          restLng ??= rest.longitude;
-          restFee ??= rest.deliveryFee;
+        try {
+          final rest = await ref.watch(
+            restaurantByIdProvider(restaurantId).future,
+          );
+          if (rest != null) {
+            restLat ??= rest.latitude;
+            restLng ??= rest.longitude;
+            restFee ??= rest.deliveryFee;
+          }
+        } catch (_) {
+          // DB fetch failed — continue with what we have
         }
       }
 
-      // If delivery coords missing, try user's default address from DB
+      // If delivery coords missing, await user's default address from DB
       if (lat == null || lng == null) {
         final userId = ref.watch(currentUserIdProvider);
         if (userId != null) {
-          final addr = await ref.watch(defaultAddressProvider(userId).future);
-          lat ??= addr?.latitude;
-          lng ??= addr?.longitude;
+          try {
+            final addr = await ref.watch(defaultAddressProvider(userId).future);
+            lat ??= addr?.latitude;
+            lng ??= addr?.longitude;
+          } catch (_) {
+            // address fetch failed — continue
+          }
         }
       }
 

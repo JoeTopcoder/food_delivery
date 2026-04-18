@@ -211,6 +211,10 @@ class DeliveryFeeService {
       final finalFee = _round2(math.max(rawFee, minFee));
       final driverPay = _round2(finalFee * driverPayPct);
 
+      // Always calculate by KM first; if distance <= baseKm the fee
+      // equals the base price → label as 'base_fee'.
+      final calcType = extraKm > 0 ? 'distance_based' : 'base_fee';
+
       final result = DeliveryFeeResult(
         deliveryFee: finalFee,
         driverPay: driverPay,
@@ -218,7 +222,7 @@ class DeliveryFeeService {
         driverPayPercent: driverPayPct,
         distanceKm: distRounded,
         distanceMiles: _round2(distanceKm * 0.621371),
-        calculation: 'distance_based',
+        calculation: calcType,
         surgeMultiplier: surge,
         baseFee: baseFee,
         perKmFee: perKmFee,

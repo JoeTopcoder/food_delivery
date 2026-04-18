@@ -116,26 +116,39 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
     // Admin-configured delivery fee via Edge Function (per store)
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
+    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
+    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
+    final hasDeliveryCoords = delLat != null && delLng != null;
 
     // Accumulate fee across all stores
     double activeFee = 0;
+    final feeTypes = <String>{};
+    bool anyFeeLoading = false;
     for (final sid in storeIds) {
       final s = storeData[sid];
       if (isPickup) {
         activeFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
-      } else if (s != null) {
+      } else if (s != null && hasDeliveryCoords) {
         final feeKey =
-            '$sid|${delLat ?? ''}|${delLng ?? ''}|${s.latitude ?? ''}|${s.longitude ?? ''}|${s.deliveryFee ?? ''}';
+            '$sid|$delLat|$delLng|${s.latitude ?? ''}|${s.longitude ?? ''}|${s.deliveryFee ?? ''}';
         final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
-        activeFee +=
-            feeAsync.valueOrNull?.deliveryFee ??
-            AppConstants.defaultDeliveryFee;
+        if (feeAsync.isLoading) anyFeeLoading = true;
+        final fr = feeAsync.valueOrNull;
+        activeFee += fr?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+        if (fr != null) {
+          if (fr.restaurantOverride != null) {
+            feeTypes.add('Store');
+          } else if (fr.calculation == 'distance_based') {
+            feeTypes.add('KM');
+          } else {
+            feeTypes.add('Base');
+          }
+        }
       } else {
         activeFee += AppConstants.defaultDeliveryFee;
       }
     }
+    final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
         (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
@@ -866,8 +879,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          'Delivery${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                          '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
+                          'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
+                          anyFeeLoading
+                              ? 'Calculating…'
+                              : '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
                         ),
                       _SummaryRow(
                         'Tax (10%)',
