@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/driver_model.dart';
@@ -142,24 +144,36 @@ class DriverService {
     }
   }
 
-  // Update driver location
+  // Update driver location via Edge Function (lightweight, low latency)
   Future<void> updateDriverLocation({
     required String driverId,
     required double latitude,
     required double longitude,
   }) async {
     try {
-      await _supabaseClient
-          .from(AppConstants.tableDrivers)
-          .update({
-            'current_latitude': latitude,
-            'current_longitude': longitude,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', driverId);
+      await _supabaseClient.functions.invoke(
+        'update-driver-location',
+        body: {
+          'driver_id': driverId,
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+      );
     } catch (e) {
-      AppLogger.error('Error updating driver location: $e');
-      rethrow;
+      // Fallback to direct DB update if edge function fails
+      try {
+        await _supabaseClient
+            .from(AppConstants.tableDrivers)
+            .update({
+              'current_latitude': latitude,
+              'current_longitude': longitude,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', driverId);
+      } catch (e2) {
+        AppLogger.error('Error updating driver location: $e2');
+        rethrow;
+      }
     }
   }
 
@@ -378,90 +392,38 @@ class DriverService {
     }
   }
 
-  // Mark delivery as completed and update driver performance stats
+  // Mark delivery as completed via Edge Function (single round-trip)
+  // Handles: status update, driver stats, cash float, notifications, referral earnings
   Future<void> completeDelivery(String orderId) async {
     try {
-      AppLogger.info('Marking delivery as completed: $orderId');
+      AppLogger.info('Completing delivery via Edge Function: $orderId');
 
-      final now = DateTime.now().toIso8601String();
-      await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .update({
-            'status': AppConstants.orderDelivered,
-            'completed_at': now,
-            'delivered_at': now,
-            'updated_at': now,
-          })
-          .eq('id', orderId);
+      final response = await _supabaseClient.functions.invoke(
+        'complete-delivery',
+        body: {'order_id': orderId},
+      );
 
-      // Get the order details to update driver stats + float
-      final order = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select(
-            'user_id, driver_id, payment_method, total_amount, delivery_fee, driver_tip',
-          )
-          .eq('id', orderId)
-          .maybeSingle();
-
-      // Notify customer that order is delivered
-      if (order != null) {
-        final customerId = order['user_id'] as String?;
-        if (customerId != null) {
-          try {
-            final userRow = await _supabaseClient
-                .from('users')
-                .select('fcm_token')
-                .eq('id', customerId)
-                .maybeSingle();
-            final fcmToken = userRow?['fcm_token'] as String?;
-            if (fcmToken != null && fcmToken.isNotEmpty) {
-              await _supabaseClient.functions.invoke(
-                'send-fcm-notification',
-                body: {
-                  'token': fcmToken,
-                  'title': 'Order Delivered!',
-                  'body':
-                      'Order #${orderId.substring(0, 8).toUpperCase()} delivered! Rate your experience',
-                  'data': {
-                    'type': AppConstants.notificationTypeOrderStatus,
-                    'order_id': orderId,
-                    'status': AppConstants.orderDelivered,
-                    'user_id': customerId,
-                  },
-                },
-              );
-            }
-          } catch (e) {
-            AppLogger.error('Error notifying customer on delivery: $e');
-          }
-        }
+      if (response.status != 200) {
+        final errorData = response.data is String
+            ? jsonDecode(response.data as String)
+            : response.data;
+        throw Exception(
+          errorData?['error'] ??
+              'Failed to complete delivery (${response.status})',
+        );
       }
 
-      if (order != null && order['driver_id'] != null) {
-        final driverId = order['driver_id'] as String;
-        await updateDriverStats(driverId);
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
 
-        // If cash order, add to driver's float (total minus what driver keeps)
-        // Driver keeps: deliveryFee × driverPayPercent + tip
-        final paymentMethod = order['payment_method'] as String?;
-        if (paymentMethod == 'cash') {
-          final totalAmount =
-              (order['total_amount'] as num?)?.toDouble() ?? 0.0;
-          final deliveryFee =
-              (order['delivery_fee'] as num?)?.toDouble() ?? 0.0;
-          final driverTip = (order['driver_tip'] as num?)?.toDouble() ?? 0.0;
-          final driverKeeps =
-              deliveryFee * AppConstants.driverPayPercent + driverTip;
-          final floatAmount = totalAmount - driverKeeps;
-          if (floatAmount > 0) {
-            await _incrementCashFloat(driverId, floatAmount);
-          }
-        }
+      if (data['success'] != true) {
+        throw Exception(data['error'] ?? 'Delivery completion failed');
       }
 
-      AppLogger.info('Delivery marked as completed');
+      AppLogger.info('Delivery completed via Edge Function: $orderId');
     } catch (e) {
-      AppLogger.error('Error completing delivery: $e');
+      AppLogger.error('Error completing delivery via Edge Function: $e');
       rethrow;
     }
   }
