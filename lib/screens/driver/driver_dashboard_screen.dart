@@ -459,7 +459,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       icon: Icons.payments_rounded,
                       label: 'Balance',
                       value:
-                          'J\$${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(0)}',
+                          'J\$${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(2)}',
                       color: const Color(0xFF3B82F6),
                     ),
                   ],

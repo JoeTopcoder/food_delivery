@@ -178,7 +178,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${AppConstants.currencySymbol}${availableBalance.toStringAsFixed(0)}',
+                          '${AppConstants.currencySymbol}${availableBalance.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 36,
@@ -188,7 +188,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                         if (totalPaidOut > 0) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Total earned: ${AppConstants.currencySymbol}${totalEarnings.toStringAsFixed(0)}  •  Paid out: ${AppConstants.currencySymbol}${totalPaidOut.toStringAsFixed(0)}',
+                            'Total earned: ${AppConstants.currencySymbol}${totalEarnings.toStringAsFixed(2)}  •  Paid out: ${AppConstants.currencySymbol}${totalPaidOut.toStringAsFixed(2)}',
                             style: const TextStyle(
                               color: Colors.white60,
                               fontSize: 11,
@@ -201,13 +201,13 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                             _EarnChip(
                               label: 'This Week',
                               value:
-                                  '${AppConstants.currencySymbol}${weekEarnings.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${weekEarnings.toStringAsFixed(2)}',
                             ),
                             const SizedBox(width: 10),
                             _EarnChip(
                               label: 'This Month',
                               value:
-                                  '${AppConstants.currencySymbol}${monthEarnings.toStringAsFixed(0)}',
+                                  '${AppConstants.currencySymbol}${monthEarnings.toStringAsFixed(2)}',
                             ),
                           ],
                         ),
@@ -241,7 +241,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                         child: _StatBox(
                           label: 'Tips',
                           value:
-                              '${AppConstants.currencySymbol}${totalTips.toStringAsFixed(0)}',
+                              '${AppConstants.currencySymbol}${totalTips.toStringAsFixed(2)}',
                           icon: Icons.volunteer_activism_rounded,
                           color: const Color(0xFF22C55E),
                         ),
@@ -317,7 +317,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                           ),
                         ),
                         Text(
-                          '${AppConstants.currencySymbol}${cashFloat.toStringAsFixed(0)}',
+                          '${AppConstants.currencySymbol}${cashFloat.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -431,7 +431,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'Total Tips: \$${totalTips.toStringAsFixed(0)}',
+                            'Total Tips: \$${totalTips.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Color(0xFFFBBF24),
@@ -634,7 +634,7 @@ class _DeliveryRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${AppConstants.currencySymbol}${earning.toStringAsFixed(0)}',
+                '${AppConstants.currencySymbol}${earning.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

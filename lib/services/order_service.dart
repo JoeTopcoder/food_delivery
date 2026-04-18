@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
@@ -12,7 +12,7 @@ class OrderService {
 
   OrderService(this._supabaseClient);
 
-  // Create order
+  // Create order via Edge Function (single round-trip)
   Future<Order?> createOrder({
     required String userId,
     required String restaurantId,
@@ -36,123 +36,87 @@ class OrderService {
     String? adId,
   }) async {
     try {
-      AppLogger.info('Creating order for user: $userId');
+      AppLogger.info('Creating order via Edge Function for user: $userId');
 
-      // Fetch restaurant commission rate
-      final restaurantData = await _supabaseClient
-          .from(AppConstants.tableRestaurants)
-          .select('commission_rate')
-          .eq('id', restaurantId)
-          .single();
-      var commissionRate =
-          (restaurantData['commission_rate'] ??
-                  AppConstants.defaultCommissionRate)
-              .toDouble();
-
-      // +5% commission boost for orders from ads
-      if (fromAd) {
-        commissionRate = commissionRate + 0.05;
-        AppLogger.info(
-          'Ad commission boost applied: +5% → ${(commissionRate * 100).toStringAsFixed(0)}%',
-        );
-      }
-
-      final commissionAmount = totalAmount * commissionRate;
-
-      // Generate 4-digit OTP for delivery verification
-      final otp = (1000 + Random.secure().nextInt(9000)).toString();
-
-      // Generate FD- receipt number
-      final now = DateTime.now();
-      final dateStr =
-          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-      final todayStart = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).toIso8601String();
-      final countResult = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('id')
-          .gte('ordered_at', todayStart);
-      final seq = (countResult as List).length + 1;
-      final receiptNumber = 'FD-$dateStr-${seq.toString().padLeft(4, '0')}';
-
-      final response = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .insert({
-            'user_id': userId,
-            'restaurant_id': restaurantId,
-            'subtotal': subtotal,
-            'tax_amount': ?taxAmount,
-            'delivery_fee': deliveryFee,
-            'total_amount': totalAmount,
-            'status': AppConstants.orderPending,
-            'delivery_address': deliveryAddress,
-            'delivery_latitude': deliveryLatitude,
-            'delivery_longitude': deliveryLongitude,
-            'notes': ?notes,
-            'payment_method': paymentMethod ?? 'cash',
-            'payment_status': AppConstants.paymentPending,
-            'ordered_at': now.toIso8601String(),
-            'contactless_delivery': contactlessDelivery,
-            'delivery_otp': otp,
-            'receipt_number': receiptNumber,
-            if (discount != null && discount > 0) 'discount': discount,
-            if (driverTip != null && driverTip > 0) 'driver_tip': driverTip,
-            if (scheduledFor != null)
-              'scheduled_for': scheduledFor.toIso8601String(),
-            if (scheduledFor != null) 'is_scheduled': true,
-            'commission_rate': commissionRate,
-            'commission_amount': commissionAmount,
-            'is_pickup': isPickup,
-            if (isPickup && pickupFee != null) 'pickup_fee': pickupFee,
-            if (fromAd) 'from_ad': true,
-            if (adId != null) 'ad_id': adId,
-          })
-          .select()
-          .single();
-
-      final orderId = response['id'];
-
-      // Insert order items and their sides
-      for (final item in items) {
-        final itemResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItems)
-            .insert({
-              'order_id': orderId,
+      final itemsPayload = items
+          .map(
+            (item) => <String, dynamic>{
               'menu_item_id': item.menuItemId,
               'item_name': item.itemName,
               'price': item.price,
               'quantity': item.quantity,
               'subtotal': item.subtotal,
               if (item.notes != null) 'notes': item.notes,
-            })
-            .select()
-            .single();
+              if (item.sides != null && item.sides!.isNotEmpty)
+                'sides': item.sides!
+                    .map(
+                      (s) => {
+                        'side_name': s.sideName,
+                        'side_price': s.sidePrice,
+                      },
+                    )
+                    .toList(),
+            },
+          )
+          .toList();
 
-        if (item.sides != null && item.sides!.isNotEmpty) {
-          final sideRows = item.sides!
-              .map(
-                (s) => {
-                  'order_item_id': itemResponse['id'],
-                  'side_name': s.sideName,
-                  'side_price': s.sidePrice,
-                },
-              )
-              .toList();
-          await _supabaseClient
-              .from(AppConstants.tableOrderItemSides)
-              .insert(sideRows);
-        }
+      final body = <String, dynamic>{
+        'user_id': userId,
+        'restaurant_id': restaurantId,
+        'items': itemsPayload,
+        'subtotal': subtotal,
+        'delivery_fee': deliveryFee,
+        'total_amount': totalAmount,
+        'delivery_address': deliveryAddress,
+        'delivery_latitude': deliveryLatitude,
+        'delivery_longitude': deliveryLongitude,
+        'payment_method': paymentMethod ?? 'cash',
+        'contactless_delivery': contactlessDelivery,
+        'is_pickup': isPickup,
+      };
+
+      if (taxAmount != null) body['tax_amount'] = taxAmount;
+      if (discount != null && discount > 0) body['discount'] = discount;
+      if (notes != null && notes.isNotEmpty) body['notes'] = notes;
+      if (driverTip != null && driverTip > 0) body['driver_tip'] = driverTip;
+      if (scheduledFor != null) {
+        body['scheduled_for'] = scheduledFor.toIso8601String();
+      }
+      if (isPickup && pickupFee != null) body['pickup_fee'] = pickupFee;
+      if (fromAd) body['from_ad'] = true;
+      if (adId != null) body['ad_id'] = adId;
+
+      final response = await _supabaseClient.functions.invoke(
+        'place-order',
+        body: body,
+      );
+
+      if (response.status != 200) {
+        final errorData = jsonDecode(response.data as String? ?? '{}');
+        throw Exception(
+          errorData['error'] ?? 'Failed to place order (${response.status})',
+        );
       }
 
-      // Fetch complete order
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      if (data['success'] != true) {
+        throw Exception(data['error'] ?? 'Order placement failed');
+      }
+
+      final orderId = data['order']?['id'] as String?;
+      if (orderId == null) {
+        throw Exception('No order ID returned from edge function');
+      }
+
+      // Fetch complete order with items for the Flutter model
       final completeOrder = await getOrderById(orderId);
-      AppLogger.info('Order created successfully');
+      AppLogger.info('Order created successfully via Edge Function');
       return completeOrder;
     } catch (e) {
-      AppLogger.error('Error creating order: $e');
+      AppLogger.error('Error creating order via Edge Function: $e');
       rethrow;
     }
   }
