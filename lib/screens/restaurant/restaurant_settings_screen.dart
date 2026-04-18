@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,7 +213,8 @@ class _RestaurantSettingsScreenState
         try {
           imageUrl = await _uploadRestaurantImage(restaurantId);
         } catch (_) {
-          debugPrint('Restaurant image upload failed, saving without image');
+          if (kDebugMode)
+            debugPrint('Restaurant image upload failed, saving without image');
         }
       }
 

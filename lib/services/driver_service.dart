@@ -163,11 +163,44 @@ class DriverService {
     }
   }
 
+  // Decline an order – hides it from this driver for 5 minutes
+  Future<void> declineOrder(String orderId, String driverId) async {
+    try {
+      await _supabaseClient.from('driver_declined_orders').upsert({
+        'driver_id': driverId,
+        'order_id': orderId,
+        'declined_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'driver_id,order_id');
+      AppLogger.info('Driver $driverId declined order $orderId');
+    } catch (e) {
+      AppLogger.error('Error declining order: $e');
+      rethrow;
+    }
+  }
+
   // Get available orders for delivery
   // Shows: all "ready" orders + "pending" orders older than 30 minutes (no driver assigned)
-  Future<List<Order>> getAvailableOrders() async {
+  // Excludes orders declined by this driver within the last 5 minutes
+  Future<List<Order>> getAvailableOrders({String? driverId}) async {
     try {
       AppLogger.info('Fetching available orders for delivery');
+
+      // Fetch recently declined order IDs for this driver
+      Set<String> declinedOrderIds = {};
+      if (driverId != null) {
+        final fiveMinAgo = DateTime.now()
+            .subtract(const Duration(minutes: 5))
+            .toUtc()
+            .toIso8601String();
+        final declinedRows = await _supabaseClient
+            .from('driver_declined_orders')
+            .select('order_id')
+            .eq('driver_id', driverId)
+            .gte('declined_at', fiveMinAgo);
+        declinedOrderIds = (declinedRows as List)
+            .map((r) => r['order_id'] as String)
+            .toSet();
+      }
 
       final cutoff = DateTime.now()
           .subtract(
@@ -184,10 +217,17 @@ class DriverService {
           .or(
             'status.eq.${AppConstants.orderReady},and(status.eq.${AppConstants.orderPending},ordered_at.lt.$cutoff)',
           )
-          .order('ordered_at', ascending: false);
+          .order('ordered_at', ascending: false)
+          .limit(20); // fetch extra to account for declined filtering
 
       final orders = <Order>[];
       for (var orderData in response as List) {
+        // Skip orders this driver recently declined
+        if (declinedOrderIds.contains(orderData['id'])) continue;
+
+        // Cap at 5 orders per driver
+        if (orders.length >= 5) break;
+
         final itemsResponse = await _supabaseClient
             .from(AppConstants.tableOrderItems)
             .select()
@@ -402,6 +442,7 @@ class DriverService {
         await updateDriverStats(driverId);
 
         // If cash order, add to driver's float (total minus what driver keeps)
+        // Driver keeps: deliveryFee × driverPayPercent + tip
         final paymentMethod = order['payment_method'] as String?;
         if (paymentMethod == 'cash') {
           final totalAmount =
@@ -409,7 +450,9 @@ class DriverService {
           final deliveryFee =
               (order['delivery_fee'] as num?)?.toDouble() ?? 0.0;
           final driverTip = (order['driver_tip'] as num?)?.toDouble() ?? 0.0;
-          final floatAmount = totalAmount - deliveryFee - driverTip;
+          final driverKeeps =
+              deliveryFee * AppConstants.driverPayPercent + driverTip;
+          final floatAmount = totalAmount - driverKeeps;
           if (floatAmount > 0) {
             await _incrementCashFloat(driverId, floatAmount);
           }
@@ -497,15 +540,16 @@ class DriverService {
         (s, d) => s + ((d['driver_tip'] as num?)?.toDouble() ?? 0.0),
       );
 
-      // Compute total earnings using actual delivery_fee from each order + tips
-      final totalDeliveryFees = deliveries.fold<double>(
+      // Compute total earnings: driver keeps driverPayPercent of each delivery fee + tips
+      final totalDriverPay = deliveries.fold<double>(
         0.0,
         (s, d) =>
             s +
-            ((d['delivery_fee'] as num?)?.toDouble() ??
-                AppConstants.driverFeePerDelivery),
+            (((d['delivery_fee'] as num?)?.toDouble() ??
+                    AppConstants.driverFeePerDelivery) *
+                AppConstants.driverPayPercent),
       );
-      final totalEarnings = totalDeliveryFees + totalTips;
+      final totalEarnings = totalDriverPay + totalTips;
 
       final updateData = <String, dynamic>{
         'completed_deliveries': count,

@@ -12,6 +12,41 @@ import '../services/feedback_service.dart';
 import '../services/surge_service.dart';
 import '../services/eta_service.dart';
 import '../services/cuisine_service.dart';
+import '../services/delivery_fee_service.dart';
+import '../services/app_config_service.dart';
+import '../config/app_constants.dart';
+import '../utils/app_logger.dart';
+import './user_provider.dart';
+import './address_provider.dart';
+import './auth_provider.dart';
+
+// ── Realtime config version ─────────────────────────────────
+/// Incremented whenever `app_config` changes via Supabase Realtime.
+/// Any provider that watches this will automatically recalculate.
+final configVersionProvider = StateProvider<int>((ref) => 0);
+
+/// Call `ref.read(appConfigRealtimeProvider)` once at startup to begin
+/// listening for admin pricing changes in real time.
+final appConfigRealtimeProvider = Provider<void>((ref) {
+  final client = SupabaseConfig.client;
+  final channel = client
+      .channel('app_config_realtime')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'app_config',
+        callback: (payload) async {
+          // Reload all config from DB into AppConstants
+          await AppConfigService(client).load();
+          // Clear cached delivery fees so new prices take effect
+          ref.read(deliveryFeeServiceProvider).clearCache();
+          // Bump version so watching providers recalculate
+          ref.read(configVersionProvider.notifier).state++;
+        },
+      )
+      .subscribe();
+  ref.onDispose(() => client.removeChannel(channel));
+});
 
 // ── Service Providers ───────────────────────────────────────
 final refundServiceProvider = Provider<RefundService>(
@@ -41,6 +76,71 @@ final etaServiceProvider = Provider<EtaService>(
 final cuisineServiceProvider = Provider<CuisineService>(
   (ref) => CuisineService(SupabaseConfig.client),
 );
+
+final deliveryFeeServiceProvider = Provider<DeliveryFeeService>(
+  (ref) => DeliveryFeeService(SupabaseConfig.client),
+);
+
+/// Delivery fee for a restaurant → delivery location pair.
+/// Family key: `'$restaurantId|$deliveryLat|$deliveryLng|$restLat|$restLng|$restFee'`.
+final deliveryFeeProvider = FutureProvider.autoDispose
+    .family<DeliveryFeeResult?, String>((ref, key) async {
+      // Re-run whenever admin pricing changes in real time
+      ref.watch(configVersionProvider);
+      final parts = key.split('|');
+      if (parts.length < 3) return null;
+      final restaurantId = parts[0];
+      var lat = double.tryParse(parts[1]);
+      var lng = double.tryParse(parts[2]);
+      var restLat = parts.length > 3 ? double.tryParse(parts[3]) : null;
+      var restLng = parts.length > 4 ? double.tryParse(parts[4]) : null;
+      var restFee = parts.length > 5 ? double.tryParse(parts[5]) : null;
+
+      // If restaurant coords not in key, fetch from DB
+      if (restLat == null || restLng == null) {
+        final restAsync = ref.watch(restaurantByIdProvider(restaurantId));
+        final rest = restAsync.valueOrNull;
+        if (rest != null) {
+          restLat ??= rest.latitude;
+          restLng ??= rest.longitude;
+          restFee ??= rest.deliveryFee;
+        }
+      }
+
+      // If delivery coords missing, try user's default address from DB
+      if (lat == null || lng == null) {
+        final userId = ref.watch(currentUserIdProvider);
+        if (userId != null) {
+          final addr = await ref.watch(defaultAddressProvider(userId).future);
+          lat ??= addr?.latitude;
+          lng ??= addr?.longitude;
+        }
+      }
+
+      // Need at least delivery coords to calculate
+      if (lat == null || lng == null) return null;
+
+      AppLogger.info(
+        'deliveryFeeProvider: restLat=$restLat, restLng=$restLng, '
+        'baseFee=${AppConstants.deliveryBaseFee}, perKm=${AppConstants.deliveryPerKmFee}, '
+        'defaultFee=${AppConstants.defaultDeliveryFee}',
+      );
+      final result = await ref
+          .watch(deliveryFeeServiceProvider)
+          .calculate(
+            restaurantId: restaurantId,
+            deliveryLatitude: lat,
+            deliveryLongitude: lng,
+            restaurantLatitude: restLat,
+            restaurantLongitude: restLng,
+            restaurantDeliveryFee: restFee,
+          );
+      AppLogger.info(
+        'deliveryFeeProvider: fee=${result?.deliveryFee}, '
+        'dist=${result?.distanceKm}, calc=${result?.calculation}',
+      );
+      return result;
+    });
 
 // ── Data Providers ──────────────────────────────────────────
 

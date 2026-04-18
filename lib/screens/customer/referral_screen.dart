@@ -3,7 +3,9 @@ import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../models/earning_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/earning_provider.dart';
 import '../../providers/premium_providers.dart';
 import '../../utils/app_feedback_widgets.dart';
 
@@ -18,6 +20,7 @@ class ReferralScreen extends ConsumerWidget {
     final codeAsync = ref.watch(referralCodeProvider(user.id));
     final statsAsync = ref.watch(referralStatsProvider(user.id));
     final referredAsync = ref.watch(referredUsersProvider(user.id));
+    final earningAsync = ref.watch(earningAccountProvider(user.id));
 
     return Scaffold(
       appBar: AppBar(
@@ -65,6 +68,77 @@ class ReferralScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Earning tier + earnings CTA
+            earningAsync.when(
+              data: (account) {
+                if (account == null) return const SizedBox.shrink();
+                return GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/earnings'),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            account.tier == 'leader'
+                                ? Icons.emoji_events_rounded
+                                : account.tier == 'builder'
+                                ? Icons.groups_rounded
+                                : Icons.person_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${account.tierDisplayName} · \$${account.totalEarned.toStringAsFixed(2)} earned',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                '\$${EarningConfig.directOrderRate.toStringAsFixed(2)} per order from referrals',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
             ),
 
             const SizedBox(height: 20),

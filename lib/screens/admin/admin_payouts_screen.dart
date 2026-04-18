@@ -7,6 +7,7 @@ import '../../providers/payout_provider.dart';
 import '../../services/payout_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'payout_success_screen.dart';
 
 class AdminPayoutsScreen extends ConsumerStatefulWidget {
   const AdminPayoutsScreen({super.key});
@@ -293,19 +294,10 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                   if (p.status == 'approved') ...[
                     Expanded(
                       child: _actionBtn(
-                        label: 'Pay via NCB',
+                        label: 'Pay via Stripe',
                         color: const Color(0xFF6366F1),
-                        icon: Icons.open_in_new,
-                        onTap: () => _openNcbPayoutDialog(p),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _actionBtn(
-                        label: 'Mark Complete',
-                        color: const Color(0xFF22C55E),
-                        icon: Icons.check_circle,
-                        onTap: () => _markComplete(p.id),
+                        icon: Icons.payment_rounded,
+                        onTap: () => _openStripePayoutDialog(p),
                       ),
                     ),
                   ],
@@ -395,7 +387,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
     }
   }
 
-  Future<void> _openNcbPayoutDialog(dynamic payout) async {
+  Future<void> _openStripePayoutDialog(dynamic payout) async {
     final amount = NumberFormat.currency(
       symbol: '\$ ',
       decimalDigits: 2,
@@ -414,13 +406,9 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(
-              Icons.account_balance_rounded,
-              color: Color(0xFF6366F1),
-              size: 22,
-            ),
+            Icon(Icons.payment_rounded, color: Color(0xFF6366F1), size: 22),
             SizedBox(width: 8),
-            Text('NCB Payout'),
+            Text('Stripe Payout'),
           ],
         ),
         content: Column(
@@ -428,7 +416,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Send payment via NCB gateway:',
+              'Send payment via Stripe:',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 12),
@@ -460,7 +448,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This will send the payment directly to the recipient\'s bank account via NCB.',
+                      'This will send the payment to the recipient via Stripe.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                     ),
                   ),
@@ -492,28 +480,24 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
     if (confirmed != true) return;
 
-    // Process the payout via NCB
+    // Process the payout via Stripe
     setState(() => _processing = true);
     try {
-      await ref.read(payoutServiceProvider).processPayout(payout.id);
-      _snack('Payment sent via NCB successfully!', const Color(0xFF22C55E));
+      final result = await ref
+          .read(payoutServiceProvider)
+          .processPayout(payout.id);
       widget.onAction();
+      if (mounted) {
+        setState(() => _processing = false);
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PayoutSuccessScreen(result: result),
+          ),
+        );
+      }
     } catch (e) {
-      _snack('NCB payout failed. Please try again.', Colors.red);
-    } finally {
-      if (mounted) setState(() => _processing = false);
-    }
-  }
-
-  Future<void> _markComplete(String id) async {
-    setState(() => _processing = true);
-    try {
-      await ref.read(payoutServiceProvider).markPayoutCompleted(payoutId: id);
-      _snack('Payout marked complete', Colors.green);
-      widget.onAction();
-    } catch (e) {
-      _snack(friendlyError(e), Colors.red);
-    } finally {
+      _snack('Stripe payout failed: ${friendlyError(e)}', Colors.red);
       if (mounted) setState(() => _processing = false);
     }
   }

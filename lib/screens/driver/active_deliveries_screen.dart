@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../services/delivery_fee_service.dart';
 import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
-import 'package:food_driver/config/app_constants.dart';
+import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
@@ -106,7 +110,7 @@ class _ActiveDeliveriesScreenState
                 elevation: 0,
                 title: Text(
                   context.l10n.activeDeliveries,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
                   ),
@@ -127,19 +131,12 @@ class _ActiveDeliveriesScreenState
                           color: const Color(0xFF22C55E).withValues(alpha: 0.3),
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF22C55E),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          const Text(
+                          _PulsingDot(),
+                          SizedBox(width: 5),
+                          Text(
                             'GPS Live',
                             style: TextStyle(
                               color: Color(0xFF22C55E),
@@ -157,7 +154,13 @@ class _ActiveDeliveriesScreenState
               deliveriesAsync.when(
                 data: (deliveries) {
                   if (deliveries.isEmpty) {
-                    return SliverFillRemaining(child: _EmptyState());
+                    return const SliverFillRemaining(
+                      child: AppEmptyState(
+                        icon: Icons.local_shipping_outlined,
+                        title: 'No Active Deliveries',
+                        subtitle: 'Accept an order to start delivering.',
+                      ),
+                    );
                   }
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -168,13 +171,18 @@ class _ActiveDeliveriesScreenState
                             isTracking && _trackingOrderId == delivery.id;
                         return _DeliveryCard(
                           delivery: delivery,
+                          driverId: driver.id,
+                          driverLat: driver.currentLatitude,
+                          driverLng: driver.currentLongitude,
                           isTracking: isThisTracked,
                           onToggleGps: () => _toggleTracking(
                             locationService,
                             driver.id,
                             delivery.id,
                           ),
-                          onNavigate: () => _navigateToCustomer(delivery),
+                          onNavigateToRestaurant: null, // set below via card
+                          onNavigateToCustomer: () =>
+                              _navigateToCustomer(delivery),
                           onChat: () {
                             Navigator.pushNamed(
                               context,
@@ -235,20 +243,7 @@ class _ActiveDeliveriesScreenState
     final lat = delivery.deliveryLatitude;
     final lng = delivery.deliveryLongitude;
     if (lat != null && lng != null) {
-      final googleMapsUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-      final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
-      if (await canLaunchUrl(googleMapsUri)) {
-        await launchUrl(googleMapsUri);
-      } else if (await canLaunchUrl(geoUri)) {
-        await launchUrl(geoUri);
-      } else {
-        await launchUrl(
-          Uri.parse(
-            'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
-          ),
-          mode: LaunchMode.externalApplication,
-        );
-      }
+      _openNavigation(lat, lng);
     } else if (delivery.deliveryAddress != null) {
       final encoded = Uri.encodeComponent(delivery.deliveryAddress!);
       await launchUrl(
@@ -261,6 +256,18 @@ class _ActiveDeliveriesScreenState
       if (mounted) {
         AppSnackbar.warning(context, 'No delivery address available');
       }
+    }
+  }
+
+  void _openNavigation(double lat, double lng) async {
+    final googleUrl = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    final fallbackUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    if (await canLaunchUrl(googleUrl)) {
+      await launchUrl(googleUrl);
+    } else {
+      await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -377,29 +384,37 @@ class _ActiveDeliveriesScreenState
   }
 }
 
-// ─── Delivery Card ─────────────────────────────────────────────────────────────
+// ─── Delivery Card (matches Available Orders design) ───────────────────────────
 
-class _DeliveryCard extends StatelessWidget {
+class _DeliveryCard extends ConsumerWidget {
   final Order delivery;
+  final String driverId;
+  final double? driverLat;
+  final double? driverLng;
   final bool isTracking;
   final VoidCallback onToggleGps;
-  final VoidCallback onNavigate;
+  final VoidCallback? onNavigateToRestaurant;
+  final VoidCallback onNavigateToCustomer;
+  final VoidCallback onChat;
   final VoidCallback onMarkDelivered;
   final VoidCallback? onVerifyPin;
-  final VoidCallback onChat;
-
-  bool get _contactlessPinPending =>
-      delivery.contactlessDelivery && delivery.deliveryOtpVerified != true;
 
   const _DeliveryCard({
     required this.delivery,
+    required this.driverId,
     required this.isTracking,
     required this.onToggleGps,
-    required this.onNavigate,
-    required this.onMarkDelivered,
+    required this.onNavigateToCustomer,
     required this.onChat,
+    required this.onMarkDelivered,
+    this.onNavigateToRestaurant,
     this.onVerifyPin,
+    this.driverLat,
+    this.driverLng,
   });
+
+  bool get _contactlessPinPending =>
+      delivery.contactlessDelivery && delivery.deliveryOtpVerified != true;
 
   Color get _statusColor {
     switch (delivery.status) {
@@ -414,12 +429,54 @@ class _DeliveryCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Fetch restaurant info
+    final restAsync = ref.watch(restaurantByIdProvider(delivery.restaurantId));
+    final restaurant = restAsync.valueOrNull;
+
+    final restLat = restaurant?.latitude;
+    final restLng = restaurant?.longitude;
+    final dropLat = delivery.deliveryLatitude;
+    final dropLng = delivery.deliveryLongitude;
+
+    double? driverToRestKm;
+    double? restToDropKm;
+    double? totalKm;
+    int? estMinutes;
+
+    if (restLat != null &&
+        restLng != null &&
+        dropLat != null &&
+        dropLng != null) {
+      restToDropKm = DeliveryFeeService.haversineKm(
+        restLat,
+        restLng,
+        dropLat,
+        dropLng,
+      );
+      if (driverLat != null && driverLng != null) {
+        driverToRestKm = DeliveryFeeService.haversineKm(
+          driverLat!,
+          driverLng!,
+          restLat,
+          restLng,
+        );
+        totalKm = driverToRestKm + restToDropKm;
+      } else {
+        totalKm = restToDropKm;
+      }
+      estMinutes = (totalKm * 3 + 5).round();
+    }
+
+    final driverPay = delivery.deliveryFee * AppConstants.driverPayPercent;
+    final tipAmount = delivery.driverTip ?? 0;
+    final totalPay = driverPay + tipAmount;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E2030),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isTracking
               ? const Color(0xFF22C55E).withValues(alpha: 0.4)
@@ -429,143 +486,218 @@ class _DeliveryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          // ── Map ──────────────────────────────────────────────────
+          if (restLat != null && restLng != null)
+            _DeliveryMap(
+              driverLat: driverLat,
+              driverLng: driverLng,
+              restLat: restLat,
+              restLng: restLng,
+              dropLat: dropLat,
+              dropLng: dropLng,
+            ),
+
+          // ── Pay + status banner ─────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF162016),
+              border: Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
+            ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    delivery.status.replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: _statusColor,
-                      letterSpacing: 0.5,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            delivery.status.replaceAll('_', ' ').toUpperCase(),
+                            style: TextStyle(
+                              color: _statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '#${delivery.id.substring(0, 8).toUpperCase()}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${AppConstants.currencySymbol}${totalPay.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 26,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (tipAmount > 0)
+                      Text(
+                        'Includes ${AppConstants.currencySymbol}${tipAmount.toStringAsFixed(2)} tip',
+                        style: const TextStyle(
+                          color: Color(0xFF22C55E),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
                 ),
                 const Spacer(),
-                Text(
-                  '#${delivery.id.substring(0, 8).toUpperCase()}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (estMinutes != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
+                            color: Colors.white70,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$estMinutes min',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 4),
+                    if (totalKm != null)
+                      Text(
+                        '${totalKm.toStringAsFixed(1)} km',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
 
-          // Total & items count
+          // ── Route details ───────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(
+              children: [
+                // Restaurant pickup
+                _RouteRow(
+                  icon: Icons.store_rounded,
+                  iconColor: const Color(0xFF22C55E),
+                  label: restaurant?.name ?? 'Restaurant',
+                  subtitle: driverToRestKm != null
+                      ? '${driverToRestKm.toStringAsFixed(1)} km from you'
+                      : null,
+                  onNavigate: restLat != null && restLng != null
+                      ? () => _openNav(restLat, restLng)
+                      : null,
+                ),
+                // Connector line
+                Padding(
+                  padding: const EdgeInsets.only(left: 15),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 2,
+                        height: 24,
+                        color: const Color(0xFF2A2D3E),
+                      ),
+                      if (restToDropKm != null) ...[
+                        const SizedBox(width: 16),
+                        Text(
+                          '${restToDropKm.toStringAsFixed(1)} km',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Drop-off
+                _RouteRow(
+                  icon: Icons.location_on_rounded,
+                  iconColor: const Color(0xFFEF4444),
+                  label: delivery.deliveryAddress ?? 'Drop-off',
+                  onNavigate: dropLat != null && dropLng != null
+                      ? () => _openNav(dropLat, dropLng)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+
+          // ── Countdown timer ─────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Row(
-              children: [
-                Text(
-                  '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '· ${delivery.items.length} item(s)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Countdown timer
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: OrderCountdownTimer(
               orderedAt: delivery.orderedAt,
               estimatedMinutes: delivery.estimatedPrepMinutes,
             ),
           ),
 
-          // Address
-          if (delivery.deliveryAddress != null)
+          // ── Item chips ──────────────────────────────────────────
+          if (delivery.items.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    size: 15,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      delivery.deliveryAddress!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: delivery.items
+                    .map(
+                      (item) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2D3E),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${item.itemName} x${item.quantity}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+                    )
+                    .toList(),
               ),
             ),
 
-          // Items chips
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: delivery.items
-                  .map(
-                    (item) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A2D3E),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${item.itemName} ×${item.quantity}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-
-          // Badges row
+          // ── Badges ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Wrap(
               spacing: 8,
               runSpacing: 6,
               children: [
-                // Contactless badge
                 if (delivery.contactlessDelivery)
                   _StatusBadge(
                     icon: _contactlessPinPending
@@ -578,7 +710,6 @@ class _DeliveryCard extends StatelessWidget {
                         ? const Color(0xFF818CF8)
                         : const Color(0xFF22C55E),
                   ),
-                // GPS tracking badge
                 if (isTracking)
                   const _StatusBadge(
                     icon: Icons.gps_fixed_rounded,
@@ -590,11 +721,9 @@ class _DeliveryCard extends StatelessWidget {
           ),
 
           const SizedBox(height: 14),
-
-          // Divider
           Container(height: 1, color: const Color(0xFF2A2D3E)),
 
-          // Action buttons
+          // ── Action buttons ──────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -622,7 +751,7 @@ class _DeliveryCard extends StatelessWidget {
                   icon: Icons.navigation_rounded,
                   label: 'Navigate',
                   color: const Color(0xFF3B82F6),
-                  onTap: onNavigate,
+                  onTap: onNavigateToCustomer,
                 ),
                 if (delivery.contactlessDelivery && onVerifyPin != null) ...[
                   const SizedBox(width: 8),
@@ -650,6 +779,235 @@ class _DeliveryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _openNav(double lat, double lng) async {
+    final googleUrl = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    final fallbackUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    if (await canLaunchUrl(googleUrl)) {
+      await launchUrl(googleUrl);
+    } else {
+      await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+// ─── Route Row ─────────────────────────────────────────────────────────────────
+
+class _RouteRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String? subtitle;
+  final VoidCallback? onNavigate;
+
+  const _RouteRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.subtitle,
+    this.onNavigate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                ),
+            ],
+          ),
+        ),
+        if (onNavigate != null)
+          IconButton(
+            onPressed: onNavigate,
+            icon: const Icon(Icons.navigation_rounded, size: 20),
+            color: AppTheme.primaryColor,
+            tooltip: 'Navigate',
+          ),
+      ],
+    );
+  }
+}
+
+// ─── Mini Map ──────────────────────────────────────────────────────────────────
+
+class _DeliveryMap extends StatelessWidget {
+  final double? driverLat;
+  final double? driverLng;
+  final double restLat;
+  final double restLng;
+  final double? dropLat;
+  final double? dropLng;
+
+  const _DeliveryMap({
+    this.driverLat,
+    this.driverLng,
+    required this.restLat,
+    required this.restLng,
+    this.dropLat,
+    this.dropLng,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final markers = <Marker>[];
+    final allPoints = <LatLng>[];
+
+    // Driver marker (blue car)
+    if (driverLat != null && driverLng != null) {
+      final driverPos = LatLng(driverLat!, driverLng!);
+      allPoints.add(driverPos);
+      markers.add(
+        Marker(
+          point: driverPos,
+          width: 36,
+          height: 36,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.blueAccent,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(
+              Icons.directions_car_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Restaurant marker (green store)
+    final restPos = LatLng(restLat, restLng);
+    allPoints.add(restPos);
+    markers.add(
+      Marker(
+        point: restPos,
+        width: 36,
+        height: 36,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF22C55E),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: const Icon(Icons.store_rounded, color: Colors.white, size: 18),
+        ),
+      ),
+    );
+
+    // Drop-off marker (red pin)
+    if (dropLat != null && dropLng != null) {
+      final dropPos = LatLng(dropLat!, dropLng!);
+      allPoints.add(dropPos);
+      markers.add(
+        Marker(
+          point: dropPos,
+          width: 36,
+          height: 36,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(
+              Icons.location_on_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final center = _centerOf(allPoints);
+    final zoom = _fitZoom(allPoints);
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      child: SizedBox(
+        height: 180,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: zoom,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.none,
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.foodhub.delivery',
+            ),
+            MarkerLayer(markers: markers),
+          ],
+        ),
+      ),
+    );
+  }
+
+  LatLng _centerOf(List<LatLng> points) {
+    double lat = 0, lng = 0;
+    for (final p in points) {
+      lat += p.latitude;
+      lng += p.longitude;
+    }
+    return LatLng(lat / points.length, lng / points.length);
+  }
+
+  double _fitZoom(List<LatLng> points) {
+    if (points.length < 2) return 14;
+    double maxDist = 0;
+    for (int i = 0; i < points.length; i++) {
+      for (int j = i + 1; j < points.length; j++) {
+        final d = DeliveryFeeService.haversineKm(
+          points[i].latitude,
+          points[i].longitude,
+          points[j].latitude,
+          points[j].longitude,
+        );
+        if (d > maxDist) maxDist = d;
+      }
+    }
+    if (maxDist < 1) return 15;
+    if (maxDist < 3) return 14;
+    if (maxDist < 8) return 13;
+    if (maxDist < 15) return 12;
+    if (maxDist < 30) return 11;
+    return 10;
   }
 }
 
@@ -749,15 +1107,20 @@ class _CardAction extends StatelessWidget {
   }
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
+// ─── Pulsing Dot ───────────────────────────────────────────────────────────────
 
-class _EmptyState extends StatelessWidget {
+class _PulsingDot extends StatelessWidget {
+  const _PulsingDot();
+
   @override
   Widget build(BuildContext context) {
-    return const AppEmptyState(
-      icon: Icons.local_shipping_outlined,
-      title: 'No Active Deliveries',
-      subtitle: 'Accept an order to start delivering.',
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: const BoxDecoration(
+        color: Color(0xFF22C55E),
+        shape: BoxShape.circle,
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -99,7 +100,7 @@ class _IncomingCallListenerState extends ConsumerState<IncomingCallListener> {
             );
           });
     } catch (e) {
-      debugPrint('Error handling incoming call: $e');
+      if (kDebugMode) debugPrint('Error handling incoming call: $e');
     }
   }
 

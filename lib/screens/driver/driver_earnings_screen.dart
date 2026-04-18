@@ -89,7 +89,7 @@ class DriverEarningsScreen extends ConsumerWidget {
             double earningsFor(List orders) {
               double total = 0;
               for (final d in orders) {
-                total += d.deliveryFee ?? 0.0;
+                total += (d.deliveryFee ?? 0.0) * AppConstants.driverPayPercent;
                 total += d.driverTip ?? 0.0;
               }
               return total;
@@ -447,7 +447,10 @@ class DriverEarningsScreen extends ConsumerWidget {
                             ...deliveries.map(
                               (d) => _DeliveryRow(
                                 delivery: d,
-                                earning: d.deliveryFee + (d.driverTip ?? 0.0),
+                                earning:
+                                    d.deliveryFee *
+                                        AppConstants.driverPayPercent +
+                                    (d.driverTip ?? 0.0),
                                 tip: d.driverTip,
                                 isCash: d.paymentMethod == 'cash',
                               ),

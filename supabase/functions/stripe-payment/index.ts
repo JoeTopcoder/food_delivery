@@ -326,5 +326,78 @@ Deno.serve(async (request) => {
     }
   }
 
+  // ── Create Payout (admin sends funds to connected account / bank) ──
+
+  if (action === "create_payout") {
+    // Verify the caller is an admin
+    const { data: callerRow } = await adminClient
+      .from("users")
+      .select("role")
+      .eq("id", userData.user.id)
+      .single();
+
+    if (!callerRow || callerRow.role !== "admin") {
+      return json({ error: "Only admins can process payouts." }, 403);
+    }
+
+    const payoutId = String(body.payoutId ?? "").trim();
+    const amount = Number(body.amount ?? 0);
+    const currency = String(body.currency ?? "usd").trim().toLowerCase();
+    const recipientName = String(body.recipientName ?? "").trim();
+    const bankAccount = String(body.bankAccount ?? "").trim();
+    const bankName = String(body.bankName ?? "").trim();
+    const description = String(
+      body.description ?? `Payout ${payoutId}`
+    ).trim();
+
+    if (!payoutId || amount <= 0) {
+      return json(
+        { error: "Missing required fields (payoutId, amount > 0)." },
+        400
+      );
+    }
+
+    const amountInCents = Math.round(amount * 100);
+
+    try {
+      // Use Stripe Transfers / Payouts API
+      // For platforms: create a Transfer to the connected account
+      // For direct payouts: create a Payout to the platform's bank
+      const payoutResult = await stripeRequest("/payouts", {
+        amount: String(amountInCents),
+        currency,
+        description,
+        "metadata[payout_id]": payoutId,
+        "metadata[recipient_name]": recipientName,
+        "metadata[bank_account]": bankAccount,
+        "metadata[bank_name]": bankName,
+      });
+
+      if (payoutResult.error) {
+        const err = payoutResult.error as Record<string, unknown>;
+        return json(
+          {
+            status: "failed",
+            error: err.message ?? "Stripe payout failed.",
+          },
+          400
+        );
+      }
+
+      return json({
+        status: "success",
+        payout_reference: payoutResult.id as string,
+        stripe_status: payoutResult.status as string,
+        amount,
+        currency,
+      });
+    } catch (e) {
+      return json(
+        { status: "failed", error: `Stripe payout error: ${(e as Error).message}` },
+        500
+      );
+    }
+  }
+
   return json({ error: `Unknown action: ${action}` }, 400);
 });

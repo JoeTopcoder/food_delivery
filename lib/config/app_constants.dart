@@ -3,14 +3,22 @@
   static const String appName = 'MealHub';
   static const String appVersion = '1.0.0';
 
-  // Supabase Configuration
-  static const String supabaseUrl = 'https://yharweliruemjexmuuxn.supabase.co';
-  static const String supabaseAnonKey =
-      'sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6';
+  // Supabase Configuration (override via --dart-define at build time)
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://yharweliruemjexmuuxn.supabase.co',
+  );
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6',
+  );
 
-  // Stripe Payment Configuration (TEST MODE)
-  static const String stripePublishableKey =
-      'pk_test_51TMsI4IxFR3jJr2aLgGfT5qfocXNz5MB2wQnGBkEfbW95VU3tRmxKbo0UjcrRbLtbyZ9kVxDSGXkeVPCB8zx3z0100VdZHXefJ';
+  // Stripe Payment Configuration (override via --dart-define for production)
+  static const String stripePublishableKey = String.fromEnvironment(
+    'STRIPE_PUBLISHABLE_KEY',
+    defaultValue:
+        'pk_test_51TMsI4IxFR3jJr2aLgGfT5qfocXNz5MB2wQnGBkEfbW95VU3tRmxKbo0UjcrRbLtbyZ9kVxDSGXkeVPCB8zx3z0100VdZHXefJ',
+  );
   static const String stripePaymentFunction = 'stripe-payment';
   static const String stripeMerchantId = 'merchant.com.foodhub.delivery';
 
@@ -25,6 +33,8 @@
   static const String ncbPaymentCallbackFunction = '/ncb-payment-callback';
 
   static const String appBaseUrl = 'https://mealhubcayman.com';
+  static const String privacyPolicyUrl = '$appBaseUrl/privacy-policy';
+  static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   static String get supabaseFunctionsBaseUrl => '$supabaseUrl/functions/v1';
   static String get ncbCallbackUrlFull =>
@@ -88,8 +98,11 @@
   static const String fcmTopicAvailableDrivers = 'available_drivers';
   static const String fcmTopicAllRestaurants = 'all_restaurants';
 
-  // Agora Voice Call
-  static const String agoraAppId = '821e6ba951734d04910ff6c6d5b5fba5';
+  // Agora Voice Call (override via --dart-define for production)
+  static const String agoraAppId = String.fromEnvironment(
+    'AGORA_APP_ID',
+    defaultValue: '821e6ba951734d04910ff6c6d5b5fba5',
+  );
 
   // Timeouts (in seconds) — overridden from DB at startup
   static int apiTimeout = 30;
@@ -120,6 +133,8 @@
   static double deliveryBaseKm = 3.0;
   static double deliveryMaxKm = 30.0;
   static double deliverySurgeMultiplier = 1.0;
+  static double driverPayPercent = 0.80;
+  static double minDeliveryFee = 3.0;
 
   // Loyalty
   static double loyaltyPointValue = 0.01;

@@ -43,10 +43,10 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
 
     // Surge multiplier
     final defaultAddr = defaultAddrAsync?.valueOrNull;
-    final delLat = defaultAddr?.latitude ?? currentUser?.latitude ?? 0.0;
-    final delLng = defaultAddr?.longitude ?? currentUser?.longitude ?? 0.0;
+    final delLat = defaultAddr?.latitude ?? currentUser?.latitude;
+    final delLng = defaultAddr?.longitude ?? currentUser?.longitude;
     final surgeKey =
-        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
+        '${delLat?.toStringAsFixed(6) ?? '0'},${delLng?.toStringAsFixed(6) ?? '0'}';
     final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
     if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
     final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
@@ -61,10 +61,12 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
       if (isPickup) {
         totalActiveFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
       } else {
-        final base = s?.deliveryFee ?? AppConstants.defaultDeliveryFee;
-        totalActiveFee += double.parse(
-          (base * surgeMultiplier).toStringAsFixed(2),
-        );
+        final feeKey =
+            '$sid|${delLat ?? ''}|${delLng ?? ''}|${s?.latitude ?? ''}|${s?.longitude ?? ''}|${s?.deliveryFee ?? ''}';
+        final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
+        totalActiveFee +=
+            feeAsync.valueOrNull?.deliveryFee ??
+            AppConstants.defaultDeliveryFee;
       }
     }
 

@@ -24,6 +24,7 @@ import '../../utils/est_datetime.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
+import '../../services/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../providers/recommendation_provider.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
@@ -52,7 +53,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _promoError;
   DateTime? _scheduledAt;
   double _driverTip = 0;
-  double _lastSurgeMultiplier = 1.0;
   final _customTipCtrl = TextEditingController();
   final List<double> _presetTips = AppConstants.presetTips;
 
@@ -140,20 +140,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final promoDiscount = appliedPromo?.computeDiscount(subtotal) ?? 0.0;
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
-    // Surge multiplier based on delivery location
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude ?? 0.0;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude ?? 0.0;
-    final surgeKey =
-        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
-    final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
-    if (surgeAsync.hasValue) _lastSurgeMultiplier = surgeAsync.value!;
-    final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurgeMultiplier;
+    // Admin-configured delivery fee via Edge Function
+    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
+    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
+    final feeKey = restaurantId != null
+        ? '$restaurantId|${delLat ?? ''}|${delLng ?? ''}|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
+        : '';
+    final feeAsync = feeKey.isNotEmpty && !isPickup
+        ? ref.watch(deliveryFeeProvider(feeKey))
+        : const AsyncValue<DeliveryFeeResult?>.data(null);
+    final feeResult = feeAsync.valueOrNull;
+    final deliveryFee =
+        feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+    final distanceKm = feeResult?.distanceKm;
 
-    final baseDeliveryFee =
-        restaurant?.deliveryFee ?? AppConstants.defaultDeliveryFee;
-    final deliveryFee = double.parse(
-      (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
-    );
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
     final activeFee = isPickup ? pickupServiceFee : deliveryFee;
@@ -1146,13 +1146,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          surgeMultiplier > 1.0
-                              ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                              : 'Delivery',
+                          'Delivery${distanceKm != null ? ' (${distanceKm.toStringAsFixed(1)} km)' : ''}',
                           '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                          valueColor: surgeMultiplier > 1.0
-                              ? const Color(0xFFFFA630)
-                              : null,
                         ),
                       _SummaryRow(
                         'Tax (10%)',
@@ -1577,6 +1572,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
       // Refresh brain engine so coupon/recommendations update after order
       ref.invalidate(brainEngineProvider);
+      // Ensure the new order shows in order history immediately
+      ref.invalidate(userOrdersProvider(userId));
 
       if (!mounted) {
         return;

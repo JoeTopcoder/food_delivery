@@ -92,37 +92,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _initializeAuth();
   }
 
-  /// Subscribe to FCM topics based on user role
+  /// Subscribe to FCM topics based on user role (all in parallel).
   Future<void> _subscribeToUserTopics(User user) async {
     try {
-      // Everyone subscribes to their personal topic
-      await _notificationService.subscribeToTopic('customer_${user.id}');
-
-      // Role-specific topics
+      final futures = <Future<void>>[
+        _notificationService.subscribeToTopic('customer_${user.id}'),
+      ];
       switch (user.role) {
         case 'driver':
-          await _notificationService.subscribeToTopic('driver_${user.id}');
+          futures.add(
+            _notificationService.subscribeToTopic('driver_${user.id}'),
+          );
           break;
         case 'restaurant':
-          await _notificationService.subscribeToTopic('restaurant_${user.id}');
+          futures.add(
+            _notificationService.subscribeToTopic('restaurant_${user.id}'),
+          );
           break;
         case 'admin':
-          await _notificationService.subscribeToTopic('admins');
+          futures.add(_notificationService.subscribeToTopic('admins'));
           break;
       }
+      await Future.wait(futures);
       AppLogger.info('Subscribed to FCM topics for role: ${user.role}');
     } catch (e) {
       AppLogger.error('Error subscribing to FCM topics: $e');
     }
   }
 
-  /// Unsubscribe from all FCM topics on logout
+  /// Unsubscribe from all FCM topics on logout (all in parallel).
   Future<void> _unsubscribeFromAllTopics(User user) async {
     try {
-      await _notificationService.unsubscribeFromTopic('customer_${user.id}');
-      await _notificationService.unsubscribeFromTopic('driver_${user.id}');
-      await _notificationService.unsubscribeFromTopic('restaurant_${user.id}');
-      await _notificationService.unsubscribeFromTopic('admins');
+      await Future.wait([
+        _notificationService.unsubscribeFromTopic('customer_${user.id}'),
+        _notificationService.unsubscribeFromTopic('driver_${user.id}'),
+        _notificationService.unsubscribeFromTopic('restaurant_${user.id}'),
+        _notificationService.unsubscribeFromTopic('admins'),
+      ]);
     } catch (e) {
       AppLogger.error('Error unsubscribing from FCM topics: $e');
     }
@@ -145,7 +151,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
         }
         state = state.copyWith(user: user, isAuthenticated: true);
-        await _subscribeToUserTopics(user);
+        _subscribeToUserTopics(user); // fire-and-forget — don't block auth
       } catch (e) {
         AppLogger.error('Error initializing auth: $e');
       }
@@ -183,7 +189,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           user: user,
           isAuthenticated: true,
         );
-        await _subscribeToUserTopics(user);
+        _subscribeToUserTopics(user); // fire-and-forget
       } else {
         state = state.copyWith(isLoading: false, isAuthenticated: true);
       }
@@ -221,7 +227,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           user: user,
           isAuthenticated: true,
         );
-        await _subscribeToUserTopics(user);
+        _subscribeToUserTopics(
+          user,
+        ); // fire-and-forget — don't block navigation
       }
     } catch (e) {
       AppLogger.error('Sign in error: $e');

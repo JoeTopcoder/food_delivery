@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
@@ -134,19 +133,27 @@ class AdminService {
     }
   }
 
-  /// Ban/unban user
+  /// Ban/unban user – uses a server-side RPC that guarantees exactly one row
+  /// is updated, verifies admin permissions, and prevents self-ban.
   Future<void> toggleUserStatus(String userId, bool isActive) async {
     try {
-      AppLogger.info('Toggling user status: $userId -> $isActive');
+      if (userId.isEmpty) {
+        throw Exception('User ID cannot be empty');
+      }
+      AppLogger.info(
+        'Toggling user status via RPC: userId=$userId -> isActive=$isActive',
+      );
 
-      await _supabaseClient
-          .from(AppConstants.tableUsers)
-          .update({'is_active': isActive})
-          .eq('id', userId);
+      final updatedId = await _supabaseClient.rpc(
+        'admin_toggle_user_status',
+        params: {'p_user_id': userId, 'p_is_active': isActive},
+      );
 
-      AppLogger.info('User status updated');
+      AppLogger.info(
+        'User status updated successfully: returned id=$updatedId',
+      );
     } catch (e) {
-      AppLogger.error('Error toggling user status: $e');
+      AppLogger.error('Error toggling user status for $userId: $e');
       rethrow;
     }
   }
@@ -719,8 +726,8 @@ class AdminService {
   // ==================== ADMIN USER CREATION ====================
 
   /// Admin creates a user account with a specific role (driver or restaurant).
-  /// Uses the Supabase Admin Auth API (service role key) to create confirmed
-  /// users without sending emails, avoiding free-tier email rate limits.
+  /// Creates a user with role via the admin-create-user Edge Function.
+  /// The service_role key stays server-side — never in client code.
   Future<String> createUserWithRole({
     required String email,
     required String password,
@@ -738,333 +745,105 @@ class AdminService {
   }) async {
     AppLogger.info('Admin creating $role account for: $email');
 
-    const serviceRoleKey =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloYXJ3ZWxpcnVlbWpleG11dXhuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ0MDUxOCwiZXhwIjoyMDkxMDE2NTE4fQ.v-PMGcTny7Nz5PhPCbi6eZfpFJPwRk6eHMTnZEi6KH8';
+    final session = _supabaseClient.auth.currentSession;
+    if (session == null) throw Exception('Not authenticated');
 
-    // 1. Create auth user via Admin API (no email sent, auto-confirmed)
-    final createRes = await http.post(
-      Uri.parse('${AppConstants.supabaseUrl}/auth/v1/admin/users'),
+    final res = await http.post(
+      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin-create-user'),
       headers: {
         'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': 'Bearer $serviceRoleKey',
+        'Authorization': 'Bearer ${session.accessToken}',
       },
       body: jsonEncode({
         'email': email,
         'password': password,
-        'email_confirm': true,
-        'user_metadata': {'name': name, 'role': role},
+        'name': name,
+        'role': role,
+        'vehicleType': vehicleType,
+        'vehicleNumber': vehicleNumber,
+        'licenseNumber': licenseNumber,
+        'restaurantName': restaurantName,
+        'cuisineType': cuisineType,
+        'address': address,
+        'phone': phone,
       }),
     );
 
-    if (createRes.statusCode != 200) {
-      final body = jsonDecode(createRes.body);
-      throw Exception(
-        body['msg'] ?? body['message'] ?? 'Failed to create user',
-      );
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['error'] ?? 'Failed to create user');
     }
 
-    final newUserId = jsonDecode(createRes.body)['id'] as String;
-
-    // 2. Use a service-role client so RLS is bypassed for inserts
-    final adminClient = SupabaseClient(
-      AppConstants.supabaseUrl,
-      serviceRoleKey,
-      authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
-    );
-
-    try {
-      // Allow trigger time to create public.users row
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      if (role == AppConstants.roleDriver) {
-        await adminClient.from(AppConstants.tableDrivers).insert({
-          'user_id': newUserId,
-          'vehicle_type': vehicleType.isEmpty ? 'motorcycle' : vehicleType,
-          'vehicle_number': vehicleNumber,
-          'license_number': licenseNumber,
-          'is_verified': false,
-          'is_available': false,
-          'completed_deliveries': 0,
-          'rating': 0.0,
-          'documents_status': 'pending',
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      } else if (role == AppConstants.roleRestaurant) {
-        await adminClient.from(AppConstants.tableRestaurants).insert({
-          'owner_id': newUserId,
-          'name': restaurantName.isEmpty ? name : restaurantName,
-          'cuisine_type': cuisineType.isEmpty ? null : cuisineType,
-          'address': address,
-          'phone': phone,
-          'is_verified': false,
-          'is_open': false,
-          'rating': 0.0,
-          'delivery_fee': 0.0,
-          'estimated_delivery_time': 30,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      AppLogger.info('$role account created: $newUserId');
-      return newUserId;
-    } catch (e) {
-      AppLogger.error('Error creating user with role: $e');
-      rethrow;
-    } finally {
-      await adminClient.dispose();
-    }
+    final userId = jsonDecode(res.body)['user_id'] as String;
+    AppLogger.info('$role account created: $userId');
+    return userId;
   }
 
   // ==================== DATABASE LOOKUP ====================
 
-  /// Creates a short-lived service-role client that bypasses RLS.
-  SupabaseClient _createAdminClient() {
-    const serviceRoleKey =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloYXJ3ZWxpcnVlbWpleG11dXhuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ0MDUxOCwiZXhwIjoyMDkxMDE2NTE4fQ.v-PMGcTny7Nz5PhPCbi6eZfpFJPwRk6eHMTnZEi6KH8';
-    return SupabaseClient(
-      AppConstants.supabaseUrl,
-      serviceRoleKey,
-      authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
+  /// Calls the admin-lookup Edge Function. service_role key stays server-side.
+  Future<dynamic> _edgeLookup(String action, String query) async {
+    final session = _supabaseClient.auth.currentSession;
+    if (session == null) throw Exception('Not authenticated');
+
+    final res = await http.post(
+      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin-lookup'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      body: jsonEncode({'action': action, 'query': query}),
     );
+
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['error'] ?? 'Lookup failed');
+    }
+
+    return jsonDecode(res.body);
   }
 
   /// Lookup by card last-four digits.
-  /// Finds saved cards matching, then fetches associated orders & customer info.
   Future<List<Map<String, dynamic>>> lookupByCard(String lastFour) async {
-    final adminClient = _createAdminClient();
     try {
       final sanitized = _sanitizeLookup(lastFour).replaceAll(RegExp(r'\D'), '');
       if (sanitized.isEmpty) return [];
-
       AppLogger.info('Admin lookup by card ending: $sanitized');
-
-      // 1. Find all saved cards matching last_four
-      final cards = await adminClient
-          .from('saved_cards')
-          .select(
-            'id, user_id, card_brand, last_four, cardholder_name, email, phone, is_default, created_at',
-          )
-          .eq('last_four', sanitized);
-
-      if ((cards as List).isEmpty) return [];
-
-      final results = <Map<String, dynamic>>[];
-
-      for (final card in cards) {
-        final userId = card['user_id'] as String;
-
-        // 2. Get customer info
-        final user = await adminClient
-            .from(AppConstants.tableUsers)
-            .select('id, name, email, phone, role, is_active, created_at')
-            .eq('id', userId)
-            .maybeSingle();
-
-        // 3. Get orders paid by card for this user
-        final orders = await adminClient
-            .from(AppConstants.tableOrders)
-            .select(
-              'id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address, restaurant_id',
-            )
-            .eq('user_id', userId)
-            .eq('payment_method', 'card')
-            .order('ordered_at', ascending: false)
-            .limit(20);
-
-        // 4. Get payment records for those orders
-        final orderIds = (orders as List)
-            .map((o) => o['id'] as String)
-            .toList();
-        List<dynamic> payments = [];
-        if (orderIds.isNotEmpty) {
-          payments = await adminClient
-              .from(AppConstants.tablePayments)
-              .select(
-                'id, order_id, amount, method, status, transaction_id, created_at',
-              )
-              .inFilter('order_id', orderIds);
-        }
-
-        results.add({
-          'card': card,
-          'customer': user,
-          'orders': orders,
-          'payments': payments,
-        });
-      }
-
-      return results;
+      final result = await _edgeLookup('card', sanitized);
+      return (result as List).cast<Map<String, dynamic>>();
     } catch (e) {
       AppLogger.error('Error in card lookup: $e');
       return [];
-    } finally {
-      await adminClient.dispose();
     }
   }
 
   /// Lookup by order ID (full or partial).
   Future<Map<String, dynamic>?> lookupByOrderId(String orderId) async {
-    final adminClient = _createAdminClient();
     try {
       final sanitized = _sanitizeLookup(orderId).trim();
       if (sanitized.isEmpty) return null;
-
       AppLogger.info('Admin lookup by order ID: $sanitized');
-
-      // Try exact match first
-      var order = await adminClient
-          .from(AppConstants.tableOrders)
-          .select()
-          .eq('id', sanitized)
-          .maybeSingle();
-
-      // If no match, try prefix search (partial UUID)
-      if (order == null) {
-        final partialResults = await adminClient
-            .from(AppConstants.tableOrders)
-            .select()
-            .ilike('id', '$sanitized%')
-            .limit(1);
-        if ((partialResults as List).isNotEmpty) {
-          order = partialResults.first;
-        }
-      }
-
-      if (order == null) return null;
-
-      // Get customer info
-      final userId = order['user_id'] as String?;
-      Map<String, dynamic>? customer;
-      if (userId != null) {
-        customer = await adminClient
-            .from(AppConstants.tableUsers)
-            .select('id, name, email, phone, role, is_active')
-            .eq('id', userId)
-            .maybeSingle();
-      }
-
-      // Get payment info
-      final payment = await adminClient
-          .from(AppConstants.tablePayments)
-          .select()
-          .eq('order_id', order['id'])
-          .maybeSingle();
-
-      // Get restaurant info
-      final restaurantId = order['restaurant_id'] as String?;
-      Map<String, dynamic>? restaurant;
-      if (restaurantId != null) {
-        restaurant = await adminClient
-            .from(AppConstants.tableRestaurants)
-            .select('id, name, phone, address')
-            .eq('id', restaurantId)
-            .maybeSingle();
-      }
-
-      // Get driver info
-      final driverId = order['driver_id'] as String?;
-      Map<String, dynamic>? driver;
-      if (driverId != null) {
-        driver = await adminClient
-            .from(AppConstants.tableDrivers)
-            .select('id, user_id, vehicle_type, vehicle_number, rating')
-            .eq('id', driverId)
-            .maybeSingle();
-      }
-
-      return {
-        'order': order,
-        'customer': customer,
-        'payment': payment,
-        'restaurant': restaurant,
-        'driver': driver,
-      };
+      final result = await _edgeLookup('order', sanitized);
+      if (result == null) return null;
+      return Map<String, dynamic>.from(result as Map);
     } catch (e) {
       AppLogger.error('Error in order lookup: $e');
       return null;
-    } finally {
-      await adminClient.dispose();
     }
   }
 
   /// Lookup by customer email or phone.
   Future<Map<String, dynamic>?> lookupByCustomer(String query) async {
-    final adminClient = _createAdminClient();
     try {
       final sanitized = _sanitizeLookup(query).trim();
       if (sanitized.isEmpty) return null;
-
-      debugPrint('=== CUSTOMER LOOKUP ===');
-      debugPrint('Raw query: "$query"');
-      debugPrint('Sanitized: "$sanitized"');
-
-      // Search user by email or phone
-      final users = await adminClient
-          .from(AppConstants.tableUsers)
-          .select('id, name, email, phone, role, is_active, created_at')
-          .or(
-            'email.ilike.%$sanitized%,phone.ilike.%$sanitized%,name.ilike.%$sanitized%',
-          )
-          .limit(5);
-
-      debugPrint('Query returned ${(users as List).length} user(s)');
-
-      if (users.isEmpty) return null;
-
-      final user = users.first;
-      final userId = user['id'] as String;
-      debugPrint('Found user: ${user['email']} (id: $userId)');
-
-      // Get recent orders
-      final orders = await adminClient
-          .from(AppConstants.tableOrders)
-          .select(
-            'id, total_amount, status, payment_method, payment_status, ordered_at, delivery_address',
-          )
-          .eq('user_id', userId)
-          .order('ordered_at', ascending: false)
-          .limit(20);
-
-      // Get saved cards
-      List<dynamic> cards = [];
-      try {
-        cards = await adminClient
-            .from('saved_cards')
-            .select(
-              'id, card_brand, last_four, cardholder_name, is_default, created_at',
-            )
-            .eq('user_id', userId);
-      } catch (e) {
-        debugPrint('saved_cards query failed (ok): $e');
-      }
-
-      // Get wallet balance
-      Map<String, dynamic>? wallet;
-      try {
-        wallet = await adminClient
-            .from('wallets')
-            .select('balance, currency')
-            .eq('user_id', userId)
-            .maybeSingle();
-      } catch (_) {}
-
-      debugPrint(
-        '=== LOOKUP COMPLETE: orders=${(orders as List).length}, cards=${cards.length} ===',
-      );
-
-      return {
-        'customer': user,
-        'orders': orders,
-        'saved_cards': cards,
-        'wallet': wallet,
-      };
-    } catch (e, st) {
-      debugPrint('!!! CUSTOMER LOOKUP ERROR: $e');
-      debugPrint('Stack: $st');
-      rethrow;
-    } finally {
-      await adminClient.dispose();
+      AppLogger.info('Admin customer lookup: $sanitized');
+      final result = await _edgeLookup('customer', sanitized);
+      if (result == null) return null;
+      return Map<String, dynamic>.from(result as Map);
+    } catch (e) {
+      AppLogger.error('Error in customer lookup: $e');
+      return null;
     }
   }
 }

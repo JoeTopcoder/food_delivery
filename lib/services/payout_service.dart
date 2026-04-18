@@ -250,7 +250,7 @@ class PayoutService {
     }
   }
 
-  Future<void> processPayout(String payoutId) async {
+  Future<Map<String, dynamic>> processPayout(String payoutId) async {
     try {
       // Fetch payout details first
       final payoutData = await _client
@@ -274,15 +274,17 @@ class PayoutService {
           })
           .eq('id', payoutId);
 
-      // Call NCB payout edge function
+      // Call Stripe payout via the stripe-payment edge function
       final response = await _client.functions.invoke(
-        'ncb-process-payout',
+        'stripe-payment',
         body: {
+          'action': 'create_payout',
+          'payoutId': payoutId,
           'amount': amount,
-          'currency': 'USD',
-          'name': recipientName,
-          'bank_account': bankAccount,
-          'bank_name': bankName,
+          'currency': 'usd',
+          'recipientName': recipientName,
+          'bankAccount': bankAccount,
+          'bankName': bankName,
           'description':
               '${requesterType == 'driver' ? 'Driver' : 'Restaurant'} payout $payoutId',
         },
@@ -292,13 +294,13 @@ class PayoutService {
       final status = data?['status'] as String?;
 
       if (status != 'success') {
-        final error = data?['error'] ?? 'NCB payout failed';
+        final error = data?['error'] ?? 'Stripe payout failed';
         // Revert to approved so admin can retry
         await _client
             .from('payout_requests')
             .update({
               'status': 'approved',
-              'admin_notes': 'NCB payout failed: $error',
+              'admin_notes': 'Stripe payout failed: $error',
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', payoutId);
@@ -307,10 +309,21 @@ class PayoutService {
 
       final payoutRef = data?['payout_reference'] as String? ?? '';
 
-      // Mark as completed with NCB reference
+      // Mark as completed with Stripe reference
       await markPayoutCompleted(payoutId: payoutId, transactionId: payoutRef);
 
-      AppLogger.info('Payout processed via NCB: $payoutId ref=$payoutRef');
+      AppLogger.info('Payout processed via Stripe: $payoutId ref=$payoutRef');
+
+      return {
+        'payout_id': payoutId,
+        'payout_reference': payoutRef,
+        'amount': amount,
+        'recipient_name': recipientName,
+        'bank_name': bankName,
+        'bank_account': bankAccount,
+        'requester_type': requesterType,
+        'status': 'completed',
+      };
     } catch (e) {
       AppLogger.error('Error processing payout: $e');
       rethrow;

@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Camera & Media Permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <!-- Agora Voice Call Permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Full-screen intent for incoming call screen -->

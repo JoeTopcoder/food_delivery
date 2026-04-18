@@ -6,6 +6,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
+import '../../services/delivery_fee_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 
@@ -17,8 +18,6 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  double _lastSurge = 1.0;
-
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
@@ -40,21 +39,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
     final restaurant = restaurantAsync.valueOrNull;
-    final baseDeliveryFee =
-        restaurant?.deliveryFee ?? AppConstants.defaultDeliveryFee;
 
-    // Surge multiplier based on delivery location
-    final defaultAddr = defaultAddrAsync?.valueOrNull;
-    final delLat = defaultAddr?.latitude ?? currentUser?.latitude ?? 0.0;
-    final delLng = defaultAddr?.longitude ?? currentUser?.longitude ?? 0.0;
-    final surgeKey =
-        '${delLat.toStringAsFixed(6)},${delLng.toStringAsFixed(6)}';
-    final surgeAsync = ref.watch(surgeMultiplierProvider(surgeKey));
-    if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
-    final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
-    final deliveryFee = double.parse(
-      (baseDeliveryFee * surgeMultiplier).toStringAsFixed(2),
-    );
+    // Admin-configured delivery fee (local haversine + admin config)
+    final delAddr = defaultAddrAsync?.valueOrNull;
+    final delLat = delAddr?.latitude ?? currentUser?.latitude;
+    final delLng = delAddr?.longitude ?? currentUser?.longitude;
+    final feeKey = restaurantId != null
+        ? '$restaurantId|${delLat ?? ''}|${delLng ?? ''}|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
+        : '';
+    final feeAsync = feeKey.isNotEmpty && !isPickup
+        ? ref.watch(deliveryFeeProvider(feeKey))
+        : const AsyncValue<DeliveryFeeResult?>.data(null);
+    final feeResult = feeAsync.valueOrNull;
+    final deliveryFee =
+        feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+    final distanceKm = feeResult?.distanceKm;
+
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
     final activeFee = isPickup ? pickupServiceFee : deliveryFee;
@@ -392,13 +392,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               )
                             else
                               _PriceRow(
-                                surgeMultiplier > 1.0
-                                    ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                                    : 'Delivery Fee',
+                                'Delivery${distanceKm != null ? ' (${distanceKm.toStringAsFixed(1)} km)' : ''}',
                                 '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                                valueColor: surgeMultiplier > 1.0
-                                    ? const Color(0xFFFFA630)
-                                    : null,
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(

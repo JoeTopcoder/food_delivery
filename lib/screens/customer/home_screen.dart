@@ -1,4 +1,5 @@
 ﻿import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -63,16 +64,19 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     try {
       final adminService = ref.read(adminServiceProvider);
       final adsList = await adminService.getActiveAds();
-      debugPrint('[AdPopup] Fetched ${adsList.length} active ads from DB');
+      if (kDebugMode)
+        debugPrint('[AdPopup] Fetched ${adsList.length} active ads from DB');
       if (adsList.isEmpty || !mounted || _adPopupShown) {
-        debugPrint('[AdPopup] No ads or already shown — skipping popup');
+        if (kDebugMode)
+          debugPrint('[AdPopup] No ads or already shown — skipping popup');
         return;
       }
       final ads = adsList
           .map((json) => RestaurantAd.fromJson(json))
           .where((ad) => ad.isCurrentlyActive)
           .toList();
-      debugPrint('[AdPopup] ${ads.length} currently active after filter');
+      if (kDebugMode)
+        debugPrint('[AdPopup] ${ads.length} currently active after filter');
       if (ads.isEmpty || !mounted) return;
 
       // ── AI-powered ad selection when multiple ads exist ──
@@ -82,9 +86,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       } else {
         bestAd = await _pickBestAdForUser(ads);
       }
-      debugPrint(
-        '[AdPopup] Showing ad: "${bestAd.title}" (cuisine: ${bestAd.cuisineType})',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          '[AdPopup] Showing ad: "${bestAd.title}" (cuisine: ${bestAd.cuisineType})',
+        );
+      }
 
       _adPopupShown = true;
       if (!mounted) return;
@@ -95,7 +101,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         builder: (ctx) => _AdPopupDialog(ad: bestAd, ref: ref),
       );
     } catch (e) {
-      debugPrint('[AdPopup] Error fetching ads: $e');
+      if (kDebugMode) debugPrint('[AdPopup] Error fetching ads: $e');
     }
   }
 
@@ -208,19 +214,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         timeSlot = 'late_night';
       }
 
-      debugPrint('═══ [Brain AI] Ad Ranking Engine ═══');
-      debugPrint(
-        '[Brain AI] Segment: $userSegment | TopCuisine: $topCuisine | ChurnRisk: ${churnRisk.toStringAsFixed(2)}',
-      );
-      debugPrint(
-        '[Brain AI] DealSens: ${dealSensitivity.toStringAsFixed(2)} | PriceSens: ${priceSensitivity.toStringAsFixed(2)} | Orders: $totalOrders',
-      );
-      debugPrint(
-        '[Brain AI] TimeSlot: $timeSlot | Activity: ${activityScore.toStringAsFixed(2)}',
-      );
-      debugPrint('[Brain AI] RecentViews: $restaurantViewCounts');
-      debugPrint('[Brain AI] CuisineTaps: $cuisineTapCounts');
-      debugPrint('[Brain AI] SessionBoosts: $sessionBoosts');
+      if (kDebugMode) {
+        debugPrint('═══ [Brain AI] Ad Ranking Engine ═══');
+        debugPrint(
+          '[Brain AI] Segment: $userSegment | TopCuisine: $topCuisine | ChurnRisk: ${churnRisk.toStringAsFixed(2)}',
+        );
+        debugPrint(
+          '[Brain AI] DealSens: ${dealSensitivity.toStringAsFixed(2)} | PriceSens: ${priceSensitivity.toStringAsFixed(2)} | Orders: $totalOrders',
+        );
+        debugPrint(
+          '[Brain AI] TimeSlot: $timeSlot | Activity: ${activityScore.toStringAsFixed(2)}',
+        );
+        debugPrint('[Brain AI] RecentViews: $restaurantViewCounts');
+        debugPrint('[Brain AI] CuisineTaps: $cuisineTapCounts');
+        debugPrint('[Brain AI] SessionBoosts: $sessionBoosts');
+      }
 
       // ══════════════════════════════════════════════════════════════════
       // SCORING FUNCTION — 8 dimensions
@@ -388,9 +396,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         score += sessionScore;
         breakdown['session'] = sessionScore;
 
-        debugPrint(
-          '[Brain AI] "${ad.title}" → ${score.toStringAsFixed(1)} $breakdown',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            '[Brain AI] "${ad.title}" → ${score.toStringAsFixed(1)} $breakdown',
+          );
+        }
         return score;
       }
 
@@ -421,18 +431,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       }
 
       final winner = scored[selectedIdx];
-      debugPrint(
-        '═══ [Brain AI] Winner: "${winner.ad.title}" (score: ${winner.score.toStringAsFixed(1)}, p: ${(probabilities[selectedIdx] * 100).toStringAsFixed(1)}%) ═══',
-      );
-      for (int i = 0; i < scored.length; i++) {
+      if (kDebugMode) {
         debugPrint(
-          '[Brain AI] #${i + 1} "${scored[i].ad.title}" → ${scored[i].score.toStringAsFixed(1)}pts (${(probabilities[i] * 100).toStringAsFixed(1)}%)',
+          '═══ [Brain AI] Winner: "${winner.ad.title}" (score: ${winner.score.toStringAsFixed(1)}, p: ${(probabilities[selectedIdx] * 100).toStringAsFixed(1)}%) ═══',
         );
+        for (int i = 0; i < scored.length; i++) {
+          debugPrint(
+            '[Brain AI] #${i + 1} "${scored[i].ad.title}" → ${scored[i].score.toStringAsFixed(1)}pts (${(probabilities[i] * 100).toStringAsFixed(1)}%)',
+          );
+        }
       }
 
       return winner.ad;
     } catch (e) {
-      debugPrint('[Brain AI] Engine error, falling back to first ad: $e');
+      if (kDebugMode)
+        debugPrint('[Brain AI] Engine error, falling back to first ad: $e');
       return ads.first;
     }
   }

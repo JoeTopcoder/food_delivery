@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+
+/// Realtime listener that auto-refreshes admin orders on any change.
+final _adminOrderRealtimeProvider = Provider.autoDispose<void>((ref) {
+  final channel = SupabaseConfig.client
+      .channel('admin_all_orders')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'orders',
+        callback: (_) => ref.invalidate(_adminAllOrdersProvider),
+      )
+      .subscribe();
+  ref.onDispose(() => SupabaseConfig.client.removeChannel(channel));
+});
 
 /// Provider that fetches all orders with restaurant name joined.
 final _adminAllOrdersProvider =
@@ -140,6 +155,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(_adminOrderRealtimeProvider);
     final ordersAsync = ref.watch(_adminAllOrdersProvider);
 
     return Scaffold(

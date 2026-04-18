@@ -516,6 +516,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-loyalty'),
                           ),
+                          _GridAction(
+                            icon: Icons.local_shipping_rounded,
+                            label: 'Pricing',
+                            color: const Color(0xFF0891B2),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-pricing'),
+                          ),
                         ],
                       ),
 

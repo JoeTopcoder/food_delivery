@@ -19,12 +19,25 @@ final driverProfileProvider = FutureProvider.family
       return driverService.getDriverByUserId(userId);
     });
 
-// Available Orders Provider
-final availableOrdersProvider = FutureProvider.autoDispose<List<Order>>((
-  ref,
-) async {
-  final driverService = ref.watch(driverServiceProvider);
-  return driverService.getAvailableOrders();
+// Available Orders Provider (takes driverId to filter out recently declined)
+final availableOrdersProvider = FutureProvider.autoDispose
+    .family<List<Order>, String?>((ref, driverId) async {
+      final driverService = ref.watch(driverServiceProvider);
+      return driverService.getAvailableOrders(driverId: driverId);
+    });
+
+/// Realtime listener that auto-refreshes available orders for drivers.
+final driverOrderRealtimeProvider = Provider.autoDispose<void>((ref) {
+  final channel = SupabaseConfig.client
+      .channel('driver_available_orders')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'orders',
+        callback: (_) => ref.invalidate(availableOrdersProvider),
+      )
+      .subscribe();
+  ref.onDispose(() => SupabaseConfig.client.removeChannel(channel));
 });
 
 // Active Deliveries Provider
