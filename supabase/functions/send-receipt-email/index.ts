@@ -14,7 +14,7 @@ const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = Deno.env.get("RECEIPT_FROM_EMAIL") ?? "MealHub <receipts@mealhub.app>";
+const FROM_EMAIL = Deno.env.get("RECEIPT_FROM_EMAIL") ?? "MealHub <onboarding@resend.dev>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

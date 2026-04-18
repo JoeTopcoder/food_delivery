@@ -228,9 +228,12 @@ class DriverService {
           .select()
           .filter('driver_id', 'is', null)
           .eq('is_pickup', false)
-          .or(
-            'status.eq.${AppConstants.orderReady},and(status.eq.${AppConstants.orderPending},ordered_at.lt.$cutoff)',
-          )
+          .inFilter('status', [
+            AppConstants.orderReady,
+            AppConstants.orderPreparing,
+            AppConstants.orderConfirmed,
+            AppConstants.orderPending,
+          ])
           .order('ordered_at', ascending: false)
           .limit(20); // fetch extra to account for declined filtering
 
