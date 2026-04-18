@@ -91,6 +91,11 @@ Deno.serve(async (request) => {
       bankFeePct,
       cashFeePct,
       defaultCommissionRate,
+      peakAddonFee,
+      peakStart,
+      peakEnd,
+      peakStart2,
+      peakEnd2,
     ] = await Promise.all([
       getConfig("tax_rate", 0.10),
       getConfig("default_delivery_fee", 50.0),
@@ -105,7 +110,20 @@ Deno.serve(async (request) => {
       getConfig("bank_transfer_fee_percent", 1.0),
       getConfig("cash_fee_percent", 0),
       getConfig("default_commission_rate", 0.15),
+      getConfig("peak_addon_fee", 0),
+      getConfig("peak_hours_start", 11),
+      getConfig("peak_hours_end", 14),
+      getConfig("peak_hours_start_2", 18),
+      getConfig("peak_hours_end_2", 21),
     ]);
+
+    // Check if current hour is within a peak window
+    const currentHour = new Date().getUTCHours();
+    const isPeak = peakAddonFee > 0 && (
+      (currentHour >= peakStart && currentHour < peakEnd) ||
+      (currentHour >= peakStart2 && currentHour < peakEnd2)
+    );
+    const peakFee = isPeak ? peakAddonFee : 0;
 
     // ── 2. Fetch restaurant ────────────────────────────────────────────────
     const { data: restaurant, error: restErr } = await admin
@@ -206,12 +224,12 @@ Deno.serve(async (request) => {
 
       // Distance-based fee: base fee + extra per km beyond base distance
       const extraKm = Math.max(0, deliveryDistanceKm - baseKm);
-      const calculatedFee = (baseFee + extraKm * perKmFee) * effectiveSurge;
+      const calculatedFee = (baseFee + extraKm * perKmFee) * effectiveSurge + peakFee;
       // Use the higher of restaurant override or distance-based fee
       deliveryFee = Math.max(deliveryFee, Math.round(calculatedFee * 100) / 100);
     } else {
       // No coordinates — still apply surge to flat fee
-      deliveryFee = Math.round(deliveryFee * effectiveSurge * 100) / 100;
+      deliveryFee = Math.round((deliveryFee * effectiveSurge + peakFee) * 100) / 100;
     }
 
     // ── 5. Tax ─────────────────────────────────────────────────────────────

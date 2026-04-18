@@ -140,7 +140,7 @@ Deno.serve(async (request) => {
     }
 
     // ── 3. Fetch config ─────────────────────────────────────────────────
-    const [taxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee] =
+    const [taxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
       await Promise.all([
         getConfig("tax_rate", 0.10),
         getConfig("delivery_base_fee", 50.0),
@@ -149,7 +149,20 @@ Deno.serve(async (request) => {
         getConfig("delivery_max_km", 25.0),
         getConfig("delivery_surge_multiplier", 1.0),
         getConfig("default_delivery_fee", 50.0),
+        getConfig("peak_addon_fee", 0),
+        getConfig("peak_hours_start", 11),
+        getConfig("peak_hours_end", 14),
+        getConfig("peak_hours_start_2", 18),
+        getConfig("peak_hours_end_2", 21),
       ]);
+
+    // Check if current hour is within a peak window
+    const currentHour = new Date().getUTCHours();
+    const isPeak = peakAddonFee > 0 && (
+      (currentHour >= peakStart && currentHour < peakEnd) ||
+      (currentHour >= peakStart2 && currentHour < peakEnd2)
+    );
+    const peakFee = isPeak ? peakAddonFee : 0;
 
     // ── 4. Delivery fee ─────────────────────────────────────────────────
     let deliveryFee = 0;
@@ -168,10 +181,10 @@ Deno.serve(async (request) => {
           }, 400);
         }
         const extraKm = Math.max(0, deliveryDistanceKm - baseKm);
-        const calcFee = (baseFee + extraKm * perKmFee) * surgeMultiplier;
+        const calcFee = (baseFee + extraKm * perKmFee) * surgeMultiplier + peakFee;
         deliveryFee = Math.max(deliveryFee, Math.round(calcFee * 100) / 100);
       } else {
-        deliveryFee = Math.round(deliveryFee * surgeMultiplier * 100) / 100;
+        deliveryFee = Math.round((deliveryFee * surgeMultiplier + peakFee) * 100) / 100;
       }
     }
 

@@ -17,6 +17,11 @@ const _deliveryConfigKeys = [
   'min_delivery_fee',
   'default_delivery_fee',
   'driver_bonus_per_order',
+  'peak_addon_fee',
+  'peak_hours_start',
+  'peak_hours_end',
+  'peak_hours_start_2',
+  'peak_hours_end_2',
 ];
 
 // ── Provider: fetch delivery-related rows from app_config ───────────────────
@@ -54,6 +59,11 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'min_delivery_fee': 'Minimum Delivery Fee (\$)',
     'default_delivery_fee': 'Default Flat Fee (\$)',
     'driver_bonus_per_order': 'Driver Bonus Per Order (\$)',
+    'peak_addon_fee': 'Peak Hour Add-on (\$)',
+    'peak_hours_start': 'Peak Hours Start (Lunch)',
+    'peak_hours_end': 'Peak Hours End (Lunch)',
+    'peak_hours_start_2': 'Peak Hours Start (Dinner)',
+    'peak_hours_end_2': 'Peak Hours End (Dinner)',
   };
 
   static const _hints = <String, String>{
@@ -67,6 +77,11 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'default_delivery_fee': 'Flat fee when restaurant has no GPS',
     'driver_bonus_per_order':
         'Extra flat bonus added per delivery. 0 = no bonus',
+    'peak_addon_fee': 'Extra flat fee during peak hours. 0 = disabled',
+    'peak_hours_start': '24h format (e.g. 11 = 11 AM)',
+    'peak_hours_end': '24h format (e.g. 14 = 2 PM)',
+    'peak_hours_start_2': '24h format (e.g. 18 = 6 PM)',
+    'peak_hours_end_2': '24h format (e.g. 21 = 9 PM)',
   };
 
   static const _icons = <String, IconData>{
@@ -79,6 +94,11 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'min_delivery_fee': Icons.vertical_align_bottom,
     'default_delivery_fee': Icons.local_offer_outlined,
     'driver_bonus_per_order': Icons.card_giftcard,
+    'peak_addon_fee': Icons.trending_up,
+    'peak_hours_start': Icons.schedule,
+    'peak_hours_end': Icons.schedule,
+    'peak_hours_start_2': Icons.nightlight_round,
+    'peak_hours_end_2': Icons.nightlight_round,
   };
 
   // Text controllers keyed by config key
@@ -201,6 +221,26 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
       'driver_bonus_per_order',
       AppConstants.driverBonusPerOrder,
     );
+    AppConstants.peakAddonFee = parseVal(
+      'peak_addon_fee',
+      AppConstants.peakAddonFee,
+    );
+    AppConstants.peakHoursStart = parseVal(
+      'peak_hours_start',
+      AppConstants.peakHoursStart.toDouble(),
+    ).toInt();
+    AppConstants.peakHoursEnd = parseVal(
+      'peak_hours_end',
+      AppConstants.peakHoursEnd.toDouble(),
+    ).toInt();
+    AppConstants.peakHoursStart2 = parseVal(
+      'peak_hours_start_2',
+      AppConstants.peakHoursStart2.toDouble(),
+    ).toInt();
+    AppConstants.peakHoursEnd2 = parseVal(
+      'peak_hours_end_2',
+      AppConstants.peakHoursEnd2.toDouble(),
+    ).toInt();
   }
 
   @override

@@ -191,6 +191,7 @@ class DeliveryFeeService {
     final surge = AppConstants.deliverySurgeMultiplier;
     final driverPayPct = AppConstants.driverPayPercent;
     final minFee = AppConstants.minDeliveryFee;
+    final peakAddon = AppConstants.isPeakHour ? AppConstants.peakAddonFee : 0.0;
 
     // If we have both coordinates, compute distance-based fee
     if (restaurantLatitude != null && restaurantLongitude != null) {
@@ -207,7 +208,7 @@ class DeliveryFeeService {
 
       final distRounded = (distanceKm * 10).round() / 10;
       final extraKm = math.max(0.0, distanceKm - baseKm);
-      final rawFee = (baseFee + extraKm * perKmFee) * surge;
+      final rawFee = (baseFee + extraKm * perKmFee) * surge + peakAddon;
       final finalFee = _round2(math.max(rawFee, minFee));
       final driverPay = _round2(finalFee * driverPayPct);
 
@@ -240,7 +241,7 @@ class DeliveryFeeService {
 
     // No restaurant coordinates — use admin default delivery fee
     final flatFee = _round2(
-      math.max(AppConstants.defaultDeliveryFee * surge, minFee),
+      math.max(AppConstants.defaultDeliveryFee * surge + peakAddon, minFee),
     );
     final driverPay = _round2(flatFee * driverPayPct);
 

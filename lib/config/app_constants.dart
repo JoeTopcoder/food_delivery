@@ -137,6 +137,20 @@
   static double minDeliveryFee = 3.0;
   static double driverBonusPerOrder = 0.0;
 
+  // Peak hour pricing
+  static double peakAddonFee = 1.0;
+  static int peakHoursStart = 11;
+  static int peakHoursEnd = 14;
+  static int peakHoursStart2 = 18;
+  static int peakHoursEnd2 = 21;
+
+  /// Returns true if the current local hour falls within a peak window.
+  static bool get isPeakHour {
+    final h = DateTime.now().hour;
+    return (h >= peakHoursStart && h < peakHoursEnd) ||
+        (h >= peakHoursStart2 && h < peakHoursEnd2);
+  }
+
   // Loyalty
   static double loyaltyPointValue = 0.01;
   static double loyaltyMaxRedemptionPercent = 0.20;
