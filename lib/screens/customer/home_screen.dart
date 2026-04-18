@@ -19,6 +19,7 @@ import '../../widgets/restaurant_card.dart';
 import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
+import '../../config/app_constants.dart';
 
 // Emoji categories for the Browse by Category grid
 const _emojiCategories = <Map<String, String>>[
@@ -532,6 +533,36 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
+                if (AppConstants.isPeakHour) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.local_fire_department,
+                            color: Colors.white, size: 12),
+                        SizedBox(width: 3),
+                        Text(
+                          'PEAK',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
             actions: [
