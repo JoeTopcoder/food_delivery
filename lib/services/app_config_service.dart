@@ -138,6 +138,33 @@ class AppConfigService {
       AppConstants.driverBonusPerOrder,
     );
 
+    // Peak hour pricing
+    AppConstants.peakAddonFee = _double(
+      c,
+      'peak_addon_fee',
+      AppConstants.peakAddonFee,
+    );
+    AppConstants.peakHoursStart = _int(
+      c,
+      'peak_hours_start',
+      AppConstants.peakHoursStart,
+    );
+    AppConstants.peakHoursEnd = _int(
+      c,
+      'peak_hours_end',
+      AppConstants.peakHoursEnd,
+    );
+    AppConstants.peakHoursStart2 = _int(
+      c,
+      'peak_hours_start_2',
+      AppConstants.peakHoursStart2,
+    );
+    AppConstants.peakHoursEnd2 = _int(
+      c,
+      'peak_hours_end_2',
+      AppConstants.peakHoursEnd2,
+    );
+
     // Loyalty
     AppConstants.loyaltyPointValue = _double(
       c,

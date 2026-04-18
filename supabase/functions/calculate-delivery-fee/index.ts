@@ -117,7 +117,7 @@ Deno.serve(async (request) => {
     }
 
     // Fetch config values (including new driver_pay_percent + min_delivery_fee)
-    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee, driverPayPercent, minFee] = await Promise.all([
+    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee, driverPayPercent, minFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] = await Promise.all([
       getConfig("delivery_base_fee", 5.0),
       getConfig("delivery_per_km_fee", 1.5),
       getConfig("delivery_base_km", 3.0),
@@ -126,7 +126,20 @@ Deno.serve(async (request) => {
       getConfig("default_delivery_fee", 5.0),
       getConfig("driver_pay_percent", 0.80),
       getConfig("min_delivery_fee", 3.0),
+      getConfig("peak_addon_fee", 0),
+      getConfig("peak_hours_start", 11),
+      getConfig("peak_hours_end", 14),
+      getConfig("peak_hours_start_2", 18),
+      getConfig("peak_hours_end_2", 21),
     ]);
+
+    // Check if current hour is within a peak window
+    const currentHour = new Date().getUTCHours(); // Edge functions run in UTC — adjust if needed
+    const isPeak = peakAddonFee > 0 && (
+      (currentHour >= peakStart && currentHour < peakEnd) ||
+      (currentHour >= peakStart2 && currentHour < peakEnd2)
+    );
+    const peakFee = isPeak ? peakAddonFee : 0;
 
     // Check surge_zones table for zone-specific multiplier at delivery location
     let surgeMultiplier = globalSurgeMultiplier;
@@ -149,7 +162,7 @@ Deno.serve(async (request) => {
 
     // If restaurant has no coordinates, return flat fee (still apply surge)
     if (!restaurant.latitude || !restaurant.longitude) {
-      const rawFee = (restaurant.delivery_fee ?? defaultFee) * surgeMultiplier;
+      const rawFee = (restaurant.delivery_fee ?? defaultFee) * surgeMultiplier + peakFee;
       const flatFee = round2(Math.max(rawFee, minFee));
       const driverPay = round2(flatFee * driverPayPercent);
       const platformFee = round2(flatFee - driverPay);
@@ -190,7 +203,7 @@ Deno.serve(async (request) => {
     }
 
     const extraKm = Math.max(0, distanceKm - baseKm);
-    const rawCalculated = (baseFee + extraKm * perKmFee) * surgeMultiplier;
+    const rawCalculated = (baseFee + extraKm * perKmFee) * surgeMultiplier + peakFee;
     // Use higher of restaurant override or distance-based fee
     const restaurantOverride = restaurant.delivery_fee ?? 0;
     // Enforce minimum fee
@@ -226,6 +239,8 @@ Deno.serve(async (request) => {
       surge_multiplier: surgeMultiplier,
       min_fee: minFee,
       restaurant_override: restaurantOverride,
+      peak_addon_fee: peakFee,
+      is_peak: isPeak,
     });
   } catch (err) {
     return json({ error: "Server error", details: `${err}` }, 500);
