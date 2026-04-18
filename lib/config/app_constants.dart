@@ -135,6 +135,7 @@
   static double deliverySurgeMultiplier = 1.0;
   static double driverPayPercent = 0.80;
   static double minDeliveryFee = 3.0;
+  static double driverBonusPerOrder = 0.0;
 
   // Loyalty
   static double loyaltyPointValue = 0.01;

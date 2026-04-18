@@ -132,6 +132,11 @@ class AppConfigService {
       'min_delivery_fee',
       AppConstants.minDeliveryFee,
     );
+    AppConstants.driverBonusPerOrder = _double(
+      c,
+      'driver_bonus_per_order',
+      AppConstants.driverBonusPerOrder,
+    );
 
     // Loyalty
     AppConstants.loyaltyPointValue = _double(

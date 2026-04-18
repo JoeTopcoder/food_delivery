@@ -103,6 +103,7 @@ Deno.serve(async (request) => {
 
     if (driverId) {
       const driverPayPercent = await getConfig("driver_pay_percent", 0.80);
+      const bonusPerOrder = await getConfig("driver_bonus_per_order", 0);
 
       // Fetch all delivered orders for this driver
       const { data: deliveries } = await admin
@@ -136,12 +137,13 @@ Deno.serve(async (request) => {
         0
       );
 
-      // Total driver pay (driverPayPercent of each delivery fee + tips)
+      // Total driver pay (driverPayPercent of each delivery fee + tips + bonus)
       const totalDriverPay = deliveryList.reduce(
         (s, d) => s + (Number(d.delivery_fee) || 5) * driverPayPercent,
         0
       );
-      const totalEarnings = Math.round((totalDriverPay + totalTips) * 100) / 100;
+      const totalBonus = bonusPerOrder > 0 ? completedCount * bonusPerOrder : 0;
+      const totalEarnings = Math.round((totalDriverPay + totalTips + totalBonus) * 100) / 100;
 
       // Total paid out (all non-rejected/failed payouts)
       const { data: payoutRows } = await admin

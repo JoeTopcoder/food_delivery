@@ -2,155 +2,413 @@ import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/premium_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
 
-class DriverLeaderboardScreen extends ConsumerWidget {
+class DriverLeaderboardScreen extends ConsumerStatefulWidget {
   const DriverLeaderboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriverLeaderboardScreen> createState() =>
+      _DriverLeaderboardScreenState();
+}
+
+class _DriverLeaderboardScreenState
+    extends ConsumerState<DriverLeaderboardScreen> {
+  @override
+  Widget build(BuildContext context) {
     final leaderboardAsync = ref.watch(driverLeaderboardProvider);
+    final currentUserId = ref.watch(currentUserIdProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            pinned: true,
-            backgroundColor: const Color(0xFF0F1117),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: const SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: 24),
-                      Icon(
-                        Icons.emoji_events_rounded,
-                        color: Colors.white,
-                        size: 44,
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        'Driver Leaderboard',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Top performers this month',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+      body: RefreshIndicator(
+        color: AppTheme.primaryColor,
+        backgroundColor: const Color(0xFF1E2030),
+        onRefresh: () async {
+          ref.invalidate(driverLeaderboardProvider);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          leaderboardAsync.when(
-            data: (drivers) {
-              if (drivers.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 180,
+              pinned: true,
+              backgroundColor: const Color(0xFF0F1117),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const SafeArea(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFFBBF24,
-                            ).withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.emoji_events_outlined,
-                            size: 40,
-                            color: Color(0xFFFBBF24),
-                          ),
+                        SizedBox(height: 24),
+                        Icon(
+                          Icons.emoji_events_rounded,
+                          color: Colors.white,
+                          size: 44,
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'No Leaderboard Data',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 10),
                         Text(
-                          'Rankings will appear once deliveries start.',
+                          'Driver Leaderboard',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
                           ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Compete with other drivers!',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                       ],
                     ),
                   ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final driver = drivers[index];
-                    final rank = index + 1;
-
-                    return _LeaderboardTile(
-                      rank: rank,
-                      name: driver['driver_name'] as String? ?? 'Unknown',
-                      deliveries:
-                          (driver['completed_deliveries'] as num?)?.toInt() ??
-                          0,
-                      rating: (driver['rating'] as num?)?.toDouble() ?? 0.0,
-                      vehicleType: driver['vehicle_type'] as String? ?? 'car',
-                      earnings:
-                          (driver['total_earnings'] as num?)?.toDouble() ?? 0.0,
-                    );
-                  }, childCount: drivers.length),
                 ),
-              );
-            },
-            loading: () => const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
               ),
             ),
-            error: (e, _) => SliverFillRemaining(
-              child: Center(
-                child: Text(
-                  friendlyError(e),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+            leaderboardAsync.when(
+              data: (drivers) {
+                if (drivers.isEmpty) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFFBBF24,
+                              ).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.emoji_events_outlined,
+                              size: 40,
+                              color: Color(0xFFFBBF24),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'No Leaderboard Data',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Rankings will appear once deliveries start.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                // Find current driver's position
+                final myIndex = drivers.indexWhere(
+                  (d) => d['user_id'] == currentUserId,
+                );
+                final totalDrivers = drivers.length;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      // First item: "Your Rank" card
+                      if (index == 0) {
+                        return _YourRankCard(
+                          myIndex: myIndex,
+                          totalDrivers: totalDrivers,
+                          driver: myIndex >= 0 ? drivers[myIndex] : null,
+                        );
+                      }
+
+                      final driverIndex = index - 1;
+                      final driver = drivers[driverIndex];
+                      final rank = driverIndex + 1;
+                      final isMe = driver['user_id'] == currentUserId;
+
+                      return _LeaderboardTile(
+                        rank: rank,
+                        name: driver['driver_name'] as String? ?? 'Unknown',
+                        deliveries:
+                            (driver['completed_deliveries'] as num?)?.toInt() ??
+                            0,
+                        rating: (driver['rating'] as num?)?.toDouble() ?? 0.0,
+                        vehicleType: driver['vehicle_type'] as String? ?? 'car',
+                        earnings:
+                            (driver['total_earnings'] as num?)?.toDouble() ??
+                            0.0,
+                        isCurrentUser: isMe,
+                      );
+                    }, childCount: drivers.length + 1),
+                  ),
+                );
+              },
+              loading: () => const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+              error: (e, _) => SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    friendlyError(e),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── "Your Rank" hero card ─────────────────────────────────────────────────
+class _YourRankCard extends StatelessWidget {
+  final int myIndex;
+  final int totalDrivers;
+  final Map<String, dynamic>? driver;
+
+  const _YourRankCard({
+    required this.myIndex,
+    required this.totalDrivers,
+    this.driver,
+  });
+
+  String get _positionLabel {
+    if (myIndex < 0) return 'Unranked';
+    final rank = myIndex + 1;
+    if (rank == 1) return '1st';
+    if (rank == 2) return '2nd';
+    if (rank == 3) return '3rd';
+    return '${rank}th';
+  }
+
+  String get _motivationText {
+    if (myIndex < 0) return 'Complete a delivery to get on the board!';
+    final rank = myIndex + 1;
+    if (rank == 1) return 'You\'re the #1 driver! Keep it up!';
+    if (rank <= 3)
+      return 'Almost at the top! Just ${rank - 1} driver(s) ahead.';
+    if (rank <= totalDrivers ~/ 2)
+      return 'Top half! ${rank - 1} drivers to beat.';
+    return 'Keep delivering to climb the ranks!';
+  }
+
+  Color get _rankGlowColor {
+    if (myIndex < 0) return const Color(0xFF6B7280);
+    final rank = myIndex + 1;
+    if (rank == 1) return const Color(0xFFFFD700);
+    if (rank == 2) return const Color(0xFFC0C0C0);
+    if (rank == 3) return const Color(0xFFCD7F32);
+    return AppTheme.primaryColor;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myDeliveries =
+        (driver?['completed_deliveries'] as num?)?.toInt() ?? 0;
+    final myRating = (driver?['rating'] as num?)?.toDouble() ?? 0.0;
+    final myEarnings = (driver?['total_earnings'] as num?)?.toDouble() ?? 0.0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _rankGlowColor.withValues(alpha: 0.15),
+            const Color(0xFF1E2030),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _rankGlowColor.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Big rank circle
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _rankGlowColor.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _rankGlowColor, width: 2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _positionLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: myIndex >= 0 && myIndex < 3 ? 18 : 15,
+                    color: _rankGlowColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'YOUR POSITION',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF9CA3AF),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      myIndex >= 0
+                          ? '#${myIndex + 1} of $totalDrivers drivers'
+                          : 'Not ranked yet',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _motivationText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _rankGlowColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          if (driver != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F1117).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _StatChip(
+                    icon: Icons.local_shipping_rounded,
+                    label: '$myDeliveries',
+                    subtitle: 'Deliveries',
+                  ),
+                  Container(
+                    width: 1,
+                    height: 28,
+                    color: const Color(0xFF2A2D3E),
+                  ),
+                  _StatChip(
+                    icon: Icons.star_rounded,
+                    label: myRating.toStringAsFixed(1),
+                    subtitle: 'Rating',
+                    iconColor: const Color(0xFFFBBF24),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 28,
+                    color: const Color(0xFF2A2D3E),
+                  ),
+                  _StatChip(
+                    icon: Icons.payments_rounded,
+                    label:
+                        '${AppConstants.currencySymbol}${myEarnings.toStringAsFixed(2)}',
+                    subtitle: 'Earned',
+                    iconColor: const Color(0xFF34D399),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color? iconColor;
+
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: iconColor ?? Colors.white70),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
+        ),
+      ],
     );
   }
 }
@@ -162,6 +420,7 @@ class _LeaderboardTile extends StatelessWidget {
   final double rating;
   final String vehicleType;
   final double earnings;
+  final bool isCurrentUser;
 
   const _LeaderboardTile({
     required this.rank,
@@ -170,6 +429,7 @@ class _LeaderboardTile extends StatelessWidget {
     required this.rating,
     required this.vehicleType,
     required this.earnings,
+    this.isCurrentUser = false,
   });
 
   Color get _rankColor {
@@ -206,12 +466,17 @@ class _LeaderboardTile extends StatelessWidget {
       margin: EdgeInsets.only(top: rank == 1 ? 0 : 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2030),
+        color: isCurrentUser
+            ? AppTheme.primaryColor.withValues(alpha: 0.12)
+            : const Color(0xFF1E2030),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isTop3
+          color: isCurrentUser
+              ? AppTheme.primaryColor.withValues(alpha: 0.7)
+              : isTop3
               ? _rankColor.withValues(alpha: 0.4)
               : const Color(0xFF2A2D3E),
+          width: isCurrentUser ? 1.5 : 1.0,
         ),
       ),
       child: Row(
@@ -245,13 +510,42 @@ class _LeaderboardTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: isTop3 ? 15 : 14,
-                    color: Colors.white,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: isTop3 ? 15 : 14,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isCurrentUser) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'YOU',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Row(
