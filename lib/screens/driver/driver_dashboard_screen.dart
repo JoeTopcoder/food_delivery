@@ -436,9 +436,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     const SizedBox(width: 10),
                     _MetricTile(
                       icon: Icons.payments_rounded,
-                      label: 'Earned',
+                      label: 'Balance',
                       value:
-                          'J\$${(driver.totalEarnings ?? 0).toStringAsFixed(0)}',
+                          'J\$${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(0)}',
                       color: const Color(0xFF3B82F6),
                     ),
                   ],
