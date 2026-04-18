@@ -54,21 +54,36 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     // Accumulate delivery / service fee across all stores
     double totalActiveFee = 0;
     final storeData = <String, Restaurant?>{};
+    final feeTypes = <String>{};
+    bool anyFeeLoading = false;
+    final hasDeliveryCoords = delLat != null && delLng != null;
     for (final sid in storeIds) {
       final sAsync = ref.watch(restaurantByIdProvider(sid));
       final s = sAsync.valueOrNull;
       storeData[sid] = s;
       if (isPickup) {
         totalActiveFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
-      } else {
+      } else if (hasDeliveryCoords) {
         final feeKey =
-            '$sid|${delLat ?? ''}|${delLng ?? ''}|${s?.latitude ?? ''}|${s?.longitude ?? ''}|${s?.deliveryFee ?? ''}';
+            '$sid|$delLat|$delLng|${s?.latitude ?? ''}|${s?.longitude ?? ''}|${s?.deliveryFee ?? ''}';
         final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
-        totalActiveFee +=
-            feeAsync.valueOrNull?.deliveryFee ??
-            AppConstants.defaultDeliveryFee;
+        if (feeAsync.isLoading) anyFeeLoading = true;
+        final fr = feeAsync.valueOrNull;
+        totalActiveFee += fr?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+        if (fr != null) {
+          if (fr.restaurantOverride != null) {
+            feeTypes.add('Store');
+          } else if (fr.calculation == 'distance_based') {
+            feeTypes.add('KM');
+          } else {
+            feeTypes.add('Base');
+          }
+        }
+      } else {
+        totalActiveFee += AppConstants.defaultDeliveryFee;
       }
     }
+    final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
 
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + totalActiveFee + tax;
@@ -489,8 +504,10 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                               _PriceRow(
                                 surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
-                                    : 'Delivery Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                                '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
+                                    : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
+                                anyFeeLoading
+                                    ? 'Calculating…'
+                                    : '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,

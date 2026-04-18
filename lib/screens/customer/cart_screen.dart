@@ -44,12 +44,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final delAddr = defaultAddrAsync?.valueOrNull;
     final delLat = delAddr?.latitude ?? currentUser?.latitude;
     final delLng = delAddr?.longitude ?? currentUser?.longitude;
-    final feeKey = restaurantId != null
-        ? '$restaurantId|${delLat ?? ''}|${delLng ?? ''}|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
+    // Only build a valid key when we have real coordinates — avoids
+    // creating a throwaway provider instance that returns null on first render.
+    final hasCoords = delLat != null && delLng != null && restaurantId != null;
+    final feeKey = hasCoords
+        ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
     final feeAsync = feeKey.isNotEmpty && !isPickup
         ? ref.watch(deliveryFeeProvider(feeKey))
         : const AsyncValue<DeliveryFeeResult?>.data(null);
+    final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
     final deliveryFee =
         feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
@@ -392,8 +396,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               )
                             else
                               _PriceRow(
-                                'Delivery${distanceKm != null ? ' (${distanceKm.toStringAsFixed(1)} km)' : ''}',
-                                '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                                'Delivery${feeResult?.calculation == 'distance_based'
+                                    ? ' (KM)'
+                                    : feeResult?.restaurantOverride != null
+                                    ? ' (Store)'
+                                    : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
+                                feeLoading
+                                    ? 'Calculating…'
+                                    : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(

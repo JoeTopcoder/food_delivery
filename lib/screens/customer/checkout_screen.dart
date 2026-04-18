@@ -143,12 +143,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Admin-configured delivery fee via Edge Function
     final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
     final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
-    final feeKey = restaurantId != null
-        ? '$restaurantId|${delLat ?? ''}|${delLng ?? ''}|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
+    final hasCoords = delLat != null && delLng != null && restaurantId != null;
+    final feeKey = hasCoords
+        ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
     final feeAsync = feeKey.isNotEmpty && !isPickup
         ? ref.watch(deliveryFeeProvider(feeKey))
         : const AsyncValue<DeliveryFeeResult?>.data(null);
+    final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
     final deliveryFee =
         feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
@@ -1146,8 +1148,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          'Delivery${distanceKm != null ? ' (${distanceKm.toStringAsFixed(1)} km)' : ''}',
-                          '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                          'Delivery${feeResult?.calculation == 'distance_based'
+                              ? ' (KM)'
+                              : feeResult?.restaurantOverride != null
+                              ? ' (Store)'
+                              : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
+                          feeLoading
+                              ? 'Calculating…'
+                              : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                         ),
                       _SummaryRow(
                         'Tax (10%)',
