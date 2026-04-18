@@ -16,6 +16,7 @@ const _deliveryConfigKeys = [
   'driver_pay_percent',
   'min_delivery_fee',
   'default_delivery_fee',
+  'driver_bonus_per_order',
 ];
 
 // ── Provider: fetch delivery-related rows from app_config ───────────────────
@@ -52,6 +53,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'driver_pay_percent': 'Driver Pay %',
     'min_delivery_fee': 'Minimum Delivery Fee (\$)',
     'default_delivery_fee': 'Default Flat Fee (\$)',
+    'driver_bonus_per_order': 'Driver Bonus Per Order (\$)',
   };
 
   static const _hints = <String, String>{
@@ -63,6 +65,8 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'driver_pay_percent': '0.80 = driver keeps 80 % of the fee',
     'min_delivery_fee': 'Fee will never go below this value',
     'default_delivery_fee': 'Flat fee when restaurant has no GPS',
+    'driver_bonus_per_order':
+        'Extra flat bonus added per delivery. 0 = no bonus',
   };
 
   static const _icons = <String, IconData>{
@@ -74,6 +78,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'driver_pay_percent': Icons.person_outline,
     'min_delivery_fee': Icons.vertical_align_bottom,
     'default_delivery_fee': Icons.local_offer_outlined,
+    'driver_bonus_per_order': Icons.card_giftcard,
   };
 
   // Text controllers keyed by config key
@@ -191,6 +196,10 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     AppConstants.defaultDeliveryFee = parseVal(
       'default_delivery_fee',
       AppConstants.defaultDeliveryFee,
+    );
+    AppConstants.driverBonusPerOrder = parseVal(
+      'driver_bonus_per_order',
+      AppConstants.driverBonusPerOrder,
     );
   }
 
