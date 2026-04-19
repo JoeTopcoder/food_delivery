@@ -97,12 +97,14 @@ class _DeliverySubscriptionTabState
       );
       await Stripe.instance.presentPaymentSheet();
 
-      // Payment succeeded — refresh subscription state
+      // Payment succeeded — subscription is now 'pending', will become 'active'
+      // via Stripe webhook. Realtime listener on activeSubscriptionProvider
+      // will auto-update when that happens.
       ref.invalidate(activeSubscriptionProvider);
       if (mounted) {
         AppSnackbar.success(
           context,
-          'Subscribed to MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'}!',
+          'Payment successful! Your MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is activating...',
         );
       }
     } on StripeException catch (e) {
@@ -128,12 +130,13 @@ class _DeliverySubscriptionTabState
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel MealHub+?'),
         content: const Text(
-          'Your remaining deliveries will stay available until the end of the billing period.',
+          'You\'ll keep your remaining deliveries and benefits until '
+          'the end of your current billing period. No further charges.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep'),
+            child: const Text('Keep Plan'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -153,8 +156,23 @@ class _DeliverySubscriptionTabState
     ref.invalidate(activeSubscriptionProvider);
     if (mounted) {
       ok
-          ? AppSnackbar.success(context, 'Subscription cancelled')
+          ? AppSnackbar.success(
+              context,
+              'Plan will cancel at end of billing period',
+            )
           : AppSnackbar.error(context, 'Could not cancel subscription');
+    }
+  }
+
+  Future<void> _reactivateSub(String subscriptionId) async {
+    final ok = await ref
+        .read(subscriptionServiceProvider)
+        .reactivateDeliverySubscription(subscriptionId);
+    ref.invalidate(activeSubscriptionProvider);
+    if (mounted) {
+      ok
+          ? AppSnackbar.success(context, 'Subscription reactivated!')
+          : AppSnackbar.error(context, 'Could not reactivate');
     }
   }
 
@@ -207,11 +225,61 @@ class _DeliverySubscriptionTabState
               ),
               const SizedBox(height: 20),
 
-              // Active subscription banner
-              if (activeSub != null) ...[
+              // Active / Pending subscription banner
+              if (activeSub != null && activeSub.isActive) ...[
                 _ActiveSubBanner(
                   sub: activeSub,
                   onCancel: () => _cancelSub(activeSub.id),
+                  onReactivate: activeSub.isCancelling
+                      ? () => _reactivateSub(activeSub.id)
+                      : null,
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Pending activation banner
+              if (activeSub != null && activeSub.isPending) ...[
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Activating ${activeSub.planLabel}...',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Payment received. Your subscription will be ready in moments.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -291,13 +359,19 @@ class _DeliverySubscriptionTabState
 class _ActiveSubBanner extends StatelessWidget {
   final UserSubscription sub;
   final VoidCallback onCancel;
-  const _ActiveSubBanner({required this.sub, required this.onCancel});
+  final VoidCallback? onReactivate;
+  const _ActiveSubBanner({
+    required this.sub,
+    required this.onCancel,
+    this.onReactivate,
+  });
 
   @override
   Widget build(BuildContext context) {
     final daysLeft = sub.currentPeriodEnd != null
         ? sub.currentPeriodEnd!.difference(DateTime.now()).inDays
         : 0;
+    final isCancelling = sub.isCancelling;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -314,15 +388,21 @@ class _ActiveSubBanner extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    color:
+                        (isCancelling
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF10B981))
+                            .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'ACTIVE',
+                  child: Text(
+                    isCancelling ? 'CANCELLING' : 'ACTIVE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF10B981),
+                      color: isCancelling
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF10B981),
                     ),
                   ),
                 ),
@@ -335,13 +415,26 @@ class _ActiveSubBanner extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: onCancel,
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.red, fontSize: 12),
+                if (isCancelling && onReactivate != null)
+                  TextButton(
+                    onPressed: onReactivate,
+                    child: const Text(
+                      'Keep Plan',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                else
+                  TextButton(
+                    onPressed: onCancel,
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -369,10 +462,14 @@ class _ActiveSubBanner extends StatelessWidget {
             if (sub.currentPeriodEnd != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Renews ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}',
+                isCancelling
+                    ? 'Cancels ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}'
+                    : 'Renews ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: isCancelling
+                      ? const Color(0xFFF59E0B)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -839,9 +936,12 @@ class _SubscriptionCard extends ConsumerWidget {
   const _SubscriptionCard({required this.sub, required this.onAction});
 
   Color get _statusColor {
+    if (sub.isCancelling) return const Color(0xFFF59E0B);
     switch (sub.status) {
       case 'active':
         return const Color(0xFF10B981);
+      case 'pending':
+        return const Color(0xFF3B82F6);
       case 'paused':
         return const Color(0xFFF59E0B);
       case 'cancelled':
@@ -851,9 +951,16 @@ class _SubscriptionCard extends ConsumerWidget {
     }
   }
 
+  String get _statusLabel {
+    if (sub.isCancelling) return 'CANCELLING';
+    if (sub.isPending) return 'ACTIVATING';
+    return sub.status.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = sub.mealPlan;
+    final isDeliverySub = sub.isDeliverySubscription;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -874,7 +981,7 @@ class _SubscriptionCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    sub.status.toUpperCase(),
+                    _statusLabel,
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -883,21 +990,45 @@ class _SubscriptionCard extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  '${sub.mealsRemaining} meals left',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                if (isDeliverySub)
+                  Text(
+                    '${sub.deliveriesRemaining} deliveries left',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else
+                  Text(
+                    '${sub.mealsRemaining} meals left',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              plan?.name ?? 'Meal Plan',
+              isDeliverySub ? sub.planLabel : (plan?.name ?? 'Meal Plan'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            if (sub.nextDelivery != null) ...[
+            // Show period end for delivery subscriptions
+            if (isDeliverySub && sub.currentPeriodEnd != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                sub.isCancelling
+                    ? 'Cancels ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}'
+                    : 'Renews ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: sub.isCancelling
+                      ? const Color(0xFFF59E0B)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (!isDeliverySub && sub.nextDelivery != null) ...[
               const SizedBox(height: 4),
               Text(
                 'Next delivery: ${DateFormat('MMM d, y').format(sub.nextDelivery!)}',
@@ -910,7 +1041,22 @@ class _SubscriptionCard extends ConsumerWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                if (sub.status == 'active')
+                // Reactivate button for cancelling delivery subscriptions
+                if (isDeliverySub && sub.isCancelling)
+                  _ActionBtn(
+                    label: 'Keep Plan',
+                    icon: Icons.refresh,
+                    color: const Color(0xFF10B981),
+                    onTap: () async {
+                      await ref
+                          .read(subscriptionServiceProvider)
+                          .reactivateDeliverySubscription(sub.id);
+                      ref.invalidate(activeSubscriptionProvider);
+                      onAction();
+                    },
+                  ),
+                // Pause for non-delivery active subs
+                if (!isDeliverySub && sub.status == 'active')
                   _ActionBtn(
                     label: 'Pause',
                     icon: Icons.pause,
@@ -933,19 +1079,21 @@ class _SubscriptionCard extends ConsumerWidget {
                     },
                   ),
                 const SizedBox(width: 8),
-                if (sub.status != 'cancelled')
+                // Cancel — route through Stripe for delivery subs
+                if (sub.status != 'cancelled' && !sub.isCancelling)
                   _ActionBtn(
                     label: 'Cancel',
                     icon: Icons.cancel,
                     color: Colors.red,
                     onTap: () async {
+                      final message = isDeliverySub
+                          ? 'You\'ll keep benefits until the end of your billing period.'
+                          : 'This will cancel your meal plan subscription.';
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Cancel Subscription?'),
-                          content: const Text(
-                            'This will cancel your meal plan subscription.',
-                          ),
+                          content: Text(message),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
@@ -962,9 +1110,17 @@ class _SubscriptionCard extends ConsumerWidget {
                         ),
                       );
                       if (confirmed == true) {
-                        await ref
-                            .read(subscriptionServiceProvider)
-                            .cancelSubscription(sub.id);
+                        if (isDeliverySub) {
+                          // Route through Stripe edge function
+                          await ref
+                              .read(subscriptionServiceProvider)
+                              .cancelDeliverySubscription(sub.id);
+                          ref.invalidate(activeSubscriptionProvider);
+                        } else {
+                          await ref
+                              .read(subscriptionServiceProvider)
+                              .cancelSubscription(sub.id);
+                        }
                         onAction();
                       }
                     },

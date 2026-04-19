@@ -286,19 +286,59 @@ Deno.serve(async (request) => {
       return json({ error: "Subscription not found" }, 404);
     }
 
-    // Cancel in Stripe (at period end)
+    // Cancel in Stripe at period end — user keeps benefits until then
     if (sub.stripe_subscription_id) {
       await stripePost(`/subscriptions/${sub.stripe_subscription_id}`, {
         cancel_at_period_end: "true",
       });
     }
 
+    // Keep status 'active' so user retains benefits until period end.
+    // Stripe will fire customer.subscription.deleted at period end → webhook sets cancelled.
     await admin
       .from("user_subscriptions")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .update({ auto_renew: false, updated_at: new Date().toISOString() })
       .eq("id", subscriptionId);
 
-    return json({ success: true, message: "Subscription cancelled" });
+    return json({
+      success: true,
+      message: "Subscription will cancel at end of billing period",
+      cancel_at_period_end: true,
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ACTION: reactivate — undo a pending cancellation before period ends
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === "reactivate") {
+    const subscriptionId = String(body.subscription_id ?? "").trim();
+    if (!subscriptionId) {
+      return json({ error: "subscription_id required" }, 400);
+    }
+
+    const { data: sub } = await admin
+      .from("user_subscriptions")
+      .select("id, stripe_subscription_id, user_id, auto_renew")
+      .eq("id", subscriptionId)
+      .single();
+
+    if (!sub || sub.user_id !== user.id) {
+      return json({ error: "Subscription not found" }, 404);
+    }
+
+    // Remove cancel_at_period_end in Stripe
+    if (sub.stripe_subscription_id) {
+      await stripePost(`/subscriptions/${sub.stripe_subscription_id}`, {
+        cancel_at_period_end: "false",
+      });
+    }
+
+    await admin
+      .from("user_subscriptions")
+      .update({ auto_renew: true, updated_at: new Date().toISOString() })
+      .eq("id", subscriptionId);
+
+    return json({ success: true, message: "Subscription reactivated" });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
