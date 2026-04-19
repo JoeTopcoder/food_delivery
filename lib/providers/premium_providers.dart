@@ -62,6 +62,24 @@ final driverLeaderboardProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
   final client = Supabase.instance.client;
-  final res = await client.from('driver_leaderboard').select().limit(20);
-  return List<Map<String, dynamic>>.from(res as List);
+  final userId = client.auth.currentUser?.id;
+
+  // Fetch top 50 drivers
+  final res = await client.from('driver_leaderboard').select().limit(50);
+  final drivers = List<Map<String, dynamic>>.from(res as List);
+
+  // If the current user isn't in the top results, fetch their row separately
+  if (userId != null && !drivers.any((d) => d['user_id'] == userId)) {
+    final myRes = await client
+        .from('driver_leaderboard')
+        .select()
+        .eq('user_id', userId)
+        .limit(1);
+    final myList = List<Map<String, dynamic>>.from(myRes as List);
+    if (myList.isNotEmpty) {
+      drivers.add(myList.first);
+    }
+  }
+
+  return drivers;
 });
