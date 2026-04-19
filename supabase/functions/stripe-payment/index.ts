@@ -464,7 +464,7 @@ Deno.serve(async (request) => {
     }
   }
 
-  // ── Create Verification Charge (small random charge to verify card) ──
+  // ── Create Verification Charge (SetupIntent to save card, then charge server-side) ──
 
   if (action === "create_verification_charge") {
     const email = String(body.email ?? userData.user.email ?? "").trim();
@@ -483,44 +483,19 @@ Deno.serve(async (request) => {
         adminClient, userData.user.id, email, name || cardholderName
       );
 
-      // Generate a random verification amount between $0.50 and $1.50
-      const verifyAmount = Number(
-        (Math.random() * 1.0 + 0.50).toFixed(2)
-      );
-      const amountCents = Math.round(verifyAmount * 100);
-
-      // Create a PaymentIntent for the verification charge
-      const pi = await stripeRequest("/payment_intents", {
-        amount: String(amountCents),
-        currency: "usd",
+      // Create a SetupIntent (no amount shown to user)
+      const si = await stripeRequest("/setup_intents", {
         customer: customerId,
         "automatic_payment_methods[enabled]": "true",
         "metadata[type]": "card_verification",
         "metadata[user_id]": userData.user.id,
-        receipt_email: email,
-        description: `Card verification charge`,
-        capture_method: "automatic",
-        setup_future_usage: "off_session",
+        usage: "off_session",
       });
 
-      if (pi.error) {
-        const err = pi.error as Record<string, unknown>;
-        return json({ error: err.message ?? "Failed to create verification charge" }, 400);
+      if (si.error) {
+        const err = si.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Failed to create card setup" }, 400);
       }
-
-      // Record in card_verifications table
-      await adminClient.from("card_verifications").insert({
-        id: pi.id as string,
-        user_id: userData.user.id,
-        amount: verifyAmount,
-        transaction_id: pi.id as string,
-        status: "pending",
-        card_last4: lastFour,
-        card_brand: cardBrand,
-        cardholder_name: cardholderName,
-        email: email,
-        phone: phone,
-      });
 
       // Generate ephemeral key for PaymentSheet
       const ephRes = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
@@ -535,43 +510,92 @@ Deno.serve(async (request) => {
       const ephData = (await ephRes.json()) as Record<string, unknown>;
 
       return json({
-        clientSecret: pi.client_secret,
-        paymentIntentId: pi.id,
+        clientSecret: si.client_secret,
+        setupIntentId: si.id,
         customerId,
         ephemeralKey: ephData.secret,
-        verificationAmount: verifyAmount,
+        cardBrand,
+        lastFour,
+        cardholderName,
+        email,
+        phone,
       });
     } catch (e) {
-      return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
+      return json({ error: `Verification setup error: ${(e as Error).message}` }, 500);
     }
   }
 
-  // ── Confirm Verification Charge ──────────────────────────────
+  // ── Complete Verification Charge (charge saved card server-side) ──
 
-  if (action === "confirm_verification_charge") {
-    const paymentIntentId = String(body.payment_intent_id ?? "").trim();
-    if (!paymentIntentId) {
-      return json({ error: "payment_intent_id required" }, 400);
+  if (action === "complete_verification_charge") {
+    const setupIntentId = String(body.setup_intent_id ?? "").trim();
+    const cardBrand = String(body.card_brand ?? "").trim();
+    const lastFour = String(body.last_four ?? "").trim();
+    const cardholderName = String(body.cardholder_name ?? "").trim();
+    const email = String(body.email ?? "").trim();
+    const phone = String(body.phone ?? "").trim();
+
+    if (!setupIntentId) {
+      return json({ error: "setup_intent_id required" }, 400);
     }
 
     try {
-      // Retrieve the PI from Stripe to check status
-      const piData = await stripeGet(`/payment_intents/${paymentIntentId}`);
-      const status = piData.status as string;
-
-      if (status === "succeeded") {
-        // Update card_verifications record
-        await adminClient
-          .from("card_verifications")
-          .update({ status: "completed", updated_at: new Date().toISOString() })
-          .eq("id", paymentIntentId);
-
-        return json({ success: true, status: "completed" });
-      } else {
-        return json({ success: false, status });
+      // Retrieve the SetupIntent to get the payment method
+      const siData = await stripeGet(`/setup_intents/${setupIntentId}`);
+      if (siData.status !== "succeeded") {
+        return json({ error: "SetupIntent not completed" }, 400);
       }
+
+      const paymentMethodId = siData.payment_method as string;
+      if (!paymentMethodId) {
+        return json({ error: "No payment method on SetupIntent" }, 400);
+      }
+
+      const customerId = siData.customer as string;
+
+      // Generate random verification amount ($0.50 – $1.50)
+      const verifyAmount = Number((Math.random() * 1.0 + 0.50).toFixed(2));
+      const amountCents = Math.round(verifyAmount * 100);
+
+      // Charge the card server-side (user never sees the amount)
+      const pi = await stripeRequest("/payment_intents", {
+        amount: String(amountCents),
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: "true",
+        confirm: "true",
+        "metadata[type]": "card_verification",
+        "metadata[user_id]": userData.user.id,
+        description: "Card verification charge",
+      });
+
+      if (pi.error) {
+        const err = pi.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Verification charge failed" }, 400);
+      }
+
+      // Record in card_verifications table
+      await adminClient.from("card_verifications").insert({
+        id: pi.id as string,
+        user_id: userData.user.id,
+        amount: verifyAmount,
+        transaction_id: pi.id as string,
+        status: "completed",
+        card_last4: lastFour,
+        card_brand: cardBrand,
+        cardholder_name: cardholderName,
+        email: email,
+        phone: phone,
+      });
+
+      return json({
+        success: true,
+        verificationId: pi.id,
+        paymentMethodId,
+      });
     } catch (e) {
-      return json({ error: `Confirm verification error: ${(e as Error).message}` }, 500);
+      return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
     }
   }
 

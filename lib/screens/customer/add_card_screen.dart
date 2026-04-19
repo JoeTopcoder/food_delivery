@@ -102,9 +102,11 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       final lastName = _lastNameCtrl.text.trim();
       final fullName = '$firstName $lastName'.trim();
       final digits = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
-      final lastFour = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
+      final lastFour = digits.length >= 4
+          ? digits.substring(digits.length - 4)
+          : digits;
 
-      // Step 1: Create a small verification charge via Stripe
+      // Step 1: Create a SetupIntent (no amount shown to user)
       final response = await Supabase.instance.client.functions.invoke(
         AppConstants.stripePaymentFunction,
         body: {
@@ -126,17 +128,17 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       }
 
       final clientSecret = data['clientSecret'] as String?;
-      final paymentIntentId = data['paymentIntentId'] as String?;
+      final setupIntentId = data['setupIntentId'] as String?;
       final customerId = data['customerId'] as String?;
       final ephemeralKey = data['ephemeralKey'] as String?;
 
-      if (clientSecret == null || paymentIntentId == null) {
-        throw Exception('Failed to create verification charge.');
+      if (clientSecret == null || setupIntentId == null) {
+        throw Exception('Failed to start card setup.');
       }
 
       if (!mounted) return;
 
-      // Step 2: Present the Stripe Payment Sheet to pay the small charge
+      // Step 2: Show Stripe PaymentSheet in setup mode (no amount visible)
       if (Stripe.publishableKey.isEmpty) {
         final key = AppConstants.stripePublishableKey;
         if (key.isNotEmpty) {
@@ -148,7 +150,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
+          setupIntentClientSecret: clientSecret,
           customerId: customerId,
           customerEphemeralKeySecret: ephemeralKey,
           merchantDisplayName: AppConstants.appName,
@@ -161,18 +163,25 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       if (!mounted) return;
 
-      // Step 3: Confirm the charge went through
-      final confirmResp = await Supabase.instance.client.functions.invoke(
+      // Step 3: Card saved in Stripe — now charge it server-side (user doesn't see amount)
+      final chargeResp = await Supabase.instance.client.functions.invoke(
         AppConstants.stripePaymentFunction,
         body: {
-          'action': 'confirm_verification_charge',
-          'payment_intent_id': paymentIntentId,
+          'action': 'complete_verification_charge',
+          'setup_intent_id': setupIntentId,
+          'card_brand': _cardBrand,
+          'last_four': lastFour,
+          'cardholder_name': fullName,
+          'email': email,
         },
       );
-      final confirmData = confirmResp.data as Map<String, dynamic>?;
-      if (confirmData == null || confirmData['success'] != true) {
-        throw Exception('Verification charge was not completed.');
+      final chargeData = chargeResp.data as Map<String, dynamic>?;
+      if (chargeData == null || chargeData['success'] != true) {
+        final errMsg = chargeData?['error'] ?? 'Verification charge failed.';
+        throw Exception(errMsg);
       }
+
+      final verificationId = chargeData['verificationId'] as String;
 
       // Step 4: Save card as 'pending' verification in DB
       final expiresAt = DateTime.now().toUtc().add(const Duration(hours: 24));
@@ -183,7 +192,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         cardholderName: fullName,
         email: email,
         phone: '',
-        verificationId: paymentIntentId,
+        verificationId: verificationId,
         expiresAt: expiresAt,
       );
 
