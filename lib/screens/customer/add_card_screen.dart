@@ -127,6 +127,8 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       if (!mounted) return;
 
+      // Force a fresh fetch from Stripe (which syncs to DB)
+      await paymentService.getSavedCards(userId);
       ref.invalidate(savedCardsProvider(userId));
       AppSnackbar.success(context, 'Card saved successfully via Stripe!');
       Navigator.of(context).pop(true);
