@@ -224,17 +224,28 @@ Deno.serve(async (request) => {
     }
 
     // ── Extract client secret ────────────────────────────────────────────────
-    // With default_incomplete, Stripe creates an invoice with a payment_intent.
-    // If for any reason it's missing, fall back to pending_setup_intent.
-    const invoiceId = typeof subscription.latest_invoice === "object"
-      ? (subscription.latest_invoice as Record<string, unknown>)?.id as string
-      : subscription.latest_invoice as string;
+    const invoiceRef = subscription.latest_invoice;
+    const invoiceId = typeof invoiceRef === "object"
+      ? (invoiceRef as Record<string, unknown>)?.id as string
+      : invoiceRef as string;
 
     let clientSecret: string | null = null;
 
     if (invoiceId) {
-      const invoice = await stripeGet(`/invoices/${invoiceId}`);
-      const piRef = invoice.payment_intent;
+      let invoice = await stripeGet(`/invoices/${invoiceId}`);
+
+      // If invoice is still draft, finalize it to create the payment intent
+      if (invoice.status === "draft") {
+        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
+      }
+
+      let piRef = invoice.payment_intent;
+
+      // If still no PI after finalize, try paying the invoice to trigger PI creation
+      if (!piRef && invoice.status === "open") {
+        const paid = await stripePost(`/invoices/${invoiceId}/pay`, {});
+        piRef = paid.payment_intent;
+      }
 
       if (piRef) {
         const piId = typeof piRef === "object"
@@ -245,7 +256,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Fallback: if subscription has a pending_setup_intent (e.g. $0 trial)
+    // Fallback: pending_setup_intent (e.g. $0 trial)
     if (!clientSecret && subscription.pending_setup_intent) {
       const siRef = subscription.pending_setup_intent;
       const siId = typeof siRef === "object"
@@ -256,10 +267,17 @@ Deno.serve(async (request) => {
     }
 
     if (!clientSecret) {
+      // Return debug info so we can diagnose
+      const debugInvoice = invoiceId ? await stripeGet(`/invoices/${invoiceId}`) : null;
       return json({
         error: "Could not obtain payment client secret from Stripe",
-        has_invoice: !!invoiceId,
-        sub_status: subscription.status,
+        debug: {
+          sub_status: subscription.status,
+          invoice_id: invoiceId,
+          invoice_status: debugInvoice?.status ?? null,
+          invoice_pi: debugInvoice?.payment_intent ?? null,
+          pending_setup_intent: subscription.pending_setup_intent ?? null,
+        },
       }, 500);
     }
 
