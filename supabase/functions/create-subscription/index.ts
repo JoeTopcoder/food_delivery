@@ -438,59 +438,13 @@ Deno.serve(async (request) => {
       return json({ success: true, message: "Already active" });
     }
 
-    // Sync Stripe subscription status and get period end
+    // After Payment Sheet success, the PI is confirmed.
+    // Just mark DB active — Stripe webhook will reconcile status.
     let periodEnd: Date | null = null;
     if (sub.stripe_subscription_id) {
-      let stripeSub = await stripeGet(
+      const stripeSub = await stripeGet(
         `/subscriptions/${sub.stripe_subscription_id}`
       );
-
-      // If subscription is still incomplete, try to pay the invoice
-      if (stripeSub.status === "incomplete") {
-        const invRef = stripeSub.latest_invoice;
-        const invId = typeof invRef === "object"
-          ? (invRef as Record<string, unknown>)?.id as string
-          : invRef as string;
-
-        if (invId) {
-          // Get the customer's payment methods to pay the invoice
-          const pmList = await stripeGet(
-            `/customers/${sub.stripe_customer_id ?? ""}/payment_methods?type=card&limit=1`
-          );
-          const pmData = (pmList.data as Array<Record<string, unknown>>) ?? [];
-          const pmId = pmData.length > 0 ? (pmData[0].id as string) : null;
-
-          if (pmId) {
-            // Attach payment method to invoice's payment intent and pay
-            const invoice = await stripeGet(`/invoices/${invId}`);
-            const piRef = invoice.payment_intent;
-            const piId = piRef
-              ? typeof piRef === "object"
-                ? (piRef as Record<string, unknown>).id as string
-                : piRef as string
-              : null;
-            if (piId) {
-              await stripePost(`/payment_intents/${piId}/confirm`, {
-                payment_method: pmId,
-              }).catch(() => {});
-            } else {
-              await stripePost(`/invoices/${invId}/pay`, {
-                payment_method: pmId,
-              }).catch(() => {});
-            }
-          } else {
-            // No saved payment method, try pay without one
-            await stripePost(`/invoices/${invId}/pay`, {}).catch(() => {});
-          }
-
-          // Re-fetch subscription after payment attempt
-          stripeSub = await stripeGet(
-            `/subscriptions/${sub.stripe_subscription_id}`
-          );
-        }
-      }
-
-      // Get actual period end from Stripe
       const endTs = stripeSub.current_period_end as number | undefined;
       if (endTs && endTs > 0) {
         periodEnd = new Date(endTs * 1000);
