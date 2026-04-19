@@ -202,81 +202,38 @@ Deno.serve(async (request) => {
       stripeCustomerId = customer.id as string;
     }
 
-    // ── Create a Stripe Price (ad-hoc) for recurring billing ─────────────────
-    const stripePrice = await stripePost("/prices", {
+    // ── Create a PaymentIntent directly — no subscription/invoice chain ────────
+    const pi = await stripePost("/payment_intents", {
+      amount: String(priceInCents),
       currency: "usd",
-      unit_amount: String(priceInCents),
-      "recurring[interval]": "month",
-      "product_data[name]": `MealHub ${planType === "basic" ? "Basic" : "Pro"}`,
-      "product_data[metadata][plan_type]": planType,
-    });
-
-    if (stripePrice.error) {
-      const err = stripePrice.error as Record<string, unknown>;
-      return json(
-        { error: err.message ?? "Failed to create price" },
-        400
-      );
-    }
-
-    // ── Create Stripe Subscription with payment ──────────────────────────────
-    const subscription = await stripePost("/subscriptions", {
       customer: stripeCustomerId,
-      "items[0][price]": stripePrice.id as string,
-      payment_behavior: "default_incomplete",
-      "payment_settings[save_default_payment_method]": "on_subscription",
-      "payment_settings[payment_method_types][0]": "card",
+      "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": planType,
-      "metadata[deliveries]": deliveries,
+      "metadata[action]": "subscribe",
     });
 
-    if (subscription.error) {
-      const err = subscription.error as Record<string, unknown>;
-      return json(
-        { error: err.message ?? "Failed to create subscription" },
-        400
-      );
+    if (pi.error) {
+      const err = pi.error as Record<string, unknown>;
+      return json({ error: err.message ?? "Failed to create payment" }, 400);
     }
 
-    // ── Extract client secret — always fetch invoice separately ──────────────
-    const invoiceId = subscription.latest_invoice as string;
-    let clientSecret: string | null = null;
-
-    if (invoiceId) {
-      let invoice = await stripeGet(`/invoices/${invoiceId}`);
-      if (invoice.status === "draft") {
-        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
-      }
-      const piRef = invoice.payment_intent;
-      if (piRef) {
-        const piId = typeof piRef === "object"
-          ? (piRef as Record<string, unknown>).id as string
-          : piRef as string;
-        const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
-        clientSecret = paymentIntent.client_secret as string | null;
-      }
-    }
-
+    const clientSecret = pi.client_secret as string;
     if (!clientSecret) {
-      return json({ error: "Failed to obtain payment client secret", debug_invoice_id: invoiceId }, 500);
+      return json({ error: "No client secret from PaymentIntent" }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
     const now = new Date();
-    const stripeEnd = (subscription.current_period_end as number) ?? 0;
-    const periodEnd = stripeEnd > 0
-      ? new Date(stripeEnd * 1000)
-      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // fallback: 30 days
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const { data: subRow, error: insertErr } = await admin
       .from("user_subscriptions")
       .insert({
         user_id: user.id,
-        meal_plan_id: null, // Not tied to a meal plan — it's a delivery subscription
+        meal_plan_id: null,
         plan_type: planType,
-        status: "pending", // Will become 'active' when Stripe confirms payment
-        stripe_subscription_id: subscription.id,
+        status: "pending",
         stripe_customer_id: stripeCustomerId,
         current_period_end: periodEnd.toISOString(),
         deliveries_remaining: parseInt(deliveries),
@@ -300,7 +257,6 @@ Deno.serve(async (request) => {
 
     return json({
       subscription_id: subRow.id,
-      stripe_subscription_id: subscription.id,
       client_secret: clientSecret,
       customer_id: stripeCustomerId,
       ephemeral_key: ephemeralKey,
