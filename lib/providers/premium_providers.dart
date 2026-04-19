@@ -59,37 +59,46 @@ final isFavoriteProvider =
 // ==================== DRIVER LEADERBOARD ====================
 
 final driverLeaderboardProvider =
-    FutureProvider<({List<Map<String, dynamic>> drivers, int totalDrivers})>((
+    StreamProvider<({List<Map<String, dynamic>> drivers, int totalDrivers})>((
       ref,
-    ) async {
+    ) {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
 
-      // Fetch top 50 drivers + total count in parallel
-      final resFuture = client.from('driver_leaderboard').select().limit(50);
-      final countFuture = client
-          .from('driver_leaderboard')
-          .select()
-          .count(CountOption.exact);
-
-      final res = await resFuture;
-      final countRes = await countFuture;
-      final totalDrivers = countRes.count;
-
-      final drivers = List<Map<String, dynamic>>.from(res as List);
-
-      // If the current user isn't in the top results, fetch their row separately
-      if (userId != null && !drivers.any((d) => d['user_id'] == userId)) {
-        final myRes = await client
+      Future<({List<Map<String, dynamic>> drivers, int totalDrivers})>
+      fetchLeaderboard() async {
+        final resFuture = client.from('driver_leaderboard').select().limit(50);
+        final countFuture = client
             .from('driver_leaderboard')
             .select()
-            .eq('user_id', userId)
-            .limit(1);
-        final myList = List<Map<String, dynamic>>.from(myRes as List);
-        if (myList.isNotEmpty) {
-          drivers.add(myList.first);
+            .count(CountOption.exact);
+
+        final res = await resFuture;
+        final countRes = await countFuture;
+        final totalDrivers = countRes.count;
+
+        final drivers = List<Map<String, dynamic>>.from(res as List);
+
+        if (userId != null && !drivers.any((d) => d['user_id'] == userId)) {
+          final myRes = await client
+              .from('driver_leaderboard')
+              .select()
+              .eq('user_id', userId)
+              .limit(1);
+          final myList = List<Map<String, dynamic>>.from(myRes as List);
+          if (myList.isNotEmpty) {
+            drivers.add(myList.first);
+          }
         }
+
+        return (drivers: drivers, totalDrivers: totalDrivers);
       }
 
-      return (drivers: drivers, totalDrivers: totalDrivers);
+      // Listen to changes on the drivers table and re-fetch leaderboard
+      final stream = client
+          .from('drivers')
+          .stream(primaryKey: ['id'])
+          .map((_) => fetchLeaderboard());
+
+      return stream.asyncMap((future) => future);
     });
