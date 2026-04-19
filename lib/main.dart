@@ -98,8 +98,13 @@ void main() async {
   // Load DB-driven config before rendering so admin pricing is available
   await AppConfigService(SupabaseConfig.client).load();
   // Initialize Stripe with publishable key (loaded from app_config DB)
-  Stripe.publishableKey = AppConstants.stripePublishableKey;
-  Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+  final stripeKey = AppConstants.stripePublishableKey;
+  print('[Main] Stripe publishable key: ${stripeKey.substring(0, 12)}...${stripeKey.substring(stripeKey.length - 6)}');
+  if (stripeKey.isNotEmpty) {
+    Stripe.publishableKey = stripeKey;
+    Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+    await Stripe.instance.applySettings();
+  }
   print(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
   );
