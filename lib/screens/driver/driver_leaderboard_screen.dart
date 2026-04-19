@@ -81,7 +81,9 @@ class _DriverLeaderboardScreenState
               ),
             ),
             leaderboardAsync.when(
-              data: (drivers) {
+              data: (result) {
+                final drivers = result.drivers;
+                final totalDrivers = result.totalDrivers;
                 if (drivers.isEmpty) {
                   return SliverFillRemaining(
                     child: Center(
@@ -129,11 +131,14 @@ class _DriverLeaderboardScreenState
                 }
 
                 // Find current driver in the list
-                final myDriver = drivers.cast<Map<String, dynamic>?>().firstWhere(
-                  (d) => d?['user_id'] == currentUserId,
-                  orElse: () => null,
-                );
-                final myRank = (myDriver?['deliveries_rank'] as num?)?.toInt() ?? -1;
+                final myDriver = drivers
+                    .cast<Map<String, dynamic>?>()
+                    .firstWhere(
+                      (d) => d?['user_id'] == currentUserId,
+                      orElse: () => null,
+                    );
+                final myRank =
+                    (myDriver?['deliveries_rank'] as num?)?.toInt() ?? -1;
 
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -143,14 +148,16 @@ class _DriverLeaderboardScreenState
                       if (index == 0) {
                         return _YourRankCard(
                           myRank: myRank,
-                          totalDrivers: drivers.length,
+                          totalDrivers: totalDrivers,
                           driver: myDriver,
                         );
                       }
 
                       final driverIndex = index - 1;
                       final driver = drivers[driverIndex];
-                      final rank = (driver['deliveries_rank'] as num?)?.toInt() ?? driverIndex + 1;
+                      final rank =
+                          (driver['deliveries_rank'] as num?)?.toInt() ??
+                          driverIndex + 1;
                       final isMe = driver['user_id'] == currentUserId;
 
                       return _LeaderboardTile(

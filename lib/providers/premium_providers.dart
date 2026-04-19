@@ -58,28 +58,40 @@ final isFavoriteProvider =
 
 // ==================== DRIVER LEADERBOARD ====================
 
-final driverLeaderboardProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) async {
-  final client = Supabase.instance.client;
-  final userId = client.auth.currentUser?.id;
+final driverLeaderboardProvider =
+    FutureProvider<({List<Map<String, dynamic>> drivers, int totalDrivers})>((
+      ref,
+    ) async {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
 
-  // Fetch top 50 drivers
-  final res = await client.from('driver_leaderboard').select().limit(50);
-  final drivers = List<Map<String, dynamic>>.from(res as List);
+      // Fetch top 50 drivers + total count in parallel
+      final resFuture = client.from('driver_leaderboard').select().limit(50);
+      final countFuture = client
+          .from('drivers')
+          .select(
+            'id',
+            const FetchOptions(count: CountOption.exact, head: true),
+          );
 
-  // If the current user isn't in the top results, fetch their row separately
-  if (userId != null && !drivers.any((d) => d['user_id'] == userId)) {
-    final myRes = await client
-        .from('driver_leaderboard')
-        .select()
-        .eq('user_id', userId)
-        .limit(1);
-    final myList = List<Map<String, dynamic>>.from(myRes as List);
-    if (myList.isNotEmpty) {
-      drivers.add(myList.first);
-    }
-  }
+      final res = await resFuture;
+      final countRes = await countFuture;
+      final totalDrivers = countRes.count ?? 0;
 
-  return drivers;
-});
+      final drivers = List<Map<String, dynamic>>.from(res as List);
+
+      // If the current user isn't in the top results, fetch their row separately
+      if (userId != null && !drivers.any((d) => d['user_id'] == userId)) {
+        final myRes = await client
+            .from('driver_leaderboard')
+            .select()
+            .eq('user_id', userId)
+            .limit(1);
+        final myList = List<Map<String, dynamic>>.from(myRes as List);
+        if (myList.isNotEmpty) {
+          drivers.add(myList.first);
+        }
+      }
+
+      return (drivers: drivers, totalDrivers: totalDrivers);
+    });
