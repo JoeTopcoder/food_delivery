@@ -571,40 +571,90 @@ Deno.serve(async (request) => {
       return json({ error: err.message ?? "Failed to create subscription" }, 400);
     }
 
-    // Extract client secret from expanded response
+    // Extract client secret — try expanded object first
     let clientSecret: string | null = null;
-    const invoiceObj = newSub.latest_invoice as Record<string, unknown> | null;
-    if (invoiceObj) {
-      const piObj = invoiceObj.payment_intent as Record<string, unknown> | null;
-      if (piObj?.client_secret) {
-        clientSecret = piObj.client_secret as string;
-      } else {
-        // Fallback: fetch invoice separately
-        const invId = (invoiceObj.id ?? invoiceObj) as string;
-        if (invId) {
-          let invoice = await stripeGet(`/invoices/${invId}`);
-          if (invoice.status === "draft") {
-            invoice = await stripePost(`/invoices/${invId}/finalize`, {});
-          }
-          let piRef = invoice.payment_intent;
-          if (!piRef) {
-            await new Promise((r) => setTimeout(r, 1500));
-            invoice = await stripeGet(`/invoices/${invId}`);
-            piRef = invoice.payment_intent;
-          }
-          if (piRef) {
-            const piId = typeof piRef === "object"
-              ? (piRef as Record<string, unknown>).id as string
-              : piRef as string;
-            const pi = await stripeGet(`/payment_intents/${piId}`);
-            clientSecret = pi.client_secret as string | null;
-          }
+    const invoiceObj = newSub.latest_invoice;
+
+    if (invoiceObj && typeof invoiceObj === "object") {
+      const inv = invoiceObj as Record<string, unknown>;
+      const piObj = inv.payment_intent;
+      if (piObj && typeof piObj === "object") {
+        clientSecret = (piObj as Record<string, unknown>).client_secret as string | null;
+      }
+      // If expanded didn't give us a PI, fetch the invoice directly
+      if (!clientSecret && inv.id) {
+        const fetchedInv = await stripeGet(`/invoices/${inv.id}`);
+        if (fetchedInv.status === "draft") {
+          await stripePost(`/invoices/${inv.id as string}/finalize`, {});
         }
+        const fetchedInv2 = await stripeGet(`/invoices/${inv.id}`);
+        const piRef2 = fetchedInv2.payment_intent;
+        if (piRef2) {
+          const piId = typeof piRef2 === "object"
+            ? (piRef2 as Record<string, unknown>).id as string
+            : piRef2 as string;
+          const pi = await stripeGet(`/payment_intents/${piId}`);
+          clientSecret = pi.client_secret as string | null;
+        }
+      }
+    } else if (invoiceObj && typeof invoiceObj === "string") {
+      // latest_invoice is a string ID (not expanded)
+      let fetchedInv = await stripeGet(`/invoices/${invoiceObj}`);
+      if (fetchedInv.status === "draft") {
+        fetchedInv = await stripePost(`/invoices/${invoiceObj}/finalize`, {});
+      }
+      const piRef = fetchedInv.payment_intent;
+      if (piRef) {
+        const piId = typeof piRef === "object"
+          ? (piRef as Record<string, unknown>).id as string
+          : piRef as string;
+        const pi = await stripeGet(`/payment_intents/${piId}`);
+        clientSecret = pi.client_secret as string | null;
       }
     }
 
+    // Last resort: create a standalone SetupIntent so user can pay
     if (!clientSecret) {
-      return json({ error: "Failed to get payment intent for plan change" }, 500);
+      // The subscription may have been auto-paid. Check its status.
+      const checkSub = await stripeGet(`/subscriptions/${newSub.id}`);
+      if (checkSub.status === "active") {
+        // Already paid! No payment needed — just activate directly.
+        const stripeEnd2 = (checkSub.current_period_end as number) ?? 0;
+        const periodEnd2 = stripeEnd2 > 0
+          ? new Date(stripeEnd2 * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        await admin
+          .from("user_subscriptions")
+          .update({
+            plan_type: newPlan,
+            status: "active",
+            stripe_subscription_id: newSub.id as string,
+            stripe_customer_id: customerId,
+            current_period_end: periodEnd2.toISOString(),
+            deliveries_remaining: parseInt(newDeliveries),
+            deliveries_used: 0,
+            service_fee_discount: parseFloat(serviceFeeDiscount),
+            auto_renew: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscriptionId);
+
+        return json({
+          subscription_id: subscriptionId,
+          already_active: true,
+          plan_type: newPlan,
+          price: parseFloat(newPrice),
+          deliveries: parseInt(newDeliveries),
+        });
+      }
+
+      return json({
+        error: "Failed to get payment intent for plan change",
+        debug_sub_status: checkSub.status,
+        debug_sub_id: newSub.id,
+        debug_invoice_type: typeof invoiceObj,
+      }, 500);
     }
 
     const stripeEnd = (newSub.current_period_end as number) ?? 0;

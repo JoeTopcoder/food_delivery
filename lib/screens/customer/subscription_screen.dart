@@ -174,6 +174,18 @@ class _DeliverySubscriptionTabState
       );
       if (result == null) throw Exception('No response from server');
 
+      // If Stripe auto-charged saved card, no payment sheet needed
+      if (result['already_active'] == true) {
+        ref.invalidate(activeSubscriptionProvider);
+        if (mounted) {
+          AppSnackbar.success(
+            context,
+            'Switched to MealHub ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
+          );
+        }
+        return;
+      }
+
       final clientSecret = result['client_secret'] as String?;
       if (clientSecret == null || clientSecret.isEmpty) {
         throw Exception('Missing client secret');
