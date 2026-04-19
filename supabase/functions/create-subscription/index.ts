@@ -209,6 +209,7 @@ Deno.serve(async (request) => {
       "items[0][price]": stripePrice.id as string,
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
+      "payment_settings[payment_method_types][0]": "card",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": planType,
       "metadata[deliveries]": deliveries,
@@ -222,29 +223,44 @@ Deno.serve(async (request) => {
       );
     }
 
-    // ── Extract client secret — always fetch invoice & PI separately ─────────
+    // ── Extract client secret ────────────────────────────────────────────────
+    // With default_incomplete, Stripe creates an invoice with a payment_intent.
+    // If for any reason it's missing, fall back to pending_setup_intent.
     const invoiceId = typeof subscription.latest_invoice === "object"
       ? (subscription.latest_invoice as Record<string, unknown>)?.id as string
       : subscription.latest_invoice as string;
 
-    if (!invoiceId) {
-      return json({ error: "No invoice on subscription" }, 500);
+    let clientSecret: string | null = null;
+
+    if (invoiceId) {
+      const invoice = await stripeGet(`/invoices/${invoiceId}`);
+      const piRef = invoice.payment_intent;
+
+      if (piRef) {
+        const piId = typeof piRef === "object"
+          ? (piRef as Record<string, unknown>).id as string
+          : piRef as string;
+        const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
+        clientSecret = paymentIntent.client_secret as string | null;
+      }
     }
 
-    const invoice = await stripeGet(`/invoices/${invoiceId}`);
-    const piId = typeof invoice.payment_intent === "object"
-      ? (invoice.payment_intent as Record<string, unknown>)?.id as string
-      : invoice.payment_intent as string;
-
-    if (!piId) {
-      return json({ error: "No payment intent on invoice" }, 500);
+    // Fallback: if subscription has a pending_setup_intent (e.g. $0 trial)
+    if (!clientSecret && subscription.pending_setup_intent) {
+      const siRef = subscription.pending_setup_intent;
+      const siId = typeof siRef === "object"
+        ? (siRef as Record<string, unknown>).id as string
+        : siRef as string;
+      const setupIntent = await stripeGet(`/setup_intents/${siId}`);
+      clientSecret = setupIntent.client_secret as string | null;
     }
-
-    const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
-    const clientSecret = paymentIntent.client_secret as string | null;
 
     if (!clientSecret) {
-      return json({ error: "No client secret on payment intent" }, 500);
+      return json({
+        error: "Could not obtain payment client secret from Stripe",
+        has_invoice: !!invoiceId,
+        sub_status: subscription.status,
+      }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
