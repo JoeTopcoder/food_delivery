@@ -195,6 +195,16 @@ final userSubscriptionsProvider = FutureProvider.family
           ref.watch(subscriptionServiceProvider).getUserSubscriptions(userId),
     );
 
+/// Active delivery subscription (Uber One-style) for the current user.
+final activeSubscriptionProvider =
+    FutureProvider.autoDispose<UserSubscription?>((ref) {
+      final userId = ref.watch(currentUserIdProvider);
+      if (userId == null) return Future.value(null);
+      return ref
+          .watch(subscriptionServiceProvider)
+          .getActiveDeliverySubscription(userId);
+    });
+
 // Feedback
 final userFeedbackProvider = FutureProvider.family
     .autoDispose<List<AppFeedback>, String>(

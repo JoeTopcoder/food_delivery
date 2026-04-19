@@ -311,6 +311,38 @@ class AppConfigService {
       EarningConfig.restaurantRefCommissionDiscount,
     );
 
+    // Subscription (MealHub+)
+    AppConstants.subscriptionBasicPrice = _double(
+      c,
+      'subscription_basic_price',
+      AppConstants.subscriptionBasicPrice,
+    );
+    AppConstants.subscriptionBasicDeliveries = _int(
+      c,
+      'subscription_basic_deliveries',
+      AppConstants.subscriptionBasicDeliveries,
+    );
+    AppConstants.subscriptionProPrice = _double(
+      c,
+      'subscription_pro_price',
+      AppConstants.subscriptionProPrice,
+    );
+    AppConstants.subscriptionProDeliveries = _int(
+      c,
+      'subscription_pro_deliveries',
+      AppConstants.subscriptionProDeliveries,
+    );
+    AppConstants.subscriptionMinCart = _double(
+      c,
+      'subscription_min_cart',
+      AppConstants.subscriptionMinCart,
+    );
+    AppConstants.subscriptionServiceFeeDiscount = _double(
+      c,
+      'subscription_service_fee_discount',
+      AppConstants.subscriptionServiceFeeDiscount,
+    );
+
     // Tips
     if (c.containsKey('preset_tips')) {
       final raw = c['preset_tips'];

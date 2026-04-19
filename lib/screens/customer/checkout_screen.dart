@@ -158,7 +158,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
-    final activeFee = isPickup ? pickupServiceFee : deliveryFee;
+
+    // ── MealHub+ subscription benefit ──────────────────────────────
+    final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
+    final subEligible =
+        activeSub != null &&
+        activeSub.isActive &&
+        activeSub.hasDeliveries &&
+        !isPickup &&
+        subtotal >= AppConstants.subscriptionMinCart;
+    final subDeliveryFree = subEligible; // zero delivery fee
+    final subServiceDiscount = subEligible
+        ? (pickupServiceFee * (activeSub?.serviceFeeDiscount ?? 0.0))
+        : 0.0;
+
+    final rawFee = isPickup ? pickupServiceFee : deliveryFee;
+    final activeFee = subDeliveryFree ? 0.0 : rawFee;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
         (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
@@ -1148,14 +1163,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          'Delivery${feeResult?.calculation == 'distance_based'
-                              ? ' (KM)'
-                              : feeResult?.restaurantOverride != null
-                              ? ' (Store)'
-                              : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
+                          subDeliveryFree
+                              ? 'Delivery (MealHub+ FREE)'
+                              : 'Delivery${feeResult?.calculation == 'distance_based'
+                                    ? ' (KM)'
+                                    : feeResult?.restaurantOverride != null
+                                    ? ' (Store)'
+                                    : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
                           feeLoading
                               ? 'Calculating…'
+                              : subDeliveryFree
+                              ? '\$0.00'
                               : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                          valueColor: subDeliveryFree
+                              ? const Color(0xFF6C63FF)
+                              : null,
                         ),
                       _SummaryRow(
                         'Tax (10%)',
@@ -1563,6 +1585,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       await ref
           .read(loyaltyServiceProvider)
           .earnPoints(userId: userId, orderId: order.id, orderTotal: total);
+
+      // Use a MealHub+ subscription delivery if applicable
+      final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
+      if (currentSub != null &&
+          currentSub.isActive &&
+          currentSub.hasDeliveries &&
+          !isPickup) {
+        await ref
+            .read(subscriptionServiceProvider)
+            .useSubscriptionDelivery(
+              subscriptionId: currentSub.id,
+              orderId: order.id,
+            );
+        ref.invalidate(activeSubscriptionProvider);
+      }
 
       // Track order completion for AI engine
       ref
