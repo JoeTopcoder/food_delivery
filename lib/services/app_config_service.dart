@@ -311,6 +311,14 @@ class AppConfigService {
       EarningConfig.restaurantRefCommissionDiscount,
     );
 
+    // Stripe
+    if (c.containsKey('stripe_publishable_key')) {
+      final v = c['stripe_publishable_key'];
+      if (v is String && v.isNotEmpty) {
+        AppConstants.stripePublishableKey = v;
+      }
+    }
+
     // Subscription (MealHub+)
     AppConstants.subscriptionBasicPrice = _double(
       c,

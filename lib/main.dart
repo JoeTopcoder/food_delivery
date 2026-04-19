@@ -95,11 +95,11 @@ void main() async {
   await Firebase.initializeApp();
   await SupabaseConfig.initialize();
   await CacheService.init();
-  // Initialize Stripe with publishable key
-  Stripe.publishableKey = AppConstants.stripePublishableKey;
-  Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
   // Load DB-driven config before rendering so admin pricing is available
   await AppConfigService(SupabaseConfig.client).load();
+  // Initialize Stripe with publishable key (loaded from app_config DB)
+  Stripe.publishableKey = AppConstants.stripePublishableKey;
+  Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
   print(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
   );
