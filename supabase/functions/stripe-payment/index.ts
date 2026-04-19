@@ -408,24 +408,48 @@ Deno.serve(async (request) => {
     }
 
     try {
-      // Look up the payment record for this order
-      const { data: payment, error: payErr } = await adminClient
-        .from("payments")
-        .select("transaction_id, status, amount, user_id")
-        .eq("order_id", orderId)
+      // Verify the order exists, belongs to the user, and is in a cancellable state
+      const { data: order, error: orderErr } = await adminClient
+        .from("orders")
+        .select("id, user_id, status, payment_method, payment_status")
+        .eq("id", orderId)
         .single();
 
-      if (payErr || !payment) {
-        return json({ error: "No payment found for this order" }, 404);
+      if (orderErr || !order) {
+        return json({ error: "Order not found" }, 404);
       }
 
-      // Only the order owner can request a refund
-      if (payment.user_id !== userData.user.id) {
+      if (order.user_id !== userData.user.id) {
         return json({ error: "Not authorized to refund this order" }, 403);
       }
 
-      if (payment.status === "refunded") {
+      // Only allow refund on cancelled orders that were paid by card
+      if (order.status !== "cancelled") {
+        return json({ error: "Order must be cancelled before refunding" }, 400);
+      }
+
+      if (order.payment_method !== "card") {
+        return json({ error: "Only card payments can be refunded via Stripe" }, 400);
+      }
+
+      if (order.payment_status === "refunded") {
         return json({ error: "Already refunded" }, 400);
+      }
+
+      if (order.payment_status !== "completed") {
+        return json({ error: "No completed payment to refund" }, 400);
+      }
+
+      // Look up the payment record to get the Stripe PaymentIntent ID
+      const { data: payment, error: payErr } = await adminClient
+        .from("payments")
+        .select("transaction_id, status, amount")
+        .eq("order_id", orderId)
+        .eq("status", "completed")
+        .single();
+
+      if (payErr || !payment) {
+        return json({ error: "No completed payment found for this order" }, 404);
       }
 
       const paymentIntentId = payment.transaction_id as string;
@@ -433,7 +457,7 @@ Deno.serve(async (request) => {
         return json({ error: "No Stripe payment intent on record" }, 400);
       }
 
-      // Create full refund via Stripe
+      // Refund via Stripe — automatically goes back to the original card
       const refund = await stripeRequest("/refunds", {
         payment_intent: paymentIntentId,
       });
