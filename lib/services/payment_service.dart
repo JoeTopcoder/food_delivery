@@ -817,7 +817,21 @@ class PaymentService {
             .from('saved_cards')
             .update({'status': 'verified', 'verification_attempts': attempts})
             .eq('id', cardId);
-        // Mark verification charge for refund
+
+        // Refund the verification charge back to the card via Stripe
+        try {
+          await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {
+              'action': 'refund_verification_charge',
+              'payment_intent_id': verificationId,
+            },
+          );
+        } catch (e) {
+          AppLogger.error('Verification refund failed (non-blocking): $e');
+        }
+
+        // Mark verification charge as refunded in DB
         await _supabaseClient
             .from('card_verifications')
             .update({
