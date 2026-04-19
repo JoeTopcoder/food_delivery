@@ -399,5 +399,83 @@ Deno.serve(async (request) => {
     }
   }
 
+  // ── Refund Payment (called when customer cancels a card order) ──
+
+  if (action === "refund") {
+    const orderId = String(body.orderId ?? "").trim();
+    if (!orderId) {
+      return json({ error: "orderId required" }, 400);
+    }
+
+    try {
+      // Look up the payment record for this order
+      const { data: payment, error: payErr } = await adminClient
+        .from("payments")
+        .select("transaction_id, status, amount, user_id")
+        .eq("order_id", orderId)
+        .single();
+
+      if (payErr || !payment) {
+        return json({ error: "No payment found for this order" }, 404);
+      }
+
+      // Only the order owner can request a refund
+      if (payment.user_id !== userData.user.id) {
+        return json({ error: "Not authorized to refund this order" }, 403);
+      }
+
+      if (payment.status === "refunded") {
+        return json({ error: "Already refunded" }, 400);
+      }
+
+      const paymentIntentId = payment.transaction_id as string;
+      if (!paymentIntentId) {
+        return json({ error: "No Stripe payment intent on record" }, 400);
+      }
+
+      // Create full refund via Stripe
+      const refund = await stripeRequest("/refunds", {
+        payment_intent: paymentIntentId,
+      });
+
+      if (refund.error) {
+        const err = refund.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Refund failed" }, 400);
+      }
+
+      // Update payment record
+      await adminClient
+        .from("payments")
+        .update({
+          status: "refunded",
+          metadata: {
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_refund_id: refund.id,
+            refunded_at: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("order_id", orderId);
+
+      // Update order payment_status
+      await adminClient
+        .from("orders")
+        .update({
+          payment_status: "refunded",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      return json({
+        success: true,
+        refund_id: refund.id,
+        status: refund.status,
+        amount: payment.amount,
+      });
+    } catch (e) {
+      return json({ error: `Refund error: ${(e as Error).message}` }, 500);
+    }
+  }
+
   return json({ error: `Unknown action: ${action}` }, 400);
 });
