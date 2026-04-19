@@ -279,9 +279,10 @@ Deno.serve(async (request) => {
 
     // ── Insert pending subscription row ──────────────────────────────────────
     const now = new Date();
-    const periodEnd = new Date(
-      ((subscription.current_period_end as number) ?? 0) * 1000
-    );
+    const stripeEnd = (subscription.current_period_end as number) ?? 0;
+    const periodEnd = stripeEnd > 0
+      ? new Date(stripeEnd * 1000)
+      : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // fallback: 30 days
 
     const { data: subRow, error: insertErr } = await admin
       .from("user_subscriptions")
@@ -434,6 +435,7 @@ Deno.serve(async (request) => {
     }
 
     // Try to pay the Stripe invoice to move subscription from incomplete → active
+    let periodEnd: Date | null = null;
     if (sub.stripe_subscription_id) {
       const stripeSub = await stripeGet(
         `/subscriptions/${sub.stripe_subscription_id}`
@@ -443,16 +445,27 @@ Deno.serve(async (request) => {
         ? (invRef as Record<string, unknown>)?.id as string
         : invRef as string;
       if (invId) {
-        // Attempt to pay invoice (may already be paid or require no action)
         await stripePost(`/invoices/${invId}/pay`, {}).catch(() => {});
+      }
+      // Get actual period end from Stripe
+      const endTs = stripeSub.current_period_end as number | undefined;
+      if (endTs && endTs > 0) {
+        periodEnd = new Date(endTs * 1000);
       }
     }
 
-    // Update DB to active regardless — payment was confirmed client-side
+    // Default to 30 days from now if Stripe didn't provide a period end
+    if (!periodEnd) {
+      periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Update DB to active with correct period end
     await admin
       .from("user_subscriptions")
       .update({
         status: "active",
+        auto_renew: true,
+        current_period_end: periodEnd.toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscriptionId);
