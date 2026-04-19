@@ -61,7 +61,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
-    final activeFee = isPickup ? pickupServiceFee : deliveryFee;
+
+    // ── MealHub+ subscription benefit ──────────────────────────────
+    final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
+    final subEligible =
+        activeSub != null &&
+        activeSub.isActive &&
+        activeSub.hasDeliveries &&
+        !isPickup &&
+        subtotal >= AppConstants.subscriptionMinCart;
+    final subDeliveryFree = subEligible;
+    final subServiceDiscount = subEligible
+        ? (pickupServiceFee * activeSub.serviceFeeDiscount)
+        : 0.0;
+
+    final rawFee = isPickup
+        ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
+        : deliveryFee;
+    final activeFee = subDeliveryFree ? 0.0 : rawFee;
 
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + activeFee + tax;
@@ -383,6 +400,39 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                         child: Column(
                           children: [
+                            // MealHub+ banner
+                            if (subDeliveryFree) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6C63FF)
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.star_rounded,
+                                      color: Color(0xFF6C63FF),
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'MealHub+ Free Delivery Applied',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF6C63FF),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             _PriceRow(
                               context.l10n.subtotal,
                               '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
@@ -390,20 +440,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             const SizedBox(height: 8),
                             if (isPickup)
                               _PriceRow(
-                                'Service Fee',
-                                '${AppConstants.currencySymbol}${pickupServiceFee.toStringAsFixed(2)}',
-                                valueColor: const Color(0xFF10B981),
+                                subServiceDiscount > 0
+                                    ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                    : 'Service Fee',
+                                '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                valueColor: subServiceDiscount > 0
+                                    ? const Color(0xFF6C63FF)
+                                    : const Color(0xFF10B981),
                               )
                             else
                               _PriceRow(
-                                'Delivery${feeResult?.calculation == 'distance_based'
-                                    ? ' (KM)'
-                                    : feeResult?.restaurantOverride != null
-                                    ? ' (Store)'
-                                    : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
+                                subDeliveryFree
+                                    ? 'Delivery (MealHub+ FREE)'
+                                    : 'Delivery${feeResult?.calculation == 'distance_based'
+                                          ? ' (KM)'
+                                          : feeResult?.restaurantOverride != null
+                                          ? ' (Store)'
+                                          : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
                                 feeLoading
                                     ? 'Calculating…'
+                                    : subDeliveryFree
+                                    ? '\$0.00'
                                     : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                                valueColor: subDeliveryFree
+                                    ? const Color(0xFF6C63FF)
+                                    : null,
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(
