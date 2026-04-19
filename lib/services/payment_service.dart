@@ -146,6 +146,16 @@ class PaymentService {
     required String customerName,
   }) async {
     try {
+      // Ensure Stripe native SDK is initialized
+      if (Stripe.publishableKey.isEmpty) {
+        final key = AppConstants.stripePublishableKey;
+        if (key.isNotEmpty) {
+          Stripe.publishableKey = key;
+          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+          await Stripe.instance.applySettings();
+        }
+      }
+
       // Initialize the Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
