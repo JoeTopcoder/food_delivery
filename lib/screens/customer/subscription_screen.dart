@@ -90,7 +90,7 @@ class _DeliverySubscriptionTabState
       if (mounted) {
         AppSnackbar.success(
           context,
-          'Payment successful! Your MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is activating...',
+          'MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
         );
       }
     } on StripeException catch (e) {
