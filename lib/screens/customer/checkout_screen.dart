@@ -161,6 +161,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     // ── MealHub+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
+    debugPrint(
+      '[CHECKOUT] activeSub: ${activeSub?.id}, status: ${activeSub?.status}, '
+      'deliveries: ${activeSub?.deliveriesRemaining}, isPickup: $isPickup, '
+      'subtotal: $subtotal, minCart: ${AppConstants.subscriptionMinCart}',
+    );
     final subEligible =
         activeSub != null &&
         activeSub.isActive &&
