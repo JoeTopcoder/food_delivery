@@ -464,6 +464,117 @@ Deno.serve(async (request) => {
     }
   }
 
+  // ── Create Verification Charge (small random charge to verify card) ──
+
+  if (action === "create_verification_charge") {
+    const email = String(body.email ?? userData.user.email ?? "").trim();
+    const name = String(body.name ?? "").trim();
+    const cardBrand = String(body.card_brand ?? "").trim();
+    const lastFour = String(body.last_four ?? "").trim();
+    const cardholderName = String(body.cardholder_name ?? "").trim();
+    const phone = String(body.phone ?? "").trim();
+
+    if (!email) {
+      return json({ error: "email is required" }, 400);
+    }
+
+    try {
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name || cardholderName
+      );
+
+      // Generate a random verification amount between $0.50 and $1.50
+      const verifyAmount = Number(
+        (Math.random() * 1.0 + 0.50).toFixed(2)
+      );
+      const amountCents = Math.round(verifyAmount * 100);
+
+      // Create a PaymentIntent for the verification charge
+      const pi = await stripeRequest("/payment_intents", {
+        amount: String(amountCents),
+        currency: "usd",
+        customer: customerId,
+        "automatic_payment_methods[enabled]": "true",
+        "metadata[type]": "card_verification",
+        "metadata[user_id]": userData.user.id,
+        receipt_email: email,
+        description: `Card verification charge`,
+        capture_method: "automatic",
+        setup_future_usage: "off_session",
+      });
+
+      if (pi.error) {
+        const err = pi.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Failed to create verification charge" }, 400);
+      }
+
+      // Record in card_verifications table
+      await adminClient.from("card_verifications").insert({
+        id: pi.id as string,
+        user_id: userData.user.id,
+        amount: verifyAmount,
+        transaction_id: pi.id as string,
+        status: "pending",
+        card_last4: lastFour,
+        card_brand: cardBrand,
+        cardholder_name: cardholderName,
+        email: email,
+        phone: phone,
+      });
+
+      // Generate ephemeral key for PaymentSheet
+      const ephRes = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Stripe-Version": "2024-06-20",
+        },
+        body: new URLSearchParams({ customer: customerId }).toString(),
+      });
+      const ephData = (await ephRes.json()) as Record<string, unknown>;
+
+      return json({
+        clientSecret: pi.client_secret,
+        paymentIntentId: pi.id,
+        customerId,
+        ephemeralKey: ephData.secret,
+        verificationAmount: verifyAmount,
+      });
+    } catch (e) {
+      return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
+    }
+  }
+
+  // ── Confirm Verification Charge ──────────────────────────────
+
+  if (action === "confirm_verification_charge") {
+    const paymentIntentId = String(body.payment_intent_id ?? "").trim();
+    if (!paymentIntentId) {
+      return json({ error: "payment_intent_id required" }, 400);
+    }
+
+    try {
+      // Retrieve the PI from Stripe to check status
+      const piData = await stripeGet(`/payment_intents/${paymentIntentId}`);
+      const status = piData.status as string;
+
+      if (status === "succeeded") {
+        // Update card_verifications record
+        await adminClient
+          .from("card_verifications")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", paymentIntentId);
+
+        return json({ success: true, status: "completed" });
+      } else {
+        return json({ success: false, status });
+      }
+    } catch (e) {
+      return json({ error: `Confirm verification error: ${(e as Error).message}` }, 500);
+    }
+  }
+
   // ── Create Payout (admin sends funds to connected account / bank) ──
 
   if (action === "create_payout") {
@@ -581,8 +692,8 @@ Deno.serve(async (request) => {
       const orderedAt = new Date(order.ordered_at as string);
       const minutesPassed = (Date.now() - orderedAt.getTime()) / 60000;
       let cancellationFee = 0;
-      if (minutesPassed >= 10) {
-        cancellationFee = 1.50; // flat $1.50 after 10 minutes
+      if (minutesPassed >= 5) {
+        cancellationFee = 1.00; // flat $1.00 after 5 minutes
       }
 
       const orderTotal = order.total_amount as number;
