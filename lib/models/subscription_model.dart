@@ -67,7 +67,7 @@ class MealPlan {
 class UserSubscription {
   final String id;
   final String userId;
-  final String mealPlanId;
+  final String? mealPlanId;
   final String status;
   final DateTime startDate;
   final DateTime? nextDelivery;
@@ -80,10 +80,19 @@ class UserSubscription {
   final DateTime? updatedAt;
   final MealPlan? mealPlan;
 
+  // Uber One-style fields
+  final String? planType; // 'basic' | 'pro'
+  final String? stripeSubscriptionId;
+  final String? stripeCustomerId;
+  final DateTime? currentPeriodEnd;
+  final int deliveriesRemaining;
+  final int deliveriesUsed;
+  final double serviceFeeDiscount;
+
   UserSubscription({
     required this.id,
     required this.userId,
-    required this.mealPlanId,
+    this.mealPlanId,
     this.status = 'active',
     required this.startDate,
     this.nextDelivery,
@@ -95,13 +104,20 @@ class UserSubscription {
     required this.createdAt,
     this.updatedAt,
     this.mealPlan,
+    this.planType,
+    this.stripeSubscriptionId,
+    this.stripeCustomerId,
+    this.currentPeriodEnd,
+    this.deliveriesRemaining = 0,
+    this.deliveriesUsed = 0,
+    this.serviceFeeDiscount = 0.0,
   });
 
   factory UserSubscription.fromJson(Map<String, dynamic> json) {
     return UserSubscription(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      mealPlanId: json['meal_plan_id'] as String,
+      mealPlanId: json['meal_plan_id'] as String?,
       status: json['status'] as String? ?? 'active',
       startDate: DateTime.parse(json['start_date'] as String),
       nextDelivery: json['next_delivery'] != null
@@ -119,6 +135,16 @@ class UserSubscription {
       mealPlan: json['meal_plans'] != null
           ? MealPlan.fromJson(json['meal_plans'] as Map<String, dynamic>)
           : null,
+      planType: json['plan_type'] as String?,
+      stripeSubscriptionId: json['stripe_subscription_id'] as String?,
+      stripeCustomerId: json['stripe_customer_id'] as String?,
+      currentPeriodEnd: json['current_period_end'] != null
+          ? DateTime.parse(json['current_period_end'] as String)
+          : null,
+      deliveriesRemaining: json['deliveries_remaining'] as int? ?? 0,
+      deliveriesUsed: json['deliveries_used'] as int? ?? 0,
+      serviceFeeDiscount:
+          (json['service_fee_discount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -134,8 +160,25 @@ class UserSubscription {
     'delivery_longitude': deliveryLongitude,
     'meals_remaining': mealsRemaining,
     'auto_renew': autoRenew,
+    'plan_type': planType,
+    'stripe_subscription_id': stripeSubscriptionId,
+    'deliveries_remaining': deliveriesRemaining,
+    'deliveries_used': deliveriesUsed,
+    'service_fee_discount': serviceFeeDiscount,
   };
 
   bool get isActive => status == 'active';
   bool get isPaused => status == 'paused';
+  bool get hasDeliveries => deliveriesRemaining > 0;
+
+  String get planLabel {
+    switch (planType) {
+      case 'basic':
+        return 'MealHub Basic';
+      case 'pro':
+        return 'MealHub Pro';
+      default:
+        return mealPlan?.name ?? 'Subscription';
+    }
+  }
 }

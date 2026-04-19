@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/subscription_model.dart';
 import '../utils/app_logger.dart';
@@ -178,6 +179,104 @@ class SubscriptionService {
     } catch (e) {
       AppLogger.error('Error creating meal plan: $e');
       return null;
+    }
+  }
+
+  // ── Uber One-style subscription methods ───────────────────────────────────
+
+  /// Create a subscription via edge function. Returns clientSecret + subscription info.
+  Future<Map<String, dynamic>?> createDeliverySubscription({
+    required String plan, // 'basic' or 'pro'
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'create-subscription',
+        body: {'action': 'subscribe', 'plan': plan},
+      );
+
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      return data;
+    } catch (e) {
+      AppLogger.error('Error creating delivery subscription: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel a subscription via edge function.
+  Future<bool> cancelDeliverySubscription(String subscriptionId) async {
+    try {
+      final response = await _client.functions.invoke(
+        'create-subscription',
+        body: {'action': 'cancel', 'subscription_id': subscriptionId},
+      );
+
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      return data['success'] == true;
+    } catch (e) {
+      AppLogger.error('Error cancelling delivery subscription: $e');
+      return false;
+    }
+  }
+
+  /// Get the user's active delivery subscription (Uber One-style).
+  Future<UserSubscription?> getActiveDeliverySubscription(String userId) async {
+    try {
+      final response = await _client
+          .from('user_subscriptions')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .not('plan_type', 'is', null)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return UserSubscription.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error fetching active delivery subscription: $e');
+      return null;
+    }
+  }
+
+  /// Check if a restaurant is eligible for subscription delivery.
+  Future<bool> isRestaurantEligible(String restaurantId) async {
+    try {
+      final response = await _client
+          .from('restaurants')
+          .select('eligible_for_subscription')
+          .eq('id', restaurantId)
+          .single();
+      return response['eligible_for_subscription'] as bool? ?? true;
+    } catch (e) {
+      return true; // Default to eligible
+    }
+  }
+
+  /// Use a subscription delivery atomically via the DB function.
+  Future<bool> useSubscriptionDelivery({
+    required String subscriptionId,
+    required String orderId,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'use_subscription_delivery',
+        params: {'p_subscription_id': subscriptionId, 'p_order_id': orderId},
+      );
+      return response == true;
+    } catch (e) {
+      AppLogger.error('Error using subscription delivery: $e');
+      return false;
     }
   }
 }

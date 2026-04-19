@@ -149,6 +149,18 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
       }
     }
     final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
+
+    // ── MealHub+ subscription benefit ──────────────────────────────
+    final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
+    final subEligible =
+        activeSub != null &&
+        activeSub.isActive &&
+        activeSub.hasDeliveries &&
+        !isPickup &&
+        subtotal >= AppConstants.subscriptionMinCart;
+    final subDeliveryFree = subEligible;
+    if (subDeliveryFree) activeFee = 0.0;
+
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
         (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
@@ -879,10 +891,17 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                         )
                       else
                         _SummaryRow(
-                          'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
+                          subDeliveryFree
+                              ? 'Delivery (MealHub+ FREE)'
+                              : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
                           anyFeeLoading
                               ? 'Calculating…'
+                              : subDeliveryFree
+                              ? '\$0.00'
                               : '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
+                          valueColor: subDeliveryFree
+                              ? const Color(0xFF6C63FF)
+                              : null,
                         ),
                       _SummaryRow(
                         'Tax (10%)',
@@ -1274,6 +1293,21 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
             orderId: orderIds.first,
             orderTotal: runningTotal,
           );
+
+      // Use a MealHub+ subscription delivery if applicable
+      final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
+      if (currentSub != null &&
+          currentSub.isActive &&
+          currentSub.hasDeliveries &&
+          !isPickup) {
+        await ref
+            .read(subscriptionServiceProvider)
+            .useSubscriptionDelivery(
+              subscriptionId: currentSub.id,
+              orderId: orderIds.first,
+            );
+        ref.invalidate(activeSubscriptionProvider);
+      }
 
       // Track for AI (each order)
       for (final oid in orderIds) {

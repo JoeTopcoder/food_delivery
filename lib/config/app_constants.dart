@@ -169,6 +169,14 @@
   // Tips (in USD)
   static List<double> presetTips = [2, 5, 10, 20];
 
+  // Subscription (MealHub+) — overridden from app_config table
+  static double subscriptionBasicPrice = 12.0;
+  static int subscriptionBasicDeliveries = 9;
+  static double subscriptionProPrice = 24.0;
+  static int subscriptionProDeliveries = 22;
+  static double subscriptionMinCart = 15.0;
+  static double subscriptionServiceFeeDiscount = 0.50;
+
   // System
   static int orderAssignmentCutoffMinutes = 30;
 }
