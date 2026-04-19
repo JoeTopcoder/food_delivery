@@ -168,8 +168,16 @@ class UserSubscription {
   };
 
   bool get isActive => status == 'active';
+  bool get isPending => status == 'pending';
   bool get isPaused => status == 'paused';
+  bool get isCancelled => status == 'cancelled';
   bool get hasDeliveries => deliveriesRemaining > 0;
+
+  /// True when user cancelled but subscription is still active until period end.
+  bool get isCancelling => isActive && !autoRenew;
+
+  /// True for MealHub+ delivery subscriptions (vs meal plan subscriptions).
+  bool get isDeliverySubscription => planType != null;
 
   String get planLabel {
     switch (planType) {

@@ -217,14 +217,37 @@ final userSubscriptionsProvider = FutureProvider.family
     );
 
 /// Active delivery subscription (Uber One-style) for the current user.
-final activeSubscriptionProvider =
-    FutureProvider.autoDispose<UserSubscription?>((ref) {
-      final userId = ref.watch(currentUserIdProvider);
-      if (userId == null) return Future.value(null);
-      return ref
-          .watch(subscriptionServiceProvider)
-          .getActiveDeliverySubscription(userId);
-    });
+/// Listens to Supabase Realtime on user_subscriptions so it auto-updates
+/// when the webhook activates/cancels/renews the subscription.
+final activeSubscriptionProvider = FutureProvider.autoDispose<UserSubscription?>((
+  ref,
+) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return Future.value(null);
+
+  // Subscribe to Realtime changes on user_subscriptions for this user
+  final channel = Supabase.instance.client.realtime.channel(
+    'active_sub_${userId.hashCode.abs()}_${DateTime.now().microsecondsSinceEpoch}',
+  );
+  channel
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'user_subscriptions',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (_) => ref.invalidateSelf(),
+      )
+      .subscribe();
+  ref.onDispose(() => Supabase.instance.client.realtime.removeChannel(channel));
+
+  return ref
+      .watch(subscriptionServiceProvider)
+      .getActiveDeliverySubscription(userId);
+});
 
 // Feedback
 final userFeedbackProvider = FutureProvider.family

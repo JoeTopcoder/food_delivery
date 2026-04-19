@@ -269,14 +269,34 @@ class SubscriptionService {
     }
   }
 
+  /// Reactivate a subscription that was pending cancellation.
+  Future<bool> reactivateDeliverySubscription(String subscriptionId) async {
+    try {
+      final response = await _client.functions.invoke(
+        'create-subscription',
+        body: {'action': 'reactivate', 'subscription_id': subscriptionId},
+      );
+
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      return data['success'] == true;
+    } catch (e) {
+      AppLogger.error('Error reactivating delivery subscription: $e');
+      return false;
+    }
+  }
+
   /// Get the user's active delivery subscription (Uber One-style).
+  /// Includes 'pending' status so UI can show activation progress.
   Future<UserSubscription?> getActiveDeliverySubscription(String userId) async {
     try {
       final response = await _client
           .from('user_subscriptions')
           .select()
           .eq('user_id', userId)
-          .eq('status', 'active')
+          .inFilter('status', ['active', 'pending'])
           .not('plan_type', 'is', null)
           .order('created_at', ascending: false)
           .limit(1)
