@@ -65,6 +65,7 @@ import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
 import 'screens/admin/admin_pricing_screen.dart';
 import 'widgets/incoming_call_listener.dart';
+import 'widgets/role_guard.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
 import 'screens/customer/subscription_screen.dart';
@@ -225,161 +226,271 @@ class _MyAppState extends ConsumerState<MyApp> {
               );
             case '/home':
               return MaterialPageRoute(
-                builder: (context) => const MainNavigationScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: MainNavigationScreen(),
+                ),
               );
             // Driver Routes
             case '/driver-dashboard':
               return MaterialPageRoute(
-                builder: (context) => const DriverDashboardScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverDashboardScreen(),
+                ),
               );
             case '/available-orders':
               return MaterialPageRoute(
-                builder: (context) => const AvailableOrdersScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: AvailableOrdersScreen(),
+                ),
               );
             case '/active-deliveries':
               return MaterialPageRoute(
-                builder: (context) => const ActiveDeliveriesScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: ActiveDeliveriesScreen(),
+                ),
               );
             case '/delivery-history':
               return MaterialPageRoute(
-                builder: (context) => const DeliveryHistoryScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DeliveryHistoryScreen(),
+                ),
               );
             case '/driver-profile':
               return MaterialPageRoute(
-                builder: (context) => const DriverProfileScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverProfileScreen(),
+                ),
               );
             // Admin Routes
             case '/admin-dashboard':
               return MaterialPageRoute(
-                builder: (context) => const AdminDashboardScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDashboardScreen(),
+                ),
               );
             case '/admin-users':
               return MaterialPageRoute(
-                builder: (context) => const AdminUsersScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminUsersScreen(),
+                ),
               );
             case '/admin-restaurants':
               return MaterialPageRoute(
-                builder: (context) => const AdminRestaurantsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRestaurantsScreen(),
+                ),
               );
             case '/admin-drivers':
               return MaterialPageRoute(
-                builder: (context) => const AdminDriversScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDriversScreen(),
+                ),
               );
             // Customer Routes
             case '/customer-home':
               return MaterialPageRoute(
-                builder: (context) => const CustomerHomeScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: CustomerHomeScreen(),
+                ),
               );
             case '/all-restaurants':
               return MaterialPageRoute(
-                builder: (context) => const AllRestaurantsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: AllRestaurantsScreen(),
+                ),
               );
             // Restaurant Routes
             case '/restaurant-dashboard':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantDashboardScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantDashboardScreen(),
+                ),
               );
             case '/restaurant-orders':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantOrderManagementScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantOrderManagementScreen(),
+                ),
               );
             case '/restaurant-analytics':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantAnalyticsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantAnalyticsScreen(),
+                ),
               );
             case '/restaurant-settings':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantSettingsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantSettingsScreen(),
+                ),
               );
             case '/menu-management':
               return MaterialPageRoute(
-                builder: (context) => const MenuManagementScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: MenuManagementScreen(),
+                ),
               );
             case '/grocery-management':
               return MaterialPageRoute(
-                builder: (context) => const GroceryManagementScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: GroceryManagementScreen(),
+                ),
               );
             case '/restaurant-detail':
               if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
               return MaterialPageRoute(
-                builder: (context) =>
-                    RestaurantDetailScreen(restaurant: restaurant),
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: RestaurantDetailScreen(restaurant: restaurant),
+                ),
               );
             case '/cart':
               return MaterialPageRoute(
-                builder: (context) => const CartScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: CartScreen(),
+                ),
               );
             case '/grocery-cart':
               return MaterialPageRoute(
-                builder: (context) => const GroceryCartScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: GroceryCartScreen(),
+                ),
               );
             case '/checkout':
               return MaterialPageRoute(
-                builder: (context) => const CheckoutScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: CheckoutScreen(),
+                ),
               );
             case '/grocery-checkout':
               return MaterialPageRoute(
-                builder: (context) => const GroceryCheckoutScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: GroceryCheckoutScreen(),
+                ),
               );
             case '/order-tracking':
               final orderId = settings.arguments as String?;
               return MaterialPageRoute(
-                builder: (context) => OrderTrackingScreen(orderId: orderId),
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: OrderTrackingScreen(orderId: orderId),
+                ),
               );
             case '/customer-profile':
               return MaterialPageRoute(
-                builder: (context) => const CustomerProfileScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: CustomerProfileScreen(),
+                ),
               );
             case '/review':
               if (settings.arguments is! Order) return null;
               final order = settings.arguments as Order;
               return MaterialPageRoute(
-                builder: (context) => ReviewScreen(order: order),
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: ReviewScreen(order: order),
+                ),
               );
             case '/notifications':
               return MaterialPageRoute(
-                builder: (context) => const NotificationsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: NotificationsScreen(),
+                ),
               );
             case '/loyalty':
               return MaterialPageRoute(
-                builder: (context) => const LoyaltyScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: LoyaltyScreen(),
+                ),
               );
             case '/address-book':
               return MaterialPageRoute(
-                builder: (context) => const AddressBookScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: AddressBookScreen(),
+                ),
               );
             case '/order-history':
               return MaterialPageRoute(
-                builder: (context) => const OrderHistoryScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: OrderHistoryScreen(),
+                ),
               );
             case '/driver-earnings':
               return MaterialPageRoute(
-                builder: (context) => const DriverEarningsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverEarningsScreen(),
+                ),
               );
             case '/admin-promos':
               return MaterialPageRoute(
-                builder: (context) => const AdminPromosScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPromosScreen(),
+                ),
               );
             case '/admin-chats':
               return MaterialPageRoute(
-                builder: (context) => const AdminChatsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminChatsScreen(),
+                ),
               );
             case '/admin-payouts':
               return MaterialPageRoute(
-                builder: (context) => const AdminPayoutsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPayoutsScreen(),
+                ),
               );
             case '/admin-financials':
               return MaterialPageRoute(
-                builder: (context) => const AdminFinancialsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminFinancialsScreen(),
+                ),
               );
             case '/admin-earnings':
               return MaterialPageRoute(
-                builder: (context) => const AdminEarningsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminEarningsScreen(),
+                ),
               );
             case '/admin-orders':
               return MaterialPageRoute(
-                builder: (context) => const AdminOrdersScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOrdersScreen(),
+                ),
               );
             case '/chat':
               final args = settings.arguments as Map<String, dynamic>?;
@@ -405,19 +516,31 @@ class _MyAppState extends ConsumerState<MyApp> {
               );
             case '/referrals':
               return MaterialPageRoute(
-                builder: (context) => const ReferralScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: ReferralScreen(),
+                ),
               );
             case '/earnings':
               return MaterialPageRoute(
-                builder: (context) => const EarningsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: EarningsScreen(),
+                ),
               );
             case '/favorites':
               return MaterialPageRoute(
-                builder: (context) => const FavoritesScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: FavoritesScreen(),
+                ),
               );
             case '/search':
               return MaterialPageRoute(
-                builder: (context) => const SmartSearchScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: SmartSearchScreen(),
+                ),
               );
             case '/role-selection':
               return MaterialPageRoute(
@@ -425,7 +548,10 @@ class _MyAppState extends ConsumerState<MyApp> {
               );
             case '/driver-leaderboard':
               return MaterialPageRoute(
-                builder: (context) => const DriverLeaderboardScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverLeaderboardScreen(),
+                ),
               );
             case '/restaurant-reviews':
               final args = settings.arguments as Map<String, dynamic>?;
@@ -440,75 +566,129 @@ class _MyAppState extends ConsumerState<MyApp> {
             // ── New Feature Routes ──
             case '/refund-dispute':
               return MaterialPageRoute(
-                builder: (context) => const RefundDisputeScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: RefundDisputeScreen(),
+                ),
               );
             case '/group-orders':
               return MaterialPageRoute(
-                builder: (context) => const GroupOrderScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: GroupOrderScreen(),
+                ),
               );
             case '/subscriptions':
               return MaterialPageRoute(
-                builder: (context) => const SubscriptionScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: SubscriptionScreen(),
+                ),
               );
             case '/feedback':
               return MaterialPageRoute(
-                builder: (context) => const FeedbackScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: FeedbackScreen(),
+                ),
               );
             case '/admin-disputes':
               return MaterialPageRoute(
-                builder: (context) => const AdminDisputesScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDisputesScreen(),
+                ),
               );
             case '/admin-feedback':
               return MaterialPageRoute(
-                builder: (context) => const AdminFeedbackScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminFeedbackScreen(),
+                ),
               );
             case '/admin-surge':
               return MaterialPageRoute(
-                builder: (context) => const AdminSurgeScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminSurgeScreen(),
+                ),
               );
             case '/admin-banners':
               return MaterialPageRoute(
-                builder: (context) => const AdminBannersScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminBannersScreen(),
+                ),
               );
             case '/admin-lookup':
               return MaterialPageRoute(
-                builder: (context) => const AdminLookupScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminLookupScreen(),
+                ),
               );
             case '/admin-contract':
               return MaterialPageRoute(
-                builder: (context) => const AdminContractScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminContractScreen(),
+                ),
               );
             case '/admin-regions':
               return MaterialPageRoute(
-                builder: (context) => const AdminRegionsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRegionsScreen(),
+                ),
               );
             case '/admin-ads':
               return MaterialPageRoute(
-                builder: (context) => const AdminAdsScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAdsScreen(),
+                ),
               );
             case '/admin-pricing':
               return MaterialPageRoute(
-                builder: (context) => const AdminPricingScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPricingScreen(),
+                ),
               );
             case '/wallet':
               return MaterialPageRoute(
-                builder: (context) => const WalletScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: WalletScreen(),
+                ),
               );
             case '/restaurant-loyalty':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantLoyaltyScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantLoyaltyScreen(),
+                ),
               );
             case '/restaurant-offer':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantOfferScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantOfferScreen(),
+                ),
               );
             case '/restaurant-contract':
               return MaterialPageRoute(
-                builder: (context) => const RestaurantContractScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantContractScreen(),
+                ),
               );
             case '/admin-loyalty':
               return MaterialPageRoute(
-                builder: (context) => const AdminLoyaltyScreen(),
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminLoyaltyScreen(),
+                ),
               );
             case '/settings':
               return MaterialPageRoute(
