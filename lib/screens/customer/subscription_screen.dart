@@ -76,9 +76,11 @@ class _DeliverySubscriptionTabState
       );
       await Stripe.instance.presentPaymentSheet();
 
-      // Payment succeeded — subscription is now 'pending', will become 'active'
-      // via Stripe webhook. Realtime listener on activeSubscriptionProvider
-      // will auto-update when that happens.
+      // Payment succeeded — activate the subscription immediately
+      final subId = result['subscription_id'] as String?;
+      if (subId != null) {
+        await service.activateDeliverySubscription(subId);
+      }
       ref.invalidate(activeSubscriptionProvider);
       if (mounted) {
         AppSnackbar.success(

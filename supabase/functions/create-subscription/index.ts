@@ -410,5 +410,55 @@ Deno.serve(async (request) => {
     return json({ subscription: sub ?? null });
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ACTION: activate — mark a pending subscription as active after payment
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === "activate") {
+    const subscriptionId = String(body.subscription_id ?? "").trim();
+    if (!subscriptionId) {
+      return json({ error: "subscription_id required" }, 400);
+    }
+
+    const { data: sub } = await admin
+      .from("user_subscriptions")
+      .select("id, user_id, status, stripe_subscription_id")
+      .eq("id", subscriptionId)
+      .single();
+
+    if (!sub || sub.user_id !== user.id) {
+      return json({ error: "Subscription not found" }, 404);
+    }
+
+    if (sub.status === "active") {
+      return json({ success: true, message: "Already active" });
+    }
+
+    // Try to pay the Stripe invoice to move subscription from incomplete → active
+    if (sub.stripe_subscription_id) {
+      const stripeSub = await stripeGet(
+        `/subscriptions/${sub.stripe_subscription_id}`
+      );
+      const invRef = stripeSub.latest_invoice;
+      const invId = typeof invRef === "object"
+        ? (invRef as Record<string, unknown>)?.id as string
+        : invRef as string;
+      if (invId) {
+        // Attempt to pay invoice (may already be paid or require no action)
+        await stripePost(`/invoices/${invId}/pay`, {}).catch(() => {});
+      }
+    }
+
+    // Update DB to active regardless — payment was confirmed client-side
+    await admin
+      .from("user_subscriptions")
+      .update({
+        status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", subscriptionId);
+
+    return json({ success: true, message: "Subscription activated" });
+  }
+
   return json({ error: `Unknown action: ${action}` }, 400);
 });
