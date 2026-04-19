@@ -127,6 +127,13 @@ Deno.serve(async (request) => {
       );
     }
 
+    // Clean up any stale pending subscriptions from previous failed attempts
+    await admin
+      .from("user_subscriptions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+
     // ── Load plan config ─────────────────────────────────────────────────────
     const price =
       planType === "basic"
@@ -202,7 +209,6 @@ Deno.serve(async (request) => {
       "items[0][price]": stripePrice.id as string,
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
-      "expand[0]": "latest_invoice.payment_intent",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": planType,
       "metadata[deliveries]": deliveries,
@@ -216,35 +222,29 @@ Deno.serve(async (request) => {
       );
     }
 
-    // ── Extract client secret (handle expand not applied) ────────────────────
-    let clientSecret: string | null = null;
+    // ── Extract client secret — always fetch invoice & PI separately ─────────
+    const invoiceId = typeof subscription.latest_invoice === "object"
+      ? (subscription.latest_invoice as Record<string, unknown>)?.id as string
+      : subscription.latest_invoice as string;
 
-    // If latest_invoice was expanded, it's an object with payment_intent
-    let invoice = subscription.latest_invoice as Record<string, unknown> | string;
-    if (typeof invoice === "string") {
-      // Expand wasn't applied — fetch invoice separately
-      invoice = await stripeGet(`/invoices/${invoice}?expand[]=payment_intent`);
+    if (!invoiceId) {
+      return json({ error: "No invoice on subscription" }, 500);
     }
 
-    if (typeof invoice === "object" && invoice !== null) {
-      let pi = (invoice as Record<string, unknown>).payment_intent as
-        | Record<string, unknown>
-        | string
-        | null;
-      if (typeof pi === "string") {
-        // payment_intent wasn't expanded — fetch it
-        pi = await stripeGet(`/payment_intents/${pi}`);
-      }
-      if (typeof pi === "object" && pi !== null) {
-        clientSecret = (pi as Record<string, unknown>).client_secret as string | null;
-      }
+    const invoice = await stripeGet(`/invoices/${invoiceId}`);
+    const piId = typeof invoice.payment_intent === "object"
+      ? (invoice.payment_intent as Record<string, unknown>)?.id as string
+      : invoice.payment_intent as string;
+
+    if (!piId) {
+      return json({ error: "No payment intent on invoice" }, 500);
     }
+
+    const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
+    const clientSecret = paymentIntent.client_secret as string | null;
 
     if (!clientSecret) {
-      return json({
-        error: "No client secret returned from Stripe",
-        debug_invoice_type: typeof subscription.latest_invoice,
-      }, 500);
+      return json({ error: "No client secret on payment intent" }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
