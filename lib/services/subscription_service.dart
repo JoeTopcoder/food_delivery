@@ -300,6 +300,11 @@ class SubscriptionService {
           ? jsonDecode(response.data as String) as Map<String, dynamic>
           : response.data as Map<String, dynamic>;
 
+      if (data['error'] != null) {
+        AppLogger.error('Activate error: ${data['error']}');
+        return false;
+      }
+
       return data['success'] == true;
     } catch (e) {
       AppLogger.error('Error activating delivery subscription: $e');
