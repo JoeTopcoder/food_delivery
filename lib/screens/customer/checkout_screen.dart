@@ -169,10 +169,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         subtotal >= AppConstants.subscriptionMinCart;
     final subDeliveryFree = subEligible; // zero delivery fee
     final subServiceDiscount = subEligible
-        ? (pickupServiceFee * (activeSub?.serviceFeeDiscount ?? 0.0))
+        ? (pickupServiceFee * (activeSub.serviceFeeDiscount))
         : 0.0;
 
-    final rawFee = isPickup ? pickupServiceFee : deliveryFee;
+    final rawFee = isPickup
+        ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
+        : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
@@ -1157,9 +1159,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         ),
                       if (isPickup)
                         _SummaryRow(
-                          'Service Fee',
-                          '${AppConstants.currencySymbol}${pickupServiceFee.toStringAsFixed(2)}',
-                          valueColor: const Color(0xFF10B981),
+                          subServiceDiscount > 0
+                              ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                              : 'Service Fee',
+                          '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                          valueColor: subServiceDiscount > 0
+                              ? const Color(0xFF6C63FF)
+                              : const Color(0xFF10B981),
                         )
                       else
                         _SummaryRow(

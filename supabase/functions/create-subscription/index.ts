@@ -473,5 +473,170 @@ Deno.serve(async (request) => {
     return json({ success: true, message: "Subscription activated" });
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ACTION: change_plan — switch between Basic ↔ Pro
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === "change_plan") {
+    const subscriptionId = String(body.subscription_id ?? "").trim();
+    const newPlan = String(body.plan ?? "").trim().toLowerCase();
+
+    if (!subscriptionId) return json({ error: "subscription_id required" }, 400);
+    if (newPlan !== "basic" && newPlan !== "pro") {
+      return json({ error: 'plan must be "basic" or "pro"' }, 400);
+    }
+
+    const { data: sub } = await admin
+      .from("user_subscriptions")
+      .select("id, user_id, plan_type, status, stripe_subscription_id")
+      .eq("id", subscriptionId)
+      .single();
+
+    if (!sub || sub.user_id !== user.id) {
+      return json({ error: "Subscription not found" }, 404);
+    }
+    if (sub.status !== "active") {
+      return json({ error: "Only active subscriptions can be changed" }, 400);
+    }
+    if (sub.plan_type === newPlan) {
+      return json({ error: `Already on ${newPlan} plan` }, 409);
+    }
+
+    // Load new plan config
+    const newPrice =
+      newPlan === "basic"
+        ? await getConfig(admin, "subscription_basic_price", "12.00")
+        : await getConfig(admin, "subscription_pro_price", "24.00");
+    const newDeliveries =
+      newPlan === "basic"
+        ? await getConfig(admin, "subscription_basic_deliveries", "9")
+        : await getConfig(admin, "subscription_pro_deliveries", "22");
+    const serviceFeeDiscount = await getConfig(
+      admin,
+      "subscription_service_fee_discount",
+      "0.50"
+    );
+
+    // Cancel old Stripe subscription
+    if (sub.stripe_subscription_id) {
+      await stripePost(`/subscriptions/${sub.stripe_subscription_id}`, {
+        cancel_at_period_end: "false",
+      });
+      // Immediately cancel
+      await fetch(`https://api.stripe.com/v1/subscriptions/${sub.stripe_subscription_id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+      });
+    }
+
+    // Create new Stripe price + subscription
+    const newPriceInCents = Math.round(parseFloat(newPrice) * 100);
+    const email = user.email ?? "";
+    const name = (user.user_metadata?.name as string) ?? email;
+
+    let customerId = "";
+    const { data: prevSub } = await admin
+      .from("user_subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .not("stripe_customer_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (prevSub?.stripe_customer_id) {
+      customerId = prevSub.stripe_customer_id;
+    } else {
+      const cust = await stripePost("/customers", {
+        email,
+        name,
+        "metadata[user_id]": user.id,
+      });
+      customerId = cust.id as string;
+    }
+
+    const stripePrice = await stripePost("/prices", {
+      currency: "usd",
+      unit_amount: String(newPriceInCents),
+      "recurring[interval]": "month",
+      "product_data[name]": `MealHub ${newPlan === "basic" ? "Basic" : "Pro"}`,
+    });
+
+    const newSub = await stripePost("/subscriptions", {
+      customer: customerId,
+      "items[0][price]": stripePrice.id as string,
+      payment_behavior: "default_incomplete",
+      "payment_settings[save_default_payment_method]": "on_subscription",
+      "payment_settings[payment_method_types][0]": "card",
+      "metadata[user_id]": user.id,
+      "metadata[plan_type]": newPlan,
+    });
+
+    // Get client secret for payment
+    let clientSecret: string | null = null;
+    const invRef = newSub.latest_invoice;
+    const invId = typeof invRef === "object"
+      ? (invRef as Record<string, unknown>)?.id as string
+      : invRef as string;
+
+    if (invId) {
+      let invoice = await stripeGet(`/invoices/${invId}`);
+      if (invoice.status === "draft") {
+        invoice = await stripePost(`/invoices/${invId}/finalize`, {});
+      }
+      const piRef = invoice.payment_intent;
+      if (piRef) {
+        const piId = typeof piRef === "object"
+          ? (piRef as Record<string, unknown>).id as string
+          : piRef as string;
+        const pi = await stripeGet(`/payment_intents/${piId}`);
+        clientSecret = pi.client_secret as string | null;
+      }
+    }
+    // Fallback: manual PI
+    if (!clientSecret) {
+      const manualPi = await stripePost("/payment_intents", {
+        amount: String(newPriceInCents),
+        currency: "usd",
+        customer: customerId,
+        "payment_method_types[0]": "card",
+        "metadata[user_id]": user.id,
+        "metadata[plan_type]": newPlan,
+      });
+      clientSecret = manualPi.client_secret as string | null;
+    }
+
+    if (!clientSecret) {
+      return json({ error: "Failed to create payment for plan change" }, 500);
+    }
+
+    const stripeEnd = (newSub.current_period_end as number) ?? 0;
+    const periodEnd = stripeEnd > 0
+      ? new Date(stripeEnd * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Update existing subscription row with new plan details
+    await admin
+      .from("user_subscriptions")
+      .update({
+        plan_type: newPlan,
+        status: "pending",
+        stripe_subscription_id: newSub.id,
+        stripe_customer_id: customerId,
+        current_period_end: periodEnd.toISOString(),
+        deliveries_remaining: parseInt(newDeliveries),
+        deliveries_used: 0,
+        service_fee_discount: parseFloat(serviceFeeDiscount),
+        auto_renew: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", subscriptionId);
+
+    return json({
+      subscription_id: subscriptionId,
+      client_secret: clientSecret,
+      plan_type: newPlan,
+      price: parseFloat(newPrice),
+      deliveries: parseInt(newDeliveries),
+    });
+  }
+
   return json({ error: `Unknown action: ${action}` }, 400);
 });
