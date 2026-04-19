@@ -43,6 +43,22 @@ async function stripePost(
   return (await res.json()) as Record<string, unknown>;
 }
 
+async function stripeEphemeralKey(
+  customerId: string
+): Promise<string | null> {
+  const res = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": "2024-06-20",
+    },
+    body: new URLSearchParams({ customer: customerId }).toString(),
+  });
+  const data = (await res.json()) as Record<string, unknown>;
+  return (data.secret as string) ?? null;
+}
+
 async function stripeGet(endpoint: string): Promise<Record<string, unknown>> {
   const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
     method: "GET",
@@ -311,10 +327,14 @@ Deno.serve(async (request) => {
       );
     }
 
+    const ephemeralKey = await stripeEphemeralKey(stripeCustomerId!);
+
     return json({
       subscription_id: subRow.id,
       stripe_subscription_id: subscription.id,
       client_secret: clientSecret,
+      customer_id: stripeCustomerId,
+      ephemeral_key: ephemeralKey,
       plan_type: planType,
       price: parseFloat(price),
       deliveries: parseInt(deliveries),
@@ -629,9 +649,13 @@ Deno.serve(async (request) => {
       })
       .eq("id", subscriptionId);
 
+    const ephemeralKey = await stripeEphemeralKey(customerId!);
+
     return json({
       subscription_id: subscriptionId,
       client_secret: clientSecret,
+      customer_id: customerId,
+      ephemeral_key: ephemeralKey,
       plan_type: newPlan,
       price: parseFloat(newPrice),
       deliveries: parseInt(newDeliveries),
