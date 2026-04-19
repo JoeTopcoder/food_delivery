@@ -149,7 +149,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await admin
         .from("contracts")
         .select("*")
-        .in_("restaurant_id", restaurantIds)
+        .in("restaurant_id", restaurantIds)
         .neq("status", "terminated")
         .order("created_at", { ascending: false });
 

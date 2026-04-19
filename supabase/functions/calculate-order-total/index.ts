@@ -140,7 +140,7 @@ Deno.serve(async (request) => {
     const { data: menuItems, error: menuErr } = await admin
       .from("menus")
       .select("id, price, discounted_price, name, is_available")
-      .in_("id", menuItemIds);
+      .in("id", menuItemIds);
     if (menuErr || !menuItems) {
       return json({ error: "Could not fetch menu items" }, 500);
     }
@@ -165,7 +165,7 @@ Deno.serve(async (request) => {
         const { data: sides } = await admin
           .from("menu_item_sides")
           .select("id, name, price")
-          .in_("id", item.side_ids);
+          .in("id", item.side_ids);
         if (sides) {
           for (const s of sides) {
             sideTotal += (s as Record<string, unknown>).price as number;
