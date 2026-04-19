@@ -128,11 +128,12 @@ class _DriverLeaderboardScreenState
                   );
                 }
 
-                // Find current driver's position
-                final myIndex = drivers.indexWhere(
-                  (d) => d['user_id'] == currentUserId,
+                // Find current driver in the list
+                final myDriver = drivers.cast<Map<String, dynamic>?>().firstWhere(
+                  (d) => d?['user_id'] == currentUserId,
+                  orElse: () => null,
                 );
-                final totalDrivers = drivers.length;
+                final myRank = (myDriver?['deliveries_rank'] as num?)?.toInt() ?? -1;
 
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -141,15 +142,15 @@ class _DriverLeaderboardScreenState
                       // First item: "Your Rank" card
                       if (index == 0) {
                         return _YourRankCard(
-                          myIndex: myIndex,
-                          totalDrivers: totalDrivers,
-                          driver: myIndex >= 0 ? drivers[myIndex] : null,
+                          myRank: myRank,
+                          totalDrivers: drivers.length,
+                          driver: myDriver,
                         );
                       }
 
                       final driverIndex = index - 1;
                       final driver = drivers[driverIndex];
-                      final rank = driverIndex + 1;
+                      final rank = (driver['deliveries_rank'] as num?)?.toInt() ?? driverIndex + 1;
                       final isMe = driver['user_id'] == currentUserId;
 
                       return _LeaderboardTile(
@@ -196,42 +197,39 @@ class _DriverLeaderboardScreenState
 
 // ── "Your Rank" hero card ─────────────────────────────────────────────────
 class _YourRankCard extends StatelessWidget {
-  final int myIndex;
+  final int myRank;
   final int totalDrivers;
   final Map<String, dynamic>? driver;
 
   const _YourRankCard({
-    required this.myIndex,
+    required this.myRank,
     required this.totalDrivers,
     this.driver,
   });
 
   String get _positionLabel {
-    if (myIndex < 0) return 'Unranked';
-    final rank = myIndex + 1;
-    if (rank == 1) return '1st';
-    if (rank == 2) return '2nd';
-    if (rank == 3) return '3rd';
-    return '${rank}th';
+    if (myRank < 1) return 'Unranked';
+    if (myRank == 1) return '1st';
+    if (myRank == 2) return '2nd';
+    if (myRank == 3) return '3rd';
+    return '${myRank}th';
   }
 
   String get _motivationText {
-    if (myIndex < 0) return 'Complete a delivery to get on the board!';
-    final rank = myIndex + 1;
-    if (rank == 1) return 'You\'re the #1 driver! Keep it up!';
-    if (rank <= 3)
-      return 'Almost at the top! Just ${rank - 1} driver(s) ahead.';
-    if (rank <= totalDrivers ~/ 2)
-      return 'Top half! ${rank - 1} drivers to beat.';
+    if (myRank < 1) return 'Complete a delivery to get on the board!';
+    if (myRank == 1) return 'You\'re the #1 driver! Keep it up!';
+    if (myRank <= 3)
+      return 'Almost at the top! Just ${myRank - 1} driver(s) ahead.';
+    if (myRank <= totalDrivers ~/ 2)
+      return 'Top half! ${myRank - 1} drivers to beat.';
     return 'Keep delivering to climb the ranks!';
   }
 
   Color get _rankGlowColor {
-    if (myIndex < 0) return const Color(0xFF6B7280);
-    final rank = myIndex + 1;
-    if (rank == 1) return const Color(0xFFFFD700);
-    if (rank == 2) return const Color(0xFFC0C0C0);
-    if (rank == 3) return const Color(0xFFCD7F32);
+    if (myRank < 1) return const Color(0xFF6B7280);
+    if (myRank == 1) return const Color(0xFFFFD700);
+    if (myRank == 2) return const Color(0xFFC0C0C0);
+    if (myRank == 3) return const Color(0xFFCD7F32);
     return AppTheme.primaryColor;
   }
 
@@ -278,7 +276,7 @@ class _YourRankCard extends StatelessWidget {
                   _positionLabel,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: myIndex >= 0 && myIndex < 3 ? 18 : 15,
+                    fontSize: myRank >= 1 && myRank <= 3 ? 18 : 15,
                     color: _rankGlowColor,
                   ),
                 ),
@@ -299,8 +297,8 @@ class _YourRankCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      myIndex >= 0
-                          ? '#${myIndex + 1} of $totalDrivers drivers'
+                      myRank >= 1
+                          ? '#$myRank of $totalDrivers drivers'
                           : 'Not ranked yet',
                       style: const TextStyle(
                         fontSize: 18,
