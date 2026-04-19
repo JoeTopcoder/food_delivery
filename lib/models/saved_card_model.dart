@@ -11,6 +11,10 @@ class SavedCard {
   final String? verificationId;
   final DateTime? verificationExpiresAt;
   final int verificationAttempts;
+  final String? stripePaymentMethodId;
+  final String? stripeCustomerId;
+  final int? expMonth;
+  final int? expYear;
   final DateTime createdAt;
 
   const SavedCard({
@@ -26,14 +30,18 @@ class SavedCard {
     this.verificationId,
     this.verificationExpiresAt,
     this.verificationAttempts = 0,
+    this.stripePaymentMethodId,
+    this.stripeCustomerId,
+    this.expMonth,
+    this.expYear,
     required this.createdAt,
   });
 
   factory SavedCard.fromJson(Map<String, dynamic> json) => SavedCard(
     id: json['id'] as String,
     userId: json['user_id'] as String,
-    cardBrand: json['card_brand'] as String,
-    lastFour: json['last_four'] as String,
+    cardBrand: json['card_brand'] as String? ?? '',
+    lastFour: json['last_four'] as String? ?? '',
     cardholderName: json['cardholder_name'] as String? ?? '',
     email: json['email'] as String? ?? '',
     phone: json['phone'] as String? ?? '',
@@ -44,6 +52,10 @@ class SavedCard {
         ? DateTime.parse(json['verification_expires_at'] as String)
         : null,
     verificationAttempts: json['verification_attempts'] as int? ?? 0,
+    stripePaymentMethodId: json['stripe_payment_method_id'] as String?,
+    stripeCustomerId: json['stripe_customer_id'] as String?,
+    expMonth: json['exp_month'] as int?,
+    expYear: json['exp_year'] as int?,
     createdAt: DateTime.parse(json['created_at'] as String),
   );
 
@@ -59,6 +71,10 @@ class SavedCard {
     'verification_id': verificationId,
     'verification_expires_at': verificationExpiresAt?.toIso8601String(),
     'verification_attempts': verificationAttempts,
+    'stripe_payment_method_id': stripePaymentMethodId,
+    'stripe_customer_id': stripeCustomerId,
+    'exp_month': expMonth,
+    'exp_year': expYear,
   };
 
   String get displayBrand {
@@ -75,6 +91,15 @@ class SavedCard {
   }
 
   String get maskedNumber => '•••• $lastFour';
+
+  String get expiryDisplay {
+    if (expMonth != null && expYear != null) {
+      final m = expMonth.toString().padLeft(2, '0');
+      final y = (expYear! % 100).toString().padLeft(2, '0');
+      return '$m/$y';
+    }
+    return '';
+  }
 
   bool get isPending => status == 'pending';
   bool get isVerified => status == 'verified';

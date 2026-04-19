@@ -16,6 +16,8 @@ class StripePaymentSession {
   final String clientSecret;
   final double amount;
   final String currency;
+  final String? customerId;
+  final String? ephemeralKey;
 
   const StripePaymentSession({
     required this.orderId,
@@ -23,6 +25,8 @@ class StripePaymentSession {
     required this.clientSecret,
     required this.amount,
     required this.currency,
+    this.customerId,
+    this.ephemeralKey,
   });
 }
 
@@ -131,6 +135,8 @@ class PaymentService {
         clientSecret: clientSecret,
         amount: amount,
         currency: (data['currency'] as String?) ?? 'usd',
+        customerId: data['customerId'] as String?,
+        ephemeralKey: data['ephemeralKey'] as String?,
       );
     } catch (e) {
       AppLogger.error('Stripe checkout creation error: $e');
@@ -160,6 +166,8 @@ class PaymentService {
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: session.clientSecret,
+          customerId: session.customerId,
+          customerEphemeralKeySecret: session.ephemeralKey,
           merchantDisplayName: AppConstants.appName,
           style: ThemeMode.system,
           billingDetails: BillingDetails(
@@ -559,18 +567,151 @@ class PaymentService {
 
   // ── Saved Cards ──────────────────────────────────────────────
 
+  /// Fetch saved cards from Stripe and sync to local DB.
   Future<List<SavedCard>> getSavedCards(String userId) async {
     try {
-      final data = await _supabaseClient
+      // Try fetching live from Stripe
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {'action': 'list_payment_methods'},
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['cards'] != null) {
+        final stripeCards = (data['cards'] as List)
+            .cast<Map<String, dynamic>>();
+        final customerId = data['customer_id'] as String?;
+        // Sync to DB
+        await _syncStripeCardsToDb(userId, customerId, stripeCards);
+      }
+    } catch (e) {
+      AppLogger.error('Error fetching Stripe cards (falling back to DB): $e');
+    }
+
+    // Read from local DB (always the source of truth after sync)
+    try {
+      final rows = await _supabaseClient
           .from('saved_cards')
           .select()
           .eq('user_id', userId)
           .order('is_default', ascending: false)
           .order('created_at', ascending: false);
-      return (data as List).map((e) => SavedCard.fromJson(e)).toList();
+      return (rows as List).map((e) => SavedCard.fromJson(e)).toList();
     } catch (e) {
-      AppLogger.error('Error fetching saved cards: $e');
+      AppLogger.error('Error reading saved cards from DB: $e');
       return [];
+    }
+  }
+
+  /// Sync Stripe payment methods into the saved_cards table.
+  Future<void> _syncStripeCardsToDb(
+    String userId,
+    String? customerId,
+    List<Map<String, dynamic>> stripeCards,
+  ) async {
+    try {
+      // Get existing saved cards
+      final existing = await _supabaseClient
+          .from('saved_cards')
+          .select('id, stripe_payment_method_id, last_four, card_brand')
+          .eq('user_id', userId);
+      final existingPmIds = (existing as List)
+          .map((e) => e['stripe_payment_method_id'] as String?)
+          .where((id) => id != null)
+          .toSet();
+
+      for (final sc in stripeCards) {
+        final pmId = sc['payment_method_id'] as String;
+        if (existingPmIds.contains(pmId)) continue; // already synced
+
+        // Check for a legacy row matching last4 + brand but missing PM id
+        final last4 = sc['last4'] as String? ?? '';
+        final brand = sc['brand'] as String? ?? '';
+        final matchRows = await _supabaseClient
+            .from('saved_cards')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('last_four', last4)
+            .eq('card_brand', brand)
+            .isFilter('stripe_payment_method_id', null)
+            .limit(1);
+        if ((matchRows as List).isNotEmpty) {
+          // Update existing row with Stripe ids
+          await _supabaseClient
+              .from('saved_cards')
+              .update({
+                'stripe_payment_method_id': pmId,
+                'stripe_customer_id': customerId,
+                'exp_month': sc['exp_month'],
+                'exp_year': sc['exp_year'],
+                'status': 'verified',
+              })
+              .eq('id', matchRows[0]['id']);
+        } else {
+          // Insert new
+          await _supabaseClient.from('saved_cards').insert({
+            'user_id': userId,
+            'card_brand': brand,
+            'last_four': last4,
+            'exp_month': sc['exp_month'],
+            'exp_year': sc['exp_year'],
+            'stripe_payment_method_id': pmId,
+            'stripe_customer_id': customerId,
+            'status': 'verified',
+            'is_default': false,
+          });
+        }
+      }
+
+      // Remove DB rows that no longer exist in Stripe
+      final stripePmIds = stripeCards
+          .map((c) => c['payment_method_id'] as String)
+          .toSet();
+      for (final row in (existing as List)) {
+        final rowPmId = row['stripe_payment_method_id'] as String?;
+        if (rowPmId != null && !stripePmIds.contains(rowPmId)) {
+          await _supabaseClient
+              .from('saved_cards')
+              .delete()
+              .eq('id', row['id']);
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Error syncing Stripe cards to DB: $e');
+    }
+  }
+
+  /// Delete a saved card from both Stripe and local DB.
+  Future<bool> deleteSavedCard(String cardId) async {
+    try {
+      // Get the card to check for Stripe payment method ID
+      final row = await _supabaseClient
+          .from('saved_cards')
+          .select('stripe_payment_method_id')
+          .eq('id', cardId)
+          .single();
+      final pmId = row['stripe_payment_method_id'] as String?;
+
+      // Detach from Stripe if we have a PM ID
+      if (pmId != null && pmId.isNotEmpty) {
+        try {
+          await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {
+              'action': 'detach_payment_method',
+              'payment_method_id': pmId,
+            },
+          );
+        } catch (e) {
+          AppLogger.error('Error detaching from Stripe: $e');
+          // Continue to delete from DB even if Stripe detach fails
+        }
+      }
+
+      await _supabaseClient.from('saved_cards').delete().eq('id', cardId);
+      return true;
+    } catch (e) {
+      AppLogger.error('Error deleting saved card: $e');
+      return false;
     }
   }
 
@@ -781,14 +922,6 @@ class PaymentService {
     } catch (e) {
       AppLogger.error('Error saving card: $e');
       return null;
-    }
-  }
-
-  Future<void> deleteSavedCard(String cardId) async {
-    try {
-      await _supabaseClient.from('saved_cards').delete().eq('id', cardId);
-    } catch (e) {
-      AppLogger.error('Error deleting saved card: $e');
     }
   }
 

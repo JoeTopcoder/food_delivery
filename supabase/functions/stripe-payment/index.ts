@@ -44,6 +44,70 @@ async function stripeRequest(
   return (await response.json()) as Record<string, unknown>;
 }
 
+async function stripeGet(endpoint: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+  });
+  return (await res.json()) as Record<string, unknown>;
+}
+
+async function getOrCreateStripeCustomer(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  email: string,
+  name: string
+): Promise<string> {
+  // Check users table first
+  const { data: userRow } = await adminClient
+    .from("users")
+    .select("stripe_customer_id")
+    .eq("id", userId)
+    .single();
+  if (userRow?.stripe_customer_id) return userRow.stripe_customer_id;
+
+  // Check user_subscriptions table
+  const { data: subRow } = await adminClient
+    .from("user_subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", userId)
+    .not("stripe_customer_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (subRow?.stripe_customer_id) {
+    // Save to users table for future lookups
+    await adminClient
+      .from("users")
+      .update({ stripe_customer_id: subRow.stripe_customer_id })
+      .eq("id", userId);
+    return subRow.stripe_customer_id;
+  }
+
+  // Search Stripe by metadata
+  const searchResp = await fetch(
+    `https://api.stripe.com/v1/customers/search?query=metadata%5B%27supabase_user_id%27%5D%3A%27${userId}%27`,
+    { method: "GET", headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
+  );
+  const searchResult = (await searchResp.json()) as Record<string, unknown>;
+  const existing = (searchResult.data ?? []) as Array<Record<string, unknown>>;
+  if (existing.length > 0) {
+    const cid = existing[0].id as string;
+    await adminClient.from("users").update({ stripe_customer_id: cid }).eq("id", userId);
+    return cid;
+  }
+
+  // Create new customer
+  const newCust = await stripeRequest("/customers", {
+    email,
+    name,
+    "metadata[supabase_user_id]": userId,
+  });
+  if (newCust.error) throw new Error("Failed to create Stripe customer");
+  const cid = newCust.id as string;
+  await adminClient.from("users").update({ stripe_customer_id: cid }).eq("id", userId);
+  return cid;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -132,9 +196,15 @@ Deno.serve(async (request) => {
     const amountInCents = Math.round(amount * 100);
 
     try {
+      // Get or create Stripe customer for saved card support
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name
+      );
+
       const params: Record<string, string> = {
         amount: String(amountInCents),
         currency,
+        customer: customerId,
         "automatic_payment_methods[enabled]": "true",
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
@@ -180,9 +250,23 @@ Deno.serve(async (request) => {
         );
       }
 
+      // Generate ephemeral key so PaymentSheet shows saved cards
+      const ephRes = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Stripe-Version": "2024-06-20",
+        },
+        body: new URLSearchParams({ customer: customerId }).toString(),
+      });
+      const ephData = (await ephRes.json()) as Record<string, unknown>;
+
       return json({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        customerId,
+        ephemeralKey: ephData.secret,
         amount: amount,
         currency,
       });
@@ -262,47 +346,20 @@ Deno.serve(async (request) => {
   // ── Create SetupIntent (for saving cards without charging) ────
 
   if (action === "create_setup_intent") {
-    const email = String(body.email ?? "").trim();
+    const email = String(body.email ?? userData.user.email ?? "").trim();
+    const name = String(body.name ?? (userData.user.user_metadata?.name as string) ?? email).trim();
 
     try {
-      // Create or retrieve Stripe Customer
-      const customerParams: Record<string, string> = {
-        email,
-        "metadata[supabase_user_id]": userData.user.id,
-      };
-
-      // Search for existing customer first
-      const searchResp = await fetch(
-        `https://api.stripe.com/v1/customers/search?query=metadata%5B%27supabase_user_id%27%5D%3A%27${userData.user.id}%27`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
-        }
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name
       );
-      const searchResult = (await searchResp.json()) as Record<
-        string,
-        unknown
-      >;
-      const existingCustomers = (searchResult.data ?? []) as Array<
-        Record<string, unknown>
-      >;
-
-      let customerId: string;
-      if (existingCustomers.length > 0) {
-        customerId = existingCustomers[0].id as string;
-      } else {
-        const newCustomer = await stripeRequest("/customers", customerParams);
-        if (newCustomer.error) {
-          return json({ error: "Failed to create Stripe customer." }, 500);
-        }
-        customerId = newCustomer.id as string;
-      }
 
       // Create SetupIntent
       const setupIntent = await stripeRequest("/setup_intents", {
         customer: customerId,
         "automatic_payment_methods[enabled]": "true",
         "metadata[user_id]": userData.user.id,
+        usage: "off_session",
       });
 
       if (setupIntent.error) {
@@ -323,6 +380,87 @@ Deno.serve(async (request) => {
         { error: `Setup intent error: ${(e as Error).message}` },
         500
       );
+    }
+  }
+
+  // ── List Payment Methods (saved cards from Stripe) ────────────
+
+  if (action === "list_payment_methods") {
+    try {
+      const email = userData.user.email ?? "";
+      const name = (userData.user.user_metadata?.name as string) ?? email;
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name
+      );
+
+      const methods = await stripeGet(
+        `/payment_methods?customer=${customerId}&type=card&limit=10`
+      );
+
+      const cards = ((methods.data ?? []) as Array<Record<string, unknown>>).map(
+        (pm) => {
+          const card = pm.card as Record<string, unknown>;
+          return {
+            payment_method_id: pm.id,
+            brand: card.brand,
+            last4: card.last4,
+            exp_month: card.exp_month,
+            exp_year: card.exp_year,
+          };
+        }
+      );
+
+      return json({ cards, customer_id: customerId });
+    } catch (e) {
+      return json({ error: `List cards error: ${(e as Error).message}` }, 500);
+    }
+  }
+
+  // ── Ephemeral Key (for PaymentSheet saved cards) ──────────────
+
+  if (action === "ephemeral_key") {
+    try {
+      const email = userData.user.email ?? "";
+      const name = (userData.user.user_metadata?.name as string) ?? email;
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name
+      );
+
+      const res = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Stripe-Version": "2024-06-20",
+        },
+        body: new URLSearchParams({ customer: customerId }).toString(),
+      });
+      const keyData = (await res.json()) as Record<string, unknown>;
+
+      return json({
+        ephemeral_key: keyData.secret,
+        customer_id: customerId,
+      });
+    } catch (e) {
+      return json({ error: `Ephemeral key error: ${(e as Error).message}` }, 500);
+    }
+  }
+
+  // ── Delete Payment Method ─────────────────────────────────────
+
+  if (action === "detach_payment_method") {
+    const pmId = String(body.payment_method_id ?? "").trim();
+    if (!pmId) return json({ error: "payment_method_id required" }, 400);
+
+    try {
+      const result = await stripeRequest(`/payment_methods/${pmId}/detach`, {});
+      if (result.error) {
+        const err = result.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Failed to remove card" }, 400);
+      }
+      return json({ success: true });
+    } catch (e) {
+      return json({ error: `Detach error: ${(e as Error).message}` }, 500);
     }
   }
 
@@ -411,7 +549,7 @@ Deno.serve(async (request) => {
       // Verify the order exists, belongs to the user, and is in a cancellable state
       const { data: order, error: orderErr } = await adminClient
         .from("orders")
-        .select("id, user_id, status, payment_method, payment_status")
+        .select("id, user_id, status, payment_method, payment_status, total_amount, ordered_at")
         .eq("id", orderId)
         .single();
 
@@ -423,7 +561,6 @@ Deno.serve(async (request) => {
         return json({ error: "Not authorized to refund this order" }, 403);
       }
 
-      // Only allow refund on cancelled orders that were paid by card
       if (order.status !== "cancelled") {
         return json({ error: "Order must be cancelled before refunding" }, 400);
       }
@@ -438,6 +575,31 @@ Deno.serve(async (request) => {
 
       if (order.payment_status !== "completed") {
         return json({ error: "No completed payment to refund" }, 400);
+      }
+
+      // Calculate cancellation fee — same rules as cancel_order_with_penalty
+      const orderedAt = new Date(order.ordered_at as string);
+      const minutesPassed = (Date.now() - orderedAt.getTime()) / 60000;
+      let cancellationFee = 0;
+      if (minutesPassed >= 10) {
+        cancellationFee = 1.50; // flat $1.50 after 10 minutes
+      }
+
+      const orderTotal = order.total_amount as number;
+      const refundAmount = Math.max(orderTotal - cancellationFee, 0);
+
+      if (refundAmount <= 0) {
+        // Fee covers or exceeds total — no Stripe refund needed
+        await adminClient.from("orders").update({
+          payment_status: "refunded",
+          updated_at: new Date().toISOString(),
+        }).eq("id", orderId);
+        return json({
+          success: true,
+          refund_amount: 0,
+          cancellation_fee: cancellationFee,
+          message: "No refund — cancellation fee covers total",
+        });
       }
 
       // Look up the payment record to get the Stripe PaymentIntent ID
@@ -457,10 +619,13 @@ Deno.serve(async (request) => {
         return json({ error: "No Stripe payment intent on record" }, 400);
       }
 
-      // Refund via Stripe — automatically goes back to the original card
-      const refund = await stripeRequest("/refunds", {
+      // Partial refund via Stripe — deduct cancellation fee, refund to original card
+      const refundAmountCents = Math.round(refundAmount * 100);
+      const refundParams: Record<string, string> = {
         payment_intent: paymentIntentId,
-      });
+        amount: String(refundAmountCents),
+      };
+      const refund = await stripeRequest("/refunds", refundParams);
 
       if (refund.error) {
         const err = refund.error as Record<string, unknown>;
@@ -494,7 +659,9 @@ Deno.serve(async (request) => {
         success: true,
         refund_id: refund.id,
         status: refund.status,
-        amount: payment.amount,
+        refund_amount: refundAmount,
+        cancellation_fee: cancellationFee,
+        original_amount: orderTotal,
       });
     } catch (e) {
       return json({ error: `Refund error: ${(e as Error).message}` }, 500);
