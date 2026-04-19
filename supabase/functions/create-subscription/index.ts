@@ -234,18 +234,12 @@ Deno.serve(async (request) => {
     if (invoiceId) {
       let invoice = await stripeGet(`/invoices/${invoiceId}`);
 
-      // If invoice is still draft, finalize it to create the payment intent
+      // If invoice is still draft, finalize it
       if (invoice.status === "draft") {
         invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
       }
 
-      let piRef = invoice.payment_intent;
-
-      // If still no PI after finalize, try paying the invoice to trigger PI creation
-      if (!piRef && invoice.status === "open") {
-        const paid = await stripePost(`/invoices/${invoiceId}/pay`, {});
-        piRef = paid.payment_intent;
-      }
+      const piRef = invoice.payment_intent;
 
       if (piRef) {
         const piId = typeof piRef === "object"
@@ -256,29 +250,31 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Fallback: pending_setup_intent (e.g. $0 trial)
-    if (!clientSecret && subscription.pending_setup_intent) {
-      const siRef = subscription.pending_setup_intent;
-      const siId = typeof siRef === "object"
-        ? (siRef as Record<string, unknown>).id as string
-        : siRef as string;
-      const setupIntent = await stripeGet(`/setup_intents/${siId}`);
-      clientSecret = setupIntent.client_secret as string | null;
+    // If Stripe didn't auto-create a PI on the invoice, create one ourselves
+    if (!clientSecret) {
+      const manualPi = await stripePost("/payment_intents", {
+        amount: String(priceInCents),
+        currency: "usd",
+        customer: stripeCustomerId,
+        "payment_method_types[0]": "card",
+        "metadata[user_id]": user.id,
+        "metadata[plan_type]": planType,
+        "metadata[stripe_subscription_id]": subscription.id as string,
+        "metadata[invoice_id]": invoiceId ?? "",
+      });
+
+      if (manualPi.error) {
+        const err = manualPi.error as Record<string, unknown>;
+        return json(
+          { error: err.message ?? "Failed to create payment intent" },
+          400
+        );
+      }
+      clientSecret = manualPi.client_secret as string | null;
     }
 
     if (!clientSecret) {
-      // Return debug info so we can diagnose
-      const debugInvoice = invoiceId ? await stripeGet(`/invoices/${invoiceId}`) : null;
-      return json({
-        error: "Could not obtain payment client secret from Stripe",
-        debug: {
-          sub_status: subscription.status,
-          invoice_id: invoiceId,
-          invoice_status: debugInvoice?.status ?? null,
-          invoice_pi: debugInvoice?.payment_intent ?? null,
-          pending_setup_intent: subscription.pending_setup_intent ?? null,
-        },
-      }, 500);
+      return json({ error: "Failed to obtain payment client secret" }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
