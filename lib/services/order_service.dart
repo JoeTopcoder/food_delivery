@@ -578,7 +578,7 @@ class OrderService {
       // Guard: prevent cancelling delivered/completed orders
       final order = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select('status, driver_id')
+          .select('status, driver_id, payment_method, payment_status')
           .eq('id', orderId)
           .single();
       final currentStatus = order['status'] as String?;
@@ -598,6 +598,21 @@ class OrderService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', orderId);
+
+      // Auto-refund card payments
+      final paymentMethod = order['payment_method'] as String?;
+      final paymentStatus = order['payment_status'] as String?;
+      if (paymentMethod == 'card' && paymentStatus == 'completed') {
+        try {
+          await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {'action': 'refund', 'orderId': orderId},
+          );
+          AppLogger.info('Refund processed for cancelled order: $orderId');
+        } catch (e) {
+          AppLogger.error('Refund failed for order $orderId: $e');
+        }
+      }
 
       // Notify the customer about cancellation
       try {
