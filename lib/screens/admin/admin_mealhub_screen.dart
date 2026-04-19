@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../config/app_constants.dart';
-import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/feature_providers.dart';
@@ -170,7 +168,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 8),
                 _ConfigField(
-                  key: 'subscription_basic_price',
+                  configKey: 'subscription_basic_price',
                   controller: _controllers['subscription_basic_price'],
                   label: _labels['subscription_basic_price']!,
                   hint: _hints['subscription_basic_price']!,
@@ -178,7 +176,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  key: 'subscription_basic_deliveries',
+                  configKey: 'subscription_basic_deliveries',
                   controller: _controllers['subscription_basic_deliveries'],
                   label: _labels['subscription_basic_deliveries']!,
                   hint: _hints['subscription_basic_deliveries']!,
@@ -194,7 +192,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 8),
                 _ConfigField(
-                  key: 'subscription_pro_price',
+                  configKey: 'subscription_pro_price',
                   controller: _controllers['subscription_pro_price'],
                   label: _labels['subscription_pro_price']!,
                   hint: _hints['subscription_pro_price']!,
@@ -202,7 +200,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  key: 'subscription_pro_deliveries',
+                  configKey: 'subscription_pro_deliveries',
                   controller: _controllers['subscription_pro_deliveries'],
                   label: _labels['subscription_pro_deliveries']!,
                   hint: _hints['subscription_pro_deliveries']!,
@@ -218,7 +216,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 8),
                 _ConfigField(
-                  key: 'subscription_min_cart',
+                  configKey: 'subscription_min_cart',
                   controller: _controllers['subscription_min_cart'],
                   label: _labels['subscription_min_cart']!,
                   hint: _hints['subscription_min_cart']!,
@@ -226,7 +224,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  key: 'subscription_service_fee_discount',
+                  configKey: 'subscription_service_fee_discount',
                   controller: _controllers['subscription_service_fee_discount'],
                   label: _labels['subscription_service_fee_discount']!,
                   hint: _hints['subscription_service_fee_discount']!,
@@ -380,7 +378,7 @@ class _SectionHeader extends StatelessWidget {
 // ── Config Field ────────────────────────────────────────────────────────────
 
 class _ConfigField extends StatelessWidget {
-  final String key;
+  final String configKey;
   final TextEditingController? controller;
   final String label;
   final String hint;
@@ -388,7 +386,7 @@ class _ConfigField extends StatelessWidget {
   final bool isInt;
 
   const _ConfigField({
-    required this.key,
+    required this.configKey,
     required this.controller,
     required this.label,
     required this.hint,
