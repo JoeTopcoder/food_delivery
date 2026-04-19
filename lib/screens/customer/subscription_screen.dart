@@ -66,10 +66,15 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
+      final customerId = result['customer_id'] as String?;
+      final ephemeralKey = result['ephemeral_key'] as String?;
+
       // Present Stripe Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
+          customerId: customerId,
+          customerEphemeralKeySecret: ephemeralKey,
           merchantDisplayName: AppConstants.appName,
           style: ThemeMode.system,
         ),
@@ -174,9 +179,14 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
+      final customerId = result['customer_id'] as String?;
+      final ephemeralKey = result['ephemeral_key'] as String?;
+
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
+          customerId: customerId,
+          customerEphemeralKeySecret: ephemeralKey,
           merchantDisplayName: AppConstants.appName,
           style: ThemeMode.system,
         ),
