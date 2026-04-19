@@ -307,6 +307,36 @@ class SubscriptionService {
     }
   }
 
+  /// Change plan (Basic ↔ Pro). Returns data with client_secret for payment.
+  Future<Map<String, dynamic>?> changePlan({
+    required String subscriptionId,
+    required String newPlan,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'create-subscription',
+        body: {
+          'action': 'change_plan',
+          'subscription_id': subscriptionId,
+          'plan': newPlan,
+        },
+      );
+
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      return data;
+    } catch (e) {
+      AppLogger.error('Error changing plan: $e');
+      rethrow;
+    }
+  }
+
   /// Get the user's active delivery subscription (Uber One-style).
   /// Includes 'pending' status so UI can show activation progress.
   Future<UserSubscription?> getActiveDeliverySubscription(String userId) async {

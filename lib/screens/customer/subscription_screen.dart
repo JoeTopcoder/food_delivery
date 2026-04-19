@@ -157,6 +157,61 @@ class _DeliverySubscriptionTabState
     }
   }
 
+  Future<void> _changePlan(String subscriptionId, String newPlan) async {
+    if (_subscribing) return;
+    setState(() => _subscribing = true);
+
+    try {
+      final service = ref.read(subscriptionServiceProvider);
+      final result = await service.changePlan(
+        subscriptionId: subscriptionId,
+        newPlan: newPlan,
+      );
+      if (result == null) throw Exception('No response from server');
+
+      final clientSecret = result['client_secret'] as String?;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Missing client secret');
+      }
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: AppConstants.appName,
+          style: ThemeMode.system,
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
+      // Payment succeeded — activate immediately
+      final subId = result['subscription_id'] as String?;
+      if (subId != null) {
+        await service.activateDeliverySubscription(subId);
+      }
+      ref.invalidate(activeSubscriptionProvider);
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          'Switched to MealHub ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
+        );
+      }
+    } on StripeException catch (e) {
+      if (e.error.code != FailureCode.Canceled && mounted) {
+        AppSnackbar.error(
+          context,
+          e.error.localizedMessage ?? 'Payment failed',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Plan change error: $e');
+      if (mounted) {
+        AppSnackbar.error(context, 'Plan change failed: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _subscribing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final subAsync = ref.watch(activeSubscriptionProvider);
@@ -215,6 +270,35 @@ class _DeliverySubscriptionTabState
                       ? () => _reactivateSub(activeSub.id)
                       : null,
                 ),
+                const SizedBox(height: 12),
+                // Switch plan button
+                if (!activeSub.isCancelling) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _subscribing
+                          ? null
+                          : () => _changePlan(
+                              activeSub.id,
+                              activeSub.planType == 'basic' ? 'pro' : 'basic',
+                            ),
+                      icon: const Icon(Icons.swap_horiz),
+                      label: Text(
+                        _subscribing
+                            ? 'Switching...'
+                            : 'Switch to MealHub ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF6C63FF),
+                        side: const BorderSide(color: Color(0xFF6C63FF)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
               ],
 
