@@ -599,6 +599,31 @@ Deno.serve(async (request) => {
     }
   }
 
+  // ── Refund Verification Charge (after user verifies the amount) ──
+
+  if (action === "refund_verification_charge") {
+    const paymentIntentId = String(body.payment_intent_id ?? "").trim();
+    if (!paymentIntentId) {
+      return json({ error: "payment_intent_id required" }, 400);
+    }
+
+    try {
+      // Full refund of the verification charge
+      const refund = await stripeRequest("/refunds", {
+        payment_intent: paymentIntentId,
+      });
+
+      if (refund.error) {
+        const err = refund.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Refund failed" }, 400);
+      }
+
+      return json({ success: true, refund_id: refund.id });
+    } catch (e) {
+      return json({ error: `Refund error: ${(e as Error).message}` }, 500);
+    }
+  }
+
   // ── Create Payout (admin sends funds to connected account / bank) ──
 
   if (action === "create_payout") {
