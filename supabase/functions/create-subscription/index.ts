@@ -506,11 +506,11 @@ Deno.serve(async (request) => {
       }).catch(() => {});
     }
 
-    // Create new Stripe price + subscription
     const newPriceInCents = Math.round(parseFloat(newPrice) * 100);
     const email = user.email ?? "";
     const name = (user.user_metadata?.name as string) ?? email;
 
+    // Find or create Stripe customer
     let customerId = "";
     const { data: prevSub } = await admin
       .from("user_subscriptions")
@@ -530,118 +530,38 @@ Deno.serve(async (request) => {
       customerId = cust.id as string;
     }
 
-    // Remove default payment method so Stripe doesn't auto-charge the new sub
-    await stripePost(`/customers/${customerId}`, {
-      "invoice_settings[default_payment_method]": "",
-    }).catch(() => {});
-
-    const stripePrice = await stripePost("/prices", {
+    // Create a PaymentIntent directly — no subscription/invoice chain
+    const pi = await stripePost("/payment_intents", {
+      amount: String(newPriceInCents),
       currency: "usd",
-      unit_amount: String(newPriceInCents),
-      "recurring[interval]": "month",
-      "product_data[name]": `MealHub ${newPlan === "basic" ? "Basic" : "Pro"}`,
-    });
-
-    if (stripePrice.error) {
-      const err = stripePrice.error as Record<string, unknown>;
-      return json({ error: err.message ?? "Failed to create price" }, 400);
-    }
-
-    // Create subscription — NO expand, we'll fetch invoice separately
-    const newSub = await stripePost("/subscriptions", {
       customer: customerId,
-      "items[0][price]": stripePrice.id as string,
-      payment_behavior: "default_incomplete",
-      "payment_settings[save_default_payment_method]": "on_subscription",
-      "payment_settings[payment_method_types][0]": "card",
+      "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": newPlan,
+      "metadata[action]": "change_plan",
+      "metadata[subscription_id]": subscriptionId,
     });
 
-    if (newSub.error) {
-      const err = newSub.error as Record<string, unknown>;
-      return json({ error: err.message ?? "Failed to create subscription" }, 400);
+    if (pi.error) {
+      const err = pi.error as Record<string, unknown>;
+      return json({ error: err.message ?? "Failed to create payment" }, 400);
     }
 
-    // Get the invoice ID (always a string when not expanded)
-    const invoiceId = newSub.latest_invoice as string;
-    let clientSecret: string | null = null;
-
-    if (invoiceId) {
-      // Fetch invoice
-      let invoice = await stripeGet(`/invoices/${invoiceId}`);
-
-      // Finalize if draft
-      if (invoice.status === "draft") {
-        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
-      }
-
-      // Get payment intent
-      const piRef = invoice.payment_intent;
-      if (piRef) {
-        const piId = typeof piRef === "object"
-          ? (piRef as Record<string, unknown>).id as string
-          : piRef as string;
-        const pi = await stripeGet(`/payment_intents/${piId}`);
-        clientSecret = pi.client_secret as string | null;
-      }
-    }
-
+    const clientSecret = pi.client_secret as string;
     if (!clientSecret) {
-      // Check if Stripe auto-completed the subscription
-      const checkSub = await stripeGet(`/subscriptions/${newSub.id}`);
-      if (checkSub.status === "active") {
-        const endTs = (checkSub.current_period_end as number) ?? 0;
-        const pEnd = endTs > 0
-          ? new Date(endTs * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-        await admin
-          .from("user_subscriptions")
-          .update({
-            plan_type: newPlan,
-            status: "active",
-            stripe_subscription_id: newSub.id as string,
-            stripe_customer_id: customerId,
-            current_period_end: pEnd.toISOString(),
-            deliveries_remaining: parseInt(newDeliveries),
-            deliveries_used: 0,
-            service_fee_discount: parseFloat(serviceFeeDiscount),
-            auto_renew: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", subscriptionId);
-
-        return json({
-          subscription_id: subscriptionId,
-          already_active: true,
-          plan_type: newPlan,
-          price: parseFloat(newPrice),
-          deliveries: parseInt(newDeliveries),
-        });
-      }
-
-      return json({
-        error: "No payment intent on invoice",
-        debug_sub_status: checkSub.status,
-        debug_invoice_id: invoiceId,
-      }, 500);
+      return json({ error: "No client secret from PaymentIntent" }, 500);
     }
 
-    const stripeEnd = (newSub.current_period_end as number) ?? 0;
-    const periodEnd = stripeEnd > 0
-      ? new Date(stripeEnd * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const ephemeralKey = await stripeEphemeralKey(customerId);
 
-    // Update existing subscription row with new plan details
+    // Pre-update DB with pending status — will be set to active after payment
     await admin
       .from("user_subscriptions")
       .update({
         plan_type: newPlan,
         status: "pending",
-        stripe_subscription_id: newSub.id,
         stripe_customer_id: customerId,
-        current_period_end: periodEnd.toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         deliveries_remaining: parseInt(newDeliveries),
         deliveries_used: 0,
         service_fee_discount: parseFloat(serviceFeeDiscount),
@@ -649,8 +569,6 @@ Deno.serve(async (request) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscriptionId);
-
-    const ephemeralKey = await stripeEphemeralKey(customerId!);
 
     return json({
       subscription_id: subscriptionId,

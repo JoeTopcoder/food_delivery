@@ -102,6 +102,11 @@ void main() async {
   if (stripeKey.isNotEmpty) {
     Stripe.publishableKey = stripeKey;
     Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+    try {
+      await Stripe.instance.applySettings();
+    } catch (_) {
+      // applySettings may fail on some platforms; Stripe will retry on first use
+    }
   }
   print(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
