@@ -226,6 +226,7 @@ Deno.serve(async (request) => {
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
       "payment_settings[payment_method_types][0]": "card",
+      "expand[0]": "latest_invoice.payment_intent",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": planType,
       "metadata[deliveries]": deliveries,
@@ -239,37 +240,35 @@ Deno.serve(async (request) => {
       );
     }
 
-    // ── Extract client secret ────────────────────────────────────────────────
-    const invoiceRef = subscription.latest_invoice;
-    const invoiceId = typeof invoiceRef === "object"
-      ? (invoiceRef as Record<string, unknown>)?.id as string
-      : invoiceRef as string;
-
+    // ── Extract client secret from expanded response ─────────────────────────
     let clientSecret: string | null = null;
-
-    if (invoiceId) {
-      let invoice = await stripeGet(`/invoices/${invoiceId}`);
-
-      // If invoice is still draft, finalize it
-      if (invoice.status === "draft") {
-        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
-      }
-
-      let piRef = invoice.payment_intent;
-
-      // Retry once if PI not yet ready (rare timing issue)
-      if (!piRef) {
-        await new Promise((r) => setTimeout(r, 1500));
-        invoice = await stripeGet(`/invoices/${invoiceId}`);
-        piRef = invoice.payment_intent;
-      }
-
-      if (piRef) {
-        const piId = typeof piRef === "object"
-          ? (piRef as Record<string, unknown>).id as string
-          : piRef as string;
-        const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
-        clientSecret = paymentIntent.client_secret as string | null;
+    const invoiceObj = subscription.latest_invoice as Record<string, unknown> | null;
+    if (invoiceObj) {
+      const piObj = invoiceObj.payment_intent as Record<string, unknown> | null;
+      if (piObj?.client_secret) {
+        clientSecret = piObj.client_secret as string;
+      } else {
+        // Fallback: fetch invoice separately
+        const invoiceId = (invoiceObj.id ?? invoiceObj) as string;
+        if (invoiceId) {
+          let invoice = await stripeGet(`/invoices/${invoiceId}`);
+          if (invoice.status === "draft") {
+            invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
+          }
+          let piRef = invoice.payment_intent;
+          if (!piRef) {
+            await new Promise((r) => setTimeout(r, 1500));
+            invoice = await stripeGet(`/invoices/${invoiceId}`);
+            piRef = invoice.payment_intent;
+          }
+          if (piRef) {
+            const piId = typeof piRef === "object"
+              ? (piRef as Record<string, unknown>).id as string
+              : piRef as string;
+            const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
+            clientSecret = paymentIntent.client_secret as string | null;
+          }
+        }
       }
     }
 
@@ -562,35 +561,45 @@ Deno.serve(async (request) => {
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
       "payment_settings[payment_method_types][0]": "card",
+      "expand[0]": "latest_invoice.payment_intent",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": newPlan,
     });
 
-    // Get client secret for payment
-    let clientSecret: string | null = null;
-    const invRef = newSub.latest_invoice;
-    const invId = typeof invRef === "object"
-      ? (invRef as Record<string, unknown>)?.id as string
-      : invRef as string;
+    if (newSub.error) {
+      const err = newSub.error as Record<string, unknown>;
+      return json({ error: err.message ?? "Failed to create subscription" }, 400);
+    }
 
-    if (invId) {
-      let invoice = await stripeGet(`/invoices/${invId}`);
-      if (invoice.status === "draft") {
-        invoice = await stripePost(`/invoices/${invId}/finalize`, {});
-      }
-      let piRef = invoice.payment_intent;
-      // Retry once if PI not yet ready
-      if (!piRef) {
-        await new Promise((r) => setTimeout(r, 1500));
-        invoice = await stripeGet(`/invoices/${invId}`);
-        piRef = invoice.payment_intent;
-      }
-      if (piRef) {
-        const piId = typeof piRef === "object"
-          ? (piRef as Record<string, unknown>).id as string
-          : piRef as string;
-        const pi = await stripeGet(`/payment_intents/${piId}`);
-        clientSecret = pi.client_secret as string | null;
+    // Extract client secret from expanded response
+    let clientSecret: string | null = null;
+    const invoiceObj = newSub.latest_invoice as Record<string, unknown> | null;
+    if (invoiceObj) {
+      const piObj = invoiceObj.payment_intent as Record<string, unknown> | null;
+      if (piObj?.client_secret) {
+        clientSecret = piObj.client_secret as string;
+      } else {
+        // Fallback: fetch invoice separately
+        const invId = (invoiceObj.id ?? invoiceObj) as string;
+        if (invId) {
+          let invoice = await stripeGet(`/invoices/${invId}`);
+          if (invoice.status === "draft") {
+            invoice = await stripePost(`/invoices/${invId}/finalize`, {});
+          }
+          let piRef = invoice.payment_intent;
+          if (!piRef) {
+            await new Promise((r) => setTimeout(r, 1500));
+            invoice = await stripeGet(`/invoices/${invId}`);
+            piRef = invoice.payment_intent;
+          }
+          if (piRef) {
+            const piId = typeof piRef === "object"
+              ? (piRef as Record<string, unknown>).id as string
+              : piRef as string;
+            const pi = await stripeGet(`/payment_intents/${piId}`);
+            clientSecret = pi.client_secret as string | null;
+          }
+        }
       }
     }
 
