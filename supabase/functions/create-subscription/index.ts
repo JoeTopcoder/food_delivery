@@ -216,12 +216,35 @@ Deno.serve(async (request) => {
       );
     }
 
-    const invoice = subscription.latest_invoice as Record<string, unknown>;
-    const paymentIntent = invoice?.payment_intent as Record<string, unknown>;
-    const clientSecret = paymentIntent?.client_secret as string | null;
+    // ── Extract client secret (handle expand not applied) ────────────────────
+    let clientSecret: string | null = null;
+
+    // If latest_invoice was expanded, it's an object with payment_intent
+    let invoice = subscription.latest_invoice as Record<string, unknown> | string;
+    if (typeof invoice === "string") {
+      // Expand wasn't applied — fetch invoice separately
+      invoice = await stripeGet(`/invoices/${invoice}?expand[]=payment_intent`);
+    }
+
+    if (typeof invoice === "object" && invoice !== null) {
+      let pi = (invoice as Record<string, unknown>).payment_intent as
+        | Record<string, unknown>
+        | string
+        | null;
+      if (typeof pi === "string") {
+        // payment_intent wasn't expanded — fetch it
+        pi = await stripeGet(`/payment_intents/${pi}`);
+      }
+      if (typeof pi === "object" && pi !== null) {
+        clientSecret = (pi as Record<string, unknown>).client_secret as string | null;
+      }
+    }
 
     if (!clientSecret) {
-      return json({ error: "No client secret returned from Stripe" }, 500);
+      return json({
+        error: "No client secret returned from Stripe",
+        debug_invoice_type: typeof subscription.latest_invoice,
+      }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
