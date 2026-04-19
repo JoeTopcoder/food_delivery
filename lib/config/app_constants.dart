@@ -17,7 +17,7 @@
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',
     defaultValue:
-        'pk_test_51TMsI4IxFR3jJr2aLgGfT5qfocXNz5MB2wQnGBkEfbW95VU3tRmxKbo0UjcrRbLtbyZ9kVxDSGXkeVPCB8zx3z0100VdZHXefJ',
+        'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
   );
   static const String stripePaymentFunction = 'stripe-payment';
   static const String stripeMerchantId = 'merchant.com.foodhub.delivery';
