@@ -182,6 +182,47 @@ class SubscriptionService {
     }
   }
 
+  // Get ALL meal plans (admin — includes inactive)
+  Future<List<MealPlan>> getAllPlans() async {
+    try {
+      final response = await _client
+          .from('meal_plans')
+          .select()
+          .order('created_at', ascending: false);
+      return (response as List).map((e) => MealPlan.fromJson(e)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching all meal plans: $e');
+      return [];
+    }
+  }
+
+  // Update a meal plan
+  Future<bool> updatePlan(String planId, Map<String, dynamic> fields) async {
+    try {
+      await _client.from('meal_plans').update(fields).eq('id', planId);
+      return true;
+    } catch (e) {
+      AppLogger.error('Error updating meal plan: $e');
+      return false;
+    }
+  }
+
+  // Toggle meal plan active/inactive
+  Future<bool> togglePlanActive(String planId, bool isActive) async {
+    return updatePlan(planId, {'is_active': isActive});
+  }
+
+  // Delete a meal plan
+  Future<bool> deletePlan(String planId) async {
+    try {
+      await _client.from('meal_plans').delete().eq('id', planId);
+      return true;
+    } catch (e) {
+      AppLogger.error('Error deleting meal plan: $e');
+      return false;
+    }
+  }
+
   // ── Uber One-style subscription methods ───────────────────────────────────
 
   /// Create a subscription via edge function. Returns clientSecret + subscription info.

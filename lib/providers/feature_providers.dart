@@ -189,6 +189,27 @@ final availablePlansProvider = FutureProvider.autoDispose<List<MealPlan>>(
   (ref) => ref.watch(subscriptionServiceProvider).getAvailablePlans(),
 );
 
+/// All meal plans (admin) — real-time via Supabase Realtime.
+final allMealPlansProvider = FutureProvider.autoDispose<List<MealPlan>>((ref) {
+  final channel = Supabase.instance.client.realtime.channel(
+    'meal_plans_all_${DateTime.now().microsecondsSinceEpoch}',
+  );
+  channel
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'meal_plans',
+        callback: (_) {
+          ref.invalidateSelf();
+          // Also refresh the customer-facing plans so they see changes instantly
+          ref.invalidate(availablePlansProvider);
+        },
+      )
+      .subscribe();
+  ref.onDispose(() => Supabase.instance.client.realtime.removeChannel(channel));
+  return ref.watch(subscriptionServiceProvider).getAllPlans();
+});
+
 final userSubscriptionsProvider = FutureProvider.family
     .autoDispose<List<UserSubscription>, String>(
       (ref, userId) =>
