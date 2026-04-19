@@ -68,15 +68,13 @@ final driverLeaderboardProvider =
       // Fetch top 50 drivers + total count in parallel
       final resFuture = client.from('driver_leaderboard').select().limit(50);
       final countFuture = client
-          .from('drivers')
-          .select(
-            'id',
-            const FetchOptions(count: CountOption.exact, head: true),
-          );
+          .from('driver_leaderboard')
+          .select()
+          .count(CountOption.exact);
 
       final res = await resFuture;
       final countRes = await countFuture;
-      final totalDrivers = countRes.count ?? 0;
+      final totalDrivers = countRes.count;
 
       final drivers = List<Map<String, dynamic>>.from(res as List);
 
