@@ -226,7 +226,6 @@ Deno.serve(async (request) => {
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
       "payment_settings[payment_method_types][0]": "card",
-      "expand[0]": "latest_invoice.payment_intent",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": planType,
       "metadata[deliveries]": deliveries,
@@ -240,40 +239,27 @@ Deno.serve(async (request) => {
       );
     }
 
-    // ── Extract client secret from expanded response ─────────────────────────
+    // ── Extract client secret — always fetch invoice separately ──────────────
+    const invoiceId = subscription.latest_invoice as string;
     let clientSecret: string | null = null;
-    const invoiceObj = subscription.latest_invoice as Record<string, unknown> | null;
-    if (invoiceObj) {
-      const piObj = invoiceObj.payment_intent as Record<string, unknown> | null;
-      if (piObj?.client_secret) {
-        clientSecret = piObj.client_secret as string;
-      } else {
-        // Fallback: fetch invoice separately
-        const invoiceId = (invoiceObj.id ?? invoiceObj) as string;
-        if (invoiceId) {
-          let invoice = await stripeGet(`/invoices/${invoiceId}`);
-          if (invoice.status === "draft") {
-            invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
-          }
-          let piRef = invoice.payment_intent;
-          if (!piRef) {
-            await new Promise((r) => setTimeout(r, 1500));
-            invoice = await stripeGet(`/invoices/${invoiceId}`);
-            piRef = invoice.payment_intent;
-          }
-          if (piRef) {
-            const piId = typeof piRef === "object"
-              ? (piRef as Record<string, unknown>).id as string
-              : piRef as string;
-            const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
-            clientSecret = paymentIntent.client_secret as string | null;
-          }
-        }
+
+    if (invoiceId) {
+      let invoice = await stripeGet(`/invoices/${invoiceId}`);
+      if (invoice.status === "draft") {
+        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
+      }
+      const piRef = invoice.payment_intent;
+      if (piRef) {
+        const piId = typeof piRef === "object"
+          ? (piRef as Record<string, unknown>).id as string
+          : piRef as string;
+        const paymentIntent = await stripeGet(`/payment_intents/${piId}`);
+        clientSecret = paymentIntent.client_secret as string | null;
       }
     }
 
     if (!clientSecret) {
-      return json({ error: "Failed to obtain payment client secret — invoice has no payment intent" }, 500);
+      return json({ error: "Failed to obtain payment client secret", debug_invoice_id: invoiceId }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
@@ -512,16 +498,12 @@ Deno.serve(async (request) => {
       "0.50"
     );
 
-    // Cancel old Stripe subscription
+    // Cancel old Stripe subscription immediately
     if (sub.stripe_subscription_id) {
-      await stripePost(`/subscriptions/${sub.stripe_subscription_id}`, {
-        cancel_at_period_end: "false",
-      });
-      // Immediately cancel
       await fetch(`https://api.stripe.com/v1/subscriptions/${sub.stripe_subscription_id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
-      });
+      }).catch(() => {});
     }
 
     // Create new Stripe price + subscription
@@ -548,6 +530,11 @@ Deno.serve(async (request) => {
       customerId = cust.id as string;
     }
 
+    // Remove default payment method so Stripe doesn't auto-charge the new sub
+    await stripePost(`/customers/${customerId}`, {
+      "invoice_settings[default_payment_method]": "",
+    }).catch(() => {});
+
     const stripePrice = await stripePost("/prices", {
       currency: "usd",
       unit_amount: String(newPriceInCents),
@@ -555,13 +542,18 @@ Deno.serve(async (request) => {
       "product_data[name]": `MealHub ${newPlan === "basic" ? "Basic" : "Pro"}`,
     });
 
+    if (stripePrice.error) {
+      const err = stripePrice.error as Record<string, unknown>;
+      return json({ error: err.message ?? "Failed to create price" }, 400);
+    }
+
+    // Create subscription — NO expand, we'll fetch invoice separately
     const newSub = await stripePost("/subscriptions", {
       customer: customerId,
       "items[0][price]": stripePrice.id as string,
       payment_behavior: "default_incomplete",
       "payment_settings[save_default_payment_method]": "on_subscription",
       "payment_settings[payment_method_types][0]": "card",
-      "expand[0]": "latest_invoice.payment_intent",
       "metadata[user_id]": user.id,
       "metadata[plan_type]": newPlan,
     });
@@ -571,39 +563,21 @@ Deno.serve(async (request) => {
       return json({ error: err.message ?? "Failed to create subscription" }, 400);
     }
 
-    // Extract client secret — try expanded object first
+    // Get the invoice ID (always a string when not expanded)
+    const invoiceId = newSub.latest_invoice as string;
     let clientSecret: string | null = null;
-    const invoiceObj = newSub.latest_invoice;
 
-    if (invoiceObj && typeof invoiceObj === "object") {
-      const inv = invoiceObj as Record<string, unknown>;
-      const piObj = inv.payment_intent;
-      if (piObj && typeof piObj === "object") {
-        clientSecret = (piObj as Record<string, unknown>).client_secret as string | null;
+    if (invoiceId) {
+      // Fetch invoice
+      let invoice = await stripeGet(`/invoices/${invoiceId}`);
+
+      // Finalize if draft
+      if (invoice.status === "draft") {
+        invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
       }
-      // If expanded didn't give us a PI, fetch the invoice directly
-      if (!clientSecret && inv.id) {
-        const fetchedInv = await stripeGet(`/invoices/${inv.id}`);
-        if (fetchedInv.status === "draft") {
-          await stripePost(`/invoices/${inv.id as string}/finalize`, {});
-        }
-        const fetchedInv2 = await stripeGet(`/invoices/${inv.id}`);
-        const piRef2 = fetchedInv2.payment_intent;
-        if (piRef2) {
-          const piId = typeof piRef2 === "object"
-            ? (piRef2 as Record<string, unknown>).id as string
-            : piRef2 as string;
-          const pi = await stripeGet(`/payment_intents/${piId}`);
-          clientSecret = pi.client_secret as string | null;
-        }
-      }
-    } else if (invoiceObj && typeof invoiceObj === "string") {
-      // latest_invoice is a string ID (not expanded)
-      let fetchedInv = await stripeGet(`/invoices/${invoiceObj}`);
-      if (fetchedInv.status === "draft") {
-        fetchedInv = await stripePost(`/invoices/${invoiceObj}/finalize`, {});
-      }
-      const piRef = fetchedInv.payment_intent;
+
+      // Get payment intent
+      const piRef = invoice.payment_intent;
       if (piRef) {
         const piId = typeof piRef === "object"
           ? (piRef as Record<string, unknown>).id as string
@@ -613,15 +587,13 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Last resort: create a standalone SetupIntent so user can pay
     if (!clientSecret) {
-      // The subscription may have been auto-paid. Check its status.
+      // Check if Stripe auto-completed the subscription
       const checkSub = await stripeGet(`/subscriptions/${newSub.id}`);
       if (checkSub.status === "active") {
-        // Already paid! No payment needed — just activate directly.
-        const stripeEnd2 = (checkSub.current_period_end as number) ?? 0;
-        const periodEnd2 = stripeEnd2 > 0
-          ? new Date(stripeEnd2 * 1000)
+        const endTs = (checkSub.current_period_end as number) ?? 0;
+        const pEnd = endTs > 0
+          ? new Date(endTs * 1000)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
         await admin
@@ -631,7 +603,7 @@ Deno.serve(async (request) => {
             status: "active",
             stripe_subscription_id: newSub.id as string,
             stripe_customer_id: customerId,
-            current_period_end: periodEnd2.toISOString(),
+            current_period_end: pEnd.toISOString(),
             deliveries_remaining: parseInt(newDeliveries),
             deliveries_used: 0,
             service_fee_discount: parseFloat(serviceFeeDiscount),
@@ -650,10 +622,9 @@ Deno.serve(async (request) => {
       }
 
       return json({
-        error: "Failed to get payment intent for plan change",
+        error: "No payment intent on invoice",
         debug_sub_status: checkSub.status,
-        debug_sub_id: newSub.id,
-        debug_invoice_type: typeof invoiceObj,
+        debug_invoice_id: invoiceId,
       }, 500);
     }
 

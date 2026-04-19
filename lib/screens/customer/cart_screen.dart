@@ -408,8 +408,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF6C63FF)
-                                      .withOpacity(0.1),
+                                  color: const Color(
+                                    0xFF6C63FF,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
