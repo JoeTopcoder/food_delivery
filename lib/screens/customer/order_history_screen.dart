@@ -819,11 +819,11 @@ class _OrderCard extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Cancel Order?'),
         content: const Text(
-          'Cancellation within 2 minutes is free. '
-          'After that, a \$200 fee applies. '
+          'Cancellation within 5 minutes is free.\n\n'
+          'After 5 minutes, a \$1.00 cancellation fee applies.\n'
           'If the restaurant is already preparing, a 15% fee may be charged.\n\n'
-          'If you paid with your wallet, the order amount will be '
-          'refunded minus any cancellation fee.',
+          'Wallet orders: refund minus any fee.\n'
+          'Card orders: refund to your card minus the \$1.00 fee.',
         ),
         actions: [
           TextButton(

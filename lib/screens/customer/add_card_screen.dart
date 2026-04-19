@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/app_logger.dart';
 
 class AddCardScreen extends ConsumerStatefulWidget {
   const AddCardScreen({super.key});
@@ -98,41 +101,110 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       final firstName = _firstNameCtrl.text.trim();
       final lastName = _lastNameCtrl.text.trim();
       final fullName = '$firstName $lastName'.trim();
+      final digits = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
+      final lastFour = digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
 
-      // Create a Stripe SetupIntent to save card without charging
-      final setupData = await paymentService.createSetupIntent(
-        customerEmail: email,
+      // Step 1: Create a small verification charge via Stripe
+      final response = await Supabase.instance.client.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'create_verification_charge',
+          'email': email,
+          'name': fullName,
+          'card_brand': _cardBrand,
+          'last_four': lastFour,
+          'cardholder_name': fullName,
+        },
       );
 
-      final clientSecret = setupData['clientSecret'] as String?;
-      if (clientSecret == null) {
-        throw Exception('Failed to create card setup session.');
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected response from server.');
+      }
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      final clientSecret = data['clientSecret'] as String?;
+      final paymentIntentId = data['paymentIntentId'] as String?;
+      final customerId = data['customerId'] as String?;
+      final ephemeralKey = data['ephemeralKey'] as String?;
+
+      if (clientSecret == null || paymentIntentId == null) {
+        throw Exception('Failed to create verification charge.');
       }
 
       if (!mounted) return;
 
-      // Present the Stripe payment sheet in setup mode
-      final saved = await paymentService.presentSetupSheet(
-        clientSecret: clientSecret,
-        customerName: fullName,
-        customerEmail: email,
-      );
-
-      if (!saved) {
-        if (mounted) {
-          AppSnackbar.warning(context, 'Card setup was cancelled');
+      // Step 2: Present the Stripe Payment Sheet to pay the small charge
+      if (Stripe.publishableKey.isEmpty) {
+        final key = AppConstants.stripePublishableKey;
+        if (key.isNotEmpty) {
+          Stripe.publishableKey = key;
+          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+          await Stripe.instance.applySettings();
         }
-        return;
       }
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          customerId: customerId,
+          customerEphemeralKeySecret: ephemeralKey,
+          merchantDisplayName: AppConstants.appName,
+          style: ThemeMode.system,
+          billingDetails: BillingDetails(email: email, name: fullName),
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
 
       if (!mounted) return;
 
-      // Force a fresh fetch from Stripe (which syncs to DB)
-      await paymentService.getSavedCards(userId);
+      // Step 3: Confirm the charge went through
+      final confirmResp = await Supabase.instance.client.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'confirm_verification_charge',
+          'payment_intent_id': paymentIntentId,
+        },
+      );
+      final confirmData = confirmResp.data as Map<String, dynamic>?;
+      if (confirmData == null || confirmData['success'] != true) {
+        throw Exception('Verification charge was not completed.');
+      }
+
+      // Step 4: Save card as 'pending' verification in DB
+      final expiresAt = DateTime.now().toUtc().add(const Duration(hours: 24));
+      await paymentService.savePendingCard(
+        userId: userId,
+        cardBrand: _cardBrand.isNotEmpty ? _cardBrand : 'unknown',
+        lastFour: lastFour,
+        cardholderName: fullName,
+        email: email,
+        phone: '',
+        verificationId: paymentIntentId,
+        expiresAt: expiresAt,
+      );
+
+      if (!mounted) return;
+
       ref.invalidate(savedCardsProvider(userId));
-      AppSnackbar.success(context, 'Card saved successfully via Stripe!');
+      AppSnackbar.success(
+        context,
+        'A small charge was placed on your card. '
+        'Check your bank statement and enter the exact amount '
+        'in your Wallet to verify the card.',
+      );
       Navigator.of(context).pop(true);
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        if (mounted) AppSnackbar.warning(context, 'Card setup was cancelled');
+      } else {
+        if (mounted) AppSnackbar.error(context, friendlyError(e));
+      }
     } catch (e) {
+      AppLogger.error('Add card error: $e');
       if (mounted) {
         AppSnackbar.error(context, friendlyError(e));
       }
