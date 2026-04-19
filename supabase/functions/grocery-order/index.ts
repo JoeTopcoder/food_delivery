@@ -241,7 +241,7 @@ Deno.serve(async (request) => {
       tax_amount: tax,
       total_amount: grandTotal,
       payment_method: paymentMethod,
-      payment_status: paymentMethod === "cash" ? "pending" : "processing",
+      payment_status: "pending",
       is_pickup: isPickup,
       special_instructions: specialInstructions ?? null,
       delivery_address: isPickup ? store.address : deliveryAddress,
