@@ -255,7 +255,14 @@ Deno.serve(async (request) => {
         invoice = await stripePost(`/invoices/${invoiceId}/finalize`, {});
       }
 
-      const piRef = invoice.payment_intent;
+      let piRef = invoice.payment_intent;
+
+      // Retry once if PI not yet ready (rare timing issue)
+      if (!piRef) {
+        await new Promise((r) => setTimeout(r, 1500));
+        invoice = await stripeGet(`/invoices/${invoiceId}`);
+        piRef = invoice.payment_intent;
+      }
 
       if (piRef) {
         const piId = typeof piRef === "object"
@@ -266,31 +273,8 @@ Deno.serve(async (request) => {
       }
     }
 
-    // If Stripe didn't auto-create a PI on the invoice, create one ourselves
     if (!clientSecret) {
-      const manualPi = await stripePost("/payment_intents", {
-        amount: String(priceInCents),
-        currency: "usd",
-        customer: stripeCustomerId,
-        "payment_method_types[0]": "card",
-        "metadata[user_id]": user.id,
-        "metadata[plan_type]": planType,
-        "metadata[stripe_subscription_id]": subscription.id as string,
-        "metadata[invoice_id]": invoiceId ?? "",
-      });
-
-      if (manualPi.error) {
-        const err = manualPi.error as Record<string, unknown>;
-        return json(
-          { error: err.message ?? "Failed to create payment intent" },
-          400
-        );
-      }
-      clientSecret = manualPi.client_secret as string | null;
-    }
-
-    if (!clientSecret) {
-      return json({ error: "Failed to obtain payment client secret" }, 500);
+      return json({ error: "Failed to obtain payment client secret — invoice has no payment intent" }, 500);
     }
 
     // ── Insert pending subscription row ──────────────────────────────────────
@@ -442,7 +426,7 @@ Deno.serve(async (request) => {
 
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("id, user_id, status, stripe_subscription_id")
+      .select("id, user_id, status, stripe_subscription_id, stripe_customer_id")
       .eq("id", subscriptionId)
       .single();
 
@@ -454,19 +438,58 @@ Deno.serve(async (request) => {
       return json({ success: true, message: "Already active" });
     }
 
-    // Try to pay the Stripe invoice to move subscription from incomplete → active
+    // Sync Stripe subscription status and get period end
     let periodEnd: Date | null = null;
     if (sub.stripe_subscription_id) {
-      const stripeSub = await stripeGet(
+      let stripeSub = await stripeGet(
         `/subscriptions/${sub.stripe_subscription_id}`
       );
-      const invRef = stripeSub.latest_invoice;
-      const invId = typeof invRef === "object"
-        ? (invRef as Record<string, unknown>)?.id as string
-        : invRef as string;
-      if (invId) {
-        await stripePost(`/invoices/${invId}/pay`, {}).catch(() => {});
+
+      // If subscription is still incomplete, try to pay the invoice
+      if (stripeSub.status === "incomplete") {
+        const invRef = stripeSub.latest_invoice;
+        const invId = typeof invRef === "object"
+          ? (invRef as Record<string, unknown>)?.id as string
+          : invRef as string;
+
+        if (invId) {
+          // Get the customer's payment methods to pay the invoice
+          const pmList = await stripeGet(
+            `/customers/${sub.stripe_customer_id ?? ""}/payment_methods?type=card&limit=1`
+          );
+          const pmData = (pmList.data as Array<Record<string, unknown>>) ?? [];
+          const pmId = pmData.length > 0 ? (pmData[0].id as string) : null;
+
+          if (pmId) {
+            // Attach payment method to invoice's payment intent and pay
+            const invoice = await stripeGet(`/invoices/${invId}`);
+            const piRef = invoice.payment_intent;
+            const piId = piRef
+              ? typeof piRef === "object"
+                ? (piRef as Record<string, unknown>).id as string
+                : piRef as string
+              : null;
+            if (piId) {
+              await stripePost(`/payment_intents/${piId}/confirm`, {
+                payment_method: pmId,
+              }).catch(() => {});
+            } else {
+              await stripePost(`/invoices/${invId}/pay`, {
+                payment_method: pmId,
+              }).catch(() => {});
+            }
+          } else {
+            // No saved payment method, try pay without one
+            await stripePost(`/invoices/${invId}/pay`, {}).catch(() => {});
+          }
+
+          // Re-fetch subscription after payment attempt
+          stripeSub = await stripeGet(
+            `/subscriptions/${sub.stripe_subscription_id}`
+          );
+        }
       }
+
       // Get actual period end from Stripe
       const endTs = stripeSub.current_period_end as number | undefined;
       if (endTs && endTs > 0) {
@@ -601,7 +624,13 @@ Deno.serve(async (request) => {
       if (invoice.status === "draft") {
         invoice = await stripePost(`/invoices/${invId}/finalize`, {});
       }
-      const piRef = invoice.payment_intent;
+      let piRef = invoice.payment_intent;
+      // Retry once if PI not yet ready
+      if (!piRef) {
+        await new Promise((r) => setTimeout(r, 1500));
+        invoice = await stripeGet(`/invoices/${invId}`);
+        piRef = invoice.payment_intent;
+      }
       if (piRef) {
         const piId = typeof piRef === "object"
           ? (piRef as Record<string, unknown>).id as string
@@ -610,21 +639,9 @@ Deno.serve(async (request) => {
         clientSecret = pi.client_secret as string | null;
       }
     }
-    // Fallback: manual PI
-    if (!clientSecret) {
-      const manualPi = await stripePost("/payment_intents", {
-        amount: String(newPriceInCents),
-        currency: "usd",
-        customer: customerId,
-        "payment_method_types[0]": "card",
-        "metadata[user_id]": user.id,
-        "metadata[plan_type]": newPlan,
-      });
-      clientSecret = manualPi.client_secret as string | null;
-    }
 
     if (!clientSecret) {
-      return json({ error: "Failed to create payment for plan change" }, 500);
+      return json({ error: "Failed to get payment intent for plan change" }, 500);
     }
 
     const stripeEnd = (newSub.current_period_end as number) ?? 0;
