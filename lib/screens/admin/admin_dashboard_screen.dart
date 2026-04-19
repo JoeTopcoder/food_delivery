@@ -525,12 +525,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-pricing'),
                           ),
                           _GridAction(
-                            icon: Icons.restaurant_menu_rounded,
-                            label: 'Meal Plans',
-                            color: const Color(0xFF059669),
+                            icon: Icons.card_membership_rounded,
+                            label: 'MealHub+',
+                            color: const Color(0xFF6C63FF),
                             onTap: () => Navigator.of(
                               context,
-                            ).pushNamed('/admin-meal-plans'),
+                            ).pushNamed('/admin-mealhub'),
                           ),
                         ],
                       ),

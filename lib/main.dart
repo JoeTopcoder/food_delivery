@@ -82,7 +82,7 @@ import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
 import 'screens/admin/admin_earnings_screen.dart';
-import 'screens/admin/admin_meal_plans_screen.dart';
+import 'screens/admin/admin_mealhub_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
 // import 'utils/app_logger.dart';
@@ -691,11 +691,11 @@ class _MyAppState extends ConsumerState<MyApp> {
                   child: AdminLoyaltyScreen(),
                 ),
               );
-            case '/admin-meal-plans':
+            case '/admin-mealhub':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
-                  child: AdminMealPlansScreen(),
+                  child: AdminMealhubScreen(),
                 ),
               );
             case '/settings':
