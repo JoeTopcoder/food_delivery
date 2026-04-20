@@ -161,17 +161,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     // ── MealHub+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
-    debugPrint(
-      '[CHECKOUT] activeSub: ${activeSub?.id}, status: ${activeSub?.status}, '
-      'deliveries: ${activeSub?.deliveriesRemaining}, isPickup: $isPickup, '
-      'subtotal: $subtotal, minCart: ${AppConstants.subscriptionMinCart}',
-    );
     final subEligible =
         activeSub != null &&
         activeSub.isActive &&
         activeSub.hasDeliveries &&
-        !isPickup &&
-        subtotal >= AppConstants.subscriptionMinCart;
+        !isPickup;
     final subDeliveryFree = subEligible; // zero delivery fee
     final subServiceDiscount = subEligible
         ? (pickupServiceFee * (activeSub.serviceFeeDiscount))
@@ -1612,10 +1606,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       // Consume subscription delivery only when server confirmed fee-free delivery.
       final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
       final fallbackSubEligible =
-          currentSub != null &&
-          currentSub.isActive &&
-          currentSub.hasDeliveries &&
-          subtotal >= AppConstants.subscriptionMinCart;
+          currentSub != null && currentSub.isActive && currentSub.hasDeliveries;
       final usedSubscriptionDelivery =
           !isPickup &&
           verifiedDeliveryFee <= 0.0 &&

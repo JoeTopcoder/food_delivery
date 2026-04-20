@@ -188,7 +188,26 @@ Deno.serve(async (request) => {
       }
     }
 
-    // ── 5. Promo code ───────────────────────────────────────────────────
+    // ── 5. Subscription eligibility (consumed atomically after order create) ──
+    let eligibleSubscriptionId: string | null = null;
+    if (!isPickup && deliveryFee > 0) {
+      const { data: activeSub } = await admin
+        .from("user_subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .in("status", ["active", "pending"])
+        .not("plan_type", "is", null)
+        .gt("deliveries_remaining", 0)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSub?.id) {
+        eligibleSubscriptionId = activeSub.id as string;
+      }
+    }
+
+    // ── 6. Promo code ───────────────────────────────────────────────────
     let promoDiscount = 0;
     let promoId: string | null = null;
 
@@ -218,12 +237,12 @@ Deno.serve(async (request) => {
       }
     }
 
-    // ── 6. Calculate totals ─────────────────────────────────────────────
+    // ── 7. Calculate totals ─────────────────────────────────────────────
     const tax = Math.round(subtotal * taxRate * 100) / 100;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
-    // ── 7. Create order ─────────────────────────────────────────────────
+    // ── 8. Create order ─────────────────────────────────────────────────
     // Generate GRO- receipt number
     const today = new Date().toISOString().split("T")[0];
     const { count: todayCount } = await admin
@@ -265,7 +284,7 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order", details: orderErr.message }, 500);
     }
 
-    // ── 8. Create order items ───────────────────────────────────────────
+    // ── 9. Create order items ───────────────────────────────────────────
     const orderItems = verifiedItems.map((v) => ({
       order_id: order.id,
       menu_item_id: v.menu_item_id,
@@ -282,6 +301,42 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order items", details: itemsErr.message }, 500);
     }
 
+    // ── 10. Try applying subscription delivery (atomic DB function) ────────
+    let subscriptionDeliveryFree = false;
+    let subscriptionId: string | null = null;
+    let finalDeliveryFee = deliveryFee;
+    let finalGrandTotal = grandTotal;
+
+    if (!isPickup && deliveryFee > 0 && eligibleSubscriptionId) {
+      const { data: usedSub, error: useSubErr } = await admin.rpc(
+        "use_subscription_delivery",
+        {
+          p_subscription_id: eligibleSubscriptionId,
+          p_order_id: order.id,
+        }
+      );
+
+      if (useSubErr) {
+        console.error("[grocery-order] use_subscription_delivery failed", useSubErr);
+      } else if (usedSub === true) {
+        subscriptionDeliveryFree = true;
+        subscriptionId = eligibleSubscriptionId;
+        finalDeliveryFee = 0;
+
+        const finalOrderTotal = Math.round((subtotal - promoDiscount + tax) * 100) / 100;
+        finalGrandTotal = Math.round((finalOrderTotal + driverTip) * 100) / 100;
+
+        await admin
+          .from("orders")
+          .update({
+            delivery_fee: 0,
+            total_amount: finalGrandTotal,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+      }
+    }
+
     // Send receipt email to customer (fire-and-forget)
     admin.functions.invoke("send-receipt-email", {
       body: { order_id: order.id },
@@ -292,13 +347,15 @@ Deno.serve(async (request) => {
       order: {
         id: order.id,
         status: order.status,
-        total: grandTotal,
+        total: finalGrandTotal,
         subtotal,
-        delivery_fee: deliveryFee,
+        delivery_fee: finalDeliveryFee,
         tax,
         promo_discount: promoDiscount,
         driver_tip: driverTip,
         is_pickup: isPickup,
+        subscription_delivery_free: subscriptionDeliveryFree,
+        subscription_id: subscriptionId,
         pickup_code: order.pickup_code,
         delivery_otp: order.delivery_otp,
         receipt_number: receiptNumber,

@@ -646,6 +646,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     Navigator.of(context).pushNamed('/delivery-history'),
               ),
               _ActionTile(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'My Wallet',
+                subtitle: 'Cash out now',
+                iconBg: const Color(0xFF10B981),
+                onTap: () => Navigator.of(context).pushNamed('/driver-wallet'),
+              ),
+              _ActionTile(
                 icon: Icons.person_rounded,
                 label: 'My Profile',
                 subtitle: 'Vehicle & docs',
@@ -673,6 +680,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
               onTap: () =>
                   Navigator.of(context).pushNamed('/driver-earnings-advanced'),
+            ),
+          ),
+        ),
+
+        // ── Wallet Banner ────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _PromoBanner(
+              icon: Icons.bolt_rounded,
+              title: 'Instant Wallet',
+              subtitle: 'View balance and cash out in minutes',
+              gradient: const [Color(0xFF10B981), Color(0xFF059669)],
+              onTap: () => Navigator.of(context).pushNamed('/driver-wallet'),
             ),
           ),
         ),

@@ -238,9 +238,7 @@ Deno.serve(async (request) => {
     // ── 4b. MealHub+ free-delivery eligibility (server-authoritative) ─────
     let subscriptionDeliveryFree = false;
     let subscriptionId: string | null = null;
-    const restaurantEligible = restaurant.eligible_for_subscription !== false;
-
-    if (!isPickup && restaurantEligible && subtotal >= subscriptionMinCart) {
+    if (!isPickup) {
       const { data: activeSub } = await admin
         .from("user_subscriptions")
         .select("id, status, deliveries_remaining")

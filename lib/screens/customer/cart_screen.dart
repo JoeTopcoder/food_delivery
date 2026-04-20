@@ -68,8 +68,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         activeSub != null &&
         activeSub.isActive &&
         activeSub.hasDeliveries &&
-        !isPickup &&
-        subtotal >= AppConstants.subscriptionMinCart;
+        !isPickup;
     final subDeliveryFree = subEligible;
     final subServiceDiscount = subEligible
         ? (pickupServiceFee * activeSub.serviceFeeDiscount)

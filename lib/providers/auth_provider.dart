@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/supabase_config.dart';
 import '../models/user_model.dart';
@@ -87,9 +89,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
   final UserService _userService;
   final NotificationService _notificationService = NotificationService();
+  StreamSubscription? _authStateSub;
 
   AuthNotifier(this._authService, this._userService) : super(AuthState()) {
     _initializeAuth();
+    _listenToAuthChanges();
   }
 
   /// Subscribe to FCM topics based on user role (all in parallel).
@@ -137,24 +141,65 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _initializeAuth() async {
     final supabaseUser = _authService.getCurrentUser();
     if (supabaseUser != null) {
-      try {
-        User? user = await _userService.getUserById(supabaseUser.id);
-        // Fallback: build user from auth metadata if DB lookup fails
-        if (user == null) {
-          final meta = supabaseUser.userMetadata ?? {};
-          user = User(
-            id: supabaseUser.id,
-            email: supabaseUser.email ?? '',
-            name: meta['name'] as String?,
-            role: meta['role'] as String? ?? 'user',
-            createdAt: DateTime.now(),
-          );
+      await _hydrateUserFromAuth(
+        supabaseUser.id,
+        fallbackEmail: supabaseUser.email,
+      );
+    }
+  }
+
+  void _listenToAuthChanges() {
+    _authStateSub = _authService.onAuthStateChanged().listen((event) async {
+      final session = event.session;
+
+      if (session == null) {
+        final previousUser = state.user;
+        if (previousUser != null) {
+          _unsubscribeFromAllTopics(previousUser);
         }
-        state = state.copyWith(user: user, isAuthenticated: true);
-        _subscribeToUserTopics(user); // fire-and-forget — don't block auth
-      } catch (e) {
-        AppLogger.error('Error initializing auth: $e');
+        state = AuthState(isLoading: false);
+        return;
       }
+
+      await _hydrateUserFromAuth(
+        session.user.id,
+        fallbackEmail: session.user.email,
+      );
+    });
+  }
+
+  Future<void> _hydrateUserFromAuth(
+    String userId, {
+    String? fallbackEmail,
+  }) async {
+    try {
+      User? user = await _userService.getUserById(userId);
+      if (user == null) {
+        final supabaseUser = _authService.getCurrentUser();
+        final meta = supabaseUser?.userMetadata ?? {};
+        user = User(
+          id: userId,
+          email: fallbackEmail ?? supabaseUser?.email ?? '',
+          name: meta['name'] as String?,
+          role: meta['role'] as String? ?? 'user',
+          createdAt: DateTime.now(),
+        );
+      }
+
+      final previousUserId = state.user?.id;
+      state = state.copyWith(
+        isLoading: false,
+        user: user,
+        isAuthenticated: true,
+        error: null,
+      );
+
+      if (previousUserId != user.id) {
+        _subscribeToUserTopics(user);
+      }
+    } catch (e) {
+      AppLogger.error('Error hydrating auth user: $e');
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -388,6 +433,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }
+  }
+
+  @override
+  void dispose() {
+    _authStateSub?.cancel();
+    super.dispose();
   }
 }
 
