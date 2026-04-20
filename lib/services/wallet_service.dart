@@ -111,11 +111,20 @@ class WalletService {
   Future<Map<String, dynamic>> cancelOrderWithPenalty(
     String orderId,
     String userId,
+    String? refundMethod,
   ) async {
     try {
+      final params = <String, dynamic>{
+        'p_order_id': orderId,
+        'p_user_id': userId,
+        // Always include the third arg so PostgREST never sees an ambiguous
+        // match between the legacy 2-arg RPC and the new destination-aware one.
+        'p_refund_method': refundMethod ?? 'original',
+      };
+
       final result = await _client.rpc(
         'cancel_order_with_penalty',
-        params: {'p_order_id': orderId, 'p_user_id': userId},
+        params: params,
       );
       return result as Map<String, dynamic>;
     } catch (e) {

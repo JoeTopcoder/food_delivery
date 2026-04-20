@@ -85,8 +85,17 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     }
     final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
 
+    // MealHub+ free-delivery preview (delivery only).
+    final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
+    final subDeliveryFree =
+        activeSub != null &&
+        activeSub.isActive &&
+        activeSub.hasDeliveries &&
+        !isPickup;
+    final effectiveFee = subDeliveryFree ? 0.0 : totalActiveFee;
+
     final tax = subtotal * AppConstants.taxRate;
-    final total = subtotal + totalActiveFee + tax;
+    final total = subtotal + effectiveFee + tax;
 
     return Scaffold(
       appBar: AppBar(
@@ -497,18 +506,24 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             if (isPickup)
                               _PriceRow(
                                 'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                                '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
+                                '${AppConstants.currencySymbol}${effectiveFee.toStringAsFixed(2)}',
                                 valueColor: const Color(0xFF10B981),
                               )
                             else
                               _PriceRow(
-                                surgeMultiplier > 1.0
+                                subDeliveryFree
+                                    ? 'Delivery (MealHub+ FREE)'
+                                    : surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                                     : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
                                 anyFeeLoading
                                     ? 'Calculating…'
+                                    : subDeliveryFree
+                                    ? '\$0.00'
                                     : '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
-                                valueColor: surgeMultiplier > 1.0
+                                valueColor: subDeliveryFree
+                                    ? const Color(0xFF6C63FF)
+                                    : surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,
                               ),

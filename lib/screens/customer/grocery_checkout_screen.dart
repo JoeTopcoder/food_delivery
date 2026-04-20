@@ -156,8 +156,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
         activeSub != null &&
         activeSub.isActive &&
         activeSub.hasDeliveries &&
-        !isPickup &&
-        subtotal >= AppConstants.subscriptionMinCart;
+        !isPickup;
     final subDeliveryFree = subEligible;
     if (subDeliveryFree) activeFee = 0.0;
 
@@ -1132,6 +1131,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
       String? firstReceiptNumber;
       double runningTotal = 0;
       bool promoApplied = false;
+      bool subscriptionUsedOnAnyOrder = false;
 
       // Place one order per store
       for (final entry in grouped.entries) {
@@ -1206,6 +1206,14 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                 : null) ??
             0;
         runningTotal += serverTotal;
+        final orderMap = result['order'] is Map
+            ? (result['order'] as Map)
+            : null;
+        if ((result['subscription_delivery_free'] == true) ||
+            (orderMap != null &&
+                orderMap['subscription_delivery_free'] == true)) {
+          subscriptionUsedOnAnyOrder = true;
+        }
         if (!promoApplied && appliedPromo != null) promoApplied = true;
       }
 
@@ -1294,18 +1302,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
             orderTotal: runningTotal,
           );
 
-      // Use a MealHub+ subscription delivery if applicable
-      final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
-      if (currentSub != null &&
-          currentSub.isActive &&
-          currentSub.hasDeliveries &&
-          !isPickup) {
-        await ref
-            .read(subscriptionServiceProvider)
-            .useSubscriptionDelivery(
-              subscriptionId: currentSub.id,
-              orderId: orderIds.first,
-            );
+      // Subscription usage is now consumed atomically inside grocery-order.
+      if (subscriptionUsedOnAnyOrder) {
         ref.invalidate(activeSubscriptionProvider);
       }
 

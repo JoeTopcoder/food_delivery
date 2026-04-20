@@ -1038,80 +1038,151 @@ class _CancelOrderButton extends ConsumerWidget {
   }
 
   void _confirmCancel(BuildContext context, WidgetRef ref) {
+    String selectedRefundMethod = 'original';
+    final isCardPayment = paymentMethod == 'card';
+    final isCashPayment = paymentMethod == 'cash';
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Cancel Order?'),
-        content: const Text(
-          'Cancellation within 5 minutes is free.\n\n'
-          'After 5 minutes, a \$1.00 cancellation fee applies.\n'
-          'If the restaurant is already preparing, a 15% fee may be charged.\n\n'
-          'Wallet orders: refund minus any fee.\n'
-          'Card orders: refund to your card minus the \$1.00 fee.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('No, Keep Order'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                final result = await ref
-                    .read(walletNotifierProvider.notifier)
-                    .cancelOrder(orderId);
-                ref.invalidate(userOrdersProvider);
+          title: const Text('Cancel Order?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cancellation within 5 minutes is free.\n\n'
+                'After 5 minutes, a \$1.00 cancellation fee applies.\n'
+                'If the restaurant is already preparing, a 15% fee may be charged.',
+              ),
+              if (isCardPayment) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Where should your refund go?',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                RadioListTile<String>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: 'original',
+                  groupValue: selectedRefundMethod,
+                  onChanged: (v) => setDialogState(
+                    () => selectedRefundMethod = v ?? 'original',
+                  ),
+                  title: const Text('Back to card'),
+                ),
+                RadioListTile<String>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: 'wallet',
+                  groupValue: selectedRefundMethod,
+                  onChanged: (v) => setDialogState(
+                    () => selectedRefundMethod = v ?? 'wallet',
+                  ),
+                  title: const Text('To wallet balance'),
+                ),
+              ] else if (isCashPayment) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Cash order: no payment refund transfer is needed.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('No, Keep Order'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  final result = await ref
+                      .read(walletNotifierProvider.notifier)
+                      .cancelOrder(
+                        orderId,
+                        refundMethod: isCardPayment
+                            ? selectedRefundMethod
+                            : null,
+                      );
+                  ref.invalidate(userOrdersProvider);
 
-                // Refund card orders via Stripe
-                if (paymentMethod == 'card') {
-                  try {
-                    final penalty =
-                        (result['penalty'] as num?)?.toDouble() ?? 0;
-                    await SupabaseConfig.client.functions.invoke(
-                      AppConstants.stripePaymentFunction,
-                      body: {
-                        'action': 'refund',
-                        'orderId': orderId,
-                        'penalty': penalty,
-                      },
-                    );
-                  } catch (e) {
-                    AppLogger.error('Card refund failed: $e');
-                  }
-                }
-
-                if (context.mounted) {
                   final refund = (result['refund'] as num?)?.toDouble() ?? 0;
                   final penalty = (result['penalty'] as num?)?.toDouble() ?? 0;
-                  final isCard = paymentMethod == 'card';
-                  final message = isCard && refund > 0
-                      ? 'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} to your card.'
-                      : refund > 0
-                      ? 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.'
-                      : penalty > 0
-                      ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'
-                      : 'Order cancelled';
-                  AppSnackbar.success(context, message);
-                  Navigator.pop(context);
+                  final refundMethod =
+                      (result['refund_method'] as String?) ??
+                      selectedRefundMethod;
+
+                  // Only run Stripe refund when user chose card return.
+                  if (isCardPayment && refundMethod != 'wallet' && refund > 0) {
+                    try {
+                      await SupabaseConfig.client.functions.invoke(
+                        AppConstants.stripePaymentFunction,
+                        body: {
+                          'action': 'refund',
+                          'orderId': orderId,
+                          'penalty': penalty,
+                        },
+                      );
+                    } catch (e) {
+                      AppLogger.error('Card refund failed: $e');
+                    }
+                  }
+
+                  if (context.mounted) {
+                    String message;
+                    if (isCashPayment) {
+                      message =
+                          'Order cancelled. Cash payment has no refund transfer.';
+                    } else if (refund > 0 && refundMethod == 'wallet') {
+                      message =
+                          'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.';
+                    } else if (isCardPayment && refund > 0) {
+                      message =
+                          'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
+                    } else if (penalty > 0) {
+                      message =
+                          'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.';
+                    } else {
+                      message = 'Order cancelled';
+                    }
+
+                    AppSnackbar.success(context, message);
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    final raw = e.toString().replaceFirst(
+                      RegExp(r'^Exception:\s*'),
+                      '',
+                    );
+                    AppSnackbar.error(
+                      context,
+                      raw.toLowerCase() ==
+                              'something went wrong. please try again.'
+                          ? friendlyError(e)
+                          : raw,
+                    );
+                  }
                 }
-              } catch (e) {
-                if (context.mounted) {
-                  AppSnackbar.error(context, friendlyError(e));
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
+              child: const Text('Yes, Cancel'),
             ),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

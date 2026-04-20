@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/payout_service.dart'
     show StripePayoutService, PayoutRecord, StripePayoutException;
 import '../../utils/friendly_error.dart';
+import '../../config/app_constants.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -37,24 +38,73 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
   static const _accent = Color(0xFF6C63FF);
   static const _green = Color(0xFF00C896);
 
-  // ── Stripe onboarding ───────────────────────────────────────────────────
+  String _readableError(Object error) {
+    final raw = error.toString();
+    final cleaned = raw
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('FunctionException: ', '')
+        .trim();
+    final lower = raw.toLowerCase();
 
-  Future<void> _startStripeOnboarding() async {
+    // Preserve actionable backend messages for Stripe.
+    if (lower.contains('stripe') ||
+        lower.contains('driver record not found') ||
+        lower.contains('missing authorization') ||
+        lower.contains('server error') ||
+        lower.contains('debit') ||
+        lower.contains('card') ||
+        lower.contains('payout')) {
+      return cleaned;
+    }
+
+    // If backend returned a concrete message, show it directly.
+    if (cleaned.isNotEmpty &&
+        cleaned.toLowerCase() != 'something went wrong. please try again.') {
+      return cleaned;
+    }
+
+    return friendlyError(error);
+  }
+
+  // ── Add debit card (in-app) ────────────────────────────────────────────
+
+  Future<void> _addDebitCard() async {
+    // Ensure Stripe publishable key is set before showing the sheet.
+    final pubKey = AppConstants.stripePublishableKey;
+    if (pubKey.isEmpty) {
+      setState(
+        () =>
+            _errorMessage = 'Stripe is not configured. Please contact support.',
+      );
+      return;
+    }
+    Stripe.publishableKey = pubKey;
+    await Stripe.instance.applySettings();
+
+    if (!mounted) return;
+    final tokenId = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _AddCardSheet(),
+    );
+    if (tokenId == null || !mounted) return;
+
     setState(() {
       _connecting = true;
       _errorMessage = null;
     });
     try {
-      final url = await StripePayoutService.instance.getStripeOnboardingUrl();
-      if (!mounted) return;
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        setState(() => _errorMessage = 'Could not open Stripe onboarding.');
-      }
+      final result = await StripePayoutService.instance.addDebitCard(tokenId);
+      final last4 = result['last4'] as String?;
+      ref.invalidate(driverProfileProvider);
+      setState(
+        () => _successMessage = last4 != null
+            ? 'Debit card ending in $last4 added. You can now cash out instantly!'
+            : 'Debit card added. You can now cash out instantly!',
+      );
     } catch (e) {
-      setState(() => _errorMessage = friendlyError(e));
+      setState(() => _errorMessage = _readableError(e));
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
@@ -77,9 +127,8 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
     });
 
     try {
-      late final Map<String, dynamic> result;
       try {
-        result = await StripePayoutService.instance.requestPayout(
+        await StripePayoutService.instance.requestPayout(
           amountCents: (amountUsd * 100).round(),
           payoutType: 'instant',
         );
@@ -247,7 +296,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
                   _StripeStatusCard(
                     driver: driver,
                     connecting: _connecting,
-                    onConnect: _startStripeOnboarding,
+                    onAddCard: _addDebitCard,
                   ),
 
                   const SizedBox(height: 20),
@@ -399,12 +448,12 @@ class _BalanceStat extends StatelessWidget {
 class _StripeStatusCard extends StatelessWidget {
   final Driver driver;
   final bool connecting;
-  final VoidCallback onConnect;
+  final VoidCallback onAddCard;
 
   const _StripeStatusCard({
     required this.driver,
     required this.connecting,
-    required this.onConnect,
+    required this.onAddCard,
   });
 
   static const _card = Color(0xFF1C1F2E);
@@ -478,20 +527,53 @@ class _StripeStatusCard extends StatelessWidget {
           ),
           if (status == 'active') ...[
             const SizedBox(height: 12),
-            _CheckRow(label: 'KYC Verified', ok: driver.payoutsEnabled),
+            _CheckRow(
+              label: 'Payout account active',
+              ok: driver.payoutsEnabled,
+            ),
             const SizedBox(height: 4),
             _CheckRow(
               label: 'Debit card added (instant payouts)',
               ok: driver.stripeDebitCardAdded,
               warningIfFalse: 'Add a debit card to enable instant payouts',
             ),
+            if (!driver.stripeDebitCardAdded) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: connecting ? null : onAddCard,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00C896),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: connecting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.credit_card, size: 18),
+                  label: const Text(
+                    'Add Debit Card',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
           ],
           if (!hasAccount || status != 'active') ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: connecting ? null : onConnect,
+                onPressed: connecting ? null : onAddCard,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6C63FF),
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -508,10 +590,10 @@ class _StripeStatusCard extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.open_in_new, size: 18),
-                label: Text(
-                  hasAccount ? 'Continue Stripe Setup' : 'Connect with Stripe',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                    : const Icon(Icons.credit_card, size: 18),
+                label: const Text(
+                  'Add Debit Card for Payouts',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -891,6 +973,157 @@ class _CashOutDialog extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Add Card Bottom Sheet ──────────────────────────────────────────────────
+
+class _AddCardSheet extends StatefulWidget {
+  const _AddCardSheet();
+
+  @override
+  State<_AddCardSheet> createState() => _AddCardSheetState();
+}
+
+class _AddCardSheetState extends State<_AddCardSheet> {
+  bool _cardComplete = false;
+  bool _loading = false;
+  String? _error;
+
+  static const _bg = Color(0xFF1C1F2E);
+  static const _accent = Color(0xFF6C63FF);
+
+  Future<void> _submit() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final tokenData = await Stripe.instance.createToken(
+        const CreateTokenParams.card(
+          params: CardTokenParams(type: TokenType.Card),
+        ),
+      );
+      final tokenId = tokenData.id;
+      if (tokenId.isEmpty) throw Exception('No token returned from Stripe.');
+      if (mounted) Navigator.pop(context, tokenId);
+    } catch (e) {
+      final msg = e
+          .toString()
+          .replaceFirst('Exception: ', '')
+          .replaceFirst('StripeException: ', '');
+      setState(() {
+        _error = msg;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Add Debit Card',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Payouts will be sent to this Visa or Mastercard debit card.',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            CardField(
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                fillColor: Color(0xFF0F1117),
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFF2E3147)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFF2E3147)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFF6C63FF)),
+                ),
+              ),
+              onCardChanged: (details) {
+                setState(() => _cardComplete = details?.complete == true);
+              },
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_cardComplete && !_loading) ? _submit : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _accent,
+                  disabledBackgroundColor: _accent.withOpacity(0.4),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Card',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

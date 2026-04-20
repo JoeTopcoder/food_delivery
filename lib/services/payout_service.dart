@@ -531,23 +531,52 @@ class StripePayoutService {
   SupabaseClient get _client => Supabase.instance.client;
 
   /// Returns an onboarding URL to complete Stripe Connect KYC.
+  @Deprecated(
+    'Use addDebitCard() instead — in-app card flow replaces the hosted onboarding redirect.',
+  )
   Future<String> getStripeOnboardingUrl() async {
-    final res = await _client.functions.invoke(
-      'stripe-connect',
-      body: {'action': 'onboard'},
-    );
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {'action': 'onboard'},
+      );
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
     _checkError(res);
     final url = (res.data as Map<String, dynamic>)['url'] as String?;
     if (url == null) throw Exception('No onboarding URL returned from server.');
     return url;
   }
 
+  /// Attaches a Stripe card token (tok_…) to the driver's payout account.
+  /// Creates a Custom Connected Account if the driver doesn't have one yet.
+  Future<Map<String, dynamic>> addDebitCard(String stripeToken) async {
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {'action': 'add_card', 'token': stripeToken},
+      );
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
+    _checkError(res);
+    return res.data as Map<String, dynamic>;
+  }
+
   /// Fetches current Stripe Connect account status for the authenticated driver.
   Future<Map<String, dynamic>> getStripeStatus() async {
-    final res = await _client.functions.invoke(
-      'stripe-connect',
-      body: {'action': 'status'},
-    );
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {'action': 'status'},
+      );
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
     _checkError(res);
     return res.data as Map<String, dynamic>;
   }
@@ -566,7 +595,7 @@ class StripePayoutService {
     );
 
     final data = res.data as Map<String, dynamic>?;
-    final status = res.status ?? 200;
+    final status = res.status;
 
     if (status >= 400) {
       final errMsg = data?['error'] as String? ?? 'Payout failed';
@@ -598,12 +627,56 @@ class StripePayoutService {
   }
 
   void _checkError(FunctionResponse res) {
-    final status = res.status ?? 200;
+    final status = res.status;
     if (status >= 400) {
-      final data = res.data as Map<String, dynamic>?;
-      final msg = data?['error'] as String? ?? 'Server error ($status)';
+      final msg = _extractErrorFromData(res.data, status);
       throw Exception(msg);
     }
+  }
+
+  String _extractErrorFromData(dynamic data, int status) {
+    if (data is Map<String, dynamic>) {
+      final explicit = data['error'] as String?;
+      if (explicit != null && explicit.trim().isNotEmpty) {
+        return explicit;
+      }
+      final message = data['message'] as String?;
+      if (message != null && message.trim().isNotEmpty) {
+        return message;
+      }
+      return 'Server error ($status)';
+    }
+
+    if (data is String && data.trim().isNotEmpty) {
+      return data;
+    }
+
+    return 'Server error ($status)';
+  }
+
+  String _extractFunctionExceptionMessage(FunctionException e) {
+    final details = e.details;
+
+    if (details is Map<String, dynamic>) {
+      final err = details['error'] as String?;
+      if (err != null && err.trim().isNotEmpty) {
+        return err;
+      }
+      final message = details['message'] as String?;
+      if (message != null && message.trim().isNotEmpty) {
+        return message;
+      }
+    }
+
+    if (details is String && details.trim().isNotEmpty) {
+      return details;
+    }
+
+    if (e.reasonPhrase != null && e.reasonPhrase!.trim().isNotEmpty) {
+      return e.reasonPhrase!;
+    }
+
+    return 'Server error (${e.status})';
   }
 }
 

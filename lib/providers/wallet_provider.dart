@@ -63,9 +63,16 @@ class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
     return wallet;
   }
 
-  Future<Map<String, dynamic>> cancelOrder(String orderId) async {
+  Future<Map<String, dynamic>> cancelOrder(
+    String orderId, {
+    String? refundMethod,
+  }) async {
     if (_userId == null) throw Exception('Not logged in');
-    final result = await _service.cancelOrderWithPenalty(orderId, _userId);
+    final result = await _service.cancelOrderWithPenalty(
+      orderId,
+      _userId,
+      refundMethod,
+    );
     await _load(); // Refresh balance after potential penalty
     return result;
   }
