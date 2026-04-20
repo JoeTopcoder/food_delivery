@@ -239,25 +239,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> signOut() async {
-    state = state.copyWith(isLoading: true);
+    final currentUser = state.user;
+
+    // Clear local auth state FIRST so UI navigates to sign-in immediately
+    state = AuthState(isLoading: false);
+
+    // Then clean up in the background (non-blocking)
     try {
-      final currentUser = state.user;
-      // Fire-and-forget: don't let FCM unsubscribe block sign-out
       if (currentUser != null) {
         _unsubscribeFromAllTopics(currentUser);
       }
       await _authService.signOut().timeout(
         const Duration(seconds: 5),
         onTimeout: () {
-          AppLogger.error('Sign out timed out – forcing local state reset');
+          AppLogger.error('Sign out timed out – local state already cleared');
         },
       );
       AppLogger.info('Sign out successful');
-      state = AuthState(isLoading: false);
     } catch (e) {
       AppLogger.error('Sign out error: $e');
-      // Always clear local auth state even on error so the user isn't stuck
-      state = AuthState(isLoading: false);
+      // State already cleared above — user is not stuck
     }
   }
 

@@ -437,6 +437,62 @@ class OrderService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', orderId);
+
+      // Refresh driver_stats avg rating and recalculate score/tier
+      final order = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('driver_id')
+          .eq('id', orderId)
+          .maybeSingle();
+      if (order != null && order['driver_id'] != null) {
+        final driverId = order['driver_id'] as String;
+
+        // Recalculate avg rating from all rated orders (last 30 days)
+        final thirtyDaysAgo = DateTime.now()
+            .subtract(const Duration(days: 30))
+            .toIso8601String();
+        final ratedOrders = await _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('driver_rating')
+            .eq('driver_id', driverId)
+            .eq('status', 'delivered')
+            .not('driver_rating', 'is', null)
+            .gte('ordered_at', thirtyDaysAgo);
+
+        if (ratedOrders.isNotEmpty) {
+          final sum = ratedOrders.fold<double>(
+            0.0,
+            (s, o) => s + (o['driver_rating'] as num).toDouble(),
+          );
+          final avg = double.parse(
+            (sum / ratedOrders.length).toStringAsFixed(2),
+          );
+
+          await _supabaseClient
+              .from('driver_stats')
+              .update({
+                'avg_customer_rating': avg,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('driver_id', driverId);
+
+          // Also update drivers.rating
+          await _supabaseClient
+              .from('drivers')
+              .update({
+                'rating': avg,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', driverId);
+        }
+
+        // Recalculate score/tier
+        await _supabaseClient.rpc(
+          'calculate_driver_score',
+          params: {'p_driver_id': driverId},
+        );
+      }
+
       AppLogger.info('Driver rated successfully');
     } catch (e) {
       AppLogger.error('Error rating driver: $e');

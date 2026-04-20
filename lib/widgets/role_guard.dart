@@ -12,9 +12,19 @@ class RoleGuard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(authNotifierProvider).user?.role;
+    final authState = ref.watch(authNotifierProvider);
+    final role = authState.user?.role;
 
-    if (role != null && allowedRoles.contains(role)) {
+    // If not authenticated at all, redirect to sign-in
+    if (!authState.isAuthenticated || role == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil('/signin', (r) => false);
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (allowedRoles.contains(role)) {
       return child;
     }
 
