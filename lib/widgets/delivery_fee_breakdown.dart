@@ -65,12 +65,12 @@ class DeliveryFeeBreakdown extends StatelessWidget {
           // ── Line items ────────────────────────────────────────────────
           if (result.calculation == 'distance_based') ...[
             _row(
-              'Base fee (first ${result.baseKm?.toStringAsFixed(0) ?? '—'} km)',
+              'Base fee (first ${result.baseKm?.toStringAsFixed(0) ?? '—'} mi)',
               '$sym${result.baseFee?.toStringAsFixed(2) ?? '—'}',
             ),
             if ((result.extraKm ?? 0) > 0)
               _row(
-                'Distance charge (${result.extraKm?.toStringAsFixed(1)} km × $sym${result.perKmFee?.toStringAsFixed(2)}/km)',
+                'Distance (${result.extraKm?.toStringAsFixed(1)} mi × $sym${result.perKmFee?.toStringAsFixed(2)}/mi)',
                 '$sym${((result.extraKm ?? 0) * (result.perKmFee ?? 0)).toStringAsFixed(2)}',
               ),
           ] else ...[

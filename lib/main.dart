@@ -50,6 +50,9 @@ import 'screens/shared/chat_screen.dart';
 import 'screens/shared/call_screen.dart';
 import 'models/chat_model.dart';
 import 'screens/driver/driver_earnings_screen.dart';
+import 'screens/driver/advanced_earnings_screen.dart';
+import 'screens/driver/driver_performance_screen.dart';
+import 'screens/driver/demand_heatmap_screen.dart';
 import 'screens/admin/admin_promos_screen.dart';
 import 'screens/admin/admin_chats_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
@@ -92,21 +95,24 @@ import 'providers/feature_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await SupabaseConfig.initialize();
-  await CacheService.init();
-  // Load DB-driven config before rendering so admin pricing is available
+
+  // Run independent init tasks in parallel
+  await Future.wait([
+    Firebase.initializeApp(),
+    SupabaseConfig.initialize(),
+    CacheService.init(),
+  ]);
+
+  // Load DB-driven config (depends on Supabase being ready)
   await AppConfigService(SupabaseConfig.client).load();
-  // Initialize Stripe with publishable key (loaded from app_config DB)
+
+  // Initialize Stripe (non-blocking — don't await applySettings)
   final stripeKey = AppConstants.stripePublishableKey;
   if (stripeKey.isNotEmpty) {
     Stripe.publishableKey = stripeKey;
     Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-    try {
-      await Stripe.instance.applySettings();
-    } catch (_) {
-      // applySettings may fail on some platforms; Stripe will retry on first use
-    }
+    // applySettings runs lazily; no need to block startup
+    Stripe.instance.applySettings().catchError((_) {});
   }
   print(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
@@ -457,6 +463,27 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['driver'],
                   child: DriverEarningsScreen(),
+                ),
+              );
+            case '/driver-earnings-advanced':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: AdvancedEarningsScreen(),
+                ),
+              );
+            case '/driver-performance':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverPerformanceScreen(),
+                ),
+              );
+            case '/driver-heatmap':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DemandHeatmapScreen(),
                 ),
               );
             case '/admin-promos':

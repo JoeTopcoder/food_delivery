@@ -83,15 +83,29 @@ class _DeliverySubscriptionTabState
 
       // Payment succeeded — activate the subscription immediately
       final subId = result['subscription_id'] as String?;
+      bool activated = false;
       if (subId != null) {
-        await service.activateDeliverySubscription(subId);
+        // Try activation up to 3 times in case of transient errors
+        for (int i = 0; i < 3 && !activated; i++) {
+          activated = await service.activateDeliverySubscription(subId);
+          if (!activated && i < 2) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
       }
       ref.invalidate(activeSubscriptionProvider);
       if (mounted) {
-        AppSnackbar.success(
-          context,
-          'MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
-        );
+        if (activated) {
+          AppSnackbar.success(
+            context,
+            'MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
+          );
+        } else {
+          AppSnackbar.warning(
+            context,
+            'Payment received! Your subscription is activating...',
+          );
+        }
       }
     } on StripeException catch (e) {
       if (e.error.code != FailureCode.Canceled && mounted) {
@@ -195,15 +209,28 @@ class _DeliverySubscriptionTabState
 
       // Payment succeeded — activate immediately
       final subId = result['subscription_id'] as String?;
+      bool activated = false;
       if (subId != null) {
-        await service.activateDeliverySubscription(subId);
+        for (int i = 0; i < 3 && !activated; i++) {
+          activated = await service.activateDeliverySubscription(subId);
+          if (!activated && i < 2) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
       }
       ref.invalidate(activeSubscriptionProvider);
       if (mounted) {
-        AppSnackbar.success(
-          context,
-          'Switched to MealHub ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
-        );
+        if (activated) {
+          AppSnackbar.success(
+            context,
+            'Switched to MealHub ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
+          );
+        } else {
+          AppSnackbar.warning(
+            context,
+            'Payment received! Your plan change is activating...',
+          );
+        }
       }
     } on StripeException catch (e) {
       if (e.error.code != FailureCode.Canceled && mounted) {
@@ -314,45 +341,66 @@ class _DeliverySubscriptionTabState
 
               // Pending activation banner
               if (activeSub != null && activeSub.isPending) ...[
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Activating ${activeSub.planLabel}...',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Payment received. Your subscription will be ready in moments.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                GestureDetector(
+                  onTap: () async {
+                    // Manual retry activation
+                    final service = ref.read(subscriptionServiceProvider);
+                    final ok = await service.activateDeliverySubscription(
+                      activeSub.id,
+                    );
+                    ref.invalidate(activeSubscriptionProvider);
+                    if (mounted) {
+                      ok
+                          ? AppSnackbar.success(
+                              context,
+                              'Subscription activated!',
+                            )
+                          : AppSnackbar.error(
+                              context,
+                              'Activation failed. Try again.',
+                            );
+                    }
+                  },
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Activating ${activeSub.planLabel}...',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Payment received. Tap here to retry activation.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

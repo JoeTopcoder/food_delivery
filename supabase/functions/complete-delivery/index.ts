@@ -209,6 +209,93 @@ Deno.serve(async (request) => {
         total_paid_out: totalPaidOut,
         rating: avgRating,
       };
+
+      // ── 4a. Update driver_stats + tier (performance system) ───────────
+      try {
+        // Fetch recent orders (last 30 days) for performance metrics
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000).toISOString();
+        const { data: recentOrders } = await admin.from("orders")
+          .select("id, status, driver_rating, driver_tip, delivery_fee, ordered_at, completed_at, distance_km")
+          .eq("driver_id", driverId)
+          .gte("ordered_at", thirtyDaysAgo);
+
+        const recentTotal = recentOrders?.length ?? 0;
+        const recentCompleted = recentOrders?.filter((o: Record<string, unknown>) => o.status === "delivered") ?? [];
+        const recentCancelled = recentOrders?.filter((o: Record<string, unknown>) => o.status === "cancelled") ?? [];
+
+        const completionRate = recentTotal > 0 ? (recentCompleted.length / recentTotal) * 100 : 0;
+
+        // On-time: delivered within 45 min
+        const onTimeCount = recentCompleted.filter((o: Record<string, unknown>) => {
+          if (!o.completed_at || !o.ordered_at) return true;
+          const diff = (new Date(o.completed_at as string).getTime() - new Date(o.ordered_at as string).getTime()) / 60_000;
+          return diff <= 45;
+        }).length;
+        const onTimeRate = recentCompleted.length > 0 ? (onTimeCount / recentCompleted.length) * 100 : 0;
+
+        // Average rating
+        const ratings = recentCompleted.filter((o: Record<string, unknown>) => o.driver_rating).map((o: Record<string, unknown>) => o.driver_rating as number);
+        const perfAvgRating = ratings.length > 0 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : (avgRating ?? 0);
+
+        // Average delivery time
+        const deliveryTimes = recentCompleted
+          .filter((o: Record<string, unknown>) => o.completed_at && o.ordered_at)
+          .map((o: Record<string, unknown>) => (new Date(o.completed_at as string).getTime() - new Date(o.ordered_at as string).getTime()) / 60_000);
+        const avgDeliveryMin = deliveryTimes.length > 0 ? deliveryTimes.reduce((a: number, b: number) => a + b, 0) / deliveryTimes.length : 0;
+
+        // Tips
+        const perfTotalTips = recentCompleted.reduce((s: number, o: Record<string, unknown>) => s + ((o.driver_tip as number) ?? 0), 0);
+        const tipData = recentCompleted
+          .filter((o: Record<string, unknown>) => o.driver_tip && o.delivery_fee)
+          .map((o: Record<string, unknown>) => ((o.driver_tip as number) / (o.delivery_fee as number)) * 100);
+        const avgTipPercent = tipData.length > 0 ? tipData.reduce((a: number, b: number) => a + b, 0) / tipData.length : 0;
+
+        // Total distance
+        const perfTotalDistKm = recentCompleted.reduce((s: number, o: Record<string, unknown>) => s + ((o.distance_km as number) ?? 0), 0);
+
+        // Declined orders
+        const { count: declinedCount } = await admin.from("driver_declined_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("driver_id", driverId)
+          .gte("declined_at", thirtyDaysAgo);
+
+        const totalOffered = recentTotal + (declinedCount ?? 0);
+        const acceptanceRate = totalOffered > 0 ? (recentTotal / totalOffered) * 100 : 100;
+
+        // Upsert driver_stats
+        await admin.from("driver_stats").upsert({
+          driver_id: driverId,
+          acceptance_rate: +acceptanceRate.toFixed(1),
+          completion_rate: +completionRate.toFixed(1),
+          on_time_rate: +onTimeRate.toFixed(1),
+          avg_delivery_minutes: +avgDeliveryMin.toFixed(1),
+          avg_customer_rating: +perfAvgRating.toFixed(2),
+          avg_tip_percent: +avgTipPercent.toFixed(1),
+          total_tips: +perfTotalTips.toFixed(2),
+          total_distance_km: +perfTotalDistKm.toFixed(2),
+          orders_accepted: recentTotal,
+          orders_declined: declinedCount ?? 0,
+          updated_at: now,
+        }, { onConflict: "driver_id" });
+
+        // Calculate score & tier via DB function
+        const { data: scoreResult } = await admin.rpc("calculate_driver_score", { p_driver_id: driverId });
+        const newScore = scoreResult?.[0]?.score ?? 50;
+        const newTier = scoreResult?.[0]?.tier ?? "bronze";
+
+        // Set bonus multiplier based on tier
+        const bonusMap: Record<string, number> = { bronze: 1.0, silver: 1.05, gold: 1.10, elite: 1.20 };
+        await admin.from("driver_stats").update({
+          bonus_multiplier: bonusMap[newTier] ?? 1.0,
+          priority_dispatch: newTier === "gold" || newTier === "elite",
+        }).eq("driver_id", driverId);
+
+        driverStats.score = +newScore.toFixed(1);
+        driverStats.tier = newTier;
+      } catch (perfErr) {
+        // Non-fatal — delivery is already completed
+        console.error("Performance update error:", perfErr);
+      }
     }
 
     // ── 5. Process referral earnings (fire-and-forget) ──────────────────

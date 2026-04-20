@@ -124,15 +124,24 @@
   static double bankTransferFeePercent = 1.0;
   static double cashFeePercent = 0;
 
-  // Delivery (distance-based, USD)
-  static double deliveryBaseFee = 5.0;
-  static double deliveryPerKmFee = 1.50;
-  static double deliveryBaseKm = 3.0;
+  // Delivery (distance-based, USD — $2.00–$2.50 per mile)
+  static double deliveryBaseFee = 3.0; // base fee for first baseMiles
+  static double deliveryPerMileFee = 2.00; // $/mile standard
+  static double deliveryPerMileFeePeak = 2.50; // $/mile peak/surge cap
+  static double deliveryPerKmFee = 3.22; // $2.00/mi in km (fallback)
+  static double deliveryBaseMiles = 1.0; // miles included in base fee
+  static double deliveryBaseKm = 1.6; // ~1 mile in km (fallback)
   static double deliveryMaxKm = 30.0;
   static double deliverySurgeMultiplier = 1.0;
   static double driverPayPercent = 0.80;
   static double minDeliveryFee = 3.0;
   static double driverBonusPerOrder = 0.0;
+
+  // Driver pay ($1.50/mile compliance)
+  static double driverRatePerMile = 1.50;
+  static double driverRatePerKm = 0.93; // $1.50/mi ÷ 1.609
+  static double driverMinBasePay = 3.0;
+  static const double kmToMiles = 0.621371;
 
   // Peak hour pricing
   static double peakAddonFee = 1.0;

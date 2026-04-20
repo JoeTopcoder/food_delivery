@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
@@ -361,6 +362,7 @@ class _ActiveDeliveriesScreenState
                 await driverService.completeDelivery(delivery.id);
                 ref.invalidate(activeDeliveriesProvider(driverId));
                 ref.invalidate(deliveryHistoryProvider(driverId));
+                ref.invalidate(driverStatsProvider(driverId));
                 final userId = ref.read(currentUserIdProvider);
                 if (userId != null) {
                   ref.invalidate(driverProfileProvider(userId));
@@ -473,7 +475,12 @@ class _DeliveryCard extends ConsumerWidget {
       estMinutes = (totalKm * 3 + 5).round();
     }
 
-    final driverPay = delivery.deliveryFee * AppConstants.driverPayPercent;
+    // Driver pay = $1.50/mile × distance (minimum $3)
+    final distanceMiles = (restToDropKm ?? 0) * AppConstants.kmToMiles;
+    final driverPay = (distanceMiles * AppConstants.driverRatePerMile).clamp(
+      AppConstants.driverMinBasePay,
+      double.infinity,
+    );
     final tipAmount = delivery.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
 
@@ -593,7 +600,7 @@ class _DeliveryCard extends ConsumerWidget {
                     const SizedBox(height: 4),
                     if (totalKm != null)
                       Text(
-                        '${totalKm.toStringAsFixed(1)} km',
+                        '${(totalKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi',
                         style: TextStyle(color: Colors.grey[400], fontSize: 12),
                       ),
                   ],

@@ -238,13 +238,10 @@ Deno.serve(async (request) => {
             user_id: userData.user.id,
             amount: amount,
             currency: currency.toUpperCase(),
-            payment_method: "card",
+            method: "card",
             status: "pending",
             transaction_id: paymentIntent.id as string,
-            metadata: {
-              stripe_payment_intent_id: paymentIntent.id,
-              type: txnType,
-            },
+            gateway: "stripe",
           },
           { onConflict: "order_id" }
         );
@@ -705,6 +702,9 @@ Deno.serve(async (request) => {
       return json({ error: "orderId required" }, 400);
     }
 
+    // Accept optional penalty from caller (already calculated by DB function)
+    const callerPenalty = body.penalty != null ? Number(body.penalty) : null;
+
     try {
       // Verify the order exists, belongs to the user, and is in a cancellable state
       const { data: order, error: orderErr } = await adminClient
@@ -730,19 +730,21 @@ Deno.serve(async (request) => {
       }
 
       if (order.payment_status === "refunded") {
-        return json({ error: "Already refunded" }, 400);
+        return json({ success: true, message: "Already refunded" });
       }
 
       if (order.payment_status !== "completed") {
         return json({ error: "No completed payment to refund" }, 400);
       }
 
-      // Calculate cancellation fee — same rules as cancel_order_with_penalty
-      const orderedAt = new Date(order.ordered_at as string);
-      const minutesPassed = (Date.now() - orderedAt.getTime()) / 60000;
-      let cancellationFee = 0;
-      if (minutesPassed >= 5) {
-        cancellationFee = 1.00; // flat $1.00 after 5 minutes
+      // Use caller-provided penalty if available, otherwise calculate
+      let cancellationFee: number;
+      if (callerPenalty != null && callerPenalty >= 0) {
+        cancellationFee = callerPenalty;
+      } else {
+        const orderedAt = new Date(order.ordered_at as string);
+        const minutesPassed = (Date.now() - orderedAt.getTime()) / 60000;
+        cancellationFee = minutesPassed >= 5 ? 1.00 : 0;
       }
 
       const orderTotal = order.total_amount as number;
@@ -763,20 +765,35 @@ Deno.serve(async (request) => {
       }
 
       // Look up the payment record to get the Stripe PaymentIntent ID
-      const { data: payment, error: payErr } = await adminClient
+      let paymentIntentId: string | null = null;
+
+      const { data: payment } = await adminClient
         .from("payments")
         .select("transaction_id, status, amount")
         .eq("order_id", orderId)
-        .eq("status", "completed")
-        .single();
+        .in("status", ["completed", "pending"])
+        .maybeSingle();
 
-      if (payErr || !payment) {
-        return json({ error: "No completed payment found for this order" }, 404);
+      if (payment?.transaction_id) {
+        paymentIntentId = payment.transaction_id as string;
       }
 
-      const paymentIntentId = payment.transaction_id as string;
+      // Fallback: search Stripe for a PaymentIntent with this order_id in metadata
       if (!paymentIntentId) {
-        return json({ error: "No Stripe payment intent on record" }, 400);
+        const searchResult = await stripeGet(
+          `/payment_intents?limit=5&metadata[order_id]=${encodeURIComponent(orderId)}`
+        );
+        const piList = (searchResult.data ?? []) as Array<Record<string, unknown>>;
+        const succeededPi = piList.find(
+          (pi) => pi.status === "succeeded" || pi.status === "requires_capture"
+        );
+        if (succeededPi) {
+          paymentIntentId = succeededPi.id as string;
+        }
+      }
+
+      if (!paymentIntentId) {
+        return json({ error: "No Stripe payment found for this order" }, 404);
       }
 
       // Partial refund via Stripe — deduct cancellation fee, refund to original card
@@ -792,16 +809,13 @@ Deno.serve(async (request) => {
         return json({ error: err.message ?? "Refund failed" }, 400);
       }
 
-      // Update payment record
+      // Update payment record if it exists
       await adminClient
         .from("payments")
         .update({
           status: "refunded",
-          metadata: {
-            stripe_payment_intent_id: paymentIntentId,
-            stripe_refund_id: refund.id,
-            refunded_at: new Date().toISOString(),
-          },
+          refund_amount: refundAmount,
+          refund_reason: `Cancellation fee: $${cancellationFee.toFixed(2)}`,
           updated_at: new Date().toISOString(),
         })
         .eq("order_id", orderId);
