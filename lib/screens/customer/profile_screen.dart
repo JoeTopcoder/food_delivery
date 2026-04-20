@@ -238,7 +238,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Logout Button
+            // Sign out button
             ElevatedButton(
               onPressed: () async {
                 await ref.read(authNotifierProvider.notifier).signOut();
@@ -248,7 +248,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                 minimumSize: const Size.fromHeight(50),
               ),
               child: const Text(
-                'Logout',
+                'Sign Out',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,

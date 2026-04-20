@@ -536,7 +536,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'FoodHub',
+                  'MealHub',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,

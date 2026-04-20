@@ -68,6 +68,7 @@ Deno.serve(async (request) => {
   const userId = body.user_id as string;
   const driverTip = (body.driver_tip as number | undefined) ?? 0;
   const paymentMethod = (body.payment_method as string | undefined) ?? "cash";
+  const isPickup = body.is_pickup === true;
   const deliveryLat = body.delivery_latitude as number | undefined;
   const deliveryLng = body.delivery_longitude as number | undefined;
 
@@ -91,6 +92,7 @@ Deno.serve(async (request) => {
       bankFeePct,
       cashFeePct,
       defaultCommissionRate,
+      subscriptionMinCart,
       peakAddonFee,
       peakStart,
       peakEnd,
@@ -110,6 +112,7 @@ Deno.serve(async (request) => {
       getConfig("bank_transfer_fee_percent", 1.0),
       getConfig("cash_fee_percent", 0),
       getConfig("default_commission_rate", 0.15),
+      getConfig("subscription_min_cart", 15.0),
       getConfig("peak_addon_fee", 0),
       getConfig("peak_hours_start", 11),
       getConfig("peak_hours_end", 14),
@@ -128,7 +131,7 @@ Deno.serve(async (request) => {
     // ── 2. Fetch restaurant ────────────────────────────────────────────────
     const { data: restaurant, error: restErr } = await admin
       .from("restaurants")
-      .select("id, name, delivery_fee, commission_rate, latitude, longitude")
+      .select("id, name, delivery_fee, commission_rate, latitude, longitude, eligible_for_subscription")
       .eq("id", restaurantId)
       .single();
     if (restErr || !restaurant) {
@@ -230,6 +233,30 @@ Deno.serve(async (request) => {
     } else {
       // No coordinates — still apply surge to flat fee
       deliveryFee = Math.round((deliveryFee * effectiveSurge + peakFee) * 100) / 100;
+    }
+
+    // ── 4b. MealHub+ free-delivery eligibility (server-authoritative) ─────
+    let subscriptionDeliveryFree = false;
+    let subscriptionId: string | null = null;
+    const restaurantEligible = restaurant.eligible_for_subscription !== false;
+
+    if (!isPickup && restaurantEligible && subtotal >= subscriptionMinCart) {
+      const { data: activeSub } = await admin
+        .from("user_subscriptions")
+        .select("id, status, deliveries_remaining")
+        .eq("user_id", userId)
+        .in("status", ["active", "pending"])
+        .not("plan_type", "is", null)
+        .gt("deliveries_remaining", 0)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeSub) {
+        subscriptionDeliveryFree = true;
+        subscriptionId = activeSub.id as string;
+        deliveryFee = 0;
+      }
     }
 
     // ── 5. Tax ─────────────────────────────────────────────────────────────
@@ -336,6 +363,8 @@ Deno.serve(async (request) => {
         commission_amount: commissionAmount,
         order_total: orderTotal,
         grand_total: grandTotal,
+        subscription_delivery_free: subscriptionDeliveryFree,
+        subscription_id: subscriptionId,
       },
     });
   } catch (err) {

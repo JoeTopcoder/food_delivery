@@ -25,6 +25,10 @@ class Driver {
   final String? bankAccountType;
   final double? totalPaidOut;
   final double? cashFloat;
+  final String? stripeAccountId;
+  final bool payoutsEnabled;
+  final bool stripeDebitCardAdded;
+  final String? stripeAccountStatus;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -50,6 +54,10 @@ class Driver {
     this.bankAccountType,
     this.totalPaidOut,
     this.cashFloat,
+    this.stripeAccountId,
+    this.payoutsEnabled = false,
+    this.stripeDebitCardAdded = false,
+    this.stripeAccountStatus,
     required this.createdAt,
     this.updatedAt,
   });
@@ -79,6 +87,10 @@ class Driver {
     String? bankAccountType,
     double? totalPaidOut,
     double? cashFloat,
+    String? stripeAccountId,
+    bool? payoutsEnabled,
+    bool? stripeDebitCardAdded,
+    String? stripeAccountStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -104,6 +116,10 @@ class Driver {
       bankAccountType: bankAccountType ?? this.bankAccountType,
       totalPaidOut: totalPaidOut ?? this.totalPaidOut,
       cashFloat: cashFloat ?? this.cashFloat,
+      stripeAccountId: stripeAccountId ?? this.stripeAccountId,
+      payoutsEnabled: payoutsEnabled ?? this.payoutsEnabled,
+      stripeDebitCardAdded: stripeDebitCardAdded ?? this.stripeDebitCardAdded,
+      stripeAccountStatus: stripeAccountStatus ?? this.stripeAccountStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

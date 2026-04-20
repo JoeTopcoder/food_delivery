@@ -129,6 +129,14 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
               ),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  size: 22,
+                ),
+                tooltip: 'Instant Payout',
+                onPressed: () => Navigator.pushNamed(context, '/driver-wallet'),
+              ),
               if (isRefreshing)
                 const Padding(
                   padding: EdgeInsets.only(right: 16),

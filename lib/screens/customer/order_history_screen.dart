@@ -684,7 +684,7 @@ class _OrderCard extends ConsumerWidget {
           children: [
             const Center(
               child: Text(
-                'FoodHub',
+                'MealHub',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -724,8 +724,10 @@ class _OrderCard extends ConsumerWidget {
             ),
             const Divider(height: 16),
             _ReceiptRow(context, context.l10n.subtotal, order.subtotal),
-            if (order.deliveryFee > 0)
+            if (order.deliveryFee > 0 && _effectiveDeliveryFee(order) > 0)
               _ReceiptRow(context, 'Delivery Fee', order.deliveryFee),
+            if (order.deliveryFee > 0 && _effectiveDeliveryFee(order) == 0)
+              _ReceiptRow(context, 'Delivery Fee (FREE)', 0.0),
             if (order.taxAmount != null && order.taxAmount! > 0)
               _ReceiptRow(context, context.l10n.tax, order.taxAmount!),
             if (order.discount != null && order.discount! > 0)
@@ -772,7 +774,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 20),
             const Center(
               child: Text(
-                'Thank you for using FoodHub!',
+                'Thank you for using MealHub!',
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
@@ -784,6 +786,16 @@ class _OrderCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  double _effectiveDeliveryFee(Order order) {
+    if (order.deliveryFee <= 0) return 0;
+    final taxAmount = order.taxAmount ?? 0;
+    final discount = order.discount ?? 0;
+    final expectedWithFee =
+        order.subtotal + taxAmount - discount + order.deliveryFee;
+    if (order.totalAmount < expectedWithFee - 0.01) return 0;
+    return order.deliveryFee;
   }
 
   // ignore: non_constant_identifier_names

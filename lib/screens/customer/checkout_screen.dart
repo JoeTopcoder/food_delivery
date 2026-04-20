@@ -1226,7 +1226,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        'I agree to FoodHub terms and conditions',
+                        'I agree to the MealHub terms and conditions',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ),
@@ -1255,7 +1255,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ? () => _placeOrder(
                           userId: currentUserId,
                           subtotal: subtotal,
-                          deliveryFee: deliveryFee,
+                          deliveryFee: activeFee,
                           tax: tax,
                           total: total,
                           deliveryAddress: deliveryAddress,
@@ -1453,18 +1453,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         redeemPoints: redeemPts,
         driverTip: driverTip,
         paymentMethod: _selectedPayment,
+        isPickup: isPickup,
         deliveryLatitude: delLat != 0.0 ? delLat : null,
         deliveryLongitude: delLng != 0.0 ? delLng : null,
       );
 
-      // Use server amounts if available, otherwise fall back to client math
+      // Use server amounts if available, otherwise fall back to client math.
+      // IMPORTANT: if the caller already waived delivery (deliveryFee == 0 because
+      // of a subscription), never let the server override that back to a non-zero fee.
       final verifiedSubtotal = breakdown?.subtotal ?? subtotal;
-      final verifiedDeliveryFee = breakdown?.deliveryFee ?? deliveryFee;
+      final serverDeliveryFee = breakdown?.deliveryFee ?? deliveryFee;
+      final verifiedDeliveryFee = deliveryFee == 0.0 ? 0.0 : serverDeliveryFee;
       final verifiedTax = breakdown?.taxAmount ?? tax;
       final verifiedDiscount =
           (breakdown?.promoDiscount ?? promoDiscount) +
           (breakdown?.loyaltyDiscount ?? loyaltyDiscount);
-      final verifiedTotal = breakdown?.grandTotal ?? total;
+      // Recalculate total if we overrode the delivery fee
+      final serverTotal = breakdown?.grandTotal ?? total;
+      final verifiedTotal = serverDeliveryFee == verifiedDeliveryFee
+          ? serverTotal
+          : serverTotal - serverDeliveryFee + verifiedDeliveryFee;
 
       final orderItems = cart
           .map(
@@ -1601,16 +1609,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           .read(loyaltyServiceProvider)
           .earnPoints(userId: userId, orderId: order.id, orderTotal: total);
 
-      // Use a MealHub+ subscription delivery if applicable
+      // Consume subscription delivery only when server confirmed fee-free delivery.
       final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
-      if (currentSub != null &&
+      final fallbackSubEligible =
+          currentSub != null &&
           currentSub.isActive &&
           currentSub.hasDeliveries &&
-          !isPickup) {
+          subtotal >= AppConstants.subscriptionMinCart;
+      final usedSubscriptionDelivery =
+          !isPickup &&
+          verifiedDeliveryFee <= 0.0 &&
+          ((breakdown?.subscriptionDeliveryFree == true &&
+                  breakdown?.subscriptionId != null) ||
+              (breakdown == null && fallbackSubEligible));
+      if (usedSubscriptionDelivery) {
+        final subscriptionId = breakdown?.subscriptionId ?? currentSub!.id;
         await ref
             .read(subscriptionServiceProvider)
             .useSubscriptionDelivery(
-              subscriptionId: currentSub.id,
+              subscriptionId: subscriptionId,
               orderId: order.id,
             );
         ref.invalidate(activeSubscriptionProvider);

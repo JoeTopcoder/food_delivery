@@ -122,7 +122,7 @@ class _RestaurantDetailScreenState
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                   onPressed: () => Share.share(
-                    'Check out ${widget.restaurant.name} on FoodHub!',
+                    'Check out ${widget.restaurant.name} on MealHub!',
                   ),
                 ),
               ],

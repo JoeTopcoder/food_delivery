@@ -22,6 +22,8 @@ class OrderBreakdown {
   final double commissionAmount;
   final double orderTotal;
   final double grandTotal;
+  final bool subscriptionDeliveryFree;
+  final String? subscriptionId;
 
   const OrderBreakdown({
     required this.subtotal,
@@ -42,6 +44,8 @@ class OrderBreakdown {
     required this.commissionAmount,
     required this.orderTotal,
     required this.grandTotal,
+    required this.subscriptionDeliveryFree,
+    this.subscriptionId,
   });
 
   factory OrderBreakdown.fromJson(Map<String, dynamic> json) {
@@ -64,6 +68,9 @@ class OrderBreakdown {
       commissionAmount: (json['commission_amount'] as num).toDouble(),
       orderTotal: (json['order_total'] as num).toDouble(),
       grandTotal: (json['grand_total'] as num).toDouble(),
+      subscriptionDeliveryFree:
+          json['subscription_delivery_free'] as bool? ?? false,
+      subscriptionId: json['subscription_id'] as String?,
     );
   }
 }
@@ -83,6 +90,7 @@ class OrderCalculationService {
     int redeemPoints = 0,
     double driverTip = 0,
     String paymentMethod = 'cash',
+    bool isPickup = false,
     double? deliveryLatitude,
     double? deliveryLongitude,
   }) async {
@@ -97,6 +105,7 @@ class OrderCalculationService {
           'redeem_points': redeemPoints,
           'driver_tip': driverTip,
           'payment_method': paymentMethod,
+          'is_pickup': isPickup,
           'delivery_latitude': ?deliveryLatitude,
           'delivery_longitude': ?deliveryLongitude,
         },

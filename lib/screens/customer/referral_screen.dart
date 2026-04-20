@@ -208,7 +208,7 @@ class ReferralScreen extends ConsumerWidget {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => Share.share(
-                          'Join FoodHub and use my referral code $code to get bonus loyalty points! Download the app now.',
+                          'Join MealHub and use my referral code $code to get bonus loyalty points! Download the app now.',
                         ),
                         icon: const Icon(Icons.share_rounded),
                         label: const Text(
