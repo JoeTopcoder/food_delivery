@@ -731,7 +731,9 @@ class _OrderDetailsCard extends StatelessWidget {
           ),
           _Row(
             'Delivery Fee',
-            '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}',
+            _effectiveDeliveryFee(order) == 0
+                ? 'FREE'
+                : '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}',
           ),
           if (order.taxAmount != null)
             _Row(
@@ -748,6 +750,21 @@ class _OrderDetailsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Returns 0 if delivery was actually free (subscription waiver) even if the
+/// raw delivery_fee field is non-zero (can happen when the fee wasn't zeroed
+/// in the DB but the total was already calculated without it).
+double _effectiveDeliveryFee(Order order) {
+  if (order.deliveryFee <= 0) return 0;
+  final taxAmount = order.taxAmount ?? 0;
+  final discount = order.discount ?? 0;
+  // If total == subtotal + tax - discount (delivery not included in total),
+  // the fee was waived.
+  final expectedWithFee =
+      order.subtotal + taxAmount - discount + order.deliveryFee;
+  if (order.totalAmount < expectedWithFee - 0.01) return 0;
+  return order.deliveryFee;
 }
 
 class _Row extends StatelessWidget {

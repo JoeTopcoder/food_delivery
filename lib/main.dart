@@ -50,6 +50,7 @@ import 'screens/shared/chat_screen.dart';
 import 'screens/shared/call_screen.dart';
 import 'models/chat_model.dart';
 import 'screens/driver/driver_earnings_screen.dart';
+import 'screens/driver/driver_wallet_screen.dart';
 import 'screens/driver/advanced_earnings_screen.dart';
 import 'screens/driver/driver_performance_screen.dart';
 import 'screens/driver/demand_heatmap_screen.dart';
@@ -465,6 +466,13 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['driver'],
                   child: DriverEarningsScreen(),
+                ),
+              );
+            case '/driver-wallet':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverWalletScreen(),
                 ),
               );
             case '/driver-earnings-advanced':

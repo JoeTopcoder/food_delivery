@@ -28,6 +28,10 @@ Driver _$DriverFromJson(Map<String, dynamic> json) => Driver(
       bankAccountType: json['bank_account_type'] as String?,
       totalPaidOut: (json['total_paid_out'] as num?)?.toDouble(),
       cashFloat: (json['cash_float'] as num?)?.toDouble(),
+      stripeAccountId: json['stripe_account_id'] as String?,
+      payoutsEnabled: json['payouts_enabled'] as bool? ?? false,
+      stripeDebitCardAdded: json['stripe_debit_card_added'] as bool? ?? false,
+      stripeAccountStatus: json['stripe_account_status'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -56,6 +60,10 @@ Map<String, dynamic> _$DriverToJson(Driver instance) => <String, dynamic>{
       'bank_account_type': instance.bankAccountType,
       'total_paid_out': instance.totalPaidOut,
       'cash_float': instance.cashFloat,
+      'stripe_account_id': instance.stripeAccountId,
+      'payouts_enabled': instance.payoutsEnabled,
+      'stripe_debit_card_added': instance.stripeDebitCardAdded,
+      'stripe_account_status': instance.stripeAccountStatus,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

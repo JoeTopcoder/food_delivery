@@ -935,7 +935,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        'I agree to FoodHub terms and conditions',
+                        'I agree to the MealHub terms and conditions',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

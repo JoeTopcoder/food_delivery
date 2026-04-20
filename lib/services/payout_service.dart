@@ -479,3 +479,146 @@ class PayoutService {
     }
   }
 }
+
+// ── Stripe Connect instant payout support ─────────────────────────────────
+
+/// Represents a row in the payout_history table.
+class PayoutRecord {
+  final String id;
+  final String driverId;
+  final String? stripePayoutId;
+  final double amount;
+  final String currency;
+  final String payoutType;
+  final String status;
+  final String? failureMessage;
+  final DateTime createdAt;
+
+  const PayoutRecord({
+    required this.id,
+    required this.driverId,
+    this.stripePayoutId,
+    required this.amount,
+    required this.currency,
+    required this.payoutType,
+    required this.status,
+    this.failureMessage,
+    required this.createdAt,
+  });
+
+  factory PayoutRecord.fromJson(Map<String, dynamic> json) {
+    return PayoutRecord(
+      id: json['id'] as String,
+      driverId: json['driver_id'] as String,
+      stripePayoutId: json['stripe_payout_id'] as String?,
+      amount: (json['amount'] as num).toDouble(),
+      currency: json['currency'] as String? ?? 'usd',
+      payoutType: json['payout_type'] as String? ?? 'instant',
+      status: json['status'] as String? ?? 'pending',
+      failureMessage: json['failure_message'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+}
+
+/// StripePayoutService — handles Stripe Connect onboarding and instant
+/// payouts by calling secured Supabase edge functions. Never calls Stripe
+/// directly from the client side.
+class StripePayoutService {
+  StripePayoutService._();
+  static final instance = StripePayoutService._();
+
+  SupabaseClient get _client => Supabase.instance.client;
+
+  /// Returns an onboarding URL to complete Stripe Connect KYC.
+  Future<String> getStripeOnboardingUrl() async {
+    final res = await _client.functions.invoke(
+      'stripe-connect',
+      body: {'action': 'onboard'},
+    );
+    _checkError(res);
+    final url = (res.data as Map<String, dynamic>)['url'] as String?;
+    if (url == null) throw Exception('No onboarding URL returned from server.');
+    return url;
+  }
+
+  /// Fetches current Stripe Connect account status for the authenticated driver.
+  Future<Map<String, dynamic>> getStripeStatus() async {
+    final res = await _client.functions.invoke(
+      'stripe-connect',
+      body: {'action': 'status'},
+    );
+    _checkError(res);
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// Requests an instant (or standard) payout of [amountCents] (USD cents).
+  /// Returns the full server response map on success.
+  /// May throw [StripePayoutException] with [fallbackAvailable] == true when
+  /// instant fails so the caller can offer a standard payout fallback.
+  Future<Map<String, dynamic>> requestPayout({
+    required int amountCents,
+    String payoutType = 'instant',
+  }) async {
+    final res = await _client.functions.invoke(
+      'payout-driver',
+      body: {'amount_cents': amountCents, 'payout_type': payoutType},
+    );
+
+    final data = res.data as Map<String, dynamic>?;
+    final status = res.status ?? 200;
+
+    if (status >= 400) {
+      final errMsg = data?['error'] as String? ?? 'Payout failed';
+      final fallback = data?['fallback_available'] as bool? ?? false;
+      final hint = data?['message'] as String?;
+      throw StripePayoutException(
+        errMsg,
+        fallbackAvailable: fallback,
+        hint: hint,
+      );
+    }
+
+    if (data == null) throw Exception('Empty response from payout function');
+    return data;
+  }
+
+  /// Returns the driver's payout history (most recent first, limit 50).
+  Future<List<PayoutRecord>> getPayoutHistory(String driverId) async {
+    final rows = await _client
+        .from('payout_history')
+        .select()
+        .eq('driver_id', driverId)
+        .order('created_at', ascending: false)
+        .limit(50);
+
+    return (rows as List)
+        .map((r) => PayoutRecord.fromJson(Map<String, dynamic>.from(r as Map)))
+        .toList();
+  }
+
+  void _checkError(FunctionResponse res) {
+    final status = res.status ?? 200;
+    if (status >= 400) {
+      final data = res.data as Map<String, dynamic>?;
+      final msg = data?['error'] as String? ?? 'Server error ($status)';
+      throw Exception(msg);
+    }
+  }
+}
+
+/// Structured exception for Stripe payout errors, carrying a fallback flag.
+class StripePayoutException implements Exception {
+  final String message;
+  final bool fallbackAvailable;
+  final String? hint;
+
+  const StripePayoutException(
+    this.message, {
+    this.fallbackAvailable = false,
+    this.hint,
+  });
+
+  @override
+  String toString() => message;
+}

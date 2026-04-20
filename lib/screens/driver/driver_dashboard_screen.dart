@@ -156,7 +156,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 child: Column(
                   children: [
                     // Top bar: avatar + greeting + settings
