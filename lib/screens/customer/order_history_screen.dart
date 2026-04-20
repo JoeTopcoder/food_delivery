@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/order_model.dart';
@@ -841,10 +842,32 @@ class _OrderCard extends ConsumerWidget {
                 if (userId != null) {
                   ref.invalidate(userOrdersProvider(userId));
                 }
+
+                // Refund card orders via Stripe
+                if (order.paymentMethod == 'card') {
+                  try {
+                    final penalty =
+                        (result['penalty'] as num?)?.toDouble() ?? 0;
+                    await SupabaseConfig.client.functions.invoke(
+                      AppConstants.stripePaymentFunction,
+                      body: {
+                        'action': 'refund',
+                        'orderId': order.id,
+                        'penalty': penalty,
+                      },
+                    );
+                  } catch (e) {
+                    AppLogger.error('Card refund failed: $e');
+                  }
+                }
+
                 if (context.mounted) {
                   final refund = (result['refund'] as num?)?.toDouble() ?? 0;
                   final penalty = (result['penalty'] as num?)?.toDouble() ?? 0;
-                  final message = refund > 0
+                  final isCard = order.paymentMethod == 'card';
+                  final message = isCard && refund > 0
+                      ? 'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} to your card.'
+                      : refund > 0
                       ? 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.'
                       : penalty > 0
                       ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'

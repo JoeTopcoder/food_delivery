@@ -9,8 +9,9 @@ import '../../providers/feature_providers.dart';
 // ── Config keys managed by this screen ──────────────────────────────────────
 const _deliveryConfigKeys = [
   'delivery_base_fee',
-  'delivery_per_km_fee',
-  'delivery_base_km',
+  'delivery_per_mile_fee',
+  'delivery_per_mile_fee_peak',
+  'delivery_base_miles',
   'delivery_max_km',
   'delivery_surge_multiplier',
   'driver_pay_percent',
@@ -51,8 +52,9 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   // Friendly labels for config keys
   static const _labels = <String, String>{
     'delivery_base_fee': 'Base Fee (\$)',
-    'delivery_per_km_fee': 'Per-km Fee (\$)',
-    'delivery_base_km': 'Included km (free range)',
+    'delivery_per_mile_fee': 'Per-Mile Fee (\$)',
+    'delivery_per_mile_fee_peak': 'Per-Mile Fee – Peak (\$)',
+    'delivery_base_miles': 'Included Miles (free range)',
     'delivery_max_km': 'Maximum Delivery Distance (km)',
     'delivery_surge_multiplier': 'Global Surge Multiplier',
     'driver_pay_percent': 'Driver Pay %',
@@ -67,9 +69,10 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   };
 
   static const _hints = <String, String>{
-    'delivery_base_fee': 'Charged for the first N km',
-    'delivery_per_km_fee': 'Added for each km beyond the base range',
-    'delivery_base_km': 'Km included in the base fee',
+    'delivery_base_fee': 'Charged for the first N miles',
+    'delivery_per_mile_fee': '\$2.00/mi standard rate',
+    'delivery_per_mile_fee_peak': '\$2.50/mi during peak hours',
+    'delivery_base_miles': 'Miles included in the base fee',
     'delivery_max_km': 'Orders beyond this distance are rejected',
     'delivery_surge_multiplier': '1.0 = no surge; 1.5 = 50 % premium',
     'driver_pay_percent': '0.80 = driver keeps 80 % of the fee',

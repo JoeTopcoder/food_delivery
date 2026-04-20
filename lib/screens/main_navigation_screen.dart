@@ -25,6 +25,9 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _selectedIndex = 0;
 
+  /// Tracks which tabs have been visited so we only build them on first access.
+  final Set<int> _loadedTabs = {0}; // Home tab loaded immediately
+
   static const List<Widget> _screens = [
     CustomerHomeScreen(),
     GroceryScreen(),
@@ -36,11 +39,20 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _screens),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          for (int i = 0; i < _screens.length; i++)
+            _loadedTabs.contains(i) ? _screens[i] : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          setState(() => _selectedIndex = index);
+          setState(() {
+            _loadedTabs.add(index);
+            _selectedIndex = index;
+          });
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: context.theme.cardColor,

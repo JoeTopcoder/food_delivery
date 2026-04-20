@@ -117,16 +117,16 @@ Deno.serve(async (request) => {
     }
 
     // Fetch config values (including new driver_pay_percent + min_delivery_fee)
-    const [baseFee, perKmFee, baseKm, maxKm, globalSurgeMultiplier, defaultFee, driverPayPercent, minFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] = await Promise.all([
-      getConfig("delivery_base_fee", 5.0),
-      getConfig("delivery_per_km_fee", 1.5),
-      getConfig("delivery_base_km", 3.0),
+    const [baseFee, perMileFee, perMileFeePeak, baseMiles, maxKm, globalSurgeMultiplier, defaultFee, driverPayPercent, minFee, peakStart, peakEnd, peakStart2, peakEnd2] = await Promise.all([
+      getConfig("delivery_base_fee", 3.0),
+      getConfig("delivery_per_mile_fee", 2.0),
+      getConfig("delivery_per_mile_fee_peak", 2.5),
+      getConfig("delivery_base_miles", 1.0),
       getConfig("delivery_max_km", 30.0),
       getConfig("delivery_surge_multiplier", 1.0),
       getConfig("default_delivery_fee", 5.0),
       getConfig("driver_pay_percent", 0.80),
       getConfig("min_delivery_fee", 3.0),
-      getConfig("peak_addon_fee", 0),
       getConfig("peak_hours_start", 11),
       getConfig("peak_hours_end", 14),
       getConfig("peak_hours_start_2", 18),
@@ -135,11 +135,12 @@ Deno.serve(async (request) => {
 
     // Check if current hour is within a peak window
     const currentHour = new Date().getUTCHours(); // Edge functions run in UTC — adjust if needed
-    const isPeak = peakAddonFee > 0 && (
+    const isPeak = (
       (currentHour >= peakStart && currentHour < peakEnd) ||
       (currentHour >= peakStart2 && currentHour < peakEnd2)
     );
-    const peakFee = isPeak ? peakAddonFee : 0;
+    // $2.00/mile standard, $2.50/mile peak
+    const activePerMileFee = isPeak ? perMileFeePeak : perMileFee;
 
     // Check surge_zones table for zone-specific multiplier at delivery location
     let surgeMultiplier = globalSurgeMultiplier;
@@ -162,7 +163,7 @@ Deno.serve(async (request) => {
 
     // If restaurant has no coordinates, return flat fee (still apply surge)
     if (!restaurant.latitude || !restaurant.longitude) {
-      const rawFee = (restaurant.delivery_fee ?? defaultFee) * surgeMultiplier + peakFee;
+      const rawFee = (restaurant.delivery_fee ?? defaultFee) * surgeMultiplier;
       const flatFee = round2(Math.max(rawFee, minFee));
       const driverPay = round2(flatFee * driverPayPercent);
       const platformFee = round2(flatFee - driverPay);
@@ -202,8 +203,10 @@ Deno.serve(async (request) => {
       }, 400);
     }
 
-    const extraKm = Math.max(0, distanceKm - baseKm);
-    const rawCalculated = (baseFee + extraKm * perKmFee) * surgeMultiplier + peakFee;
+    // Distance-based: $2.00/mile (standard) or $2.50/mile (peak)
+    const distanceMiles = distanceKm * 0.621371;
+    const extraMiles = Math.max(0, distanceMiles - baseMiles);
+    const rawCalculated = (baseFee + extraMiles * activePerMileFee) * surgeMultiplier;
     // Use higher of restaurant override or distance-based fee
     const restaurantOverride = restaurant.delivery_fee ?? 0;
     // Enforce minimum fee
@@ -211,6 +214,7 @@ Deno.serve(async (request) => {
     const driverPay = round2(finalFee * driverPayPercent);
     const platformFee = round2(finalFee - driverPay);
     const distanceRounded = Math.round(distanceKm * 10) / 10;
+    const milesRounded = round2(distanceMiles);
 
     // ── Write to cache ───────────────────────────────────────────────────────
     await setCache({
@@ -230,16 +234,15 @@ Deno.serve(async (request) => {
       platform_fee: platformFee,
       driver_pay_percent: driverPayPercent,
       distance_km: distanceRounded,
-      distance_miles: round2(distanceKm * 0.621371),
+      distance_miles: milesRounded,
       calculation: "distance_based",
       base_fee: baseFee,
-      per_km_fee: perKmFee,
-      base_km: baseKm,
-      extra_km: Math.round(extraKm * 10) / 10,
+      per_mile_fee: activePerMileFee,
+      base_miles: baseMiles,
+      extra_miles: round2(extraMiles),
       surge_multiplier: surgeMultiplier,
       min_fee: minFee,
       restaurant_override: restaurantOverride,
-      peak_addon_fee: peakFee,
       is_peak: isPeak,
     });
   } catch (err) {

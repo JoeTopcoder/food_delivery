@@ -505,15 +505,16 @@ class DriverService {
         (s, d) => s + ((d['driver_tip'] as num?)?.toDouble() ?? 0.0),
       );
 
-      // Compute total earnings: driver keeps driverPayPercent of each delivery fee + tips
-      final totalDriverPay = deliveries.fold<double>(
-        0.0,
-        (s, d) =>
-            s +
-            (((d['delivery_fee'] as num?)?.toDouble() ??
-                    AppConstants.driverFeePerDelivery) *
-                AppConstants.driverPayPercent),
-      );
+      // Compute total earnings: $1.50/mile × distance, with minimum $3/delivery
+      final totalDriverPay = deliveries.fold<double>(0.0, (s, d) {
+        final distKm = (d['distance_km'] as num?)?.toDouble() ?? 0;
+        final distMiles = distKm * AppConstants.kmToMiles;
+        final pay = (distMiles * AppConstants.driverRatePerMile).clamp(
+          AppConstants.driverMinBasePay,
+          double.infinity,
+        );
+        return s + pay;
+      });
       final totalEarnings = totalDriverPay + totalTips;
 
       // Recalculate total_paid_out from all active payouts

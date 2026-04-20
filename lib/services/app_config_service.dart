@@ -96,16 +96,31 @@ class AppConfigService {
       AppConstants.cashFeePercent,
     );
 
-    // Delivery
+    // Delivery ($2–$2.50/mile pricing)
     AppConstants.deliveryBaseFee = _double(
       c,
       'delivery_base_fee',
       AppConstants.deliveryBaseFee,
     );
+    AppConstants.deliveryPerMileFee = _double(
+      c,
+      'delivery_per_mile_fee',
+      AppConstants.deliveryPerMileFee,
+    );
+    AppConstants.deliveryPerMileFeePeak = _double(
+      c,
+      'delivery_per_mile_fee_peak',
+      AppConstants.deliveryPerMileFeePeak,
+    );
     AppConstants.deliveryPerKmFee = _double(
       c,
       'delivery_per_km_fee',
       AppConstants.deliveryPerKmFee,
+    );
+    AppConstants.deliveryBaseMiles = _double(
+      c,
+      'delivery_base_miles',
+      AppConstants.deliveryBaseMiles,
     );
     AppConstants.deliveryBaseKm = _double(
       c,
@@ -136,6 +151,23 @@ class AppConfigService {
       c,
       'driver_bonus_per_order',
       AppConstants.driverBonusPerOrder,
+    );
+
+    // Driver pay rates ($1.50/mile compliance)
+    AppConstants.driverRatePerMile = _double(
+      c,
+      'driver_rate_per_mile',
+      AppConstants.driverRatePerMile,
+    );
+    AppConstants.driverRatePerKm = _double(
+      c,
+      'driver_rate_per_km',
+      AppConstants.driverRatePerKm,
+    );
+    AppConstants.driverMinBasePay = _double(
+      c,
+      'driver_base_pay_minimum',
+      AppConstants.driverMinBasePay,
     );
 
     // Peak hour pricing

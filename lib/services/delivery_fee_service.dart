@@ -186,12 +186,14 @@ class DeliveryFeeService {
     required String cacheKey,
   }) {
     final baseFee = AppConstants.deliveryBaseFee;
-    final perKmFee = AppConstants.deliveryPerKmFee;
-    final baseKm = AppConstants.deliveryBaseKm;
+    // $2.00/mile standard, $2.50/mile peak
+    final perMileFee = AppConstants.isPeakHour
+        ? AppConstants.deliveryPerMileFeePeak
+        : AppConstants.deliveryPerMileFee;
+    final baseMiles = AppConstants.deliveryBaseMiles;
     final surge = AppConstants.deliverySurgeMultiplier;
     final driverPayPct = AppConstants.driverPayPercent;
     final minFee = AppConstants.minDeliveryFee;
-    final peakAddon = AppConstants.isPeakHour ? AppConstants.peakAddonFee : 0.0;
 
     // If we have both coordinates, compute distance-based fee
     if (restaurantLatitude != null && restaurantLongitude != null) {
@@ -207,14 +209,13 @@ class DeliveryFeeService {
       if (distanceKm > maxKm) return null;
 
       final distRounded = (distanceKm * 10).round() / 10;
-      final extraKm = math.max(0.0, distanceKm - baseKm);
-      final rawFee = (baseFee + extraKm * perKmFee) * surge + peakAddon;
+      final distanceMiles = distanceKm * 0.621371;
+      final extraMiles = math.max(0.0, distanceMiles - baseMiles);
+      final rawFee = (baseFee + extraMiles * perMileFee) * surge;
       final finalFee = _round2(math.max(rawFee, minFee));
       final driverPay = _round2(finalFee * driverPayPct);
 
-      // Always calculate by KM first; if distance <= baseKm the fee
-      // equals the base price → label as 'base_fee'.
-      final calcType = extraKm > 0 ? 'distance_based' : 'base_fee';
+      final calcType = extraMiles > 0 ? 'distance_based' : 'base_fee';
 
       final result = DeliveryFeeResult(
         deliveryFee: finalFee,
@@ -222,13 +223,13 @@ class DeliveryFeeService {
         platformFee: _round2(finalFee - driverPay),
         driverPayPercent: driverPayPct,
         distanceKm: distRounded,
-        distanceMiles: _round2(distanceKm * 0.621371),
+        distanceMiles: _round2(distanceMiles),
         calculation: calcType,
         surgeMultiplier: surge,
         baseFee: baseFee,
-        perKmFee: perKmFee,
-        baseKm: baseKm,
-        extraKm: (extraKm * 10).round() / 10,
+        perKmFee: perMileFee, // per-mile rate (legacy field name)
+        baseKm: baseMiles, // base miles (legacy field name)
+        extraKm: _round2(extraMiles), // extra miles (legacy field name)
         minFee: minFee,
       );
 
@@ -241,7 +242,7 @@ class DeliveryFeeService {
 
     // No restaurant coordinates — use admin default delivery fee
     final flatFee = _round2(
-      math.max(AppConstants.defaultDeliveryFee * surge + peakAddon, minFee),
+      math.max(AppConstants.defaultDeliveryFee * surge, minFee),
     );
     final driverPay = _round2(flatFee * driverPayPct);
 

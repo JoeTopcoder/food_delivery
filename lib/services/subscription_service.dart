@@ -291,14 +291,18 @@ class SubscriptionService {
   /// Activate a pending subscription after successful payment.
   Future<bool> activateDeliverySubscription(String subscriptionId) async {
     try {
+      AppLogger.info('Activating subscription: $subscriptionId');
       final response = await _client.functions.invoke(
         'create-subscription',
         body: {'action': 'activate', 'subscription_id': subscriptionId},
       );
 
+      AppLogger.info('Activate response status: ${response.status}');
       final data = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>
           : response.data as Map<String, dynamic>;
+
+      AppLogger.info('Activate response data: $data');
 
       if (data['error'] != null) {
         AppLogger.error('Activate error: ${data['error']}');

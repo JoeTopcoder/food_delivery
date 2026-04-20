@@ -3,6 +3,7 @@ import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/notification_service.dart';
 import '../../utils/friendly_error.dart';
@@ -496,6 +497,85 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
+        // ── Driver Tier Badge ────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final statsAsync = ref.watch(driverStatsProvider(driver.id));
+                final stats = statsAsync.valueOrNull;
+                if (stats == null) return const SizedBox.shrink();
+                final Color tierColor;
+                switch (stats.tier) {
+                  case 'elite':
+                    tierColor = const Color(0xFFE879F9);
+                    break;
+                  case 'gold':
+                    tierColor = const Color(0xFFFBBF24);
+                    break;
+                  case 'silver':
+                    tierColor = const Color(0xFF94A3B8);
+                    break;
+                  default:
+                    tierColor = const Color(0xFFD97706);
+                }
+                return GestureDetector(
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/driver-performance'),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: tierColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: tierColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          stats.tierEmoji,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${stats.tierLabel} Driver',
+                                style: TextStyle(
+                                  color: tierColor,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                'Score: ${stats.score.toStringAsFixed(0)}/100  •  ${stats.bonusMultiplier > 1 ? '+${((stats.bonusMultiplier - 1) * 100).toStringAsFixed(0)}% bonus' : 'No bonus yet'}',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: tierColor,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+
         // ── Quick Actions ────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
@@ -579,7 +659,37 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               title: 'My Earnings',
               subtitle: 'Track income, tips & payouts',
               gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
-              onTap: () => Navigator.of(context).pushNamed('/driver-earnings'),
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/driver-earnings-advanced'),
+            ),
+          ),
+        ),
+
+        // ── Performance Banner ───────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _PromoBanner(
+              icon: Icons.insights_rounded,
+              title: 'Performance & Tier',
+              subtitle: 'Score, tier progress & smart tips',
+              gradient: const [Color(0xFF22C55E), Color(0xFF16A34A)],
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/driver-performance'),
+            ),
+          ),
+        ),
+
+        // ── Heatmap Banner ───────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _PromoBanner(
+              icon: Icons.map_rounded,
+              title: 'Demand Heatmap',
+              subtitle: 'Find surge zones & earn more',
+              gradient: const [Color(0xFFEF4444), Color(0xFFDC2626)],
+              onTap: () => Navigator.of(context).pushNamed('/driver-heatmap'),
             ),
           ),
         ),

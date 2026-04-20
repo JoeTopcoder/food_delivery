@@ -5,7 +5,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
+import '../../models/driver_intelligence_models.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/delivery_fee_service.dart';
@@ -261,10 +263,26 @@ class _OrderCard extends ConsumerWidget {
       estMinutes = (totalKm * 3 + 5).round();
     }
 
-    // Driver pay = delivery_fee × driver_pay_percent
-    final driverPay = order.deliveryFee * AppConstants.driverPayPercent;
+    // Driver pay = $1.50/mile × distance (minimum $3)
+    // Uses actual delivery distance (restaurant → drop-off)
+    final distanceMiles = (restToDropKm ?? 0) * AppConstants.kmToMiles;
+    final driverPay = (distanceMiles * AppConstants.driverRatePerMile).clamp(
+      AppConstants.driverMinBasePay,
+      double.infinity,
+    );
     final tipAmount = order.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
+
+    // Fetch AI order score
+    final scoreAsync = ref.watch(
+      orderScoreProvider((
+        orderId: order.id,
+        driverId: driverId,
+        driverLat: driverLat,
+        driverLng: driverLng,
+      )),
+    );
+    final orderScore = scoreAsync.valueOrNull;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -287,6 +305,9 @@ class _OrderCard extends ConsumerWidget {
               dropLng: dropLng,
             ),
 
+          // ── AI Score Banner ─────────────────────────────────────
+          if (orderScore != null) _OrderScoreBanner(score: orderScore),
+
           // ── Pay banner ──────────────────────────────────────────
           Container(
             width: double.infinity,
@@ -295,131 +316,258 @@ class _OrderCard extends ConsumerWidget {
               color: Color(0xFF162016),
               border: Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22C55E),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Delivery',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (_isReady) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF22C55E,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'READY',
+                                  style: TextStyle(
+                                    color: Color(0xFF22C55E),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  order.status.toUpperCase().replaceAll(
+                                    '_',
+                                    ' ',
+                                  ),
+                                  style: const TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (orderScore?.payout.surgeMultiplier != null &&
+                                orderScore!.payout.surgeMultiplier > 1.0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '⚡ ${orderScore.payout.surgeMultiplier.toStringAsFixed(1)}x',
+                                  style: const TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${AppConstants.currencySymbol}${((orderScore?.payout.totalPayout ?? 0) > 0 ? orderScore!.payout.totalPayout : totalPay).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 26,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (tipAmount > 0)
+                          Text(
+                            'Includes ${AppConstants.currencySymbol}${tipAmount.toStringAsFixed(2)} tip',
+                            style: const TextStyle(
+                              color: Color(0xFF22C55E),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const Spacer(),
+                    // Time + distance summary
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (orderScore != null || estMinutes != null)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 14,
+                                color: Colors.white70,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${orderScore?.metrics.estimatedMinutes ?? estMinutes} min',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        const SizedBox(height: 4),
+                        if (orderScore != null || totalKm != null)
+                          Text(
+                            '${(orderScore?.metrics.distanceMiles ?? ((totalKm ?? 0) * AppConstants.kmToMiles)).toStringAsFixed(1)} mi',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                // ── $/mile and $/hr chips ───────────────────────────
+                if (orderScore != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _MetricChip(
+                        icon: Icons.speed_rounded,
+                        label: '\$/mi',
+                        value: orderScore.metrics.earningsPerMile
+                            .toStringAsFixed(2),
+                        color: orderScore.metrics.earningsPerMile >= 2.0
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFFF59E0B),
+                      ),
+                      const SizedBox(width: 8),
+                      _MetricChip(
+                        icon: Icons.timer_rounded,
+                        label: '\$/hr',
+                        value: orderScore.metrics.earningsPerHour
+                            .toStringAsFixed(2),
+                        color: orderScore.metrics.earningsPerHour >= 20
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFFF59E0B),
+                      ),
+                      const Spacer(),
+                      if (orderScore.restaurant?.isSlow == true)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22C55E),
+                            color: const Color(
+                              0xFFEF4444,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'Delivery',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_rounded,
+                                size: 12,
+                                color: Color(0xFFEF4444),
+                              ),
+                              SizedBox(width: 3),
+                              Text(
+                                'Slow Restaurant',
+                                style: TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                // ── Alternative zone tip ────────────────────────────
+                if (orderScore?.alternativeZone != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_rounded,
+                          size: 14,
+                          color: Color(0xFF818CF8),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            orderScore!.alternativeZone!,
+                            style: const TextStyle(
+                              color: Color(0xFF818CF8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                        if (_isReady) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF22C55E,
-                              ).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'READY',
-                              style: TextStyle(
-                                color: Color(0xFF22C55E),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ] else ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFF59E0B,
-                              ).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              order.status.toUpperCase().replaceAll('_', ' '),
-                              style: const TextStyle(
-                                color: Color(0xFFF59E0B),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${AppConstants.currencySymbol}${totalPay.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 26,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (tipAmount > 0)
-                      Text(
-                        'Includes ${AppConstants.currencySymbol}${tipAmount.toStringAsFixed(2)} tip',
-                        style: const TextStyle(
-                          color: Color(0xFF22C55E),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-                const Spacer(),
-                // Time + distance summary
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (estMinutes != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.schedule_rounded,
-                            size: 14,
-                            color: Colors.white70,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$estMinutes min',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 4),
-                    if (totalKm != null)
-                      Text(
-                        '${totalKm.toStringAsFixed(1)} km',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                      ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -435,7 +583,7 @@ class _OrderCard extends ConsumerWidget {
                   iconColor: const Color(0xFF22C55E),
                   label: restaurant?.name ?? 'Restaurant',
                   subtitle: driverToRestKm != null
-                      ? '${driverToRestKm.toStringAsFixed(1)} km from you'
+                      ? '${(driverToRestKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi from you'
                       : null,
                   onNavigate: restLat != null && restLng != null
                       ? () => _openNavigation(restLat, restLng)
@@ -454,7 +602,7 @@ class _OrderCard extends ConsumerWidget {
                       if (restToDropKm != null) ...[
                         const SizedBox(width: 16),
                         Text(
-                          '${restToDropKm.toStringAsFixed(1)} km',
+                          '${(restToDropKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[600],
@@ -926,5 +1074,138 @@ class _OrderMap extends StatelessWidget {
     if (maxDist < 15) return 12;
     if (maxDist < 30) return 11;
     return 10;
+  }
+}
+
+// ─── AI Score Banner ───────────────────────────────────────────────────────────
+
+class _OrderScoreBanner extends StatelessWidget {
+  final OrderScore score;
+  const _OrderScoreBanner({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = score.score;
+    final Color badgeColor;
+    final String emoji;
+    if (s >= 80) {
+      badgeColor = const Color(0xFF22C55E);
+      emoji = '🔥';
+    } else if (s >= 60) {
+      badgeColor = const Color(0xFF3B82F6);
+      emoji = '👍';
+    } else if (s >= 40) {
+      badgeColor = const Color(0xFFF59E0B);
+      emoji = '🤔';
+    } else {
+      badgeColor = const Color(0xFFEF4444);
+      emoji = '⚠️';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.08),
+        border: const Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
+      ),
+      child: Row(
+        children: [
+          // Score circle
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: badgeColor, width: 3),
+            ),
+            child: Center(
+              child: Text(
+                s.toString(),
+                style: TextStyle(
+                  color: badgeColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(emoji, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 4),
+                    Text(
+                      score.label,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  score.recommendation,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Metric Chip ───────────────────────────────────────────────────────────────
+
+class _MetricChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '\$$value',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            '/$label',
+            style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 10),
+          ),
+        ],
+      ),
+    );
   }
 }

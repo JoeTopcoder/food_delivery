@@ -1177,10 +1177,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           subDeliveryFree
                               ? 'Delivery (MealHub+ FREE)'
                               : 'Delivery${feeResult?.calculation == 'distance_based'
-                                    ? ' (KM)'
+                                    ? ''
                                     : feeResult?.restaurantOverride != null
                                     ? ' (Store)'
-                                    : ' (Base)'}${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}',
+                                    : ' (Base)'}${feeResult?.distanceMiles != null
+                                    ? ' – ${feeResult!.distanceMiles!.toStringAsFixed(1)} mi'
+                                    : distanceKm != null
+                                    ? ' – ${(distanceKm * 0.621371).toStringAsFixed(1)} mi'
+                                    : ''}',
                           feeLoading
                               ? 'Calculating…'
                               : subDeliveryFree
@@ -1251,7 +1255,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ? () => _placeOrder(
                           userId: currentUserId,
                           subtotal: subtotal,
-                          deliveryFee: activeFee,
+                          deliveryFee: deliveryFee,
                           tax: tax,
                           total: total,
                           deliveryAddress: deliveryAddress,

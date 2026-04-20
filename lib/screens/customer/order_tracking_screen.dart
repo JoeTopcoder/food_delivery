@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,6 +16,7 @@ import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../config/supabase_config.dart';
 import '../../utils/context_extensions.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -273,7 +275,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   if (liveOrder.status == 'pending' ||
                       liveOrder.status == 'confirmed') ...[
                     const SizedBox(height: 8),
-                    _CancelOrderButton(orderId: order.id),
+                    _CancelOrderButton(
+                      orderId: order.id,
+                      paymentMethod: liveOrder.paymentMethod,
+                    ),
                   ],
 
                   // Chat with driver (active orders with driver assigned)
@@ -989,7 +994,8 @@ class _SupportChatButtonState extends ConsumerState<_SupportChatButton> {
 
 class _CancelOrderButton extends ConsumerWidget {
   final String orderId;
-  const _CancelOrderButton({required this.orderId});
+  final String? paymentMethod;
+  const _CancelOrderButton({required this.orderId, this.paymentMethod});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1040,10 +1046,32 @@ class _CancelOrderButton extends ConsumerWidget {
                     .read(walletNotifierProvider.notifier)
                     .cancelOrder(orderId);
                 ref.invalidate(userOrdersProvider);
+
+                // Refund card orders via Stripe
+                if (paymentMethod == 'card') {
+                  try {
+                    final penalty =
+                        (result['penalty'] as num?)?.toDouble() ?? 0;
+                    await SupabaseConfig.client.functions.invoke(
+                      AppConstants.stripePaymentFunction,
+                      body: {
+                        'action': 'refund',
+                        'orderId': orderId,
+                        'penalty': penalty,
+                      },
+                    );
+                  } catch (e) {
+                    AppLogger.error('Card refund failed: $e');
+                  }
+                }
+
                 if (context.mounted) {
                   final refund = (result['refund'] as num?)?.toDouble() ?? 0;
                   final penalty = (result['penalty'] as num?)?.toDouble() ?? 0;
-                  final message = refund > 0
+                  final isCard = paymentMethod == 'card';
+                  final message = isCard && refund > 0
+                      ? 'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} to your card.'
+                      : refund > 0
                       ? 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.'
                       : penalty > 0
                       ? 'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.'
