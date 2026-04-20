@@ -36,3 +36,6 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# Google Play Core (required by Flutter deferred components)
+-dontwarn com.google.android.play.core.**
