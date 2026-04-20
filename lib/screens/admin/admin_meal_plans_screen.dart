@@ -130,7 +130,7 @@ class _MealPlanCard extends ConsumerWidget {
                 // Active toggle
                 Switch(
                   value: plan.isActive,
-                  activeColor: const Color(0xFF10B981),
+                  activeThumbColor: const Color(0xFF10B981),
                   onChanged: (v) async {
                     await service.togglePlanActive(plan.id, v);
                   },
@@ -453,7 +453,7 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
 
               // Frequency dropdown
               DropdownButtonFormField<String>(
-                value: _frequency,
+                initialValue: _frequency,
                 decoration: const InputDecoration(
                   labelText: 'Frequency',
                   border: OutlineInputBorder(),
@@ -474,7 +474,7 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
                 title: const Text('Active'),
                 subtitle: const Text('Visible to customers'),
                 value: _isActive,
-                activeColor: const Color(0xFF10B981),
+                activeThumbColor: const Color(0xFF10B981),
                 contentPadding: EdgeInsets.zero,
                 onChanged: (v) => setState(() => _isActive = v),
               ),

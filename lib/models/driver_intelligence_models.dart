@@ -1,5 +1,5 @@
-/// Models for the driver intelligence system — order scoring, earnings,
-/// performance stats, zone demand, and order stacking.
+// Models for the driver intelligence system: order scoring, earnings,
+// performance stats, zone demand, and order stacking.
 
 // ── Order Score ─────────────────────────────────────────────────────
 class OrderScore {

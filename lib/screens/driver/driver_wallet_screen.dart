@@ -377,7 +377,7 @@ class _BalanceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.35),
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -515,7 +515,7 @@ class _StripeStatusCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -701,7 +701,7 @@ class _CashOutButton extends StatelessWidget {
             boxShadow: enabled
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF00C896).withOpacity(0.35),
+                      color: const Color(0xFF00C896).withValues(alpha: 0.35),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -788,8 +788,8 @@ class _Banner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        border: Border.all(color: color.withOpacity(0.4)),
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -847,7 +847,7 @@ class _PayoutTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: statusColor.withOpacity(0.15),
+              color: statusColor.withValues(alpha: 0.15),
             ),
             child: Icon(statusIcon, color: statusColor, size: 20),
           ),
@@ -1097,7 +1097,7 @@ class _AddCardSheetState extends State<_AddCardSheet> {
                 onPressed: (_cardComplete && !_loading) ? _submit : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _accent,
-                  disabledBackgroundColor: _accent.withOpacity(0.4),
+                  disabledBackgroundColor: _accent.withValues(alpha: 0.4),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

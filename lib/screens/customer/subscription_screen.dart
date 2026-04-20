@@ -349,17 +349,16 @@ class _DeliverySubscriptionTabState
                       activeSub.id,
                     );
                     ref.invalidate(activeSubscriptionProvider);
-                    if (mounted) {
-                      ok
-                          ? AppSnackbar.success(
-                              context,
-                              'Subscription activated!',
-                            )
-                          : AppSnackbar.error(
-                              context,
-                              'Activation failed. Try again.',
-                            );
-                    }
+                    if (!context.mounted) return;
+                    ok
+                        ? AppSnackbar.success(
+                            context,
+                            'Subscription activated!',
+                          )
+                        : AppSnackbar.error(
+                            context,
+                            'Activation failed. Try again.',
+                          );
                   },
                   child: Card(
                     shape: RoundedRectangleBorder(
