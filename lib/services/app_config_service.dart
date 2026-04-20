@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
 import '../models/earning_model.dart';
+import '../utils/app_logger.dart';
 
 /// Service that loads app_config from the database and updates AppConstants.
 /// Call [load] once at startup (e.g. in main.dart after Supabase init).
@@ -13,16 +14,16 @@ class AppConfigService {
   /// [AppConstants] with the DB values. Falls back to compiled defaults on error.
   Future<void> load() async {
     try {
-      print('[AppConfig] fetching app_config table...');
+      AppLogger.info('[AppConfig] fetching app_config table...');
       final rows = await _client
           .from('app_config')
           .select('key, value, value_type')
           .timeout(const Duration(seconds: 5));
 
-      print('[AppConfig] got ${rows.length} rows');
+      AppLogger.info('[AppConfig] got ${rows.length} rows');
 
       if (rows.isEmpty) {
-        print('[AppConfig] EMPTY — using defaults');
+        AppLogger.info('[AppConfig] EMPTY - using defaults');
         return;
       }
 
@@ -35,7 +36,7 @@ class AppConfigService {
       }
 
       _applyConfig(config);
-      print(
+      AppLogger.info(
         '[AppConfig] LOADED ${config.length} settings — '
         'deliveryBaseFee=${AppConstants.deliveryBaseFee}, '
         'deliveryPerKmFee=${AppConstants.deliveryPerKmFee}, '
@@ -44,8 +45,8 @@ class AppConfigService {
         'surgeMult=${AppConstants.deliverySurgeMultiplier}',
       );
     } catch (e, st) {
-      print('[AppConfig] FAILED: $e');
-      print('[AppConfig] stack: $st');
+      AppLogger.error('[AppConfig] FAILED: $e');
+      AppLogger.error('[AppConfig] stack: $st');
     }
   }
 

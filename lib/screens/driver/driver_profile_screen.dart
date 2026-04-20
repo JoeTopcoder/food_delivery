@@ -225,7 +225,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                 ),
                               ),
                               child: DropdownButtonFormField<String>(
-                                value: _selectedVehicleType,
+                                initialValue: _selectedVehicleType,
                                 dropdownColor: const Color(0xFF1A1D2B),
                                 style: const TextStyle(
                                   color: Colors.white,

@@ -853,25 +853,27 @@ class _OrderCard extends ConsumerWidget {
                   'Where should your refund go?',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                RadioListTile<String>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: 'original',
+                RadioGroup<String>(
                   groupValue: selectedRefundMethod,
                   onChanged: (v) => setDialogState(
                     () => selectedRefundMethod = v ?? 'original',
                   ),
-                  title: const Text('Back to card'),
-                ),
-                RadioListTile<String>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: 'wallet',
-                  groupValue: selectedRefundMethod,
-                  onChanged: (v) => setDialogState(
-                    () => selectedRefundMethod = v ?? 'wallet',
+                  child: Column(
+                    children: const [
+                      RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: 'original',
+                        title: Text('Back to card'),
+                      ),
+                      RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: 'wallet',
+                        title: Text('To wallet balance'),
+                      ),
+                    ],
                   ),
-                  title: const Text('To wallet balance'),
                 ),
               ] else if (isCashPayment) ...[
                 const SizedBox(height: 12),

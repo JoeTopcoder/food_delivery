@@ -89,7 +89,7 @@ import 'screens/admin/admin_earnings_screen.dart';
 import 'screens/admin/admin_mealhub_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
-// import 'utils/app_logger.dart';
+import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
 import 'providers/feature_providers.dart';
@@ -115,7 +115,7 @@ void main() async {
     // applySettings runs lazily; no need to block startup
     Stripe.instance.applySettings().catchError((_) {});
   }
-  print(
+  AppLogger.info(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
   );
   runApp(const ProviderScope(child: MyApp()));
