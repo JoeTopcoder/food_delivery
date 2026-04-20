@@ -144,6 +144,15 @@ class _RestaurantDashboardScreenState
     final currentUserId = ref.watch(currentUserIdProvider);
 
     if (authState.user == null || currentUserId == null) {
+      if (!authState.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/signin', (_) => false);
+          }
+        });
+      }
       return const Scaffold(body: AppLoadingIndicator());
     }
 

@@ -80,7 +80,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         : null;
 
     if (authState.user == null || currentUserId == null) {
-      return const Scaffold(body: AppLoadingIndicator());
+      if (!authState.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/signin', (_) => false);
+          }
+        });
+      }
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F1117),
+        body: AppLoadingIndicator(),
+      );
     }
 
     // Use cached driver to avoid full-screen spinner on realtime refresh

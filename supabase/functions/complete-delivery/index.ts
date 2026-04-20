@@ -25,6 +25,19 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function round2(n: number): number { return Math.round(n * 100) / 100; }
+
+// Haversine distance in km
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function getConfig(key: string, fallback: number): Promise<number> {
   const { data } = await admin.from("app_config").select("value").eq("key", key).maybeSingle();
   return data ? parseFloat(data.value) : fallback;
@@ -60,7 +73,7 @@ Deno.serve(async (request) => {
       })
       .eq("id", orderId)
       .neq("status", "delivered") // Prevent double-completion
-      .select("id, user_id, driver_id, payment_method, total_amount, delivery_fee, driver_tip")
+      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km")
       .single();
 
     if (updateErr || !order) {
@@ -69,6 +82,21 @@ Deno.serve(async (request) => {
 
     const driverId = order.driver_id as string | null;
     const customerId = order.user_id as string | null;
+
+    // ── 1b. Backfill distance_km if missing ─────────────────────────────
+    if (order.distance_km == null && order.delivery_latitude && order.delivery_longitude) {
+      try {
+        const { data: rest } = await admin.from("restaurants")
+          .select("latitude, longitude")
+          .eq("id", order.restaurant_id)
+          .single();
+        if (rest?.latitude && rest?.longitude) {
+          const km = round2(haversineKm(rest.latitude, rest.longitude, order.delivery_latitude, order.delivery_longitude));
+          await admin.from("orders").update({ distance_km: km }).eq("id", orderId);
+          order.distance_km = km;
+        }
+      } catch { /* non-fatal */ }
+    }
 
     // ── 2. Notify customer (fire-and-forget) ────────────────────────────
     if (customerId) {

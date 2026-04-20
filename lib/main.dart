@@ -145,10 +145,12 @@ class _MyAppState extends ConsumerState<MyApp> {
       final isSignedOut = wasAuthenticated && !next.isAuthenticated;
 
       if (isSignedOut) {
-        _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-          '/signin',
-          (route) => false,
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+            '/signin',
+            (route) => false,
+          );
+        });
       }
 
       // Subscribe to role-specific FCM topics when authenticated

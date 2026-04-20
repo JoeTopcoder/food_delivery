@@ -52,6 +52,15 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     if (authState.user == null || currentUserId == null) {
+      if (!authState.isAuthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/signin', (_) => false);
+          }
+        });
+      }
       return const Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: AppLoadingIndicator(

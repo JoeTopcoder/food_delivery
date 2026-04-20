@@ -27,6 +27,17 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 
+// Haversine distance in km
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function generateOtp(): string {
   return String(1000 + Math.floor(Math.random() * 9000));
 }
@@ -91,7 +102,7 @@ Deno.serve(async (request) => {
     // ── 1. Fetch restaurant commission rate ─────────────────────────────
     const { data: restaurant, error: restErr } = await admin
       .from("restaurants")
-      .select("id, name, commission_rate")
+      .select("id, name, commission_rate, latitude, longitude")
       .eq("id", restaurantId)
       .single();
 
@@ -123,7 +134,16 @@ Deno.serve(async (request) => {
     const seq = (countData?.length ?? 0) + 1;
     const receiptNumber = `FD-${dateStr}-${String(seq).padStart(4, "0")}`;
 
-    // ── 3. Insert order ────────────────────────────────────────────────
+    // ── 3. Calculate distance from restaurant to delivery ────────────
+    let distanceKm: number | null = null;
+    if (restaurant.latitude && restaurant.longitude && deliveryLatitude && deliveryLongitude) {
+      distanceKm = round2(haversineKm(
+        restaurant.latitude, restaurant.longitude,
+        deliveryLatitude, deliveryLongitude,
+      ));
+    }
+
+    // ── 4. Insert order ────────────────────────────────────────────────
     const orderData: Record<string, unknown> = {
       user_id: userId,
       restaurant_id: restaurantId,
@@ -147,6 +167,7 @@ Deno.serve(async (request) => {
       is_pickup: isPickup,
     };
 
+    if (distanceKm !== null) orderData.distance_km = distanceKm;
     if (notes) orderData.notes = notes;
     if (discount > 0) orderData.discount = discount;
     if (driverTip > 0) orderData.driver_tip = driverTip;
