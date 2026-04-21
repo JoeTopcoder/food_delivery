@@ -19,7 +19,16 @@ import 'group_order_detail_screen.dart';
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
 
-  const RestaurantDetailScreen({super.key, required this.restaurant});
+  /// When coming from a group order, these link the cart back to the participant.
+  final String? groupOrderId;
+  final String? groupParticipantId;
+
+  const RestaurantDetailScreen({
+    super.key,
+    required this.restaurant,
+    this.groupOrderId,
+    this.groupParticipantId,
+  });
 
   @override
   ConsumerState<RestaurantDetailScreen> createState() =>
@@ -32,6 +41,41 @@ class _RestaurantDetailScreenState
   bool _showAppBar = false;
   String? _selectedCategory;
   bool _startingGroupOrder = false;
+  bool _savingToGroup = false;
+
+  Future<void> _saveToGroupOrder() async {
+    final participantId = widget.groupParticipantId;
+    if (participantId == null) return;
+    final cartItems = ref.read(cartProvider);
+    if (cartItems.isEmpty) {
+      AppSnackbar.info(context, 'Add some items first!');
+      return;
+    }
+    setState(() => _savingToGroup = true);
+    try {
+      final service = ref.read(groupOrderServiceProvider);
+      final items = cartItems.map((c) => c.toJson()).toList();
+      final subtotal = cartItems.fold(0.0, (sum, c) => sum + c.subtotal);
+      final ok = await service.updateParticipantItems(
+        participantId: participantId,
+        items: items,
+        subtotal: subtotal,
+      );
+      if (!mounted) return;
+      if (ok) {
+        AppSnackbar.success(context, 'Items saved to group order!');
+        // Clear the regular cart so items aren't double-counted
+        ref.read(cartProvider.notifier).clearCart();
+        Navigator.pop(context);
+      } else {
+        AppSnackbar.error(context, 'Failed to save items. Try again.');
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _savingToGroup = false);
+    }
+  }
 
   Future<void> _startGroupOrder() async {
     final userId = ref.read(currentUserIdProvider);
@@ -642,120 +686,174 @@ class _RestaurantDetailScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!widget.restaurant.isCurrentlyOpen) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppTheme.accentColor.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.schedule_rounded,
-                              size: 18,
-                              color: AppTheme.accentColor,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'This restaurant is closed. '
-                                '${widget.restaurant.nextOpenLabel}. '
-                                'You can schedule an order.',
+                    // ── Group Order mode: save items back to participant ──
+                    if (widget.groupOrderId != null) ...[
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final count = ref.watch(cartItemCountProvider);
+                          return SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _savingToGroup
+                                  ? null
+                                  : _saveToGroupOrder,
+                              icon: _savingToGroup
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.group_add_rounded,
+                                      size: 20,
+                                    ),
+                              label: Text(
+                                count > 0
+                                    ? 'Save $count item${count != 1 ? 's' : ''} to Group Order'
+                                    : 'Save to Group Order',
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.accentColor,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          if (!widget.restaurant.isCurrentlyOpen) {
-                            // Pre-set the schedule time in checkout
-                            Navigator.pushNamed(
-                              context,
-                              '/cart',
-                              arguments: {
-                                'forceSchedule': true,
-                                'restaurant': widget.restaurant,
-                              },
-                            );
-                          } else {
-                            Navigator.pushNamed(context, '/cart');
-                          }
-                        },
-                        icon: Icon(
-                          widget.restaurant.isCurrentlyOpen
-                              ? Icons.shopping_cart_rounded
-                              : Icons.schedule_rounded,
-                          size: 20,
-                        ),
-                        label: Text(
-                          widget.restaurant.isCurrentlyOpen
-                              ? 'View Cart'
-                              : 'Schedule Order',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: widget.restaurant.isCurrentlyOpen
-                              ? AppTheme.primaryColor
-                              : AppTheme.accentColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Group Order secondary button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _startingGroupOrder ? null : _startGroupOrder,
-                        icon: _startingGroupOrder
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
                                 ),
-                              )
-                            : const Icon(Icons.group_add_rounded, size: 18),
-                        label: const Text(
-                          'Start Group Order',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      // ── Normal mode ─────────────────────────────────────
+                      if (!widget.restaurant.isCurrentlyOpen) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppTheme.accentColor.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 18,
+                                color: AppTheme.accentColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'This restaurant is closed. '
+                                  '${widget.restaurant.nextOpenLabel}. '
+                                  'You can schedule an order.',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.accentColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          side: BorderSide(color: AppTheme.primaryColor),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (!widget.restaurant.isCurrentlyOpen) {
+                              Navigator.pushNamed(
+                                context,
+                                '/cart',
+                                arguments: {
+                                  'forceSchedule': true,
+                                  'restaurant': widget.restaurant,
+                                },
+                              );
+                            } else {
+                              Navigator.pushNamed(context, '/cart');
+                            }
+                          },
+                          icon: Icon(
+                            widget.restaurant.isCurrentlyOpen
+                                ? Icons.shopping_cart_rounded
+                                : Icons.schedule_rounded,
+                            size: 20,
+                          ),
+                          label: Text(
+                            widget.restaurant.isCurrentlyOpen
+                                ? 'View Cart'
+                                : 'Schedule Order',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.restaurant.isCurrentlyOpen
+                                ? AppTheme.primaryColor
+                                : AppTheme.accentColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      // Group Order secondary button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _startingGroupOrder
+                              ? null
+                              : _startGroupOrder,
+                          icon: _startingGroupOrder
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.group_add_rounded, size: 18),
+                          label: const Text(
+                            'Start Group Order',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryColor,
+                            side: BorderSide(color: AppTheme.primaryColor),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ], // end else (normal mode)
                   ],
                 ),
               ),

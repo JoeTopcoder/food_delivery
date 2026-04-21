@@ -71,16 +71,16 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GroupOrderDetailScreen(
-                      groupOrderId: groups[i].id,
-                    ),
+                    builder: (_) =>
+                        GroupOrderDetailScreen(groupOrderId: groups[i].id),
                   ),
                 ).then((_) => ref.invalidate(userGroupOrdersProvider(userId)));
               },
               child: _GroupOrderCard(
                 group: groups[i],
                 currentUserId: userId,
-                onRefresh: () => ref.invalidate(userGroupOrdersProvider(userId)),
+                onRefresh: () =>
+                    ref.invalidate(userGroupOrdersProvider(userId)),
               ),
             ),
           );
