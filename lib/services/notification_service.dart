@@ -148,13 +148,21 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
     try {
-      // Request permission
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+      // Check existing permission before requesting to avoid re-prompting
+      // every time the app opens (once the user has responded, don't ask again)
+      final existingSettings = await _messaging.getNotificationSettings();
+      final NotificationSettings settings;
+      if (existingSettings.authorizationStatus ==
+          AuthorizationStatus.notDetermined) {
+        settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+      } else {
+        settings = existingSettings;
+      }
       AppLogger.info(
         'Notification permission: ${settings.authorizationStatus}',
       );
@@ -178,9 +186,9 @@ class NotificationService {
         '@mipmap/ic_launcher',
       );
       const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       );
       const initSettings = InitializationSettings(
         android: androidSettings,
