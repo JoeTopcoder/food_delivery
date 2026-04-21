@@ -75,12 +75,41 @@ class _GroupOrderDetailScreenState
     try {
       final service = ref.read(groupOrderServiceProvider);
       await service.lockGroupOrder(widget.groupOrderId);
+
+      // Load all participants' items combined into the cart
+      final cartNotifier = ref.read(cartProvider.notifier);
+      cartNotifier.clearCart();
+      for (final participant in group.participants) {
+        for (final itemJson in participant.items) {
+          try {
+            final cartItem = CartItem.fromJson(
+              itemJson as Map<String, dynamic>,
+            );
+            for (int i = 0; i < cartItem.quantity; i++) {
+              cartNotifier.addItem(
+                cartItem.menuItem,
+                sides: cartItem.selectedSides,
+                options: cartItem.selectedOptions,
+              );
+            }
+          } catch (_) {
+            // Skip malformed items
+          }
+        }
+      }
+
+      if (!mounted) return;
+
+      // Navigate to cart; when user comes back (order placed or cancelled),
+      // mark the group order as ordered to close it permanently.
+      await Navigator.pushNamed(context, '/cart');
+
+      if (!mounted) return;
+      await service.markAsOrdered(widget.groupOrderId);
       await _refresh();
+
       if (mounted) {
-        AppSnackbar.success(
-          context,
-          'Group order locked — proceed to checkout!',
-        );
+        AppSnackbar.success(context, 'Group order placed and closed!');
       }
     } catch (e) {
       if (mounted) AppSnackbar.error(context, friendlyError(e));
@@ -354,7 +383,7 @@ class _StatusHeader extends StatelessWidget {
       case 'locked':
         return const Color(0xFF6366F1);
       case 'ordered':
-        return AppTheme.primaryColor;
+        return const Color(0xFF6B7280); // grey — closed
       case 'cancelled':
         return Colors.red;
       default:

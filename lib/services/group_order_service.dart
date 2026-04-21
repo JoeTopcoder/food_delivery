@@ -197,4 +197,21 @@ class GroupOrderService {
       return false;
     }
   }
+
+  // Mark group order as ordered (closed — cannot be used again)
+  Future<bool> markAsOrdered(String groupOrderId) async {
+    try {
+      await _client
+          .from('group_orders')
+          .update({
+            'status': 'ordered',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', groupOrderId);
+      return true;
+    } catch (e) {
+      AppLogger.error('Error marking group order as ordered: $e');
+      return false;
+    }
+  }
 }
