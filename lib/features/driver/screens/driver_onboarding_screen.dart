@@ -226,7 +226,16 @@ class _DriverOnboardingScreenState
         ref.watch(onboardingProvider(OnboardingRole.driver)).valueOrNull ?? 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Driver Onboarding')),
+      appBar: AppBar(
+        title: const Text('Driver Onboarding'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Change role',
+          onPressed: () => Navigator.of(
+            context,
+          ).pushReplacementNamed('/role-selection'),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
