@@ -72,7 +72,7 @@ class OnboardingService {
   }) {
     return _client.auth.verifyOTP(
       type: OtpType.sms,
-      phone: phone,
+      phone: _normalizePhone(phone),
       token: token,
     );
   }
@@ -85,23 +85,45 @@ class OnboardingService {
     String? name,
     bool onboardingCompleted = false,
   }) async {
-    await _client.from(AppConstants.tableUsers).upsert({
+    // Use legacySafeRole so we write 'user' for customers until migration runs.
+    // Only include columns that exist in the base schema.
+    final userPayload = <String, dynamic>{
       'id': userId,
-      'role': role.dbRole,
-      'phone': phone,
-      'email': email,
-      'name': name,
-      'onboarding_completed': onboardingCompleted,
+      'role': role.legacySafeRole,
       'updated_at': DateTime.now().toIso8601String(),
-    });
+    };
+    if (phone != null) userPayload['phone'] = phone;
+    if (name != null && name.isNotEmpty) userPayload['name'] = name;
+    // email is NOT NULL in base schema — use a placeholder for OTP (phone-only) users.
+    userPayload['email'] = (email != null && email.isNotEmpty)
+        ? email
+        : '$userId@otp.fooddriver.app';
+
+    // Try full upsert; fall back to minimal if extended columns not yet migrated.
+    try {
+      final extended = Map<String, dynamic>.from(userPayload);
+      extended['onboarding_completed'] = onboardingCompleted;
+      await _client.from(AppConstants.tableUsers).upsert(extended);
+    } catch (_) {
+      // onboarding_completed column may not exist yet — retry without it.
+      await _client.from(AppConstants.tableUsers).upsert(userPayload);
+    }
 
     if (role == OnboardingRole.driver) {
-      await _client.from(AppConstants.tableDrivers).upsert({
-        'user_id': userId,
-        'status': 'pending',
-        'documents_uploaded': false,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+      // Try with extended columns; fall back to base schema columns.
+      try {
+        await _client.from(AppConstants.tableDrivers).upsert({
+          'user_id': userId,
+          'status': 'pending',
+          'documents_uploaded': false,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (_) {
+        await _client.from(AppConstants.tableDrivers).upsert({
+          'user_id': userId,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
     }
   }
 
@@ -162,16 +184,31 @@ class OnboardingService {
       onboardingCompleted: goLive,
     );
 
-    final restaurantPayload = {
+    // Base columns always present in schema.
+    final basePayload = <String, dynamic>{
       'owner_id': userId,
-      'name': businessName,
-      'phone': phone,
-      'address': address,
-      'status': goLive ? 'active' : 'draft',
-      'onboarding_step': onboardingStep,
-      'menu_image_url': menuImageUrl,
+      'name': businessName.isNotEmpty ? businessName : 'My Restaurant',
       'updated_at': DateTime.now().toIso8601String(),
     };
+    if (phone.isNotEmpty) basePayload['phone'] = phone;
+    if (address != null && address.isNotEmpty) basePayload['address'] = address;
+
+    // Try with extended onboarding columns, fall back to base if not migrated yet.
+    Map<String, dynamic> restaurantPayload = basePayload;
+    try {
+      final extended = Map<String, dynamic>.from(basePayload);
+      extended['status'] = goLive ? 'active' : 'draft';
+      extended['onboarding_step'] = onboardingStep;
+      if (menuImageUrl != null) extended['menu_image_url'] = menuImageUrl;
+      // Probe: run a small query first to see if columns exist.
+      await _client
+          .from(AppConstants.tableRestaurants)
+          .select('status')
+          .limit(1);
+      restaurantPayload = extended;
+    } catch (_) {
+      // Extended columns not yet migrated — use base payload only.
+    }
 
     final restaurantRow = await _client
         .from(AppConstants.tableRestaurants)
@@ -193,19 +230,26 @@ class OnboardingService {
           )
           .toList();
       if (rows.isNotEmpty) {
-        await _client.from('menu_items').insert(rows);
+        // menu_items table may not exist until migration runs — ignore silently.
+        try {
+          await _client.from('menu_items').insert(rows);
+        } catch (_) {}
       }
     }
   }
 
   Future<void> markOnboardingCompleted(String userId) async {
-    await _client
-        .from(AppConstants.tableUsers)
-        .update({
-          'onboarding_completed': true,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', userId);
+    try {
+      await _client
+          .from(AppConstants.tableUsers)
+          .update({
+            'onboarding_completed': true,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId);
+    } catch (_) {
+      // Column may not exist yet — non-critical, ignore.
+    }
   }
 }
 

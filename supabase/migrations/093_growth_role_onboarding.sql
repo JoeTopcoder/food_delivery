@@ -13,13 +13,27 @@ ALTER TABLE public.users
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS email text;
 
+-- Make email nullable so OTP (phone-only) users don't need an email.
+ALTER TABLE public.users
+  ALTER COLUMN email DROP NOT NULL;
+
 -- Normalize role values and allow both legacy and new role names during transition.
 DO $$
 BEGIN
+  -- 1. Drop old role check constraint (allows only 'user') so we can rename to 'customer'.
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check'
+  ) THEN
+    ALTER TABLE public.users DROP CONSTRAINT users_role_check;
+  END IF;
+
+  -- 2. Drop any other unnamed check constraints on the role column by recreating it safely.
+  --    Rename existing 'user' rows to 'customer' first without any check active.
   UPDATE public.users
   SET role = 'customer'
   WHERE role = 'user';
 
+  -- 3. Add the new growth check constraint if not already present.
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
