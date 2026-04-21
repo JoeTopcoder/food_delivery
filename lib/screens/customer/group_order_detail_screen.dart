@@ -100,24 +100,24 @@ class _GroupOrderDetailScreenState
 
       if (!mounted) return;
 
-      // Set group participant count so cart applies 60% delivery discount
+      // Set group metadata so cart + checkout apply 60% delivery discount
+      // and checkout knows to mark this group order as 'ordered' on success.
       ref.read(groupOrderParticipantCountProvider.notifier).state =
           group.participants.length;
+      ref.read(groupOrderIdForCheckoutProvider.notifier).state =
+          widget.groupOrderId;
 
-      // Navigate to cart; when user comes back (order placed or cancelled),
-      // mark the group order as ordered to close it permanently.
+      // Navigate to cart → checkout (full payment flow).
+      // markAsOrdered is triggered inside CheckoutScreen on payment success.
       await Navigator.pushNamed(context, '/cart');
 
-      // Clear the group discount flag
+      // Clear the group discount / id flags when user returns (either after
+      // placing the order or cancelling before checkout).
       ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
+      ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
 
       if (!mounted) return;
-      await service.markAsOrdered(widget.groupOrderId);
       await _refresh();
-
-      if (mounted) {
-        AppSnackbar.success(context, 'Group order placed and closed!');
-      }
     } catch (e) {
       if (mounted) AppSnackbar.error(context, friendlyError(e));
     } finally {

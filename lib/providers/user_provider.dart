@@ -449,6 +449,10 @@ final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
 /// Set before navigating to /cart from a group order lock, cleared on return.
 final groupOrderParticipantCountProvider = StateProvider<int>((ref) => 0);
 
+/// Holds the groupOrderId that should be marked as 'ordered' once the
+/// checkout flow completes successfully. Null when not a group order checkout.
+final groupOrderIdForCheckoutProvider = StateProvider<String?>((ref) => null);
+
 // Calculated cart totals
 final cartSubtotalProvider = Provider.autoDispose<double>((ref) {
   final cart = ref.watch(cartProvider);
