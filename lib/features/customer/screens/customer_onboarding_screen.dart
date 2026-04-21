@@ -127,6 +127,7 @@ class _CustomerOnboardingScreenState
     } catch (syncError) {
       AppLogger.error('Customer profile sync failed: $syncError');
     }
+    await ref.read(authNotifierProvider.notifier).refreshUser();
     await ref
         .read(onboardingProvider(OnboardingRole.customer).notifier)
         .setStep(2);
@@ -166,9 +167,8 @@ class _CustomerOnboardingScreenState
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Change role',
-          onPressed: () => Navigator.of(
-            context,
-          ).pushReplacementNamed('/role-selection'),
+          onPressed: () =>
+              Navigator.of(context).pushReplacementNamed('/role-selection'),
         ),
       ),
       body: SafeArea(

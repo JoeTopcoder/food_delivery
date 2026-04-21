@@ -5,7 +5,10 @@ import '../../../features/auth/models/onboarding_role.dart';
 import '../../../features/auth/providers/onboarding_provider.dart';
 import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
+import '../../../features/auth/widgets/social_auth_panel.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
+import '../../../utils/app_logger.dart';
 import '../../../utils/friendly_error.dart';
 
 class RestaurantOnboardingScreen extends ConsumerStatefulWidget {
@@ -18,6 +21,8 @@ class RestaurantOnboardingScreen extends ConsumerStatefulWidget {
 
 class _RestaurantOnboardingScreenState
     extends ConsumerState<RestaurantOnboardingScreen> {
+  final _signUpEmail = TextEditingController();
+  final _signUpPassword = TextEditingController();
   final _business = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -27,10 +32,16 @@ class _RestaurantOnboardingScreenState
   final _item3 = TextEditingController();
 
   bool _loading = false;
+  bool _googleLoading = false;
+  bool _appleLoading = false;
   bool _goLive = false;
+
+  bool get _isBusy => _loading || _googleLoading || _appleLoading;
 
   @override
   void dispose() {
+    _signUpEmail.dispose();
+    _signUpPassword.dispose();
     _business.dispose();
     _phone.dispose();
     _address.dispose();
@@ -39,6 +50,89 @@ class _RestaurantOnboardingScreenState
     _item2.dispose();
     _item3.dispose();
     super.dispose();
+  }
+
+  Future<void> _signUpWithEmail() async {
+    final email = _signUpEmail.text.trim();
+    final password = _signUpPassword.text;
+    if (email.isEmpty || password.isEmpty) {
+      AppSnackbar.error(context, 'Enter your email and password.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await ref
+          .read(authNotifierProvider.notifier)
+          .signUp(
+            email: email,
+            password: password,
+            name: email.split('@').first,
+            role: 'restaurant',
+          );
+      await _afterAuthSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _continueWithGoogle() async {
+    setState(() => _googleLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+      await _afterAuthSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  Future<void> _continueWithApple() async {
+    setState(() => _appleLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithApple();
+      await _afterAuthSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _appleLoading = false);
+    }
+  }
+
+  Future<void> _afterAuthSuccess() async {
+    final user = ref.read(authNotifierProvider).user;
+    if (user == null) throw Exception('Sign in did not return a user.');
+
+    await ref.read(roleProvider.notifier).setRole(OnboardingRole.restaurant);
+    try {
+      await ref
+          .read(onboardingServiceProvider)
+          .ensureUserRecord(
+            userId: user.id,
+            role: OnboardingRole.restaurant,
+            email: user.email,
+            name: user.name,
+          );
+    } catch (e) {
+      AppLogger.error('Restaurant profile sync failed: $e');
+    }
+    await ref.read(authNotifierProvider.notifier).refreshUser();
+
+    final stepNotifier = ref.read(
+      onboardingProvider(OnboardingRole.restaurant).notifier,
+    );
+    final currentStep =
+        ref.read(onboardingProvider(OnboardingRole.restaurant)).valueOrNull ??
+        0;
+    if (currentStep < 1) await stepNotifier.setStep(1);
+
+    if (!mounted) return;
+    AppSnackbar.success(context, 'Signed in');
   }
 
   Future<void> _saveStep({required int nextStep, bool goLive = false}) async {
@@ -87,9 +181,12 @@ class _RestaurantOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
     final step =
         ref.watch(onboardingProvider(OnboardingRole.restaurant)).valueOrNull ??
         0;
+
+    final isAuthStep = !authState.isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
@@ -97,9 +194,8 @@ class _RestaurantOnboardingScreenState
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Change role',
-          onPressed: () => Navigator.of(
-            context,
-          ).pushReplacementNamed('/role-selection'),
+          onPressed: () =>
+              Navigator.of(context).pushReplacementNamed('/role-selection'),
         ),
       ),
       body: ListView(
@@ -110,10 +206,55 @@ class _RestaurantOnboardingScreenState
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text('Step ${step.clamp(0, 3) + 1} of 4'),
+          Text(
+            isAuthStep ? 'Step 1 of 5' : 'Step ${step.clamp(0, 3) + 2} of 5',
+          ),
           const SizedBox(height: 20),
 
-          if (step == 0) ...[
+          if (isAuthStep) ...[
+            SocialAuthPanel(
+              onGoogle: _isBusy ? null : _continueWithGoogle,
+              onApple: _isBusy ? null : _continueWithApple,
+              googleLoading: _googleLoading,
+              appleLoading: _appleLoading,
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('or sign up with email'),
+                ),
+                Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _signUpEmail,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _signUpPassword,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Password'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _isBusy ? null : _signUpWithEmail,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Create restaurant account'),
+            ),
+          ],
+
+          if (!isAuthStep && step == 0) ...[
             TextField(
               controller: _business,
               decoration: const InputDecoration(labelText: 'Business name'),
@@ -131,7 +272,7 @@ class _RestaurantOnboardingScreenState
             ),
           ],
 
-          if (step == 1) ...[
+          if (!isAuthStep && step == 1) ...[
             TextField(
               controller: _address,
               decoration: const InputDecoration(
@@ -159,7 +300,7 @@ class _RestaurantOnboardingScreenState
             ),
           ],
 
-          if (step == 2) ...[
+          if (!isAuthStep && step == 2) ...[
             TextField(
               controller: _menuImageUrl,
               decoration: const InputDecoration(
@@ -201,7 +342,7 @@ class _RestaurantOnboardingScreenState
             ),
           ],
 
-          if (step >= 3) ...[
+          if (!isAuthStep && step >= 3) ...[
             SwitchListTile(
               title: const Text('Go Live now'),
               subtitle: const Text(
@@ -228,20 +369,23 @@ class _RestaurantOnboardingScreenState
             ),
           ],
 
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Already have an account?'),
-              TextButton(
-                onPressed: _loading
-                    ? null
-                    : () =>
-                          Navigator.of(context).pushNamed('/signin/restaurant'),
-                child: const Text('Sign in'),
-              ),
-            ],
-          ),
+          if (isAuthStep) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Already have an account?'),
+                TextButton(
+                  onPressed: _isBusy
+                      ? null
+                      : () => Navigator.of(
+                          context,
+                        ).pushNamed('/signin/restaurant'),
+                  child: const Text('Sign in'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
