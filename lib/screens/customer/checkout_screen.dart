@@ -152,9 +152,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         : const AsyncValue<DeliveryFeeResult?>.data(null);
     final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
-    final deliveryFee =
+    final baseDeliveryFee =
         feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
     final distanceKm = feeResult?.distanceKm;
+
+    // ── Group order discount (60% of regular delivery fee) ──────────
+    final groupParticipantCount =
+        ref.watch(groupOrderParticipantCountProvider);
+    final isGroupOrder = groupParticipantCount > 0;
+    final deliveryFee =
+        isGroupOrder ? baseDeliveryFee * 0.60 : baseDeliveryFee;
 
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
@@ -1166,6 +1173,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ? const Color(0xFF6C63FF)
                               : const Color(0xFF10B981),
                         )
+                      else if (isGroupOrder)
+                        _SummaryRow(
+                          'Delivery (Group 40% off – $groupParticipantCount members)',
+                          feeLoading
+                              ? 'Calculating…'
+                              : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFF10B981),
+                        )
                       else
                         _SummaryRow(
                           subDeliveryFree
@@ -1634,6 +1649,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ref.read(redeemPointsProvider.notifier).state = 0;
       ref.read(selectedAddressIdProvider.notifier).state = null;
       ref.read(isPickupProvider.notifier).state = false;
+
+      // If this was a group order checkout, mark it as ordered and clean up.
+      final groupOrderId = ref.read(groupOrderIdForCheckoutProvider);
+      if (groupOrderId != null) {
+        try {
+          final goService = ref.read(groupOrderServiceProvider);
+          await goService.markAsOrdered(groupOrderId);
+        } catch (_) {
+          // Non-fatal: the order was placed; group close failure is ignorable.
+        }
+        ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
+        ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
+      }
       // Refresh loyalty balance so it reflects redeemed/earned points.
       if (userId.isNotEmpty) {
         ref.invalidate(loyaltyAccountProvider(userId));
