@@ -218,6 +218,20 @@ class _RestaurantOnboardingScreenState
               child: const Text('Skip owner info and Stripe for now'),
             ),
           ],
+
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Already have an account?'),
+              TextButton(
+                onPressed: _loading
+                    ? null
+                    : () => Navigator.of(context).pushNamed('/signin'),
+                child: const Text('Sign in'),
+              ),
+            ],
+          ),
         ],
       ),
     );
