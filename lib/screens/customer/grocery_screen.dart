@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../models/banner_model.dart' as app;
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
+import '../../providers/banner_provider.dart';
 import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
@@ -106,6 +108,9 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                 ),
               ),
             ),
+
+            // ── Grocery Banner Carousel ─────────────────────────────
+            SliverToBoxAdapter(child: _GroceryBannerCarousel()),
 
             // ── Categories row ──────────────────────────────────────
             SliverToBoxAdapter(
@@ -710,6 +715,184 @@ class _GroceryCartIcon extends ConsumerWidget {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Grocery Banner Carousel ──────────────────────────────────────────────────
+
+class _GroceryBannerCarousel extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_GroceryBannerCarousel> createState() =>
+      _GroceryBannerCarouselState();
+}
+
+class _GroceryBannerCarouselState
+    extends ConsumerState<_GroceryBannerCarousel> {
+  final PageController _pageCtrl = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bannersAsync = ref.watch(activeGroceryBannersProvider);
+
+    return bannersAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (banners) {
+        if (banners.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Column(
+            children: [
+              SizedBox(
+                height: 140,
+                child: PageView.builder(
+                  controller: _pageCtrl,
+                  itemCount: banners.length,
+                  onPageChanged: (i) => setState(() => _currentPage = i),
+                  itemBuilder: (context, index) =>
+                      _GroceryBannerCard(banner: banners[index]),
+                ),
+              ),
+              if (banners.length > 1) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    banners.length,
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: _currentPage == i ? 20 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _currentPage == i
+                            ? AppTheme.primaryColor
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GroceryBannerCard extends ConsumerWidget {
+  final app.Banner banner;
+  const _GroceryBannerCard({required this.banner});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () async {
+        try {
+          final data = await ref.read(
+            groceryStoreByIdProvider(banner.restaurantId).future,
+          );
+          if (context.mounted && data != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroceryStoreDetailScreen(store: data),
+              ),
+            );
+          }
+        } catch (_) {}
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            colors: [const Color(0xFF2E7D32), const Color(0xFF66BB6A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: banner.imageUrl!,
+                fit: BoxFit.cover,
+                color: Colors.black.withValues(alpha: 0.35),
+                colorBlendMode: BlendMode.darken,
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            if (banner.imageUrl == null || banner.imageUrl!.isEmpty)
+              Positioned(
+                right: -10,
+                bottom: -10,
+                child: Icon(
+                  Icons.local_grocery_store_rounded,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    banner.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (banner.subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      banner.subtitle!,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Shop at ${banner.restaurantName ?? 'Store'}',
+                      style: const TextStyle(
+                        color: Color(0xFF2E7D32),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

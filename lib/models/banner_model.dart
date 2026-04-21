@@ -4,6 +4,9 @@ class Banner {
   final String? subtitle;
   final String? imageUrl;
   final String restaurantId;
+
+  /// 'food' (default) or 'grocery'
+  final String section;
   final bool isActive;
   final int sortOrder;
   final DateTime? startsAt;
@@ -20,6 +23,7 @@ class Banner {
     this.subtitle,
     this.imageUrl,
     required this.restaurantId,
+    this.section = 'food',
     this.isActive = true,
     this.sortOrder = 0,
     this.startsAt,
@@ -37,6 +41,7 @@ class Banner {
       subtitle: json['subtitle'] as String?,
       imageUrl: json['image_url'] as String?,
       restaurantId: json['restaurant_id'] as String,
+      section: json['section'] as String? ?? 'food',
       isActive: json['is_active'] as bool? ?? true,
       sortOrder: json['sort_order'] as int? ?? 0,
       startsAt: json['starts_at'] != null
@@ -56,6 +61,7 @@ class Banner {
     'subtitle': subtitle,
     'image_url': imageUrl,
     'restaurant_id': restaurantId,
+    'section': section,
     'is_active': isActive,
     'sort_order': sortOrder,
     'starts_at': startsAt?.toIso8601String(),

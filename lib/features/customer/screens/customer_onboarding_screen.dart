@@ -49,9 +49,7 @@ class _CustomerOnboardingScreenState
   void initState() {
     super.initState();
     // If user is already authenticated, check location and go straight home.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _autoAdvanceIfReady(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoAdvanceIfReady());
   }
 
   Future<void> _autoAdvanceIfReady() async {
@@ -60,7 +58,8 @@ class _CustomerOnboardingScreenState
     if (!isAuth) return;
 
     final permission = await Geolocator.checkPermission();
-    final locationGranted = permission == LocationPermission.always ||
+    final locationGranted =
+        permission == LocationPermission.always ||
         permission == LocationPermission.whileInUse;
 
     if (!mounted) return;
@@ -71,10 +70,9 @@ class _CustomerOnboardingScreenState
           .read(onboardingProvider(OnboardingRole.customer).notifier)
           .setStep(3);
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        _routeForRole(role),
-        (_) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(_routeForRole(role), (_) => false);
     } else {
       // Authenticated but location not yet granted — jump to location step.
       await ref
