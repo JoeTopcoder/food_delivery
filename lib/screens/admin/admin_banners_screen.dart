@@ -396,7 +396,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
               data: (stores) => DropdownButtonFormField<String>(
-                value: _selectedRestaurantId,
+                initialValue: _selectedRestaurantId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
@@ -424,7 +424,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
               data: (restaurants) => DropdownButtonFormField<String>(
-                value: _selectedRestaurantId,
+                initialValue: _selectedRestaurantId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(

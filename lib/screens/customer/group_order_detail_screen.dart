@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/group_order_model.dart';
-import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../providers/user_provider.dart';
@@ -18,9 +17,9 @@ import 'restaurant_detail_screen.dart';
 
 final groupOrderDetailProvider = FutureProvider.autoDispose
     .family<GroupOrder?, String>((ref, groupOrderId) async {
-  final service = ref.watch(groupOrderServiceProvider);
-  return service.getGroupOrder(groupOrderId);
-});
+      final service = ref.watch(groupOrderServiceProvider);
+      return service.getGroupOrder(groupOrderId);
+    });
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -159,10 +158,8 @@ class _GroupOrderDetailScreenState
       ),
       body: groupAsync.when(
         loading: () => const AppLoadingIndicator(message: 'Loading...'),
-        error: (e, _) => AppErrorState(
-          message: friendlyError(e),
-          onRetry: _refresh,
-        ),
+        error: (e, _) =>
+            AppErrorState(message: friendlyError(e), onRetry: _refresh),
         data: (group) {
           if (group == null) {
             return const AppEmptyState(
@@ -210,6 +207,12 @@ class _GroupOrderDetailScreenState
                   _AddItemsButton(
                     groupOrderId: widget.groupOrderId,
                     restaurantId: group.restaurantId,
+                    participantId: group.participants
+                        .firstWhere(
+                          (p) => p.userId == currentUserId,
+                          orElse: () => group.participants.first,
+                        )
+                        .id,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -274,7 +277,7 @@ class _GroupOrderDetailScreenState
               children: [
                 // Cancel
                 OutlinedButton(
-                  onPressed: _cancelling ? null : () => _cancelGroup(group!),
+                  onPressed: _cancelling ? null : () => _cancelGroup(group),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
@@ -301,7 +304,7 @@ class _GroupOrderDetailScreenState
                 // Lock & Checkout
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _locking ? null : () => _lockGroup(group!),
+                    onPressed: _locking ? null : () => _lockGroup(group),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
@@ -467,7 +470,10 @@ class _InviteCodeCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryColor, AppTheme.primaryColor.withValues(alpha: 0.75)],
+          colors: [
+            AppTheme.primaryColor,
+            AppTheme.primaryColor.withValues(alpha: 0.75),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -559,25 +565,32 @@ class _InviteCodeCard extends StatelessWidget {
 class _AddItemsButton extends ConsumerWidget {
   final String groupOrderId;
   final String restaurantId;
+  final String participantId;
 
   const _AddItemsButton({
     required this.groupOrderId,
     required this.restaurantId,
+    required this.participantId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return OutlinedButton.icon(
       onPressed: () async {
-        // Fetch the restaurant and navigate to its detail screen
         try {
-          final data = await ref
-              .read(restaurantByIdProvider(restaurantId).future);
+          final data = await ref.read(
+            restaurantByIdProvider(restaurantId).future,
+          );
           if (data != null && context.mounted) {
-            Navigator.pushNamed(
+            Navigator.push(
               context,
-              '/restaurant-detail',
-              arguments: data,
+              MaterialPageRoute(
+                builder: (_) => RestaurantDetailScreen(
+                  restaurant: data,
+                  groupOrderId: groupOrderId,
+                  groupParticipantId: participantId,
+                ),
+              ),
             );
           }
         } catch (_) {
@@ -613,8 +626,7 @@ class _ParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = participant.userName ??
-        (isCurrentUser ? 'You' : 'Guest');
+    final name = participant.userName ?? (isCurrentUser ? 'You' : 'Guest');
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),

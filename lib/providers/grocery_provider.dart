@@ -58,7 +58,7 @@ final groceryStoreByIdProvider = FutureProvider.family
           .eq('id', storeId)
           .maybeSingle();
       if (data == null) return null;
-      return Restaurant.fromJson(data as Map<String, dynamic>);
+      return Restaurant.fromJson(data);
     });
 
 // ── Product Providers (real-time) ───────────────────────────────────────────
