@@ -168,6 +168,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
+  /// Re-fetches the current user from the database so any role/profile
+  /// updates made during onboarding are reflected in the in-memory state.
+  Future<void> refreshUser() async {
+    final supabaseUser = _authService.getCurrentUser();
+    if (supabaseUser == null) return;
+    await _hydrateUserFromAuth(
+      supabaseUser.id,
+      fallbackEmail: supabaseUser.email,
+    );
+  }
+
   Future<void> _hydrateUserFromAuth(
     String userId, {
     String? fallbackEmail,

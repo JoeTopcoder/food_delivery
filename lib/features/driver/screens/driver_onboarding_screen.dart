@@ -116,6 +116,7 @@ class _DriverOnboardingScreenState
     } catch (e) {
       AppLogger.error('Driver profile sync failed: $e');
     }
+    await ref.read(authNotifierProvider.notifier).refreshUser();
 
     if (user.email != null && _email.text.isEmpty) _email.text = user.email!;
     if (user.name != null && _name.text.isEmpty) _name.text = user.name!;
@@ -231,9 +232,8 @@ class _DriverOnboardingScreenState
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Change role',
-          onPressed: () => Navigator.of(
-            context,
-          ).pushReplacementNamed('/role-selection'),
+          onPressed: () =>
+              Navigator.of(context).pushReplacementNamed('/role-selection'),
         ),
       ),
       body: ListView(
