@@ -69,12 +69,7 @@ class _CustomerOnboardingScreenState
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .signUp(
-            email: email,
-            password: password,
-            name: name,
-            role: 'user',
-          );
+          .signUp(email: email, password: password, name: name, role: 'user');
       await _afterAuthSuccess();
     } catch (e) {
       if (!mounted) return;
