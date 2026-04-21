@@ -5,11 +5,12 @@ part 'user_model.g.dart';
 @JsonSerializable(fieldRename: FieldRename.snake)
 class User {
   final String id;
-  final String email;
+  final String? email;
   final String? name;
   final String? phone;
   final String? profileImageUrl;
-  final String role; // 'user', 'restaurant', 'driver', 'admin'
+  final String role; // 'customer', 'restaurant', 'driver', 'admin'
+  final bool onboardingCompleted;
   final String? address;
   final double? latitude;
   final double? longitude;
@@ -21,11 +22,12 @@ class User {
 
   User({
     required this.id,
-    required this.email,
+    this.email,
     this.name,
     this.phone,
     this.profileImageUrl,
     required this.role,
+    this.onboardingCompleted = false,
     this.address,
     this.latitude,
     this.longitude,
@@ -46,6 +48,7 @@ class User {
     String? phone,
     String? profileImageUrl,
     String? role,
+    bool? onboardingCompleted,
     String? address,
     double? latitude,
     double? longitude,
@@ -62,6 +65,7 @@ class User {
       phone: phone ?? this.phone,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       role: role ?? this.role,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,

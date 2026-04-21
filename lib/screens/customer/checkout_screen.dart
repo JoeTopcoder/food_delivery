@@ -75,7 +75,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     _paymentFieldsHydrated = true;
     _cardholderCtrl.text = currentUser.name ?? '';
-    _paymentEmailCtrl.text = currentUser.email;
+    _paymentEmailCtrl.text = currentUser.email ?? '';
     _paymentPhoneCtrl.text = currentUser.phone ?? '';
   }
 

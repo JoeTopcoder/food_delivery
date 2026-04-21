@@ -38,6 +38,7 @@
       '$supabaseUrl/functions/v1/ncb-payment-callback';
 
   // User Roles
+  static const String roleCustomer = 'customer';
   static const String roleUser = 'user';
   static const String roleRestaurant = 'restaurant';
   static const String roleDriver = 'driver';

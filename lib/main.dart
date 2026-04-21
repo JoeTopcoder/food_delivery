@@ -17,6 +17,10 @@ import 'screens/auth/signin_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/role_selection_screen.dart';
+import 'features/auth/screens/auth_launch_gate_screen.dart';
+import 'features/customer/screens/customer_onboarding_screen.dart';
+import 'features/driver/screens/driver_onboarding_screen.dart';
+import 'features/restaurant/screens/restaurant_onboarding_screen.dart';
 import 'screens/driver/driver_dashboard_screen.dart';
 import 'screens/driver/available_orders_screen.dart';
 import 'screens/driver/active_deliveries_screen.dart';
@@ -148,7 +152,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       if (isSignedOut) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/signin',
+            '/role-selection',
             (route) => false,
           );
         });
@@ -199,6 +203,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         return const RestaurantDashboardScreen();
       case 'admin':
         return const AdminDashboardScreen();
+      case 'customer':
+      case 'user':
+        return const MainNavigationScreen();
       default:
         return const MainNavigationScreen();
     }
@@ -226,9 +233,37 @@ class _MyAppState extends ConsumerState<MyApp> {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: authState.isAuthenticated
             ? _getHomeForRole(authState.user?.role)
-            : const SignInScreen(),
+            : const AuthLaunchGateScreen(),
         onGenerateRoute: (settings) {
           switch (settings.name) {
+            case '/':
+              return MaterialPageRoute(
+                builder: (context) => const AuthLaunchGateScreen(),
+              );
+            case '/role-selection':
+              return MaterialPageRoute(
+                builder: (context) => const RoleSelectionScreen(),
+              );
+            case '/onboarding/customer':
+              return MaterialPageRoute(
+                builder: (context) => const CustomerOnboardingScreen(),
+              );
+            case '/onboarding/driver':
+              return MaterialPageRoute(
+                builder: (context) => const DriverOnboardingScreen(),
+              );
+            case '/onboarding/restaurant':
+              return MaterialPageRoute(
+                builder: (context) => const RestaurantOnboardingScreen(),
+              );
+            case '/join/driver':
+              return MaterialPageRoute(
+                builder: (context) => const DriverOnboardingScreen(),
+              );
+            case '/join/restaurant':
+              return MaterialPageRoute(
+                builder: (context) => const RestaurantOnboardingScreen(),
+              );
             case '/signin':
               return MaterialPageRoute(
                 builder: (context) => const SignInScreen(),
@@ -245,7 +280,7 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/home':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
-                  allowedRoles: ['user'],
+                  allowedRoles: ['user', 'customer'],
                   child: MainNavigationScreen(),
                 ),
               );
@@ -587,10 +622,6 @@ class _MyAppState extends ConsumerState<MyApp> {
                   allowedRoles: ['user'],
                   child: SmartSearchScreen(),
                 ),
-              );
-            case '/role-selection':
-              return MaterialPageRoute(
-                builder: (context) => const RoleSelectionScreen(),
               );
             case '/driver-leaderboard':
               return MaterialPageRoute(

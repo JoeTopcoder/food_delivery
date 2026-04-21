@@ -37,6 +37,10 @@ class Restaurant {
   final double? totalEarnings;
   final double? totalPaidOut;
   final String storeType; // 'food', 'grocery', or 'both'
+  final String status; // 'draft' or 'active'
+  final int onboardingStep;
+  final String? stripeAccountId;
+  final String? menuImageUrl;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -72,6 +76,10 @@ class Restaurant {
     this.totalEarnings,
     this.totalPaidOut,
     this.storeType = 'food',
+    this.status = 'active',
+    this.onboardingStep = 0,
+    this.stripeAccountId,
+    this.menuImageUrl,
     required this.createdAt,
     this.updatedAt,
   });
@@ -112,6 +120,10 @@ class Restaurant {
     double? totalEarnings,
     double? totalPaidOut,
     String? storeType,
+    String? status,
+    int? onboardingStep,
+    String? stripeAccountId,
+    String? menuImageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -148,6 +160,10 @@ class Restaurant {
       totalEarnings: totalEarnings ?? this.totalEarnings,
       totalPaidOut: totalPaidOut ?? this.totalPaidOut,
       storeType: storeType ?? this.storeType,
+      status: status ?? this.status,
+      onboardingStep: onboardingStep ?? this.onboardingStep,
+      stripeAccountId: stripeAccountId ?? this.stripeAccountId,
+      menuImageUrl: menuImageUrl ?? this.menuImageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
