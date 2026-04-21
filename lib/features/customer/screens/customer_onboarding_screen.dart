@@ -196,6 +196,14 @@ class _CustomerOnboardingScreenState
     final step =
         ref.watch(onboardingProvider(OnboardingRole.customer)).valueOrNull ?? 0;
 
+    // When auth state becomes authenticated mid-lifecycle (e.g. auth loaded
+    // after initState already ran), auto-advance to skip location if granted.
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
+        _autoAdvanceIfReady();
+      }
+    });
+
     final isAuthStep = !authState.isAuthenticated || step < 2;
     final isLocationStep = authState.isAuthenticated && step >= 2;
 

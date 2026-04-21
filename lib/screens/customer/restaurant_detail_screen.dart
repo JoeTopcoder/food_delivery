@@ -816,11 +816,12 @@ class _RestaurantDetailScreenState
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor:
                                       widget.restaurant.isCurrentlyOpen
-                                          ? AppTheme.primaryColor
-                                          : AppTheme.accentColor,
+                                      ? AppTheme.primaryColor
+                                      : AppTheme.accentColor,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 14),
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -840,7 +841,8 @@ class _RestaurantDetailScreenState
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppTheme.primaryColor,
                                   side: BorderSide(
-                                      color: AppTheme.primaryColor),
+                                    color: AppTheme.primaryColor,
+                                  ),
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
