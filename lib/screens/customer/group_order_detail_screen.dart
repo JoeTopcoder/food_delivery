@@ -233,15 +233,43 @@ class _GroupOrderDetailScreenState
 
                 // ── Add Items Button (during collecting) ───────────
                 if (isCollecting) ...[
-                  _AddItemsButton(
-                    groupOrderId: widget.groupOrderId,
-                    restaurantId: group.restaurantId,
-                    participantId: group.participants
-                        .firstWhere(
-                          (p) => p.userId == currentUserId,
-                          orElse: () => group.participants.first,
-                        )
-                        .id,
+                  Builder(
+                    builder: (context) {
+                      // Find this user's participant record
+                      final myParticipant = group.participants
+                          .where((p) => p.userId == currentUserId)
+                          .firstOrNull;
+
+                      if (myParticipant == null) {
+                        // User hasn't joined yet — shouldn't normally happen
+                        // but show a friendly message just in case
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Text(
+                            'Join this group order to add items.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        );
+                      }
+
+                      return _AddItemsButton(
+                        groupOrderId: widget.groupOrderId,
+                        restaurantId: group.restaurantId,
+                        participantId: myParticipant.id,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],

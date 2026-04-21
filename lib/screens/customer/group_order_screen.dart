@@ -129,6 +129,15 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
                 ref.invalidate(userGroupOrdersProvider(userId));
                 if (mounted) {
                   AppSnackbar.success(context, 'Joined: ${result.name}');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          GroupOrderDetailScreen(groupOrderId: result.id),
+                    ),
+                  ).then(
+                    (_) => ref.invalidate(userGroupOrdersProvider(userId)),
+                  );
                 }
               } else {
                 if (mounted) {
