@@ -25,6 +25,19 @@ String friendlyError(Object? error) {
   if (msg.contains('email not confirmed')) {
     return 'Please verify your email before signing in.';
   }
+  if (msg.contains('google sign-in was cancelled')) {
+    return 'Google sign-in was cancelled.';
+  }
+  if (msg.contains('google sign-in is not fully configured')) {
+    return 'Google sign-in config is incomplete. Add your app SHA key in Firebase and check Supabase Google provider settings.';
+  }
+  if (msg.contains('google token was rejected by supabase') ||
+      msg.contains('unacceptable audience in id_token')) {
+    return 'Google client IDs do not match between Firebase and Supabase.';
+  }
+  if (msg.contains('google provider is disabled in supabase auth')) {
+    return 'Enable Google provider in Supabase Auth settings and try again.';
+  }
   if (msg.contains('user already registered') ||
       msg.contains('already been registered')) {
     return 'An account with this email already exists.';

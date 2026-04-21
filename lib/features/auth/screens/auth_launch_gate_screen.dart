@@ -9,8 +9,16 @@ import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 import 'role_selection_screen.dart';
 
-class AuthLaunchGateScreen extends ConsumerWidget {
+class AuthLaunchGateScreen extends ConsumerStatefulWidget {
   const AuthLaunchGateScreen({super.key});
+
+  @override
+  ConsumerState<AuthLaunchGateScreen> createState() =>
+      _AuthLaunchGateScreenState();
+}
+
+class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
+  bool _navigated = false;
 
   static OnboardingRole? _roleFromDeepLink() {
     final route = WidgetsBinding.instance.platformDispatcher.defaultRouteName
@@ -21,8 +29,21 @@ class AuthLaunchGateScreen extends ConsumerWidget {
     return null;
   }
 
+  void _navigateToRole(OnboardingRole targetRole) {
+    if (_navigated) return;
+    _navigated = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(roleProvider.notifier).setRole(targetRole);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(targetRole.route, (_) => false);
+    });
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
 
     if (auth.isAuthenticated) {
@@ -44,13 +65,7 @@ class AuthLaunchGateScreen extends ConsumerWidget {
         final targetRole = deepLinkRole ?? savedRole;
         if (targetRole == null) return const RoleSelectionScreen();
 
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!context.mounted) return;
-          ref.read(roleProvider.notifier).setRole(targetRole);
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(targetRole.route, (_) => false);
-        });
+        _navigateToRole(targetRole);
 
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },

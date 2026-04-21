@@ -20,6 +20,7 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
     final currentUser = ref.watch(currentUserProvider);
@@ -148,7 +149,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -471,7 +472,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               context.l10n.tax,
                               '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                             ),
-                            Divider(color: Colors.grey[300], height: 16),
+                            Divider(color: scheme.outlineVariant, height: 16),
                             _PriceRow(
                               'Total',
                               '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
@@ -495,7 +496,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       border: Border(
-                        top: BorderSide(color: Colors.grey.shade200),
+                        top: BorderSide(color: scheme.outlineVariant),
                       ),
                     ),
                     padding: const EdgeInsets.all(16),
@@ -554,7 +555,7 @@ class _CartItemWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0.7),
       ),
       child: Row(
         children: [
@@ -562,10 +563,13 @@ class _CartItemWidget extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.image, color: Colors.grey),
+            child: Icon(
+              Icons.image,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -592,7 +596,7 @@ class _CartItemWidget extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Theme.of(context).dividerColor),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
@@ -658,7 +662,7 @@ class _PriceRow extends StatelessWidget {
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: isBold
-                  ? Colors.black
+                  ? Theme.of(context).colorScheme.onSurface
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             overflow: TextOverflow.ellipsis,
@@ -670,7 +674,7 @@ class _PriceRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isBold ? 16 : 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: valueColor ?? Colors.black,
+            color: valueColor ?? Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],

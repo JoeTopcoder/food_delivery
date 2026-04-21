@@ -14,7 +14,56 @@ class OnboardingService {
   String? get currentUserId => _client.auth.currentUser?.id;
 
   Future<void> sendOtp(String phone) async {
-    await _client.auth.signInWithOtp(phone: phone, shouldCreateUser: true);
+    final normalizedPhone = _normalizePhone(phone);
+    try {
+      await _client.auth.signInWithOtp(
+        phone: normalizedPhone,
+        shouldCreateUser: true,
+      );
+    } on AuthException catch (e) {
+      final message = e.message.toLowerCase();
+      if (message.contains('sms') || message.contains('phone')) {
+        throw Exception(
+          'Could not send OTP. Check phone auth provider and SMS settings, then try again with a full number like +1345XXXXXXX.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  String _normalizePhone(String input) {
+    final raw = input.trim();
+    if (raw.isEmpty) {
+      throw Exception('Enter your phone number first.');
+    }
+
+    if (raw.startsWith('00')) {
+      return '+${raw.substring(2).replaceAll(RegExp(r'[^0-9]'), '')}';
+    }
+
+    if (raw.startsWith('+')) {
+      final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.length < 8) {
+        throw Exception('Enter a valid phone number in international format.');
+      }
+      return '+$digits';
+    }
+
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 7) {
+      return '+1345$digits';
+    }
+    if (digits.length == 10) {
+      return '+1$digits';
+    }
+    if (digits.length == 11 && digits.startsWith('1')) {
+      return '+$digits';
+    }
+    if (digits.length >= 8) {
+      return '+$digits';
+    }
+
+    throw Exception('Enter a valid phone number, for example +1345XXXXXXX.');
   }
 
   Future<AuthResponse> verifyOtp({

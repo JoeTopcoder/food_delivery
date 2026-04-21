@@ -4,21 +4,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 
-class RoleSelectionScreen extends ConsumerWidget {
+class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key});
+
+  @override
+  ConsumerState<RoleSelectionScreen> createState() =>
+      _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
+  bool _navigating = false;
 
   Future<void> _continueAs(
     BuildContext context,
     WidgetRef ref,
     OnboardingRole role,
   ) async {
+    if (_navigating) return;
+    setState(() => _navigating = true);
     await ref.read(roleProvider.notifier).setRole(role);
     if (!context.mounted) return;
-    Navigator.of(context).pushNamed(role.route);
+    Navigator.of(context).pushReplacementNamed(role.route);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -42,6 +52,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                 title: 'Order Food',
                 subtitle: 'Browse restaurants in under 10 seconds',
                 color: const Color(0xFFFF7A1A),
+                enabled: !_navigating,
                 onTap: () => _continueAs(context, ref, OnboardingRole.customer),
               ),
               const SizedBox(height: 12),
@@ -50,6 +61,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                 title: 'Earn as Driver',
                 subtitle: 'Apply in under 2 minutes',
                 color: const Color(0xFF16A34A),
+                enabled: !_navigating,
                 onTap: () => _continueAs(context, ref, OnboardingRole.driver),
               ),
               const SizedBox(height: 12),
@@ -58,6 +70,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                 title: 'Partner Restaurant',
                 subtitle: 'Go live in under 5 minutes',
                 color: const Color(0xFF2563EB),
+                enabled: !_navigating,
                 onTap: () =>
                     _continueAs(context, ref, OnboardingRole.restaurant),
               ),
@@ -80,6 +93,7 @@ class _RoleCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.color,
+    required this.enabled,
     required this.onTap,
   });
 
@@ -87,15 +101,16 @@ class _RoleCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color color;
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withValues(alpha: 0.08),
+      color: color.withValues(alpha: enabled ? 0.08 : 0.04),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: const EdgeInsets.all(16),

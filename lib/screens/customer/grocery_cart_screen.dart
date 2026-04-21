@@ -20,6 +20,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final cartItems = ref.watch(groceryCartProvider);
     final subtotal = ref.watch(groceryCartSubtotalProvider);
     final currentUser = ref.watch(currentUserProvider);
@@ -180,7 +181,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                         margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -450,7 +451,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                 '${grouped[sid]!.length} item${grouped[sid]!.length == 1 ? '' : 's'}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[500],
+                                  color: scheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -492,8 +493,8 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.grey.shade200,
-                            width: 0.5,
+                            color: Theme.of(context).dividerColor,
+                            width: 0.7,
                           ),
                         ),
                         child: Column(
@@ -532,7 +533,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                               'Tax',
                               '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                             ),
-                            Divider(color: Colors.grey[300], height: 16),
+                            Divider(color: scheme.outlineVariant, height: 16),
                             _PriceRow(
                               'Total',
                               '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
@@ -555,7 +556,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       border: Border(
-                        top: BorderSide(color: Colors.grey.shade200),
+                        top: BorderSide(color: scheme.outlineVariant),
                       ),
                     ),
                     padding: const EdgeInsets.all(16),
@@ -624,7 +625,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0.7),
       ),
       child: Row(
         children: [
@@ -651,7 +652,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
                     brand!,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[500],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -665,7 +666,10 @@ class _GroceryCartItemWidget extends StatelessWidget {
                 if (weight != null)
                   Text(
                     weight!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 const SizedBox(height: 4),
                 Text(
@@ -680,7 +684,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Theme.of(context).dividerColor),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
@@ -703,7 +707,9 @@ class _GroceryCartItemWidget extends StatelessWidget {
                   icon: Icon(
                     Icons.add,
                     size: 16,
-                    color: quantity >= maxQuantity ? Colors.grey[300] : null,
+                    color: quantity >= maxQuantity
+                        ? Theme.of(context).disabledColor
+                        : null,
                   ),
                   onPressed: quantity >= maxQuantity
                       ? null
@@ -743,7 +749,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
     width: 64,
     height: 64,
     color: Colors.grey[100],
-    child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[300], size: 28),
+    child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400], size: 28),
   );
 }
 
@@ -773,7 +779,7 @@ class _PriceRow extends StatelessWidget {
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: isBold
-                  ? Colors.black
+                  ? Theme.of(context).colorScheme.onSurface
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             overflow: TextOverflow.ellipsis,
@@ -785,7 +791,7 @@ class _PriceRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isBold ? 16 : 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: valueColor ?? Colors.black,
+            color: valueColor ?? Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
