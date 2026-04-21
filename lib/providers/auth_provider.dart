@@ -230,6 +230,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       AppLogger.info('Sign up successful');
       if (response.user != null) {
+        // If Supabase has "Confirm email" enabled, signUp returns a user
+        // but NO session. Try signing in immediately so the onboarding
+        // flow has an authenticated session to work with.
+        if (response.session == null) {
+          try {
+            await _authService.signIn(email: email, password: password);
+          } catch (e) {
+            AppLogger.error('Auto sign-in after signup failed: $e');
+            state = state.copyWith(
+              isLoading: false,
+              error:
+                  'Account created. Please check your email to confirm, then sign in.',
+            );
+            throw Exception(
+              'Account created. Please check your email to confirm your address before continuing.',
+            );
+          }
+        }
+
         User? user = await _userService.getUserById(response.user!.id);
         // Fallback: use the role passed directly since we just signed up
         user ??= User(
