@@ -779,78 +779,88 @@ class _RestaurantDetailScreenState
                       ],
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (!widget.restaurant.isCurrentlyOpen) {
-                              Navigator.pushNamed(
-                                context,
-                                '/cart',
-                                arguments: {
-                                  'forceSchedule': true,
-                                  'restaurant': widget.restaurant,
+                        child: Row(
+                          children: [
+                            // View Cart / Schedule Order (fills remaining space)
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  if (!widget.restaurant.isCurrentlyOpen) {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/cart',
+                                      arguments: {
+                                        'forceSchedule': true,
+                                        'restaurant': widget.restaurant,
+                                      },
+                                    );
+                                  } else {
+                                    Navigator.pushNamed(context, '/cart');
+                                  }
                                 },
-                              );
-                            } else {
-                              Navigator.pushNamed(context, '/cart');
-                            }
-                          },
-                          icon: Icon(
-                            widget.restaurant.isCurrentlyOpen
-                                ? Icons.shopping_cart_rounded
-                                : Icons.schedule_rounded,
-                            size: 20,
-                          ),
-                          label: Text(
-                            widget.restaurant.isCurrentlyOpen
-                                ? 'View Cart'
-                                : 'Schedule Order',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.restaurant.isCurrentlyOpen
-                                ? AppTheme.primaryColor
-                                : AppTheme.accentColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Group Order secondary button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _startingGroupOrder
-                              ? null
-                              : _startGroupOrder,
-                          icon: _startingGroupOrder
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                                icon: Icon(
+                                  widget.restaurant.isCurrentlyOpen
+                                      ? Icons.shopping_cart_rounded
+                                      : Icons.schedule_rounded,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  widget.restaurant.isCurrentlyOpen
+                                      ? 'View Cart'
+                                      : 'Schedule Order',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
                                   ),
-                                )
-                              : const Icon(Icons.group_add_rounded, size: 18),
-                          label: const Text(
-                            'Start Group Order',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primaryColor,
-                            side: BorderSide(color: AppTheme.primaryColor),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      widget.restaurant.isCurrentlyOpen
+                                          ? AppTheme.primaryColor
+                                          : AppTheme.accentColor,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            // Group Order — icon-only square button
+                            SizedBox(
+                              height: 50,
+                              width: 50,
+                              child: OutlinedButton(
+                                onPressed: _startingGroupOrder
+                                    ? null
+                                    : _startGroupOrder,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppTheme.primaryColor,
+                                  side: BorderSide(
+                                      color: AppTheme.primaryColor),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _startingGroupOrder
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.group_add_rounded,
+                                        size: 22,
+                                      ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ], // end else (normal mode)
