@@ -48,19 +48,38 @@ class _CustomerOnboardingScreenState
   @override
   void initState() {
     super.initState();
-    // Auto-skip the location step if permission was already granted.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _skipLocationIfGranted());
+    // If user is already authenticated, check location and go straight home.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _autoAdvanceIfReady(),
+    );
   }
 
-  Future<void> _skipLocationIfGranted() async {
-    final step =
-        ref.read(onboardingProvider(OnboardingRole.customer)).valueOrNull ?? 0;
-    if (!ref.read(authNotifierProvider).isAuthenticated || step < 2) return;
+  Future<void> _autoAdvanceIfReady() async {
+    if (!mounted) return;
+    final isAuth = ref.read(authNotifierProvider).isAuthenticated;
+    if (!isAuth) return;
 
     final permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse) {
-      await _finishLocationStep(request: false);
+    final locationGranted = permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+
+    if (!mounted) return;
+    final role = ref.read(authNotifierProvider).user?.role;
+    if (locationGranted) {
+      // Permission already granted — skip all onboarding and go home.
+      await ref
+          .read(onboardingProvider(OnboardingRole.customer).notifier)
+          .setStep(3);
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        _routeForRole(role),
+        (_) => false,
+      );
+    } else {
+      // Authenticated but location not yet granted — jump to location step.
+      await ref
+          .read(onboardingProvider(OnboardingRole.customer).notifier)
+          .setStep(2);
     }
   }
 
@@ -152,7 +171,7 @@ class _CustomerOnboardingScreenState
 
     if (!mounted) return;
     // Skip location step immediately if permission already granted.
-    await _skipLocationIfGranted();
+    await _autoAdvanceIfReady();
     if (!mounted) return;
     AppSnackbar.success(context, 'Welcome!');
   }
