@@ -161,7 +161,16 @@ class _CustomerOnboardingScreenState
     final isLocationStep = authState.isAuthenticated && step >= 2;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customer Onboarding')),
+      appBar: AppBar(
+        title: const Text('Customer Onboarding'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Change role',
+          onPressed: () => Navigator.of(
+            context,
+          ).pushReplacementNamed('/role-selection'),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

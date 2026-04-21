@@ -92,7 +92,16 @@ class _RestaurantOnboardingScreenState
         0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Restaurant Onboarding')),
+      appBar: AppBar(
+        title: const Text('Restaurant Onboarding'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Change role',
+          onPressed: () => Navigator.of(
+            context,
+          ).pushReplacementNamed('/role-selection'),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
