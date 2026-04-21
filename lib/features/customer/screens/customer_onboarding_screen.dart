@@ -249,7 +249,9 @@ class _CustomerOnboardingScreenState
                     TextButton(
                       onPressed: _isBusy
                           ? null
-                          : () => Navigator.of(context).pushNamed('/signin'),
+                          : () => Navigator.of(
+                              context,
+                            ).pushNamed('/signin/customer'),
                       child: const Text('Sign in'),
                     ),
                   ],

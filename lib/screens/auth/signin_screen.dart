@@ -9,7 +9,11 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, this.role});
+
+  /// Expected role for this sign-in: 'user' (customer), 'driver', or
+  /// 'restaurant'. If null, any role is allowed and we route by actual role.
+  final String? role;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -20,6 +24,42 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  String get _roleLabel {
+    switch (widget.role) {
+      case 'driver':
+        return 'Driver';
+      case 'restaurant':
+        return 'Restaurant';
+      case 'user':
+      case 'customer':
+        return 'Customer';
+      default:
+        return '';
+    }
+  }
+
+  String _routeForRole(String? role) {
+    switch (role) {
+      case 'driver':
+        return '/driver-dashboard';
+      case 'restaurant':
+        return '/restaurant-dashboard';
+      case 'admin':
+        return '/admin-dashboard';
+      default:
+        return '/home';
+    }
+  }
+
+  bool _rolesMatch(String? userRole) {
+    if (widget.role == null) return true;
+    final expected = widget.role;
+    if (expected == 'user' && (userRole == 'user' || userRole == 'customer')) {
+      return true;
+    }
+    return userRole == expected;
+  }
 
   @override
   void dispose() {
@@ -75,21 +115,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   void _navigateAfterSignIn() {
     if (!mounted) return;
     final role = ref.read(authNotifierProvider).user?.role;
-    String route;
-    switch (role) {
-      case 'driver':
-        route = '/driver-dashboard';
-        break;
-      case 'restaurant':
-        route = '/restaurant-dashboard';
-        break;
-      case 'admin':
-        route = '/admin-dashboard';
-        break;
-      default:
-        route = '/home';
+
+    if (!_rolesMatch(role)) {
+      // The account exists but belongs to a different role. Sign out and warn.
+      ref.read(authNotifierProvider.notifier).signOut();
+      AppSnackbar.error(
+        context,
+        'This account is not a $_roleLabel account. Please use the correct sign-in.',
+      );
+      return;
     }
-    Navigator.of(context).pushReplacementNamed(route);
+
+    Navigator.of(context).pushReplacementNamed(_routeForRole(role));
   }
 
   void _showError(Object e) {
@@ -166,7 +203,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Welcome back!',
+                      _roleLabel.isEmpty
+                          ? 'Welcome back!'
+                          : '$_roleLabel sign in',
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.white.withValues(alpha: 0.85),
@@ -341,9 +380,26 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.of(
-                            context,
-                          ).pushNamed('/signup', arguments: 'user'),
+                          onPressed: () {
+                            // Route back to the matching onboarding screen so
+                            // social + email sign-up stays role-specific.
+                            switch (widget.role) {
+                              case 'driver':
+                                Navigator.of(
+                                  context,
+                                ).pushReplacementNamed('/onboarding/driver');
+                                break;
+                              case 'restaurant':
+                                Navigator.of(context).pushReplacementNamed(
+                                  '/onboarding/restaurant',
+                                );
+                                break;
+                              default:
+                                Navigator.of(
+                                  context,
+                                ).pushReplacementNamed('/onboarding/customer');
+                            }
+                          },
                           style: TextButton.styleFrom(
                             foregroundColor: AppTheme.primaryColor,
                             padding: const EdgeInsets.symmetric(horizontal: 6),

@@ -390,7 +390,7 @@ class _DriverOnboardingScreenState
                 TextButton(
                   onPressed: _isBusy
                       ? null
-                      : () => Navigator.of(context).pushNamed('/signin'),
+                      : () => Navigator.of(context).pushNamed('/signin/driver'),
                   child: const Text('Sign in'),
                 ),
               ],
