@@ -46,6 +46,25 @@ class _CustomerOnboardingScreenState
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-skip the location step if permission was already granted.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _skipLocationIfGranted());
+  }
+
+  Future<void> _skipLocationIfGranted() async {
+    final step =
+        ref.read(onboardingProvider(OnboardingRole.customer)).valueOrNull ?? 0;
+    if (!ref.read(authNotifierProvider).isAuthenticated || step < 2) return;
+
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
+      await _finishLocationStep(request: false);
+    }
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _password.dispose();
@@ -131,6 +150,9 @@ class _CustomerOnboardingScreenState
         .read(onboardingProvider(OnboardingRole.customer).notifier)
         .setStep(2);
 
+    if (!mounted) return;
+    // Skip location step immediately if permission already granted.
+    await _skipLocationIfGranted();
     if (!mounted) return;
     AppSnackbar.success(context, 'Welcome!');
   }
