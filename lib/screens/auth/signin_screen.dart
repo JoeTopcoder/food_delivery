@@ -39,6 +39,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  IconData get _roleIcon {
+    switch (widget.role) {
+      case 'driver':
+        return Icons.delivery_dining;
+      case 'restaurant':
+        return Icons.storefront;
+      case 'user':
+      case 'customer':
+        return Icons.person_outline;
+      default:
+        return Icons.login;
+    }
+  }
+
   String _routeForRole(String? role) {
     switch (role) {
       case 'driver':
@@ -202,15 +216,44 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      _roleLabel.isEmpty
-                          ? 'Welcome back!'
-                          : '$_roleLabel sign in',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.white.withValues(alpha: 0.85),
+                    if (_roleLabel.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_roleIcon, size: 16, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$_roleLabel sign in',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        'Welcome back!',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -225,7 +268,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      context.l10n.signIn,
+                      _roleLabel.isEmpty
+                          ? context.l10n.signIn
+                          : '${context.l10n.signIn} as $_roleLabel',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -234,7 +279,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Enter your credentials to continue',
+                      _roleLabel.isEmpty
+                          ? 'Enter your credentials to continue'
+                          : 'Sign in to your $_roleLabel account',
                       style: TextStyle(
                         fontSize: 14,
                         color: context.colors.onSurfaceVariant,

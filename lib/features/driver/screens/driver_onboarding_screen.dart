@@ -66,12 +66,7 @@ class _DriverOnboardingScreenState
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .signUp(
-            email: email,
-            password: password,
-            name: name,
-            role: 'driver',
-          );
+          .signUp(email: email, password: password, name: name, role: 'driver');
       await _afterAuthSuccess();
     } catch (e) {
       if (!mounted) return;
