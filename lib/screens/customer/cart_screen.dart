@@ -56,9 +56,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         : const AsyncValue<DeliveryFeeResult?>.data(null);
     final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
-    final deliveryFee =
+    final baseDeliveryFee =
         feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
     final distanceKm = feeResult?.distanceKm;
+
+    // ── Group order discount (60 % of regular delivery fee) ─────────
+    final groupParticipantCount = ref.watch(groupOrderParticipantCountProvider);
+    final isGroupOrder = groupParticipantCount > 0;
+    final deliveryFee = isGroupOrder ? baseDeliveryFee * 0.60 : baseDeliveryFee;
 
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
@@ -400,6 +405,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                         child: Column(
                           children: [
+                            // Group order discount banner
+                            if (isGroupOrder) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.groups_rounded,
+                                      color: Color(0xFF10B981),
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Group Order – 40% delivery discount ($groupParticipantCount members)',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             // MealHub+ banner
                             if (subDeliveryFree) ...[
                               Container(
@@ -439,7 +480,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
-                            if (isPickup)
+                            if (isGroupOrder) ...[
+                              _PriceRow(
+                                'Delivery (Group 40% off – $groupParticipantCount members)',
+                                feeLoading
+                                    ? 'Calculating…'
+                                    : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                                valueColor: const Color(0xFF10B981),
+                              ),
+                            ] else if (isPickup)
                               _PriceRow(
                                 subServiceDiscount > 0
                                     ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
