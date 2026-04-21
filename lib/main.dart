@@ -245,14 +245,29 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleSelectionScreen(),
               );
             case '/onboarding/customer':
+              if (authState.isAuthenticated) {
+                return MaterialPageRoute(
+                  builder: (context) => _getHomeForRole(authState.user?.role),
+                );
+              }
               return MaterialPageRoute(
                 builder: (context) => const CustomerOnboardingScreen(),
               );
             case '/onboarding/driver':
+              if (authState.isAuthenticated) {
+                return MaterialPageRoute(
+                  builder: (context) => _getHomeForRole(authState.user?.role),
+                );
+              }
               return MaterialPageRoute(
                 builder: (context) => const DriverOnboardingScreen(),
               );
             case '/onboarding/restaurant':
+              if (authState.isAuthenticated) {
+                return MaterialPageRoute(
+                  builder: (context) => _getHomeForRole(authState.user?.role),
+                );
+              }
               return MaterialPageRoute(
                 builder: (context) => const RestaurantOnboardingScreen(),
               );
