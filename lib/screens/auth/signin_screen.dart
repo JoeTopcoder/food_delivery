@@ -4,9 +4,6 @@ import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
-import '../../features/auth/models/onboarding_role.dart';
-import '../../features/auth/providers/onboarding_provider.dart';
-import '../../features/auth/providers/role_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -71,19 +68,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _navigateAfterSignIn();
     } catch (e) {
       AppLogger.error('Apple sign-in error: $e');
-      _showError(e);
-    }
-  }
-
-  Future<void> _handleOtpSignIn() async {
-    try {
-      await ref.read(roleProvider.notifier).setRole(OnboardingRole.customer);
-      await ref
-          .read(onboardingProvider(OnboardingRole.customer).notifier)
-          .setStep(0);
-      if (!mounted) return;
-      Navigator.of(context).pushNamed('/onboarding/customer');
-    } catch (e) {
       _showError(e);
     }
   }
@@ -343,18 +327,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ),
                         ],
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: authState.isLoading ? null : _handleOtpSignIn,
-                      icon: const Icon(Icons.sms_outlined),
-                      label: const Text('Sign in with phone OTP'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 24),
 
