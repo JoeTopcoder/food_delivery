@@ -23,6 +23,7 @@ class _RestaurantOnboardingScreenState
     extends ConsumerState<RestaurantOnboardingScreen> {
   final _signUpEmail = TextEditingController();
   final _signUpPassword = TextEditingController();
+  final _signUpName = TextEditingController();
   final _business = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -42,6 +43,7 @@ class _RestaurantOnboardingScreenState
   void dispose() {
     _signUpEmail.dispose();
     _signUpPassword.dispose();
+    _signUpName.dispose();
     _business.dispose();
     _phone.dispose();
     _address.dispose();
@@ -55,6 +57,11 @@ class _RestaurantOnboardingScreenState
   Future<void> _signUpWithEmail() async {
     final email = _signUpEmail.text.trim();
     final password = _signUpPassword.text;
+    final name = _signUpName.text.trim();
+    if (name.isEmpty) {
+      AppSnackbar.error(context, 'Please enter your full name.');
+      return;
+    }
     if (email.isEmpty || password.isEmpty) {
       AppSnackbar.error(context, 'Enter your email and password.');
       return;
@@ -66,7 +73,7 @@ class _RestaurantOnboardingScreenState
           .signUp(
             email: email,
             password: password,
-            name: email.split('@').first,
+            name: name,
             role: 'restaurant',
           );
       await _afterAuthSuccess();
@@ -230,6 +237,12 @@ class _RestaurantOnboardingScreenState
               ],
             ),
             const SizedBox(height: 16),
+            TextField(
+              controller: _signUpName,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Full name'),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _signUpEmail,
               keyboardType: TextInputType.emailAddress,

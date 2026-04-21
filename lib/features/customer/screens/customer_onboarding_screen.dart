@@ -57,6 +57,10 @@ class _CustomerOnboardingScreenState
     final email = _email.text.trim();
     final password = _password.text;
     final name = _name.text.trim();
+    if (name.isEmpty) {
+      AppSnackbar.error(context, 'Please enter your full name.');
+      return;
+    }
     if (email.isEmpty || password.isEmpty) {
       AppSnackbar.error(context, 'Enter your email and password.');
       return;
@@ -68,7 +72,7 @@ class _CustomerOnboardingScreenState
           .signUp(
             email: email,
             password: password,
-            name: name.isEmpty ? email.split('@').first : name,
+            name: name,
             role: 'user',
           );
       await _afterAuthSuccess();
@@ -204,9 +208,8 @@ class _CustomerOnboardingScreenState
                 const SizedBox(height: 16),
                 TextField(
                   controller: _name,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name (optional)',
-                  ),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Full name'),
                 ),
                 const SizedBox(height: 8),
                 TextField(

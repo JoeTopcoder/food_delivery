@@ -23,6 +23,7 @@ class _DriverOnboardingScreenState
     extends ConsumerState<DriverOnboardingScreen> {
   final _signUpEmail = TextEditingController();
   final _signUpPassword = TextEditingController();
+  final _signUpName = TextEditingController();
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
@@ -40,6 +41,7 @@ class _DriverOnboardingScreenState
   void dispose() {
     _signUpEmail.dispose();
     _signUpPassword.dispose();
+    _signUpName.dispose();
     _name.dispose();
     _email.dispose();
     _phone.dispose();
@@ -51,6 +53,11 @@ class _DriverOnboardingScreenState
   Future<void> _signUpWithEmail() async {
     final email = _signUpEmail.text.trim();
     final password = _signUpPassword.text;
+    final name = _signUpName.text.trim();
+    if (name.isEmpty) {
+      AppSnackbar.error(context, 'Please enter your full name.');
+      return;
+    }
     if (email.isEmpty || password.isEmpty) {
       AppSnackbar.error(context, 'Enter your email and password.');
       return;
@@ -62,7 +69,7 @@ class _DriverOnboardingScreenState
           .signUp(
             email: email,
             password: password,
-            name: email.split('@').first,
+            name: name,
             role: 'driver',
           );
       await _afterAuthSuccess();
@@ -266,6 +273,12 @@ class _DriverOnboardingScreenState
               ],
             ),
             const SizedBox(height: 16),
+            TextField(
+              controller: _signUpName,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Full name'),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _signUpEmail,
               keyboardType: TextInputType.emailAddress,
