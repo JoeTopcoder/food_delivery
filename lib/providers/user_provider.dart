@@ -444,6 +444,11 @@ final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
   return CartNotifier();
 });
 
+/// When > 0, the current cart checkout is for a group order with this many
+/// participants. The delivery fee should be discounted to 60% of regular.
+/// Set before navigating to /cart from a group order lock, cleared on return.
+final groupOrderParticipantCountProvider = StateProvider<int>((ref) => 0);
+
 // Calculated cart totals
 final cartSubtotalProvider = Provider.autoDispose<double>((ref) {
   final cart = ref.watch(cartProvider);

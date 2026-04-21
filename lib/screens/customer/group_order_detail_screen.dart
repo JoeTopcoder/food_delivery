@@ -100,9 +100,16 @@ class _GroupOrderDetailScreenState
 
       if (!mounted) return;
 
+      // Set group participant count so cart applies 60% delivery discount
+      ref.read(groupOrderParticipantCountProvider.notifier).state =
+          group.participants.length;
+
       // Navigate to cart; when user comes back (order placed or cancelled),
       // mark the group order as ordered to close it permanently.
       await Navigator.pushNamed(context, '/cart');
+
+      // Clear the group discount flag
+      ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
 
       if (!mounted) return;
       await service.markAsOrdered(widget.groupOrderId);
