@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -171,6 +172,32 @@ class AuthService {
       return response;
     } catch (e, stackTrace) {
       AppLogger.error('Google sign-in error: $e\n$stackTrace');
+
+      final raw = e.toString().toLowerCase();
+      if (e is PlatformException) {
+        final code = e.code.toLowerCase();
+        if (code == '10' ||
+            code.contains('developer_error') ||
+            raw.contains('apiexception: 10')) {
+          throw Exception(
+            'Google sign-in is not fully configured for this app build. Add this app signing SHA key in Firebase and ensure Google provider is enabled in Supabase Auth.',
+          );
+        }
+      }
+      if (raw.contains('unacceptable audience in id_token') ||
+          raw.contains('invalid id token') ||
+          raw.contains('id_token')) {
+        throw Exception(
+          'Google token was rejected by Supabase. Verify Supabase Google provider uses the same Web client ID as Firebase.',
+        );
+      }
+      if (raw.contains('provider is not enabled') ||
+          raw.contains('unsupported provider')) {
+        throw Exception(
+          'Google provider is disabled in Supabase Auth settings. Enable Google sign-in there and try again.',
+        );
+      }
+
       rethrow;
     }
   }

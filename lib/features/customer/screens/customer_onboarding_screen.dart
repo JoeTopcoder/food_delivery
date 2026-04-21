@@ -6,6 +6,8 @@ import '../../../features/auth/models/onboarding_role.dart';
 import '../../../features/auth/providers/onboarding_provider.dart';
 import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../utils/app_logger.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 
@@ -22,7 +24,25 @@ class _CustomerOnboardingScreenState
   final _phone = TextEditingController();
   final _otp = TextEditingController();
 
-  bool _loading = false;
+  bool _otpSending = false;
+  bool _otpVerifying = false;
+  bool _googleLoading = false;
+  bool _resetPendingForLoggedOutUser = false;
+
+  bool get _isBusy => _otpSending || _otpVerifying || _googleLoading;
+
+  String _routeForRole(String? role) {
+    switch (role) {
+      case 'driver':
+        return '/driver-dashboard';
+      case 'restaurant':
+        return '/restaurant-dashboard';
+      case 'admin':
+        return '/admin-dashboard';
+      default:
+        return '/home';
+    }
+  }
 
   @override
   void dispose() {
@@ -32,24 +52,66 @@ class _CustomerOnboardingScreenState
   }
 
   Future<void> _sendOtp() async {
-    setState(() => _loading = true);
+    setState(() => _otpSending = true);
     try {
-      await ref.read(onboardingServiceProvider).sendOtp(_phone.text.trim());
+      final phone = _phone.text.trim();
+      await ref.read(onboardingServiceProvider).sendOtp(phone);
       await ref
           .read(onboardingProvider(OnboardingRole.customer).notifier)
           .setStep(1);
       if (!mounted) return;
-      AppSnackbar.success(context, 'OTP sent');
+      AppSnackbar.success(context, 'OTP sent. Check your SMS messages.');
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.error(context, friendlyError(e));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _otpSending = false);
+    }
+  }
+
+  Future<void> _continueWithGoogle() async {
+    setState(() => _googleLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+      final authState = ref.read(authNotifierProvider);
+      final user = authState.user;
+      if (user == null) {
+        throw Exception('Google sign in did not return a user.');
+      }
+
+      await ref.read(roleProvider.notifier).setRole(OnboardingRole.customer);
+      try {
+        await ref
+            .read(onboardingServiceProvider)
+            .ensureUserRecord(
+              userId: user.id,
+              role: OnboardingRole.customer,
+              email: user.email,
+              name: user.name,
+              onboardingCompleted: true,
+            );
+      } catch (syncError) {
+        AppLogger.error(
+          'Customer profile sync after Google sign-in failed: $syncError',
+        );
+      }
+      await ref
+          .read(onboardingProvider(OnboardingRole.customer).notifier)
+          .setStep(2);
+
+      if (!mounted) return;
+      final route = _routeForRole(user.role);
+      Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
   Future<void> _verifyOtp() async {
-    setState(() => _loading = true);
+    setState(() => _otpVerifying = true);
     try {
       final auth = await ref
           .read(onboardingServiceProvider)
@@ -75,7 +137,7 @@ class _CustomerOnboardingScreenState
       if (!mounted) return;
       AppSnackbar.error(context, friendlyError(e));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _otpVerifying = false);
     }
   }
 
@@ -94,8 +156,24 @@ class _CustomerOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
     final step =
         ref.watch(onboardingProvider(OnboardingRole.customer)).valueOrNull ?? 0;
+
+    // If a user logged out after completing onboarding, force OTP entry flow again.
+    if (!authState.isAuthenticated &&
+        step > 1 &&
+        !_resetPendingForLoggedOutUser) {
+      _resetPendingForLoggedOutUser = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await ref
+            .read(onboardingProvider(OnboardingRole.customer).notifier)
+            .setStep(0);
+        if (mounted) {
+          setState(() => _resetPendingForLoggedOutUser = false);
+        }
+      });
+    }
 
     final isPhoneStep = step == 0;
     final isOtpStep = step == 1;
@@ -128,11 +206,32 @@ class _CustomerOnboardingScreenState
               const SizedBox(height: 12),
               if (isPhoneStep)
                 ElevatedButton(
-                  onPressed: _loading ? null : _sendOtp,
-                  child: _loading
+                  onPressed: _isBusy ? null : _sendOtp,
+                  child: _otpSending
                       ? const CircularProgressIndicator()
                       : const Text('Send OTP'),
                 ),
+              if (isPhoneStep) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _isBusy ? null : _continueWithGoogle,
+                  icon: _googleLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 26),
+                  label: Text(
+                    _googleLoading ? 'Signing in...' : 'Sign up with Google',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Use Google to skip OTP and continue faster.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
               if (isOtpStep) ...[
                 TextField(
                   controller: _otp,
@@ -141,8 +240,8 @@ class _CustomerOnboardingScreenState
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: _loading ? null : _verifyOtp,
-                  child: _loading
+                  onPressed: _isBusy ? null : _verifyOtp,
+                  child: _otpVerifying
                       ? const CircularProgressIndicator()
                       : const Text('Verify OTP'),
                 ),
@@ -150,14 +249,14 @@ class _CustomerOnboardingScreenState
               const Spacer(),
               if (isLocationStep) ...[
                 OutlinedButton.icon(
-                  onPressed: _loading
+                  onPressed: _isBusy
                       ? null
                       : () => _finishLocationStep(request: true),
                   icon: const Icon(Icons.my_location),
                   label: const Text('Enable location'),
                 ),
                 TextButton(
-                  onPressed: _loading
+                  onPressed: _isBusy
                       ? null
                       : () => _finishLocationStep(request: false),
                   child: const Text('Skip for now'),
