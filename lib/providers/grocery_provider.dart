@@ -49,6 +49,18 @@ final groceryStoreSearchProvider = FutureProvider.family
       return ref.watch(groceryServiceProvider).searchGroceryStores(query);
     });
 
+/// Fetch a single grocery store by ID (used by banner tap).
+final groceryStoreByIdProvider = FutureProvider.family
+    .autoDispose<Restaurant?, String>((ref, storeId) async {
+      final data = await SupabaseConfig.client
+          .from('restaurants')
+          .select()
+          .eq('id', storeId)
+          .maybeSingle();
+      if (data == null) return null;
+      return Restaurant.fromJson(data as Map<String, dynamic>);
+    });
+
 // ── Product Providers (real-time) ───────────────────────────────────────────
 
 final groceryProductsProvider = FutureProvider.family

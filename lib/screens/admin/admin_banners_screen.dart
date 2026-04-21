@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/banner_model.dart' as app;
 import '../../providers/banner_provider.dart';
+import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -234,6 +235,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   final _subtitleCtrl = TextEditingController();
   final _imageUrlCtrl = TextEditingController();
   String? _selectedRestaurantId;
+  String _section = 'food'; // 'food' or 'grocery'
   bool _saving = false;
 
   @override
@@ -244,6 +246,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
       _subtitleCtrl.text = widget.existing!.subtitle ?? '';
       _imageUrlCtrl.text = widget.existing!.imageUrl ?? '';
       _selectedRestaurantId = widget.existing!.restaurantId;
+      _section = widget.existing!.section;
     }
   }
 
@@ -272,6 +275,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
             ? null
             : _imageUrlCtrl.text.trim(),
         'restaurant_id': _selectedRestaurantId,
+        'section': _section,
       };
 
       if (widget.existing != null) {
@@ -295,6 +299,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   @override
   Widget build(BuildContext context) {
     final restaurantsAsync = ref.watch(allRestaurantsProvider);
+    final groceryStoresAsync = ref.watch(groceryStoresProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -310,6 +315,37 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
               fontWeight: FontWeight.w700,
               color: Theme.of(context).colorScheme.onSurface,
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // Section toggle
+          Text(
+            'Banner Section *',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'food',
+                label: Text('Food'),
+                icon: Icon(Icons.restaurant_menu),
+              ),
+              ButtonSegment(
+                value: 'grocery',
+                label: Text('Grocery'),
+                icon: Icon(Icons.local_grocery_store),
+              ),
+            ],
+            selected: {_section},
+            onSelectionChanged: (sel) => setState(() {
+              _section = sel.first;
+              _selectedRestaurantId = null; // reset when section changes
+            }),
           ),
           const SizedBox(height: 16),
 
@@ -343,9 +379,11 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
           ),
           const SizedBox(height: 12),
 
-          // Restaurant picker
+          // Store picker — swaps list based on section
           Text(
-            'Link to Restaurant *',
+            _section == 'grocery'
+                ? 'Link to Grocery Store *'
+                : 'Link to Restaurant *',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -353,12 +391,40 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
             ),
           ),
           const SizedBox(height: 6),
-          restaurantsAsync.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text(friendlyError(e)),
-            data: (restaurants) {
-              return DropdownButtonFormField<String>(
-                initialValue: _selectedRestaurantId,
+          if (_section == 'grocery')
+            groceryStoresAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text(friendlyError(e)),
+              data: (stores) => DropdownButtonFormField<String>(
+                value: _selectedRestaurantId,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                hint: const Text('Select a grocery store'),
+                items: stores
+                    .map(
+                      (r) => DropdownMenuItem(
+                        value: r.id,
+                        child: Text(r.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (id) => setState(() => _selectedRestaurantId = id),
+              ),
+            )
+          else
+            restaurantsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text(friendlyError(e)),
+              data: (restaurants) => DropdownButtonFormField<String>(
+                value: _selectedRestaurantId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
@@ -378,14 +444,9 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
                       ),
                     )
                     .toList(),
-                onChanged: (id) {
-                  setState(() {
-                    _selectedRestaurantId = id;
-                  });
-                },
-              );
-            },
-          ),
+                onChanged: (id) => setState(() => _selectedRestaurantId = id),
+              ),
+            ),
           const SizedBox(height: 20),
 
           // Save button
