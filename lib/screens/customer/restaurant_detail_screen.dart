@@ -9,10 +9,12 @@ import '../../providers/premium_providers.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/recommendation_provider.dart';
+import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
 import '../../widgets/menu_item_detail_sheet.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'group_order_detail_screen.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
@@ -29,6 +31,34 @@ class _RestaurantDetailScreenState
   late ScrollController _scrollController;
   bool _showAppBar = false;
   String? _selectedCategory;
+  bool _startingGroupOrder = false;
+
+  Future<void> _startGroupOrder() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    setState(() => _startingGroupOrder = true);
+    try {
+      final service = ref.read(groupOrderServiceProvider);
+      final group = await service.createGroupOrder(
+        hostUserId: userId,
+        restaurantId: widget.restaurant.id,
+        name: '${widget.restaurant.name} Group Order',
+        deadlineMinutes: 60,
+      );
+      if (group == null) throw Exception('Failed to create group order');
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GroupOrderDetailScreen(groupOrderId: group.id),
+        ),
+      );
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _startingGroupOrder = false);
+    }
+  }
 
   @override
   void initState() {
@@ -694,6 +724,35 @@ class _RestaurantDetailScreenState
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Group Order secondary button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _startingGroupOrder ? null : _startGroupOrder,
+                        icon: _startingGroupOrder
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.group_add_rounded, size: 18),
+                        label: const Text(
+                          'Start Group Order',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: BorderSide(color: AppTheme.primaryColor),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),

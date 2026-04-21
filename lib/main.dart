@@ -76,6 +76,7 @@ import 'widgets/incoming_call_listener.dart';
 import 'widgets/role_guard.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
+import 'screens/customer/group_order_detail_screen.dart';
 import 'screens/customer/subscription_screen.dart';
 import 'screens/customer/feedback_screen.dart';
 import 'screens/customer/wallet_screen.dart';
@@ -680,6 +681,15 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: GroupOrderScreen(),
+                ),
+              );
+            case '/group-order-detail':
+              final groupOrderId = settings.arguments as String?;
+              if (groupOrderId == null) return null;
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: GroupOrderDetailScreen(groupOrderId: groupOrderId),
                 ),
               );
             case '/subscriptions':

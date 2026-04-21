@@ -10,6 +10,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
+import 'group_order_detail_screen.dart';
 
 class GroupOrderScreen extends ConsumerStatefulWidget {
   const GroupOrderScreen({super.key});
@@ -65,10 +66,22 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: groups.length,
-            itemBuilder: (_, i) => _GroupOrderCard(
-              group: groups[i],
-              currentUserId: userId,
-              onRefresh: () => ref.invalidate(userGroupOrdersProvider(userId)),
+            itemBuilder: (_, i) => GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GroupOrderDetailScreen(
+                      groupOrderId: groups[i].id,
+                    ),
+                  ),
+                ).then((_) => ref.invalidate(userGroupOrdersProvider(userId)));
+              },
+              child: _GroupOrderCard(
+                group: groups[i],
+                currentUserId: userId,
+                onRefresh: () => ref.invalidate(userGroupOrdersProvider(userId)),
+              ),
             ),
           );
         },
@@ -77,53 +90,9 @@ class _GroupOrderScreenState extends ConsumerState<GroupOrderScreen> {
   }
 
   void _showCreateDialog(String userId) {
-    final nameCtrl = TextEditingController(text: 'Group Order');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Group Order'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Group Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Choose a restaurant after creating the group, then share the invite code with friends.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              // For now, pick a placeholder restaurant — in real usage,
-              // the user would navigate to a restaurant first
-              AppSnackbar.info(
-                context,
-                'Navigate to a restaurant first, then create a group from there',
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    AppSnackbar.info(
+      context,
+      'Open a restaurant menu first, then tap "Start Group Order"',
     );
   }
 
