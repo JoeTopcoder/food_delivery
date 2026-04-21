@@ -157,11 +157,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final distanceKm = feeResult?.distanceKm;
 
     // ── Group order discount (60% of regular delivery fee) ──────────
-    final groupParticipantCount =
-        ref.watch(groupOrderParticipantCountProvider);
+    final groupParticipantCount = ref.watch(groupOrderParticipantCountProvider);
     final isGroupOrder = groupParticipantCount > 0;
-    final deliveryFee =
-        isGroupOrder ? baseDeliveryFee * 0.60 : baseDeliveryFee;
+    final deliveryFee = isGroupOrder ? baseDeliveryFee * 0.60 : baseDeliveryFee;
 
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
