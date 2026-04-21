@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/auth_provider.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 
@@ -22,6 +23,21 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   ) async {
     if (_navigating) return;
     setState(() => _navigating = true);
+
+    final authState = ref.read(authNotifierProvider);
+    if (authState.isAuthenticated) {
+      final signedInRole = authState.user?.role;
+      final route = switch (signedInRole) {
+        'driver' => '/driver-dashboard',
+        'restaurant' => '/restaurant-dashboard',
+        'admin' => '/admin-dashboard',
+        _ => '/home',
+      };
+      if (!context.mounted) return;
+      Navigator.of(context).pushReplacementNamed(route);
+      return;
+    }
+
     await ref.read(roleProvider.notifier).setRole(role);
     if (!context.mounted) return;
     Navigator.of(context).pushReplacementNamed(role.route);
