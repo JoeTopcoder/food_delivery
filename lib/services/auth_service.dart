@@ -312,19 +312,23 @@ class AuthService {
     required String name,
     required String role,
   }) async {
+    // Map to role values allowed by the live CHECK constraint.
+    // Live schema: ('user','driver','restaurant','admin'). 'customer' maps to 'user'.
+    final safeRole = role == 'customer' ? 'user' : role;
     try {
-      await _supabaseClient.from(AppConstants.tableUsers).insert({
+      await _supabaseClient.from(AppConstants.tableUsers).upsert({
         'id': userId,
         'email': email,
         'name': name,
-        'role': role,
+        'role': safeRole,
         'is_active': true,
-        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
       });
       AppLogger.info('User profile created successfully');
     } catch (e) {
-      AppLogger.error('Error creating user profile: $e');
-      rethrow;
+      // Do NOT rethrow — auth signup already succeeded, and the
+      // onboarding service will retry with resilient fallbacks.
+      AppLogger.error('Error creating user profile (non-fatal): $e');
     }
   }
 }
