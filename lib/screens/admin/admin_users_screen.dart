@@ -301,6 +301,7 @@ class _UserCard extends StatelessWidget {
 
   String get _roleLabel {
     switch (user.role) {
+      case 'customer':
       case 'user':
         return 'Customer';
       default:
@@ -311,9 +312,10 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = user.isActive;
+    final email = user.email ?? '';
     final initial = (user.name?.isNotEmpty ?? false)
         ? user.name![0].toUpperCase()
-        : user.email[0].toUpperCase();
+        : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
     return GestureDetector(
       onTap: onDetails,
@@ -383,7 +385,7 @@ class _UserCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      user.email,
+                      email,
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -519,9 +521,10 @@ class _UserDetailsSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isActive = user.isActive;
     final roleColor = _roleColor(user.role);
+    final email = user.email ?? '';
     final initial = (user.name?.isNotEmpty ?? false)
         ? user.name![0].toUpperCase()
-        : user.email[0].toUpperCase();
+        : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
     return Container(
       decoration: BoxDecoration(
@@ -584,7 +587,7 @@ class _UserDetailsSheet extends ConsumerWidget {
                     Row(
                       children: [
                         _chip(
-                          user.role == 'user'
+                          user.role == 'user' || user.role == 'customer'
                               ? 'Customer'
                               : user.role[0].toUpperCase() +
                                     user.role.substring(1),
@@ -608,7 +611,7 @@ class _UserDetailsSheet extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Details
-          _row(context, Icons.email_outlined, 'Email', user.email),
+          _row(context, Icons.email_outlined, 'Email', email),
           if (user.phone != null)
             _row(context, Icons.phone_outlined, 'Phone', user.phone!),
           if (user.address != null)

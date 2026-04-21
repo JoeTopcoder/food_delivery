@@ -148,7 +148,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                 flexibleSpace: FlexibleSpaceBar(
                   background: _HeroHeader(
                     name: authState.user!.name ?? 'Driver',
-                    email: authState.user!.email,
+                    email: authState.user!.email ?? '',
                     imageUrl: authState.user!.profileImageUrl,
                     isAvailable: driver?.isAvailable ?? false,
                   ),

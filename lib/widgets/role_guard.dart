@@ -47,6 +47,8 @@ class RoleGuard extends ConsumerWidget {
         return '/restaurant-dashboard';
       case 'admin':
         return '/admin-dashboard';
+      case 'customer':
+        return '/home';
       default:
         return '/home';
     }

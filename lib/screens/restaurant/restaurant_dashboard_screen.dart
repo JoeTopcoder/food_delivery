@@ -8,6 +8,7 @@ import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../features/auth/services/delayed_stripe_connect_service.dart';
 import 'restaurant_offer_screen.dart';
 
 class RestaurantDashboardScreen extends ConsumerStatefulWidget {
@@ -135,6 +136,23 @@ class _RestaurantDashboardScreenState
     if (currentUserId != null) {
       ref.invalidate(restaurantByOwnerProvider(currentUserId));
       ref.invalidate(ownerAllOrdersProvider(currentUserId));
+    }
+  }
+
+  Future<void> _startRestaurantStripeSetup() async {
+    try {
+      final launched = await DelayedStripeConnectService()
+          .ensureConnectedForDriverPayout();
+      if (!launched && mounted) {
+        AppSnackbar.error(
+          context,
+          'Could not open Stripe setup. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
     }
   }
 
@@ -338,6 +356,52 @@ class _RestaurantDashboardScreenState
                                         ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(height: 12),
+                            ordersAsync.when(
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, __) => const SizedBox.shrink(),
+                              data: (orders) {
+                                final needsStripeSetup =
+                                    orders.isNotEmpty &&
+                                    (restaurant.stripeAccountId == null ||
+                                        restaurant.stripeAccountId!.isEmpty);
+                                if (!needsStripeSetup) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFEDD5),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFFB923C),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.account_balance_wallet_rounded,
+                                        color: Color(0xFFC2410C),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Text(
+                                          'You received your first order. Complete payout setup to receive funds.',
+                                          style: TextStyle(
+                                            color: Color(0xFF9A3412),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _startRestaurantStripeSetup,
+                                        child: const Text('Set up'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
