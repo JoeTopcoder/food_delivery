@@ -83,6 +83,8 @@ class _RestaurantDetailScreenState
     setState(() => _startingGroupOrder = true);
     try {
       final service = ref.read(groupOrderServiceProvider);
+      final cartItems = ref.read(cartProvider);
+
       final group = await service.createGroupOrder(
         hostUserId: userId,
         restaurantId: widget.restaurant.id,
@@ -90,6 +92,28 @@ class _RestaurantDetailScreenState
         deadlineMinutes: 60,
       );
       if (group == null) throw Exception('Failed to create group order');
+
+      // If the host already had items in the cart, save them to their
+      // participant record so they're included in the group order.
+      if (cartItems.isNotEmpty) {
+        // Re-fetch the group order to get the host participant row ID
+        final freshGroup = await service.getGroupOrder(group.id);
+        final hostParticipant = freshGroup?.participants
+            .where((p) => p.userId == userId)
+            .firstOrNull;
+        if (hostParticipant != null) {
+          final items = cartItems.map((c) => c.toJson()).toList();
+          final subtotal = cartItems.fold(0.0, (sum, c) => sum + c.subtotal);
+          await service.updateParticipantItems(
+            participantId: hostParticipant.id,
+            items: items,
+            subtotal: subtotal,
+          );
+          // Clear cart — items are now stored in the group order
+          ref.read(cartProvider.notifier).clearCart();
+        }
+      }
+
       if (!mounted) return;
       Navigator.push(
         context,
