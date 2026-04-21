@@ -268,6 +268,18 @@ class _MyAppState extends ConsumerState<MyApp> {
               return MaterialPageRoute(
                 builder: (context) => const SignInScreen(),
               );
+            case '/signin/customer':
+              return MaterialPageRoute(
+                builder: (context) => const SignInScreen(role: 'user'),
+              );
+            case '/signin/driver':
+              return MaterialPageRoute(
+                builder: (context) => const SignInScreen(role: 'driver'),
+              );
+            case '/signin/restaurant':
+              return MaterialPageRoute(
+                builder: (context) => const SignInScreen(role: 'restaurant'),
+              );
             case '/signup':
               final role = settings.arguments as String? ?? 'user';
               return MaterialPageRoute(

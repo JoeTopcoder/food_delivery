@@ -227,7 +227,8 @@ class _RestaurantOnboardingScreenState
               TextButton(
                 onPressed: _loading
                     ? null
-                    : () => Navigator.of(context).pushNamed('/signin'),
+                    : () =>
+                          Navigator.of(context).pushNamed('/signin/restaurant'),
                 child: const Text('Sign in'),
               ),
             ],
