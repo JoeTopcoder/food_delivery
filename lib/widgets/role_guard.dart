@@ -13,7 +13,9 @@ class RoleGuard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
-    final role = authState.user?.role;
+    // Treat 'customer' as equivalent to 'user' — same role, different label
+    final rawRole = authState.user?.role;
+    final role = rawRole == 'customer' ? 'user' : rawRole;
 
     // If not authenticated at all, redirect to sign-in
     if (!authState.isAuthenticated || role == null) {
@@ -31,7 +33,7 @@ class RoleGuard extends ConsumerWidget {
     // Redirect to the correct home for this role after the frame completes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
-      final route = _homeRouteForRole(role);
+      final route = _homeRouteForRole(rawRole);
       Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
     });
 

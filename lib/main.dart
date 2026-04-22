@@ -73,6 +73,7 @@ import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
 import 'screens/admin/admin_pricing_screen.dart';
 import 'widgets/incoming_call_listener.dart';
+import 'screens/splash_screen.dart';
 import 'widgets/role_guard.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -232,9 +233,7 @@ class _MyAppState extends ConsumerState<MyApp> {
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: authState.isAuthenticated
-            ? _getHomeForRole(authState.user?.role)
-            : const AuthLaunchGateScreen(),
+        home: const AppLaunchSplash(),
         onGenerateRoute: (settings) {
           switch (settings.name) {
             case '/':

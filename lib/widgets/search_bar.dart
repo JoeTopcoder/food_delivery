@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/app_theme.dart';
 
 class CustomSearchBar extends StatelessWidget {
   final Function(String) onChanged;
@@ -36,15 +35,10 @@ class CustomSearchBar extends StatelessWidget {
           ),
           Container(
             margin: const EdgeInsets.only(right: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 20),
-              onPressed: () {},
-              constraints: const BoxConstraints(minHeight: 38, minWidth: 38),
-              padding: EdgeInsets.zero,
+            child: Icon(
+              Icons.search_rounded,
+              color: Colors.grey[400],
+              size: 22,
             ),
           ),
         ],

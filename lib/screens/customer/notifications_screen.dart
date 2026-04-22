@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/context_extensions.dart';
 
@@ -18,11 +19,68 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   late final RealtimeChannel _channel;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadExistingNotifications();
     _subscribeToOrderUpdates();
+    _hookForegroundCallback();
+  }
+
+  /// Catches foreground FCM order notifications and adds them to the in-memory
+  /// list immediately — so the user sees them without leaving the screen.
+  void _hookForegroundCallback() {
+    NotificationService.onOrderNotificationReceived =
+        (type, title, body, data) {
+          if (!mounted) return;
+          ref
+              .read(notificationNotifierProvider.notifier)
+              .addNotification(
+                AppNotification(
+                  id: '${type}_${DateTime.now().millisecondsSinceEpoch}',
+                  type: type,
+                  title: title,
+                  body: body,
+                  data: data,
+                  timestamp: DateTime.now(),
+                  isRead: false,
+                ),
+              );
+        };
+  }
+
+  Future<void> _loadExistingNotifications() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('notifications')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .order('created_at', ascending: false)
+          .limit(60);
+
+      final notifier = ref.read(notificationNotifierProvider.notifier);
+      final loaded = (rows as List).map((row) => AppNotification(
+        id: row['id'] as String,
+        type: row['type'] as String? ?? 'info',
+        title: row['title'] as String? ?? '',
+        body: row['body'] as String? ?? '',
+        data: (row['data'] as Map<String, dynamic>?) ?? {},
+        timestamp:
+            DateTime.tryParse(row['created_at'] as String? ?? '') ??
+            DateTime.now(),
+        isRead: row['is_read'] as bool? ?? false,
+      )).toList();
+      notifier.setAll(loaded);
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
   }
 
   void _subscribeToOrderUpdates() {
@@ -62,6 +120,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   void dispose() {
     Supabase.instance.client.removeChannel(_channel);
+    // Remove the foreground callback so it doesn't fire after this screen is gone
+    NotificationService.onOrderNotificationReceived = null;
     super.dispose();
   }
 
@@ -91,7 +151,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
         ],
       ),
-      body: notifications.isEmpty
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : notifications.isEmpty
           ? const _EmptyNotifications()
           : ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -100,7 +162,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 final n = notifications[index];
                 return _NotifCard(
                   notification: n,
-                  onTap: () => notifier.markAsRead(n.id),
+                  onTap: () {
+                    notifier.markAsRead(n.id);
+                    // Persist read state to DB
+                    Supabase.instance.client
+                        .from('notifications')
+                        .update({'is_read': true})
+                        .eq('id', n.id)
+                        .then((_) {});
+                  },
                   onDismiss: () => notifier.removeNotification(n.id),
                 );
               },

@@ -14,6 +14,7 @@ import '../../providers/address_provider.dart';
 import '../../providers/banner_provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/recommendation_provider.dart';
+import '../../providers/feature_providers.dart';
 import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
@@ -31,20 +32,20 @@ final isPeakHourProvider = StreamProvider<bool>((ref) {
   ).distinct();
 });
 
-// Emoji categories for the Browse by Category grid
-const _emojiCategories = <Map<String, String>>[
-  {'emoji': '\u{1F373}', 'name': 'Breakfast'},
-  {'emoji': '\u{1F354}', 'name': 'Fast Food'},
-  {'emoji': '\u{1F355}', 'name': 'Pizza'},
-  {'emoji': '\u{1F357}', 'name': 'Chicken'},
-  {'emoji': '\u{1F32E}', 'name': 'Mexican'},
-  {'emoji': '\u{1F35C}', 'name': 'Chinese'},
-  {'emoji': '\u{1F363}', 'name': 'Sushi'},
-  {'emoji': '\u{1F957}', 'name': 'Healthy'},
-  {'emoji': '\u{1F370}', 'name': 'Dessert'},
-  {'emoji': '\u{2615}', 'name': 'Coffee'},
-  {'emoji': '\u{1F964}', 'name': 'Drinks'},
-  {'emoji': '\u{1F331}', 'name': 'Vegan'},
+// Fallback categories used when the DB hasn't loaded yet or returns empty.
+const _fallbackCategories = <Map<String, String>>[
+  {'emoji': '🍳', 'name': 'Breakfast'},
+  {'emoji': '🍔', 'name': 'Fast Food'},
+  {'emoji': '🍕', 'name': 'Pizza'},
+  {'emoji': '🍗', 'name': 'Chicken'},
+  {'emoji': '🌮', 'name': 'Mexican'},
+  {'emoji': '🍜', 'name': 'Chinese'},
+  {'emoji': '🍣', 'name': 'Sushi'},
+  {'emoji': '🥗', 'name': 'Healthy'},
+  {'emoji': '🍰', 'name': 'Dessert'},
+  {'emoji': '☕', 'name': 'Coffee'},
+  {'emoji': '🧋', 'name': 'Drinks'},
+  {'emoji': '🌱', 'name': 'Vegan'},
 ];
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
@@ -748,71 +749,82 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  itemCount: _emojiCategories.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    final cat = _emojiCategories[index];
-                    return GestureDetector(
-                      onTap: () {
-                        final userId = ref.read(currentUserIdProvider);
-                        if (userId != null) {
-                          ref
-                              .read(behaviorTrackingProvider)
-                              .trackCategoryTap(userId, cat['name']!);
-                          ref
-                              .read(realtimeBoostProvider.notifier)
-                              .recordInteraction(cat['name']!);
-                        }
-                        Navigator.pushNamed(
-                          context,
-                          '/all-restaurants',
-                          arguments: cat['name'],
+                child: Builder(
+                  builder: (context) {
+                    final categoriesAsync = ref.watch(foodCategoriesProvider);
+                    final categories =
+                        categoriesAsync.valueOrNull?.isNotEmpty == true
+                        ? categoriesAsync.value!
+                        : _fallbackCategories;
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      itemCount: categories.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 16),
+                      itemBuilder: (context, index) {
+                        final cat = categories[index];
+                        return GestureDetector(
+                          onTap: () {
+                            final userId = ref.read(currentUserIdProvider);
+                            if (userId != null) {
+                              ref
+                                  .read(behaviorTrackingProvider)
+                                  .trackCategoryTap(userId, cat['name']!);
+                              ref
+                                  .read(realtimeBoostProvider.notifier)
+                                  .recordInteraction(cat['name']!);
+                            }
+                            Navigator.pushNamed(
+                              context,
+                              '/all-restaurants',
+                              arguments: cat['name'],
+                            );
+                          },
+                          child: SizedBox(
+                            width: 68,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    cat['emoji']!,
+                                    style: const TextStyle(fontSize: 26),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  cat['name']!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         );
                       },
-                      child: SizedBox(
-                        width: 68,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.grey.shade200,
-                                  width: 1,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                cat['emoji']!,
-                                style: const TextStyle(fontSize: 26),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              cat['name']!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     );
                   },
                 ),
@@ -1111,9 +1123,16 @@ class _CompactRestaurantCard extends StatelessWidget {
       child: Container(
         width: 180,
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1144,10 +1163,10 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1155,9 +1174,9 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.cuisineType ?? 'Multi-cuisine',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1186,6 +1205,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
                               ),
                             ),
                           ],
@@ -1200,7 +1220,10 @@ class _CompactRestaurantCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         '${restaurant.estimatedDeliveryTime ?? 30} min',
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ),

@@ -159,13 +159,11 @@ Deno.serve(async (req: Request) => {
     const fcmPayload = {
       message: {
         token: user.fcm_token,
-        // Include notification block so Android system shows the notification
-        // even when the app is completely killed (data-only won't wake killed apps)
-        notification: {
-          title: "Incoming Call 📞",
-          body: `${callerName} is calling you`,
-        },
-        // Data block carries all the call info for the app to handle
+        // DATA-ONLY — no notification block. This ensures Android delivers to the
+        // background handler (firebaseMessagingBackgroundHandler) even when the app
+        // is killed. The handler creates the full-screen call notification with the
+        // call_ringtone. If a notification block is present Android shows it via the
+        // default channel (wrong sound) and skips the background handler entirely.
         data: {
           type: "incoming_call",
           title: "Incoming Call 📞",
@@ -179,15 +177,6 @@ Deno.serve(async (req: Request) => {
         },
         android: {
           priority: "high",
-          // Use the call notification channel which has ringtone sound
-          notification: {
-            channel_id: "food_driver_calls_v3",
-            sound: "call_ringtone",
-            default_vibrate_timings: false,
-            vibrate_timings: ["0s", "0.5s", "0.5s", "0.5s", "0.5s", "0.5s", "0.5s", "0.5s"],
-            notification_priority: "PRIORITY_MAX",
-            visibility: "PUBLIC",
-          },
         },
         apns: {
           payload: {

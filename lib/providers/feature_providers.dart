@@ -25,6 +25,22 @@ import './auth_provider.dart';
 /// Any provider that watches this will automatically recalculate.
 final configVersionProvider = StateProvider<int>((ref) => 0);
 
+// ── Food categories (Browse by Category on home screen) ─────
+/// Fetched from the `food_categories` table so admins can manage them
+/// without an app release.  Falls back to an empty list on error.
+final foodCategoriesProvider = FutureProvider<List<Map<String, String>>>((
+  ref,
+) async {
+  final rows = await SupabaseConfig.client
+      .from('food_categories')
+      .select('name, emoji')
+      .eq('is_active', true)
+      .order('sort_order');
+  return (rows as List)
+      .map((r) => {'name': r['name'] as String, 'emoji': r['emoji'] as String})
+      .toList();
+});
+
 /// Call `ref.read(appConfigRealtimeProvider)` once at startup to begin
 /// listening for admin pricing changes in real time.
 final appConfigRealtimeProvider = Provider<void>((ref) {
