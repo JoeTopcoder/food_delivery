@@ -143,6 +143,20 @@ class DriverPerformanceScreen extends ConsumerWidget {
                               color: const Color(0xFF8B5CF6),
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _RateCard(
+                              label: 'Decline',
+                              value: () {
+                                final total = stats.ordersAccepted + stats.ordersDeclined;
+                                return total > 0
+                                    ? (stats.ordersDeclined / total) * 100
+                                    : 0.0;
+                              }(),
+                              icon: Icons.cancel_rounded,
+                              color: const Color(0xFFEF4444),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -480,11 +494,11 @@ class _ScoreBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Weighted score dimensions (match the DB function)
-    final completionScore = (stats.completionRate * 30).round();
-    final onTimeScore = (stats.onTimeRate * 25).round();
+    // Values are stored as 0–100 percentages; scale to weighted score points.
+    final completionScore = ((stats.completionRate / 100) * 30).round();
+    final onTimeScore = ((stats.onTimeRate / 100) * 25).round();
     final ratingScore = ((stats.avgCustomerRating / 5.0) * 25).round();
-    final acceptanceScore = (stats.acceptanceRate * 20).round();
+    final acceptanceScore = ((stats.acceptanceRate / 100) * 20).round();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -629,7 +643,8 @@ class _RateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (value * 100).round();
+    // Values are stored as 0–100 percentages in the DB (e.g. 85.0 = 85%)
+    final percentage = value.round().clamp(0, 100);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

@@ -144,16 +144,21 @@ class _DriverOnboardingScreenState
     AppSnackbar.success(context, 'Signed in');
   }
 
-  Future<void> _saveProfile({required bool skip}) async {
+  Future<void> _saveProfile() async {
+    final phone = _phone.text.trim();
+    if (phone.isEmpty) {
+      AppSnackbar.error(context, 'Please enter your phone number.');
+      return;
+    }
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId != null && !skip) {
+      if (userId != null) {
         await ref
             .read(onboardingServiceProvider)
             .saveDriverProfile(
               userId: userId,
-              phone: _phone.text.trim(),
+              phone: phone,
               name: _name.text.trim(),
               email: _email.text.trim(),
             );
@@ -169,11 +174,19 @@ class _DriverOnboardingScreenState
     }
   }
 
-  Future<void> _saveVehicle({required bool skip}) async {
+  Future<void> _saveVehicle() async {
+    if (_vehicleType.text.trim().isEmpty) {
+      AppSnackbar.error(context, 'Please select a vehicle type.');
+      return;
+    }
+    if (_plate.text.trim().isEmpty) {
+      AppSnackbar.error(context, 'Please enter your license plate number.');
+      return;
+    }
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId != null && !skip) {
+      if (userId != null) {
         await ref
             .read(onboardingServiceProvider)
             .saveDriverProfile(
@@ -181,8 +194,8 @@ class _DriverOnboardingScreenState
               phone: _phone.text.trim(),
               name: _name.text.trim().isEmpty ? null : _name.text.trim(),
               email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-              vehicleType: _vehicleType.text.trim().isEmpty ? null : _vehicleType.text.trim(),
-              licensePlate: _plate.text.trim().isEmpty ? null : _plate.text.trim(),
+              vehicleType: _vehicleType.text.trim(),
+              licensePlate: _plate.text.trim(),
             );
       }
       await ref
@@ -267,7 +280,7 @@ class _DriverOnboardingScreenState
           ),
           const SizedBox(height: 8),
           Text('Step ${step.clamp(0, 4) + 1} of 5'),
-          if (emailPending && step >= 2) ...[          
+          if (emailPending && step >= 2) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -278,12 +291,19 @@ class _DriverOnboardingScreenState
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.email_outlined, color: Color(0xFF856404), size: 18),
+                  const Icon(
+                    Icons.email_outlined,
+                    color: Color(0xFF856404),
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Check your email to confirm your account. You can finish setup now.',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF856404)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF856404),
+                      ),
                     ),
                   ),
                 ],
@@ -337,7 +357,7 @@ class _DriverOnboardingScreenState
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Create driver account'),
+                  : const Text('Next'),
             ),
           ],
 
@@ -352,34 +372,36 @@ class _DriverOnboardingScreenState
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone number *'),
+            ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : () => _saveProfile(skip: true),
-                    child: const Text('Skip for now'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _saveProfile(skip: false),
-                    child: const Text('Continue'),
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: _loading ? null : _saveProfile,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Next'),
             ),
           ],
 
           if (step == 3) ...[
             DropdownButtonFormField<String>(
-              initialValue: _vehicleType.text.isEmpty ? null : _vehicleType.text,
-              decoration: const InputDecoration(labelText: 'Vehicle type'),
+              initialValue: _vehicleType.text.isEmpty
+                  ? null
+                  : _vehicleType.text,
+              decoration: const InputDecoration(labelText: 'Vehicle type *'),
               items: const [
-                DropdownMenuItem(value: 'bike', child: Text('Bike / Motorcycle')),
+                DropdownMenuItem(
+                  value: 'bike',
+                  child: Text('Bike / Motorcycle'),
+                ),
                 DropdownMenuItem(value: 'car', child: Text('Car')),
                 DropdownMenuItem(value: 'scooter', child: Text('Scooter')),
               ],
@@ -390,62 +412,60 @@ class _DriverOnboardingScreenState
             const SizedBox(height: 8),
             TextField(
               controller: _plate,
-              decoration: const InputDecoration(labelText: 'License plate / vehicle number'),
+              decoration: const InputDecoration(
+                labelText: 'License plate / vehicle number *',
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : () => _saveVehicle(skip: true),
-                    child: const Text('Skip for now'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _saveVehicle(skip: false),
-                    child: const Text('Save vehicle'),
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: _loading ? null : _saveVehicle,
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Next'),
             ),
           ],
 
           if (step >= 4) ...[
+            const Text(
+              'Upload your documents',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Check the box once you have uploaded your ID and any required documents.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('I uploaded documents'),
-              subtitle: const Text('You can skip this and complete later.'),
+              title: const Text('I have uploaded my documents'),
               value: _docsUploaded,
               onChanged: (v) => setState(() => _docsUploaded = v ?? false),
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _finish(uploadedDocs: false),
-                    child: const Text('Skip for now'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _finish(uploadedDocs: _docsUploaded),
-                    child: const Text('Finish'),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loading
+                  ? null
+                  : () => _finish(uploadedDocs: _docsUploaded),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Create Driver'),
             ),
             const SizedBox(height: 12),
             const Text(
               'Status: Pending approval. Limited mode remains available until approval.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
 

@@ -27,15 +27,10 @@ class _RestaurantOnboardingScreenState
   final _business = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
-  final _menuImageUrl = TextEditingController();
-  final _item1 = TextEditingController();
-  final _item2 = TextEditingController();
-  final _item3 = TextEditingController();
 
   bool _loading = false;
   bool _googleLoading = false;
   bool _appleLoading = false;
-  bool _goLive = false;
 
   bool get _isBusy => _loading || _googleLoading || _appleLoading;
 
@@ -47,10 +42,6 @@ class _RestaurantOnboardingScreenState
     _business.dispose();
     _phone.dispose();
     _address.dispose();
-    _menuImageUrl.dispose();
-    _item1.dispose();
-    _item2.dispose();
-    _item3.dispose();
     super.dispose();
   }
 
@@ -76,6 +67,17 @@ class _RestaurantOnboardingScreenState
             name: name,
             role: 'restaurant',
           );
+      final authState = ref.read(authNotifierProvider);
+      if (authState.emailConfirmationPending) {
+        // Still advance so they can fill in business details.
+        await ref
+            .read(onboardingProvider(OnboardingRole.restaurant).notifier)
+            .setStep(0);
+        if (!mounted) return;
+        AppSnackbar.info(context,
+            'Account created! Check your email to confirm. You can finish setup now.');
+        return;
+      }
       await _afterAuthSuccess();
     } catch (e) {
       if (!mounted) return;
@@ -136,7 +138,7 @@ class _RestaurantOnboardingScreenState
     final currentStep =
         ref.read(onboardingProvider(OnboardingRole.restaurant)).valueOrNull ??
         0;
-    if (currentStep < 1) await stepNotifier.setStep(1);
+    if (currentStep < 1) await stepNotifier.setStep(0);
 
     if (!mounted) return;
     AppSnackbar.success(context, 'Signed in');
@@ -158,14 +160,6 @@ class _RestaurantOnboardingScreenState
             address: _address.text.trim().isEmpty ? null : _address.text.trim(),
             onboardingStep: nextStep,
             goLive: goLive,
-            menuImageUrl: _menuImageUrl.text.trim().isEmpty
-                ? null
-                : _menuImageUrl.text.trim(),
-            quickItems: [
-              {'name': _item1.text.trim(), 'price': 9.99},
-              {'name': _item2.text.trim(), 'price': 12.99},
-              {'name': _item3.text.trim(), 'price': 15.99},
-            ],
           );
 
       await ref
@@ -193,7 +187,8 @@ class _RestaurantOnboardingScreenState
         ref.watch(onboardingProvider(OnboardingRole.restaurant)).valueOrNull ??
         0;
 
-    final isAuthStep = !authState.isAuthenticated;
+    // isAuthStep is true only when not yet authenticated AND no pending email confirmation.
+    final isAuthStep = !authState.isAuthenticated && !authState.emailConfirmationPending;
 
     return Scaffold(
       appBar: AppBar(
@@ -214,7 +209,7 @@ class _RestaurantOnboardingScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            isAuthStep ? 'Step 1 of 5' : 'Step ${step.clamp(0, 3) + 2} of 5',
+            isAuthStep ? 'Step 1 of 4' : 'Step ${(step.clamp(0, 2) + 2)} of 4',
           ),
           const SizedBox(height: 20),
 
@@ -263,25 +258,37 @@ class _RestaurantOnboardingScreenState
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Create restaurant account'),
+                  : const Text('Next'),
             ),
           ],
 
           if (!isAuthStep && step == 0) ...[
             TextField(
               controller: _business,
-              decoration: const InputDecoration(labelText: 'Business name'),
+              decoration: const InputDecoration(labelText: 'Business name *'),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Business phone'),
+              decoration: const InputDecoration(labelText: 'Business phone *'),
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: _loading ? null : () => _saveStep(nextStep: 1),
-              child: const Text('Save basics'),
+              onPressed: _loading
+                  ? null
+                  : () {
+                      if (_business.text.trim().isEmpty) {
+                        AppSnackbar.error(context, 'Please enter your business name.');
+                        return;
+                      }
+                      if (_phone.text.trim().isEmpty) {
+                        AppSnackbar.error(context, 'Please enter a business phone number.');
+                        return;
+                      }
+                      _saveStep(nextStep: 1);
+                    },
+              child: const Text('Next'),
             ),
           ],
 
@@ -289,96 +296,50 @@ class _RestaurantOnboardingScreenState
             TextField(
               controller: _address,
               decoration: const InputDecoration(
-                labelText: 'Address',
-                hintText: 'Map autofill can be added here',
+                labelText: 'Address *',
+                hintText: 'Enter your restaurant address',
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : () => _saveStep(nextStep: 2),
-                    child: const Text('Skip for now'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : () => _saveStep(nextStep: 2),
-                    child: const Text('Save address'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-
-          if (!isAuthStep && step == 2) ...[
-            TextField(
-              controller: _menuImageUrl,
-              decoration: const InputDecoration(
-                labelText: 'Menu image URL (optional)',
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _item1,
-              decoration: const InputDecoration(labelText: 'Quick item 1'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _item2,
-              decoration: const InputDecoration(labelText: 'Quick item 2'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _item3,
-              decoration: const InputDecoration(labelText: 'Quick item 3'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading ? null : () => _saveStep(nextStep: 3),
-                    child: const Text('Skip for now'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : () => _saveStep(nextStep: 3),
-                    child: const Text('Save menu starter'),
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: _loading
+                  ? null
+                  : () {
+                      if (_address.text.trim().isEmpty) {
+                        AppSnackbar.error(context, 'Please enter your restaurant address.');
+                        return;
+                      }
+                      _saveStep(nextStep: 3);
+                    },
+              child: const Text('Next'),
             ),
           ],
 
           if (!isAuthStep && step >= 3) ...[
-            SwitchListTile(
-              title: const Text('Go Live now'),
-              subtitle: const Text(
-                'Owner info, Stripe and full menu can be completed later.',
-              ),
-              value: _goLive,
-              onChanged: (v) => setState(() => _goLive = v),
+            const Text(
+              'Almost done!',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
+            const Text(
+              'Review your details above, then tap Create Restaurant to go live.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loading
                   ? null
-                  : () => _saveStep(nextStep: 4, goLive: _goLive),
-              icon: const Icon(Icons.rocket_launch),
-              label: Text(
-                _goLive ? 'Go Live' : 'Save Draft and Continue Later',
+                  : () => _saveStep(nextStep: 4, goLive: true),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
               ),
-            ),
-            TextButton(
-              onPressed: _loading
-                  ? null
-                  : () => _saveStep(nextStep: 4, goLive: false),
-              child: const Text('Skip owner info and Stripe for now'),
+              icon: const Icon(Icons.rocket_launch),
+              label: _loading
+                  ? const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Create Restaurant'),
             ),
           ],
 

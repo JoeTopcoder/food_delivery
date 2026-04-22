@@ -29,6 +29,7 @@ class _CustomerOnboardingScreenState
   bool _emailLoading = false;
   bool _googleLoading = false;
   bool _appleLoading = false;
+  bool _enableLocation = true;
 
   bool get _isBusy => _emailLoading || _googleLoading || _appleLoading;
 
@@ -57,28 +58,14 @@ class _CustomerOnboardingScreenState
     final isAuth = ref.read(authNotifierProvider).isAuthenticated;
     if (!isAuth) return;
 
-    final permission = await Geolocator.checkPermission();
-    final locationGranted =
-        permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
-
+    await ref
+        .read(onboardingProvider(OnboardingRole.customer).notifier)
+        .setStep(3);
     if (!mounted) return;
     final role = ref.read(authNotifierProvider).user?.role;
-    if (locationGranted) {
-      // Permission already granted — skip all onboarding and go home.
-      await ref
-          .read(onboardingProvider(OnboardingRole.customer).notifier)
-          .setStep(3);
-      if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(_routeForRole(role), (_) => false);
-    } else {
-      // Authenticated but location not yet granted — jump to location step.
-      await ref
-          .read(onboardingProvider(OnboardingRole.customer).notifier)
-          .setStep(2);
-    }
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(_routeForRole(role), (_) => false);
   }
 
   @override
@@ -106,6 +93,16 @@ class _CustomerOnboardingScreenState
       await ref
           .read(authNotifierProvider.notifier)
           .signUp(email: email, password: password, name: name, role: 'user');
+      final authState = ref.read(authNotifierProvider);
+      if (authState.emailConfirmationPending) {
+        if (!mounted) return;
+        AppSnackbar.info(
+          context,
+          'Account created! Check your email to confirm, then sign in.',
+        );
+        Navigator.of(context).pushReplacementNamed('/signin');
+        return;
+      }
       await _afterAuthSuccess();
     } catch (e) {
       if (!mounted) return;
@@ -114,7 +111,6 @@ class _CustomerOnboardingScreenState
       if (mounted) setState(() => _emailLoading = false);
     }
   }
-
   Future<void> _continueWithGoogle() async {
     setState(() => _googleLoading = true);
     try {
@@ -163,19 +159,9 @@ class _CustomerOnboardingScreenState
       AppLogger.error('Customer profile sync failed: $syncError');
     }
     await ref.read(authNotifierProvider.notifier).refreshUser();
-    await ref
-        .read(onboardingProvider(OnboardingRole.customer).notifier)
-        .setStep(2);
 
-    if (!mounted) return;
-    // Skip location step immediately if permission already granted.
-    await _autoAdvanceIfReady();
-    if (!mounted) return;
-    AppSnackbar.success(context, 'Welcome!');
-  }
-
-  Future<void> _finishLocationStep({required bool request}) async {
-    if (request) {
+    // Request location inline if user opted in.
+    if (_enableLocation) {
       await Geolocator.requestPermission();
     }
 
@@ -184,6 +170,7 @@ class _CustomerOnboardingScreenState
         .setStep(3);
 
     if (!mounted) return;
+    AppSnackbar.success(context, 'Welcome!');
     final role = ref.read(authNotifierProvider).user?.role;
     Navigator.of(
       context,
@@ -193,8 +180,8 @@ class _CustomerOnboardingScreenState
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final step =
-        ref.watch(onboardingProvider(OnboardingRole.customer)).valueOrNull ?? 0;
+    // Watch step to trigger rebuild on auth step changes (e.g. auto-advance).
+    ref.watch(onboardingProvider(OnboardingRole.customer));
 
     // When auth state becomes authenticated mid-lifecycle (e.g. auth loaded
     // after initState already ran), auto-advance to skip location if granted.
@@ -204,8 +191,7 @@ class _CustomerOnboardingScreenState
       }
     });
 
-    final isAuthStep = !authState.isAuthenticated || step < 2;
-    final isLocationStep = authState.isAuthenticated && step >= 2;
+    final isAuthStep = !authState.isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
@@ -227,7 +213,7 @@ class _CustomerOnboardingScreenState
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(isAuthStep ? 'Step 1 of 2' : 'Step 2 of 2'),
+              Text(isAuthStep ? 'Step 1 of 1' : 'Getting ready...'),
               const SizedBox(height: 24),
               if (isAuthStep) ...[
                 SocialAuthPanel(
@@ -265,33 +251,27 @@ class _CustomerOnboardingScreenState
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Password'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enable location'),
+                  subtitle: const Text('Show nearby restaurants and track deliveries'),
+                  value: _enableLocation,
+                  onChanged: (v) => setState(() => _enableLocation = v ?? true),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: _isBusy ? null : _signUpWithEmail,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
                   child: _emailLoading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Create account'),
-                ),
-              ],
-              if (isLocationStep) ...[
-                const Text('Enable location so we can show nearby options.'),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _isBusy
-                      ? null
-                      : () => _finishLocationStep(request: true),
-                  icon: const Icon(Icons.my_location),
-                  label: const Text('Enable location'),
-                ),
-                TextButton(
-                  onPressed: _isBusy
-                      ? null
-                      : () => _finishLocationStep(request: false),
-                  child: const Text('Skip for now'),
+                      : const Text('Create Account'),
                 ),
               ],
               if (isAuthStep) ...[
