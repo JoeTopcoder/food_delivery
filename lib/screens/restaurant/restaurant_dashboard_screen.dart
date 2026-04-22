@@ -696,6 +696,14 @@ class _RestaurantDashboardScreenState
                             context,
                           ).pushNamed('/restaurant-contract'),
                         ),
+                        _QuickAction(
+                          icon: Icons.card_giftcard_rounded,
+                          label: 'Refer & Earn',
+                          color: const Color(0xFF10B981),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/restaurant-referral'),
+                        ),
                       ],
                     ),
                   ),

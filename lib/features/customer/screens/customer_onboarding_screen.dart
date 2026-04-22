@@ -111,6 +111,7 @@ class _CustomerOnboardingScreenState
       if (mounted) setState(() => _emailLoading = false);
     }
   }
+
   Future<void> _continueWithGoogle() async {
     setState(() => _googleLoading = true);
     try {
@@ -255,7 +256,9 @@ class _CustomerOnboardingScreenState
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Enable location'),
-                  subtitle: const Text('Show nearby restaurants and track deliveries'),
+                  subtitle: const Text(
+                    'Show nearby restaurants and track deliveries',
+                  ),
                   value: _enableLocation,
                   onChanged: (v) => setState(() => _enableLocation = v ?? true),
                 ),

@@ -743,6 +743,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
+        // ── Refer & Earn Banner ──────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: _PromoBanner(
+              icon: Icons.card_giftcard_rounded,
+              title: 'Refer a Driver',
+              subtitle: 'Earn a bonus for every driver you refer',
+              gradient: const [Color(0xFF10B981), Color(0xFF059669)],
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/driver-referral'),
+            ),
+          ),
+        ),
+
         // ── Tip of the Day ───────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
