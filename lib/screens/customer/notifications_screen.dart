@@ -31,15 +31,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   /// Catches foreground FCM order notifications and adds them to the in-memory
   /// list immediately — so the user sees them without leaving the screen.
+  /// Uses the DB-assigned ID from `data['notification_id']` so that
+  /// mark-as-read and clear-all correctly target the right row.
   void _hookForegroundCallback() {
     NotificationService.onOrderNotificationReceived =
         (type, title, body, data) {
           if (!mounted) return;
+          // Prefer the real DB notification ID if the edge function includes it
+          final dbId = data['notification_id'] as String?
+              ?? data['id'] as String?
+              ?? '${type}_${DateTime.now().millisecondsSinceEpoch}';
           ref
               .read(notificationNotifierProvider.notifier)
               .addNotification(
                 AppNotification(
-                  id: '${type}_${DateTime.now().millisecondsSinceEpoch}',
+                  id: dbId,
                   type: type,
                   title: title,
                   body: body,
@@ -140,9 +146,19 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         actions: [
           if (notifications.isNotEmpty)
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final user = Supabase.instance.client.auth.currentUser;
+                if (user != null) {
+                  await Supabase.instance.client
+                      .from('notifications')
+                      .update({'is_read': true})
+                      .eq('user_id', user.id)
+                      .eq('is_read', false);
+                }
                 notifier.clearAll();
-                AppSnackbar.success(context, 'All notifications cleared');
+                if (context.mounted) {
+                  AppSnackbar.success(context, 'All notifications cleared');
+                }
               },
               child: const Text(
                 'Clear All',
@@ -171,7 +187,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         .eq('id', n.id)
                         .then((_) {});
                   },
-                  onDismiss: () => notifier.removeNotification(n.id),
+                  onDismiss: () {
+                    notifier.removeNotification(n.id);
+                    // Mark as read in DB so it doesn't reappear on next load
+                    Supabase.instance.client
+                        .from('notifications')
+                        .update({'is_read': true})
+                        .eq('id', n.id)
+                        .then((_) {});
+                  },
                 );
               },
             ),
