@@ -1,5 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import '../features/auth/screens/auth_launch_gate_screen.dart';
+import '../providers/auth_provider.dart';
+import '../screens/driver/driver_dashboard_screen.dart';
+import '../screens/main_navigation_screen.dart';
+import '../services/notification_service.dart';
+import '../screens/restaurant/restaurant_dashboard_screen.dart';
 
 /// Role-specific splash screen with animated branding.
 /// Shows a beautiful animated intro before navigating to the role's home.
@@ -457,5 +465,319 @@ class _RoleConfig {
           loadingText: 'Finding restaurants near you...',
         );
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App Launch Splash — shown on every cold start.
+// Handles: auth restore, notification permission (once), location permission.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AppLaunchSplash extends ConsumerStatefulWidget {
+  const AppLaunchSplash({super.key});
+
+  @override
+  ConsumerState<AppLaunchSplash> createState() => _AppLaunchSplashState();
+}
+
+class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
+    with TickerProviderStateMixin {
+  late final AnimationController _logoController;
+  late final AnimationController _contentController;
+  late final AnimationController _bgController;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _titleOpacity;
+  late final Animation<double> _titleSlide;
+  late final Animation<double> _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _bgController = AnimationController(
+      duration: const Duration(milliseconds: 2400),
+      vsync: this,
+    )..repeat();
+
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _contentController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+
+    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _logoController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
+    );
+    _titleSlide = Tween<double>(begin: 24.0, end: 0.0).animate(
+      CurvedAnimation(parent: _contentController, curve: Curves.easeOutCubic),
+    );
+    _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _contentController, curve: Curves.easeIn),
+    );
+    _shimmer = Tween<double>(begin: -1.0, end: 2.0).animate(_bgController);
+
+    _logoController.forward().then((_) => _contentController.forward());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
+  }
+
+  Future<void> _initialize() async {
+    // Run minimum splash delay + all async work in parallel
+    await Future.wait([
+      Future.delayed(const Duration(milliseconds: 5000)),
+      _doPermissionsAndAuth(),
+    ]);
+  }
+
+  Future<void> _doPermissionsAndAuth() async {
+    // Notifications — only requests if not yet determined (guard is inside initialize())
+    await NotificationService().initialize();
+
+    // Location — request once if not yet granted
+    final locPerm = await Geolocator.checkPermission();
+    if (locPerm == LocationPermission.denied) {
+      await Geolocator.requestPermission();
+    }
+
+    // Auth — Supabase restores session from secure storage automatically
+    if (!mounted) return;
+    final auth = ref.read(authNotifierProvider);
+
+    Widget destination;
+    if (auth.isAuthenticated) {
+      final role = auth.user?.role;
+      switch (role) {
+        case 'driver':
+          destination = const DriverDashboardScreen();
+          break;
+        case 'restaurant':
+          destination = const RestaurantDashboardScreen();
+          break;
+        default:
+          destination = const MainNavigationScreen();
+      }
+    } else {
+      destination = const AuthLaunchGateScreen();
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => destination,
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+
+    // Process any FCM notification that cold-launched the app, now that the
+    // main navigator is mounted and the route can be pushed correctly.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().processPendingLaunchMessage();
+    });
+  }
+
+  @override
+  void dispose() {
+    _logoController.dispose();
+    _contentController.dispose();
+    _bgController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Gradient background
+          AnimatedBuilder(
+            animation: _shimmer,
+            builder: (_, __) => Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: const [
+                    Color(0xFF581C87),
+                    Color(0xFF7C3AED),
+                    Color(0xFF581C87),
+                  ],
+                  stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Floating decorative circles
+          ..._buildCircles(MediaQuery.of(context).size),
+
+          // Content
+          SafeArea(
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+
+                // Logo
+                AnimatedBuilder(
+                  animation: _logoController,
+                  builder: (_, __) => Transform.scale(
+                    scale: _logoScale.value,
+                    child: Opacity(
+                      opacity: _logoOpacity.value,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 32,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Image.asset(
+                              'assets/images/mealhub_logo.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 36),
+
+                // Title
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, __) => Transform.translate(
+                    offset: Offset(0, _titleSlide.value),
+                    child: Opacity(
+                      opacity: _titleOpacity.value,
+                      child: Column(
+                        children: [
+                          Text(
+                            'MealHub',
+                            style: TextStyle(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Fresh, hot meals. Delivered daily.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+
+                // Loading spinner
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, __) => Opacity(
+                    opacity: _titleOpacity.value,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Getting things ready...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 48),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildCircles(Size size) {
+    final rng = Random(42);
+    return List.generate(6, (i) {
+      final sz = 60.0 + rng.nextDouble() * 140;
+      final l = rng.nextDouble() * size.width;
+      final t = rng.nextDouble() * size.height;
+      return Positioned(
+        left: l - sz / 2,
+        top: t - sz / 2,
+        child: AnimatedBuilder(
+          animation: _bgController,
+          builder: (_, __) {
+            final phase = (_bgController.value + i * 0.15) % 1.0;
+            final scale = 0.8 + sin(phase * pi * 2) * 0.2;
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                width: sz,
+                height: sz,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(
+                    alpha: 0.04 + rng.nextDouble() * 0.04,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    });
   }
 }

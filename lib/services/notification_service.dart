@@ -1,99 +1,58 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_model.dart';
 import '../utils/app_logger.dart';
 
+/// Tracks call IDs already shown to prevent duplicate call notifications
+final Set<String> _shownCallIds = {};
+
 /// Top-level handler for background FCM messages (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Firebase must be initialized in the background isolate
   await Firebase.initializeApp();
 
-  AppLogger.info('Background message received: ${message.messageId}');
-
-  // For incoming calls, show a high-priority local notification that rings
-  // This fires for both data-only AND notification+data messages when in background
   final type = message.data['type'];
   if (type == 'incoming_call') {
-    final plugin = FlutterLocalNotificationsPlugin();
+    final callId = message.data['call_id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+    if (_shownCallIds.contains(callId)) return;
+    _shownCallIds.add(callId);
+    final callerName = message.data['caller_name'] ?? 'Incoming Call';
+    final channelName = message.data['channel_name'] ?? '';
 
-    // Create call channel with ringtone sound
-    await plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'food_hub_calls_v3',
-            'Incoming Calls',
-            description: 'Incoming voice call alerts',
-            importance: Importance.max,
-            playSound: true,
-            enableVibration: true,
-            sound: RawResourceAndroidNotificationSound('call_ringtone'),
-          ),
-        );
-
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const initSettings = InitializationSettings(android: androidSettings);
-    await plugin.initialize(settings: initSettings);
-
-    final title =
-        message.data['title'] ?? message.notification?.title ?? 'Incoming Call';
-    final body =
-        message.data['body'] ??
-        message.notification?.body ??
-        'Someone is calling you';
-
-    await plugin.show(
-      id: 9999, // fixed ID so we can cancel it when the call is answered/declined
-      title: title,
-      body: body,
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'food_hub_calls_v3',
-          'Incoming Calls',
-          channelDescription: 'Incoming voice call alerts',
-          importance: Importance.max,
-          priority: Priority.high,
-          category: AndroidNotificationCategory.call,
-          fullScreenIntent: true,
-          ongoing: true,
-          autoCancel: false,
-          playSound: true,
-          sound: const RawResourceAndroidNotificationSound('call_ringtone'),
-          enableVibration: true,
-          icon: '@mipmap/ic_launcher',
-          visibility: NotificationVisibility.public,
-          timeoutAfter: 60000, // auto-dismiss after 60s
-          additionalFlags: Int32List.fromList(<int>[
-            4,
-          ]), // FLAG_INSISTENT — loops the ringtone
-          actions: <AndroidNotificationAction>[
-            const AndroidNotificationAction(
-              'answer_call',
-              'Answer',
-              icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-              showsUserInterface: true,
-            ),
-            const AndroidNotificationAction(
-              'decline_call',
-              'Decline',
-              icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-              cancelNotification: true,
-            ),
-          ],
-        ),
+    final params = CallKitParams(
+      id: callId,
+      nameCaller: callerName,
+      appName: 'MealHub',
+      type: 0, // 0 = audio call
+      duration: 60000,
+      textAccept: 'Answer',
+      textDecline: 'Decline',
+      extra: {
+        'call_id': callId,
+        'caller_id': message.data['caller_id'] ?? '',
+        'caller_name': callerName,
+        'order_id': message.data['order_id'] ?? '',
+        'channel_name': channelName,
+        'user_id': message.data['user_id'] ?? '',
+      },
+      android: const AndroidParams(
+        isCustomNotification: true,
+        isShowLogo: false,
+        ringtonePath: 'system_ringtone_default',
+        backgroundColor: '#1B1B2F',
+        actionColor: '#7C3AED',
+        incomingCallNotificationChannelName: 'Incoming Calls',
+        missedCallNotificationChannelName: 'Missed Calls',
       ),
-      payload: jsonEncode(message.data),
     );
+
+    await FlutterCallkitIncoming.showCallkitIncoming(params);
   }
 }
 
@@ -116,10 +75,25 @@ class NotificationService {
   /// Global navigator key — set from main.dart so notifications can navigate
   static GlobalKey<NavigatorState>? navigatorKey;
 
+  /// FCM message that launched the app from terminated state.
+  /// Stored during initialize() and processed later once the main navigator is ready.
+  static RemoteMessage? _pendingLaunchMessage;
+
   /// Callback fired when a new_order notification arrives while app is in foreground
   static VoidCallback? onNewOrderReceived;
   static VoidCallback? onNewOrderForRestaurant;
   static VoidCallback? onNewOrderForAdmin;
+
+  /// Callback fired for order lifecycle notifications (order placed, preparing,
+  /// rider assigned, delivered, etc.) — used by the notifications screen to
+  /// immediately add the notification to the in-memory list while in foreground.
+  static void Function(
+    String type,
+    String title,
+    String body,
+    Map<String, dynamic> data,
+  )?
+  onOrderNotificationReceived;
 
   /// Android notification channel with custom long sound
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -212,10 +186,12 @@ class NotificationService {
         sound: false,
       );
 
-      // Handle notification that launched the app
+      // Handle notification that launched the app from terminated state.
+      // Store it and let processPendingLaunchMessage() be called by the
+      // splash screen AFTER it has navigated to the main screen.
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
-        _handleMessageOpenedApp(initialMessage);
+        _pendingLaunchMessage = initialMessage;
       }
 
       // Save FCM token to Supabase user profile
@@ -226,11 +202,39 @@ class NotificationService {
         _saveTokenToSupabase(newToken);
       });
 
+      // Listen for CallKit answer/decline events
+      FlutterCallkitIncoming.onEvent.listen((event) {
+        if (event == null) return;
+        switch (event.event) {
+          case Event.actionCallAccept:
+            final extra = event.body['extra'] as Map<dynamic, dynamic>? ?? {};
+            final data = extra.map((k, v) => MapEntry(k.toString(), v));
+            handleNotificationByType('incoming_call', '', '', data, navigate: true);
+            break;
+          case Event.actionCallDecline:
+          case Event.actionCallEnded:
+            FlutterCallkitIncoming.endAllCalls();
+            break;
+          default:
+            break;
+        }
+      });
+
       _initialized = true;
       AppLogger.info('Notification service initialized with FCM');
     } catch (e) {
       AppLogger.error('Error initializing notification service: $e');
     }
+  }
+
+  /// Call this after the splash screen has navigated to the main screen.
+  /// Processes any FCM notification that cold-launched the app so the user
+  /// is taken to the correct screen (e.g. /notifications) instead of home.
+  void processPendingLaunchMessage() {
+    final msg = _pendingLaunchMessage;
+    if (msg == null) return;
+    _pendingLaunchMessage = null;
+    _handleMessageOpenedApp(msg);
   }
 
   /// Get current FCM token
@@ -400,53 +404,32 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      await _localNotifications.show(
-        id: 9999, // fixed ID to cancel when answered
-        title: title,
-        body: body,
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _callChannel.id,
-            _callChannel.name,
-            channelDescription: _callChannel.description,
-            importance: Importance.max,
-            priority: Priority.high,
-            category: AndroidNotificationCategory.call,
-            fullScreenIntent: true,
-            ongoing: true,
-            autoCancel: false,
-            playSound: true,
-            sound: const RawResourceAndroidNotificationSound('call_ringtone'),
-            enableVibration: true,
-            icon: '@mipmap/ic_launcher',
-            visibility: NotificationVisibility.public,
-            timeoutAfter: 60000, // auto-dismiss after 60s
-            additionalFlags: Int32List.fromList(<int>[
-              4,
-            ]), // FLAG_INSISTENT — loops the ringtone
-            actions: <AndroidNotificationAction>[
-              const AndroidNotificationAction(
-                'answer_call',
-                'Answer',
-                icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-                showsUserInterface: true,
-              ),
-              const AndroidNotificationAction(
-                'decline_call',
-                'Decline',
-                icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-                cancelNotification: true,
-              ),
-            ],
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
+      final callId = data?['call_id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      if (_shownCallIds.contains(callId)) return;
+      _shownCallIds.add(callId);
+      final callerName = data?['caller_name'] as String? ?? title;
+
+      final params = CallKitParams(
+        id: callId,
+        nameCaller: callerName,
+        appName: 'MealHub',
+        type: 0,
+        duration: 60000,
+        textAccept: 'Answer',
+        textDecline: 'Decline',
+        extra: data ?? {},
+        android: const AndroidParams(
+          isCustomNotification: true,
+          isShowLogo: false,
+          ringtonePath: 'system_ringtone_default',
+          backgroundColor: '#1B1B2F',
+          actionColor: '#7C3AED',
+          incomingCallNotificationChannelName: 'Incoming Calls',
+          missedCallNotificationChannelName: 'Missed Calls',
         ),
-        payload: data != null ? jsonEncode(data) : null,
       );
+
+      await FlutterCallkitIncoming.showCallkitIncoming(params);
     } catch (e) {
       AppLogger.error('Error showing call notification: $e');
     }
@@ -454,7 +437,8 @@ class NotificationService {
 
   /// Cancel the call notification (when call is answered/declined)
   Future<void> cancelCallNotification() async {
-    await _localNotifications.cancel(id: 9999);
+    _shownCallIds.clear();
+    await FlutterCallkitIncoming.endAllCalls();
   }
 
   /// Handle notification by type
@@ -485,8 +469,29 @@ class NotificationService {
         AppLogger.info('New order for admin: $title');
         onNewOrderForAdmin?.call();
         break;
+      case 'order_placed':
+      case 'order_confirmed':
+      case 'preparing':
+      case 'out_for_delivery':
+      case 'delivered':
+      case 'order_cancelled':
+        AppLogger.info('Order lifecycle notification [$type]: $title');
+        onOrderNotificationReceived?.call(type ?? '', title, body, data);
+        if (navigate) {
+          navigatorKey?.currentState?.pushNamed('/notifications');
+        }
+        break;
       case 'order_status_update':
         AppLogger.info('Order status update: $body');
+        onOrderNotificationReceived?.call(
+          type ?? 'order_status_update',
+          title,
+          body,
+          data,
+        );
+        if (navigate) {
+          navigatorKey?.currentState?.pushNamed('/notifications');
+        }
         break;
       case 'delivery_update':
         AppLogger.info('Delivery update: $body');

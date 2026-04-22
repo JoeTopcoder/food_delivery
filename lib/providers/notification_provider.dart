@@ -57,9 +57,15 @@ final realtimeServiceProvider = Provider<RealtimeService>((ref) {
 class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   NotificationNotifier() : super([]);
 
-  /// Add notification
+  /// Add notification — skips duplicates by id
   void addNotification(AppNotification notification) {
+    if (state.any((n) => n.id == notification.id)) return;
     state = [notification, ...state];
+  }
+
+  /// Replace entire list (used when loading fresh from DB)
+  void setAll(List<AppNotification> notifications) {
+    state = notifications;
   }
 
   /// Mark notification as read
