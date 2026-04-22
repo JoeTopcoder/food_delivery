@@ -112,8 +112,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final liveOrder = realtimeAsync.when(
       data: (data) {
         if (data == null) return order;
-        final updatedStatus = data['status'] as String? ?? order.status;
-        return order.copyWith(status: updatedStatus);
+        return order.copyWith(
+          status: data['status'] as String? ?? order.status,
+          driverId: data['driver_id'] as String? ?? order.driverId,
+          estimatedDeliveryAt: data['estimated_delivery_at'] != null
+              ? DateTime.tryParse(data['estimated_delivery_at'] as String)
+              : order.estimatedDeliveryAt,
+          deliveryOtp: data['delivery_otp'] as String? ?? order.deliveryOtp,
+          pickupCode: data['pickup_code'] as String? ?? order.pickupCode,
+          deliveryOtpVerified: data['delivery_otp_verified'] as bool? ?? order.deliveryOtpVerified,
+        );
       },
       loading: () => order,
       error: (_, _) => order,
@@ -134,7 +142,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         driverId != null &&
         driverId.isNotEmpty &&
         statusIndex >= 4 &&
-        liveOrder.status != 'delivered';
+        liveOrder.status != 'delivered' &&
+        driverLocation != null &&
+        driverLocation['latitude'] != null &&
+        driverLocation['longitude'] != null;
 
     return Scaffold(
       appBar: AppBar(

@@ -61,12 +61,14 @@ class AuthState {
   final User? user;
   final String? error;
   final bool isAuthenticated;
+  final bool emailConfirmationPending;
 
   AuthState({
     this.isLoading = false,
     this.user,
     this.error,
     this.isAuthenticated = false,
+    this.emailConfirmationPending = false,
   });
 
   AuthState copyWith({
@@ -74,12 +76,15 @@ class AuthState {
     User? user,
     String? error,
     bool? isAuthenticated,
+    bool? emailConfirmationPending,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
       error: error ?? this.error,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      emailConfirmationPending:
+          emailConfirmationPending ?? this.emailConfirmationPending,
     );
   }
 }
@@ -237,6 +242,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
           try {
             await _authService.signIn(email: email, password: password);
           } catch (e) {
+            final msg = e.toString().toLowerCase();
+            if (msg.contains('email_not_confirmed') ||
+                msg.contains('email not confirmed')) {
+              AppLogger.info('Email confirmation required for $email');
+              state = state.copyWith(
+                isLoading: false,
+                emailConfirmationPending: true,
+              );
+              // Don't rethrow — this is expected flow, not an error
+              return;
+            }
             AppLogger.error('Auto sign-in after signup failed: $e');
             state = state.copyWith(
               isLoading: false,

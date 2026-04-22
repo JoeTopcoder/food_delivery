@@ -20,12 +20,17 @@ final driverProfileProvider = FutureProvider.family
       return driverService.getDriverByUserId(userId);
     });
 
-// Available Orders Provider (takes driverId to filter out recently declined)
+// Available Orders Provider (takes driverId + driver location for 2km proximity filter)
 final availableOrdersProvider = FutureProvider.autoDispose
-    .family<List<Order>, String?>((ref, driverId) async {
-      final driverService = ref.watch(driverServiceProvider);
-      return driverService.getAvailableOrders(driverId: driverId);
-    });
+    .family<List<Order>, ({String? driverId, double? lat, double? lng})>(
+      (ref, params) async {
+        final driverService = ref.watch(driverServiceProvider);
+        return driverService.getAvailableOrders(
+          driverId: params.driverId,
+          driverLat: params.lat,
+          driverLng: params.lng,
+        );
+      });
 
 /// Realtime listener that auto-refreshes available orders for drivers.
 final driverOrderRealtimeProvider = Provider.autoDispose<void>((ref) {
@@ -123,8 +128,8 @@ class DriverAvailabilityNotifier extends StateNotifier<bool> {
   final DriverService _driverService;
   final String _driverId;
 
-  DriverAvailabilityNotifier(this._driverService, this._driverId)
-    : super(false);
+  DriverAvailabilityNotifier(this._driverService, this._driverId, {bool initialState = false})
+    : super(initialState);
 
   Future<void> toggleAvailability() async {
     try {
@@ -143,7 +148,16 @@ final driverAvailabilityProvider =
       driverId,
     ) {
       final driverService = ref.watch(driverServiceProvider);
-      return DriverAvailabilityNotifier(driverService, driverId);
+      // Seed the availability state from the cached driver profile if available
+      final userId = SupabaseConfig.client.auth.currentUser?.id;
+      bool initialAvailable = false;
+      if (userId != null) {
+        final cachedDriver = ref.read(driverProfileProvider(userId)).valueOrNull;
+        if (cachedDriver != null && cachedDriver.id == driverId) {
+          initialAvailable = cachedDriver.isAvailable;
+        }
+      }
+      return DriverAvailabilityNotifier(driverService, driverId, initialState: initialAvailable);
     });
 
 /// Watches the orders table via Supabase Realtime for new available orders.

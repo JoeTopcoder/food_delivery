@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/driver_intelligence_models.dart';
 import '../utils/app_logger.dart';
@@ -115,16 +116,71 @@ class DriverIntelligenceService {
   // ── Fetch zones from DB directly (fast, no edge function) ───────
   Future<List<DemandZone>> getZones() async {
     try {
-      final res = await _client
+      // Fetch zones
+      final zonesRes = await _client
           .from('zones')
           .select()
           .eq('is_active', true)
           .order('surge_multiplier', ascending: false);
-      return (res as List).map((e) => DemandZone.fromJson(e)).toList();
+      final zones = (zonesRes as List)
+          .map((e) => DemandZone.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (zones.isEmpty) return [];
+
+      // Fetch active orders with restaurant location to map them to zones
+      final ordersRes = await _client
+          .from('orders')
+          .select('id, restaurants(latitude, longitude)')
+          .inFilter('status', ['pending', 'confirmed', 'preparing', 'ready'])
+          .isFilter('driver_id', null);
+
+      final orders = (ordersRes as List)
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
+
+      // Count how many orders fall within each zone radius
+      return zones.map((zone) {
+        int count = 0;
+        for (final order in orders) {
+          final rest = order['restaurants'] as Map<String, dynamic>?;
+          if (rest == null) continue;
+          final lat = (rest['latitude'] as num?)?.toDouble();
+          final lng = (rest['longitude'] as num?)?.toDouble();
+          if (lat == null || lng == null) continue;
+          final distKm = _haversineKm(lat, lng, zone.latitude, zone.longitude);
+          if (distKm <= zone.radiusKm) count++;
+        }
+        // Rebuild zone with live activeOrders count
+        return DemandZone(
+          id: zone.id,
+          name: zone.name,
+          latitude: zone.latitude,
+          longitude: zone.longitude,
+          radiusKm: zone.radiusKm,
+          activeOrders: count,
+          availableDrivers: zone.availableDrivers,
+          demandLevel: zone.demandLevel,
+          surgeMultiplier: zone.surgeMultiplier,
+          distanceFromDriver: zone.distanceFromDriver,
+        );
+      }).toList();
     } catch (e) {
       AppLogger.error('Failed to fetch zones: $e');
       return [];
     }
+  }
+
+  static double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLng = (lng2 - lng1) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return r * 2 * math.asin(math.sqrt(a));
   }
 
   // ── Fetch driver stats from DB directly ─────────────────────────

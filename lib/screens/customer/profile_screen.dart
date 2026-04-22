@@ -213,12 +213,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               icon: Icons.payment_outlined,
               title: context.l10n.paymentMethods,
               subtitle: context.l10n.paymentMethodsSub,
-              onTap: () {
-                AppSnackbar.info(
-                  context,
-                  'Payment methods are configured at checkout',
-                );
-              },
+              onTap: () => Navigator.pushNamed(context, '/add-card'),
             ),
             const SizedBox(height: 24),
 

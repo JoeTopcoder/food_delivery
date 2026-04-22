@@ -114,15 +114,15 @@ class OnboardingService {
       try {
         await _client.from(AppConstants.tableDrivers).upsert({
           'user_id': userId,
-          'status': 'pending',
-          'documents_uploaded': false,
+          'documents_status': 'pending',
+          'is_available': false,
           'updated_at': DateTime.now().toIso8601String(),
-        });
+        }, onConflict: 'user_id');
       } catch (_) {
         await _client.from(AppConstants.tableDrivers).upsert({
           'user_id': userId,
           'updated_at': DateTime.now().toIso8601String(),
-        });
+        }, onConflict: 'user_id');
       }
     }
   }
@@ -159,12 +159,11 @@ class OnboardingService {
 
     await _client.from(AppConstants.tableDrivers).upsert({
       'user_id': userId,
-      'vehicle_type': vehicleType,
-      'license_plate': licensePlate,
-      'status': 'pending',
-      'documents_uploaded': documentsUploaded,
+      if (vehicleType != null) 'vehicle_type': vehicleType,
+      if (licensePlate != null) 'license_number': licensePlate,
+      'documents_status': documentsUploaded ? 'approved' : 'pending',
       'updated_at': DateTime.now().toIso8601String(),
-    });
+    }, onConflict: 'user_id');
   }
 
   Future<void> saveRestaurantDraft({

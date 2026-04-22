@@ -67,9 +67,9 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.foodhub.delivery',
             ),
-            // Surge radius circles
+            // Surge radius circles — only where active orders exist
             CircleLayer(
-              circles: zones.map((z) {
+              circles: activeZones.map((z) {
                 final color = _zoneColor(z);
                 return CircleMarker(
                   point: LatLng(z.latitude, z.longitude),
@@ -81,9 +81,9 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                 );
               }).toList(),
             ),
-            // Zone markers
+            // Zone markers — only where active orders exist
             MarkerLayer(
-              markers: zones.map((z) {
+              markers: activeZones.map((z) {
                 final color = _zoneColor(z);
                 return Marker(
                   point: LatLng(z.latitude, z.longitude),
@@ -290,12 +290,23 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                   ),
                   const SizedBox(height: 8),
                   Flexible(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: zones.length,
-                      shrinkWrap: true,
-                      itemBuilder: (_, i) => _ZoneListItem(zone: zones[i]),
-                    ),
+                    child: activeZones.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(
+                              child: Text(
+                                'No active orders in any zone right now',
+                                style: TextStyle(color: Colors.grey, fontSize: 14),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            itemCount: activeZones.length,
+                            shrinkWrap: true,
+                            itemBuilder: (_, i) => _ZoneListItem(zone: activeZones[i]),
+                          ),
                   ),
                 ],
               ),

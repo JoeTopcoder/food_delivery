@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
@@ -69,7 +70,7 @@ class DriverService {
           .from(AppConstants.tableDrivers)
           .insert({
             'user_id': userId,
-            'vehicle_type': 'motorcycle',
+            'vehicle_type': 'bike',
             'vehicle_number': '',
             'license_number': '',
             'is_available': false,
@@ -195,7 +196,12 @@ class DriverService {
   // Get available orders for delivery
   // Shows: all "ready" orders + "pending" orders older than 30 minutes (no driver assigned)
   // Excludes orders declined by this driver within the last 5 minutes
-  Future<List<Order>> getAvailableOrders({String? driverId}) async {
+  Future<List<Order>> getAvailableOrders({
+    String? driverId,
+    double? driverLat,
+    double? driverLng,
+    double radiusKm = 2.0,
+  }) async {
     try {
       AppLogger.info('Fetching available orders for delivery');
 
@@ -216,18 +222,10 @@ class DriverService {
             .toSet();
       }
 
-      final cutoff = DateTime.now()
-          .subtract(
-            Duration(minutes: AppConstants.orderAssignmentCutoffMinutes),
-          )
-          .toUtc()
-          .toIso8601String();
-
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
+          .select('*, restaurants(latitude, longitude)')
           .filter('driver_id', 'is', null)
-          .gte('ordered_at', cutoff)
           .eq('is_pickup', false)
           .inFilter('status', [
             AppConstants.orderReady,
@@ -236,12 +234,23 @@ class DriverService {
             AppConstants.orderPending,
           ])
           .order('ordered_at', ascending: false)
-          .limit(20); // fetch extra to account for declined filtering
+          .limit(50); // fetch extra to account for declined/distance filtering
 
       final orders = <Order>[];
       for (var orderData in response as List) {
         // Skip orders this driver recently declined
         if (declinedOrderIds.contains(orderData['id'])) continue;
+
+        // Filter by proximity to restaurant (2 km default)
+        if (driverLat != null && driverLng != null) {
+          final rest = orderData['restaurants'] as Map<String, dynamic>?;
+          final rLat = (rest?['latitude'] as num?)?.toDouble();
+          final rLng = (rest?['longitude'] as num?)?.toDouble();
+          if (rLat != null && rLng != null) {
+            final dist = _haversineKm(driverLat, driverLng, rLat, rLng);
+            if (dist > radiusKm) continue;
+          }
+        }
 
         // Cap at 5 orders per driver
         if (orders.length >= 5) break;
@@ -712,5 +721,17 @@ class DriverService {
       AppLogger.error('Error collecting float: $e');
       rethrow;
     }
+  }
+
+  static double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLng = (lng2 - lng1) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return r * 2 * math.asin(math.sqrt(a));
   }
 }

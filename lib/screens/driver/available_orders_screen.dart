@@ -123,7 +123,11 @@ class AvailableOrdersScreen extends ConsumerWidget {
         }
 
         // ── Online – show available orders ──────────────────────────
-        final ordersAsync = ref.watch(availableOrdersProvider(driver.id));
+        final ordersAsync = ref.watch(availableOrdersProvider((
+          driverId: driver.id,
+          lat: driver.currentLatitude,
+          lng: driver.currentLongitude,
+        )));
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           appBar: AppBar(
@@ -831,6 +835,7 @@ class _OrderCard extends ConsumerWidget {
                 final driverService = ref.read(driverServiceProvider);
                 await driverService.acceptDelivery(order.id, driverId);
                 ref.invalidate(availableOrdersProvider);
+                ref.invalidate(activeDeliveriesProvider(driverId));
                 if (context.mounted) {
                   AppSnackbar.success(context, 'Order accepted!');
                 }
@@ -1025,21 +1030,88 @@ class _OrderMap extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
       child: SizedBox(
         height: 180,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: center,
-            initialZoom: zoom,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.none,
-            ),
-          ),
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.foodhub.delivery',
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: zoom,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom |
+                      InteractiveFlag.drag |
+                      InteractiveFlag.doubleTapZoom,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.foodhub.delivery',
+                ),
+                MarkerLayer(markers: markers),
+              ],
             ),
-            MarkerLayer(markers: markers),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => _showFullscreenMap(
+                  context,
+                  center: center,
+                  zoom: zoom,
+                  markers: markers,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.fullscreen_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  static void _showFullscreenMap(
+    BuildContext context, {
+    required LatLng center,
+    required double zoom,
+    required List<Marker> markers,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.92,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, __) => ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: FlutterMap(
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: zoom,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.foodhub.delivery',
+              ),
+              MarkerLayer(markers: markers),
+            ],
+          ),
         ),
       ),
     );

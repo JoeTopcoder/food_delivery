@@ -173,6 +173,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
               ),
               child: SafeArea(
+                bottom: false,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
