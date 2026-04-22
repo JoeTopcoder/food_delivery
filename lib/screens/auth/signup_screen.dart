@@ -44,6 +44,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             name: _nameController.text.trim(),
             role: widget.role,
           );
+      if (!mounted) return;
+      final authState = ref.read(authNotifierProvider);
+      if (authState.emailConfirmationPending) {
+        AppSnackbar.info(
+          context,
+          'Account created! Check your email to confirm, then sign in.',
+        );
+        Navigator.of(context).pushReplacementNamed('/signin');
+        return;
+      }
       if (mounted) {
         String route;
         switch (widget.role) {

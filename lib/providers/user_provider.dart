@@ -363,8 +363,12 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     );
 
     if (existingIndex != -1) {
-      state[existingIndex].quantity++;
-      state = [...state];
+      final updated = state[existingIndex].copyWith(
+        quantity: state[existingIndex].quantity + 1,
+      );
+      final newList = [...state];
+      newList[existingIndex] = updated;
+      state = newList;
     } else {
       state = [
         ...state,
@@ -410,8 +414,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       if (quantity <= 0) {
         removeItem(menuItemId);
       } else {
-        state[index].quantity = quantity;
-        state = [...state];
+        final newList = [...state];
+        newList[index] = state[index].copyWith(quantity: quantity);
+        state = newList;
         _persist();
       }
     }
@@ -420,8 +425,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   void updateNotes(String menuItemId, String notes) {
     final index = state.indexWhere((item) => item.menuItem.id == menuItemId);
     if (index != -1) {
-      state[index].notes = notes;
-      state = [...state];
+      final newList = [...state];
+      newList[index] = state[index].copyWith(notes: notes);
+      state = newList;
       _persist();
     }
   }
@@ -508,8 +514,9 @@ class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
     if (existingIndex != -1) {
       final current = state[existingIndex].quantity;
       if (current >= menuItem.maxQuantity) return;
-      state[existingIndex].quantity++;
-      state = [...state];
+      final newList = [...state];
+      newList[existingIndex] = state[existingIndex].copyWith(quantity: current + 1);
+      state = newList;
     } else {
       if (menuItem.maxQuantity <= 0) return;
       state = [...state, CartItem(menuItem: menuItem)];
@@ -528,8 +535,9 @@ class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
       if (quantity <= 0) {
         removeItem(menuItemId);
       } else {
-        state[index].quantity = quantity;
-        state = [...state];
+        final newList = [...state];
+        newList[index] = state[index].copyWith(quantity: quantity);
+        state = newList;
         _persist();
       }
     }

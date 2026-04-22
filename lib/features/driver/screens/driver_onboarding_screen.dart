@@ -67,6 +67,19 @@ class _DriverOnboardingScreenState
       await ref
           .read(authNotifierProvider.notifier)
           .signUp(email: email, password: password, name: name, role: 'driver');
+      final authState = ref.read(authNotifierProvider);
+      if (authState.emailConfirmationPending) {
+        // Email confirmation required but we still advance the onboarding.
+        // Pre-fill profile fields from sign-up data so the user doesn't
+        // have to retype their name/email on the next step.
+        _name.text = _signUpName.text.trim();
+        _email.text = _signUpEmail.text.trim();
+        await ref
+            .read(onboardingProvider(OnboardingRole.driver).notifier)
+            .setStep(2);
+        if (!mounted) return;
+        return;
+      }
       await _afterAuthSuccess();
     } catch (e) {
       if (!mounted) return;
@@ -135,17 +148,16 @@ class _DriverOnboardingScreenState
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId == null) throw Exception('Not authenticated');
-
-      await ref
-          .read(onboardingServiceProvider)
-          .saveDriverProfile(
-            userId: userId,
-            phone: _phone.text.trim(),
-            name: skip ? null : _name.text.trim(),
-            email: skip ? null : _email.text.trim(),
-          );
-
+      if (userId != null && !skip) {
+        await ref
+            .read(onboardingServiceProvider)
+            .saveDriverProfile(
+              userId: userId,
+              phone: _phone.text.trim(),
+              name: _name.text.trim(),
+              email: _email.text.trim(),
+            );
+      }
       await ref
           .read(onboardingProvider(OnboardingRole.driver).notifier)
           .setStep(3);
@@ -161,19 +173,18 @@ class _DriverOnboardingScreenState
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId == null) throw Exception('Not authenticated');
-
-      await ref
-          .read(onboardingServiceProvider)
-          .saveDriverProfile(
-            userId: userId,
-            phone: _phone.text.trim(),
-            name: _name.text.trim().isEmpty ? null : _name.text.trim(),
-            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-            vehicleType: skip ? null : _vehicleType.text.trim(),
-            licensePlate: skip ? null : _plate.text.trim(),
-          );
-
+      if (userId != null && !skip) {
+        await ref
+            .read(onboardingServiceProvider)
+            .saveDriverProfile(
+              userId: userId,
+              phone: _phone.text.trim(),
+              name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+              vehicleType: _vehicleType.text.trim().isEmpty ? null : _vehicleType.text.trim(),
+              licensePlate: _plate.text.trim().isEmpty ? null : _plate.text.trim(),
+            );
+      }
       await ref
           .read(onboardingProvider(OnboardingRole.driver).notifier)
           .setStep(4);
@@ -189,29 +200,36 @@ class _DriverOnboardingScreenState
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId == null) throw Exception('Not authenticated');
-
-      await ref
-          .read(onboardingServiceProvider)
-          .saveDriverProfile(
-            userId: userId,
-            phone: _phone.text.trim(),
-            name: _name.text.trim().isEmpty ? null : _name.text.trim(),
-            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-            vehicleType: _vehicleType.text.trim().isEmpty
-                ? null
-                : _vehicleType.text.trim(),
-            licensePlate: _plate.text.trim().isEmpty
-                ? null
-                : _plate.text.trim(),
-            documentsUploaded: uploadedDocs,
-          );
+      if (userId != null) {
+        await ref
+            .read(onboardingServiceProvider)
+            .saveDriverProfile(
+              userId: userId,
+              phone: _phone.text.trim(),
+              name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+              vehicleType: _vehicleType.text.trim().isEmpty
+                  ? null
+                  : _vehicleType.text.trim(),
+              licensePlate: _plate.text.trim().isEmpty
+                  ? null
+                  : _plate.text.trim(),
+              documentsUploaded: uploadedDocs,
+            );
+      }
 
       await ref
           .read(onboardingProvider(OnboardingRole.driver).notifier)
           .setStep(5);
 
       if (!mounted) return;
+      // If not yet authenticated (email confirmation pending), send to sign-in.
+      // The migration 104 trigger will create their profile on first sign-in.
+      final isAuth = ref.read(authNotifierProvider).isAuthenticated;
+      if (!isAuth) {
+        Navigator.of(context).pushReplacementNamed('/signin/driver');
+        return;
+      }
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil('/driver-dashboard', (_) => false);
@@ -227,6 +245,8 @@ class _DriverOnboardingScreenState
   Widget build(BuildContext context) {
     final step =
         ref.watch(onboardingProvider(OnboardingRole.driver)).valueOrNull ?? 0;
+    final authState = ref.watch(authNotifierProvider);
+    final emailPending = authState.emailConfirmationPending;
 
     return Scaffold(
       appBar: AppBar(
@@ -247,6 +267,29 @@ class _DriverOnboardingScreenState
           ),
           const SizedBox(height: 8),
           Text('Step ${step.clamp(0, 4) + 1} of 5'),
+          if (emailPending && step >= 2) ...[          
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFFD700)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email_outlined, color: Color(0xFF856404), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Check your email to confirm your account. You can finish setup now.',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF856404)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
 
           if (step < 2) ...[
@@ -332,14 +375,22 @@ class _DriverOnboardingScreenState
           ],
 
           if (step == 3) ...[
-            TextField(
-              controller: _vehicleType,
+            DropdownButtonFormField<String>(
+              initialValue: _vehicleType.text.isEmpty ? null : _vehicleType.text,
               decoration: const InputDecoration(labelText: 'Vehicle type'),
+              items: const [
+                DropdownMenuItem(value: 'bike', child: Text('Bike / Motorcycle')),
+                DropdownMenuItem(value: 'car', child: Text('Car')),
+                DropdownMenuItem(value: 'scooter', child: Text('Scooter')),
+              ],
+              onChanged: (v) {
+                if (v != null) _vehicleType.text = v;
+              },
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _plate,
-              decoration: const InputDecoration(labelText: 'License plate'),
+              decoration: const InputDecoration(labelText: 'License plate / vehicle number'),
             ),
             const SizedBox(height: 12),
             Row(

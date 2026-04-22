@@ -18,6 +18,22 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  String? _buildCustomizationSummary(CartItem cartItem) {
+    final parts = <String>[];
+    for (final side in cartItem.selectedSides) {
+      parts.add(side.name);
+    }
+    for (final choices in cartItem.selectedOptions.values) {
+      for (final c in choices) {
+        parts.add(c.name);
+      }
+    }
+    if (cartItem.notes != null && cartItem.notes!.trim().isNotEmpty) {
+      parts.add('Note: ${cartItem.notes!.trim()}');
+    }
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -377,8 +393,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           final cartItem = cartItems[index];
                           return _CartItemWidget(
                             name: cartItem.menuItem.name,
+                            imageUrl: cartItem.menuItem.imageUrl,
                             quantity: cartItem.quantity,
                             price: cartItem.menuItem.discountedPrice,
+                            customizationSummary: _buildCustomizationSummary(cartItem),
                             onRemove: () {
                               ref
                                   .read(cartProvider.notifier)
@@ -531,8 +549,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                       ),
 
-                      // Promo Code
-                      const SizedBox(height: 120),
+                      // Bottom padding to clear the sticky checkout button
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
@@ -583,15 +601,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
 class _CartItemWidget extends StatelessWidget {
   final String name;
+  final String? imageUrl;
   final int quantity;
   final double price;
+  final String? customizationSummary;
   final VoidCallback onRemove;
   final Function(int) onQuantityChanged;
 
   const _CartItemWidget({
     required this.name,
+    this.imageUrl,
     required this.quantity,
     required this.price,
+    this.customizationSummary,
     required this.onRemove,
     required this.onQuantityChanged,
   });
@@ -615,10 +637,22 @@ class _CartItemWidget extends StatelessWidget {
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              Icons.image,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            child: imageUrl != null && imageUrl!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.image,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.image,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -632,6 +666,18 @@ class _CartItemWidget extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
+                if (customizationSummary != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    customizationSummary!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',

@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/notification_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../config/app_constants.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -472,7 +473,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       icon: Icons.payments_rounded,
                       label: 'Balance',
                       value:
-                          'J\$${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(2)}',
                       color: const Color(0xFF3B82F6),
                     ),
                   ],

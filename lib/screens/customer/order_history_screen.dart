@@ -629,25 +629,31 @@ class _OrderCard extends ConsumerWidget {
                   ),
                   onPressed: selectedTip > 0
                       ? () async {
-                          final supabase = SupabaseConfig.client;
-                          await supabase
-                              .from('orders')
-                              .update({
-                                'post_delivery_tip': selectedTip,
-                                'tip_updated_at': DateTime.now()
-                                    .toIso8601String(),
-                              })
-                              .eq('id', order.id);
-                          final userId = ref.read(currentUserIdProvider);
-                          if (userId != null) {
-                            ref.invalidate(userOrdersProvider(userId));
-                          }
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          if (context.mounted) {
-                            AppSnackbar.success(
-                              context,
-                              '\$ ${selectedTip.toStringAsFixed(0)} tip added!',
-                            );
+                          try {
+                            await SupabaseConfig.client
+                                .from('orders')
+                                .update({
+                                  'post_delivery_tip': selectedTip,
+                                  'tip_updated_at': DateTime.now()
+                                      .toIso8601String(),
+                                })
+                                .eq('id', order.id);
+                            final userId = ref.read(currentUserIdProvider);
+                            if (userId != null) {
+                              ref.invalidate(userOrdersProvider(userId));
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              AppSnackbar.success(
+                                context,
+                                '\$ ${selectedTip.toStringAsFixed(0)} tip added!',
+                              );
+                            }
+                          } catch (e) {
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              AppSnackbar.error(context, 'Failed to add tip. Please try again.');
+                            }
                           }
                         }
                       : null,

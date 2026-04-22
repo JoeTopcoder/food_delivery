@@ -1,3 +1,4 @@
+// driver_wallet_screen.dart — Full Stripe Connect wallet screen
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -6,11 +7,28 @@ import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/payout_service.dart'
-    show StripePayoutService, PayoutRecord, StripePayoutException;
+    show
+        StripePayoutService,
+        StripePayoutException,
+        PayoutRecord,
+        DriverPayoutMethod;
 import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
+import 'driver_kyc_screen.dart';
+import 'driver_payout_methods_screen.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
+
+final stripeStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
+  return StripePayoutService.instance.getStripeStatus();
+});
+
+final payoutMethodsProvider =
+    FutureProvider.autoDispose<List<DriverPayoutMethod>>((ref) async {
+      return StripePayoutService.instance.getPayoutMethods();
+    });
 
 final payoutHistoryProvider = FutureProvider.family<List<PayoutRecord>, String>(
   (ref, driverId) async {
@@ -28,60 +46,52 @@ class DriverWalletScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
-  bool _connecting = false;
   bool _payingOut = false;
+  bool _creatingAccount = false;
   String? _errorMessage;
   String? _successMessage;
 
   static const _bg = Color(0xFF0F1117);
-  static const _card = Color(0xFF1C1F2E);
+  static const _cardBg = Color(0xFF1C1F2E);
   static const _accent = Color(0xFF6C63FF);
   static const _green = Color(0xFF00C896);
 
-  String _readableError(Object error) {
-    final raw = error.toString();
-    final cleaned = raw
-        .replaceFirst('Exception: ', '')
-        .replaceFirst('FunctionException: ', '')
-        .trim();
-    final lower = raw.toLowerCase();
+  // ── Create Stripe account ─────────────────────────────────────────────
 
-    // Preserve actionable backend messages for Stripe.
-    if (lower.contains('stripe') ||
-        lower.contains('driver record not found') ||
-        lower.contains('missing authorization') ||
-        lower.contains('server error') ||
-        lower.contains('debit') ||
-        lower.contains('card') ||
-        lower.contains('payout')) {
-      return cleaned;
+  Future<void> _createAccount() async {
+    setState(() {
+      _creatingAccount = true;
+      _errorMessage = null;
+    });
+    try {
+      await StripePayoutService.instance.createStripeAccount();
+      ref.invalidate(stripeStatusProvider);
+      ref.invalidate(driverProfileProvider(ref.read(currentUserIdProvider)!));
+      setState(
+        () => _successMessage =
+            'Account created! Complete your identity verification to enable payouts.',
+      );
+    } catch (e) {
+      setState(() => _errorMessage = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _creatingAccount = false);
     }
-
-    // If backend returned a concrete message, show it directly.
-    if (cleaned.isNotEmpty &&
-        cleaned.toLowerCase() != 'something went wrong. please try again.') {
-      return cleaned;
-    }
-
-    return friendlyError(error);
   }
 
-  // ── Add debit card (in-app) ────────────────────────────────────────────
+  // ── Add debit card ────────────────────────────────────────────────────
 
-  Future<void> _addDebitCard() async {
-    // Ensure Stripe publishable key is set before showing the sheet.
+  Future<void> _addCard() async {
     final pubKey = AppConstants.stripePublishableKey;
     if (pubKey.isEmpty) {
       setState(
-        () =>
-            _errorMessage = 'Stripe is not configured. Please contact support.',
+        () => _errorMessage = 'Stripe is not configured. Contact support.',
       );
       return;
     }
     Stripe.publishableKey = pubKey;
     await Stripe.instance.applySettings();
-
     if (!mounted) return;
+
     final tokenId = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -91,89 +101,109 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
     if (tokenId == null || !mounted) return;
 
     setState(() {
-      _connecting = true;
+      _creatingAccount = true;
       _errorMessage = null;
     });
     try {
       final result = await StripePayoutService.instance.addDebitCard(tokenId);
       final last4 = result['last4'] as String?;
-      ref.invalidate(driverProfileProvider);
+      ref.invalidate(stripeStatusProvider);
+      ref.invalidate(payoutMethodsProvider);
+      ref.invalidate(driverProfileProvider(ref.read(currentUserIdProvider)!));
       setState(
         () => _successMessage = last4 != null
-            ? 'Debit card ending in $last4 added. You can now cash out instantly!'
-            : 'Debit card added. You can now cash out instantly!',
+            ? 'Debit card •••• $last4 added! You can now cash out instantly.'
+            : 'Debit card added! You can now cash out instantly.',
       );
     } catch (e) {
-      setState(() => _errorMessage = _readableError(e));
+      setState(() => _errorMessage = friendlyError(e));
     } finally {
-      if (mounted) setState(() => _connecting = false);
+      if (mounted) setState(() => _creatingAccount = false);
     }
   }
 
-  // ── Cash out ────────────────────────────────────────────────────────────
+  // ── Cash out ──────────────────────────────────────────────────────────
 
-  Future<void> _cashOut(Driver driver, double availableBalance) async {
-    final amountUsd = availableBalance;
+  Future<void> _cashOut(
+    String payoutType,
+    double available,
+    Driver driver,
+  ) async {
+    if ((payoutType == 'instant') && !driver.stripeDebitCardAdded) {
+      setState(
+        () => _errorMessage = 'Add a debit card first for instant payouts.',
+      );
+      return;
+    }
+
+    final minCents = 1000; // $10 minimum
+    if ((available * 100).round() < minCents) {
+      setState(() => _errorMessage = 'Minimum payout is \$10.00.');
+      return;
+    }
+
+    final amountCents = (available * 100).round();
+    final fee = payoutType == 'instant' ? (amountCents * 0.01).round() : 0;
+    final netCents = amountCents - fee;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => _CashOutDialog(amount: amountUsd),
+      builder: (_) => _CashOutDialog(
+        amountCents: amountCents,
+        feeCents: fee,
+        netCents: netCents,
+        payoutType: payoutType,
+      ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() {
       _payingOut = true;
       _errorMessage = null;
       _successMessage = null;
     });
-
     try {
-      try {
-        await StripePayoutService.instance.requestPayout(
-          amountCents: (amountUsd * 100).round(),
-          payoutType: 'instant',
-        );
-      } on StripePayoutException catch (ex) {
-        if (!mounted) return;
-        if (ex.fallbackAvailable) {
-          // Instant failed — offer standard
-          final useStandard = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: _card,
-              title: const Text(
-                'Instant Payout Unavailable',
-                style: TextStyle(color: Colors.white),
-              ),
-              content: Text(
-                '${ex.message}\n\nWould you like a standard payout instead? (2-5 business days)',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent),
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Standard Payout'),
-                ),
-              ],
-            ),
-          );
-          if (useStandard == true) {
-            await _requestStandardPayout(amountUsd);
-          }
-          return;
-        }
-        rethrow;
-      }
-
+      await StripePayoutService.instance.requestPayout(
+        amountCents: netCents,
+        payoutType: payoutType,
+      );
+      ref.invalidate(driverProfileProvider(ref.read(currentUserIdProvider)!));
+      ref.invalidate(payoutHistoryProvider(driver.id));
       setState(
         () => _successMessage =
-            'Payout of \$${amountUsd.toStringAsFixed(2)} initiated successfully!',
+            '${payoutType == 'instant' ? 'Instant' : 'Standard'} payout of \$${(netCents / 100).toStringAsFixed(2)} initiated!',
       );
-      ref.invalidate(payoutHistoryProvider);
+    } on StripePayoutException catch (ex) {
+      if (ex.fallbackAvailable && payoutType == 'instant' && mounted) {
+        final useStd = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: _cardBg,
+            title: const Text(
+              'Instant Unavailable',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              '${ex.message}\n\nTry standard payout (2-5 business days)?',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _accent),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Standard Payout'),
+              ),
+            ],
+          ),
+        );
+        if (useStd == true) await _cashOut('standard', available, driver);
+        return;
+      }
+      setState(() => _errorMessage = ex.message);
     } catch (e) {
       setState(() => _errorMessage = friendlyError(e));
     } finally {
@@ -181,23 +211,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
     }
   }
 
-  Future<void> _requestStandardPayout(double amountUsd) async {
-    try {
-      await StripePayoutService.instance.requestPayout(
-        amountCents: (amountUsd * 100).round(),
-        payoutType: 'standard',
-      );
-      setState(
-        () => _successMessage =
-            'Standard payout of \$${amountUsd.toStringAsFixed(2)} requested. Funds arrive in 2-5 business days.',
-      );
-      ref.invalidate(payoutHistoryProvider);
-    } catch (e) {
-      setState(() => _errorMessage = friendlyError(e));
-    }
-  }
-
-  // ── Build ───────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +227,6 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
 
     final driverAsync = ref.watch(driverProfileProvider(currentUserId));
     final driver = driverAsync.valueOrNull;
-
     if (driver == null && driverAsync.isLoading) {
       return const Scaffold(
         backgroundColor: _bg,
@@ -235,48 +248,44 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
     final totalEarned = driver.totalEarnings ?? 0.0;
     final totalPaidOut = driver.totalPaidOut ?? 0.0;
     final available = (totalEarned - totalPaidOut).clamp(0.0, double.infinity);
-
+    final statusAsync = ref.watch(stripeStatusProvider);
+    final methodsAsync = ref.watch(payoutMethodsProvider);
     final payoutsAsync = ref.watch(payoutHistoryProvider(driver.id));
 
     return Scaffold(
       backgroundColor: _bg,
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(driverProfileProvider);
-          ref.invalidate(payoutHistoryProvider);
+          ref.invalidate(driverProfileProvider(currentUserId));
+          ref.invalidate(stripeStatusProvider);
+          ref.invalidate(payoutMethodsProvider);
+          ref.invalidate(payoutHistoryProvider(driver.id));
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ─ App Bar ─
             SliverAppBar(
-              expandedHeight: 0,
               floating: true,
               backgroundColor: _bg,
               foregroundColor: Colors.white,
               title: const Text(
                 'My Wallet',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // ─ Balance card ─
+                  // Balance card
                   _BalanceCard(
                     available: available,
                     totalEarned: totalEarned,
                     totalPaidOut: totalPaidOut,
                   ),
-
                   const SizedBox(height: 20),
 
-                  // ─ Status / feedback messages ─
+                  // Feedback banners
                   if (_successMessage != null)
                     _Banner(
                       message: _successMessage!,
@@ -289,33 +298,97 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
                       color: Colors.redAccent,
                       icon: Icons.error_outline,
                     ),
-
                   const SizedBox(height: 8),
 
-                  // ─ Stripe connection status ─
-                  _StripeStatusCard(
-                    driver: driver,
-                    connecting: _connecting,
-                    onAddCard: _addDebitCard,
+                  // Stripe account status card
+                  statusAsync.when(
+                    loading: () => const SizedBox(
+                      height: 60,
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    error: (e, _) => _Banner(
+                      message: friendlyError(e),
+                      color: Colors.orange,
+                      icon: Icons.warning_amber,
+                    ),
+                    data: (status) => _StripeAccountCard(
+                      driver: driver,
+                      status: status,
+                      loading: _creatingAccount,
+                      onCreateAccount: _createAccount,
+                      onCompleteKyc: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DriverKycScreen(),
+                          ),
+                        );
+                        ref.invalidate(stripeStatusProvider);
+                        ref.invalidate(driverProfileProvider);
+                      },
+                      onManageMethods: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DriverPayoutMethodsScreen(),
+                          ),
+                        );
+                        ref.invalidate(stripeStatusProvider);
+                        ref.invalidate(payoutMethodsProvider);
+                        ref.invalidate(driverProfileProvider);
+                      },
+                      onAddCard: _addCard,
+                    ),
                   ),
-
                   const SizedBox(height: 20),
 
-                  // ─ Cash Out button ─
-                  _CashOutButton(
-                    driver: driver,
-                    available: available,
-                    loading: _payingOut,
-                    onTap: available > 0
-                        ? () => _cashOut(driver, available)
-                        : null,
+                  // Cash out buttons
+                  if (driver.payoutsEnabled) ...[
+                    _CashOutButton(
+                      label: 'Cash Out Instantly',
+                      subtitle: '1% fee · Arrives in minutes',
+                      icon: Icons.bolt_rounded,
+                      color: _green,
+                      enabled: available >= 10 && driver.stripeDebitCardAdded,
+                      loading: _payingOut,
+                      onTap: () => _cashOut('instant', available, driver),
+                    ),
+                    const SizedBox(height: 10),
+                    _CashOutButton(
+                      label: 'Cash Out to Bank',
+                      subtitle: 'Free · 2–5 business days',
+                      icon: Icons.account_balance,
+                      color: _accent,
+                      enabled: available >= 10,
+                      loading: _payingOut,
+                      onTap: () => _cashOut('standard', available, driver),
+                    ),
+                  ] else
+                    _InfoBanner(
+                      message: driver.stripeAccountId == null
+                          ? 'Set up your payout account to cash out earnings.'
+                          : 'Complete identity verification to enable payouts.',
+                      icon: Icons.info_outline,
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Payout methods summary
+                  methodsAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (methods) => methods.isEmpty
+                        ? const SizedBox.shrink()
+                        : _PayoutMethodsSummary(methods: methods),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // ─ Payout history ─
+                  // Payout history
                   const Text(
-                    'Payout History',
+                    'Transaction History',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -323,7 +396,6 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   payoutsAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
@@ -332,7 +404,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
                       style: const TextStyle(color: Colors.white54),
                     ),
                     data: (payouts) => payouts.isEmpty
-                        ? const _EmptyPayouts()
+                        ? const _EmptyHistory()
                         : Column(
                             children: payouts
                                 .map((p) => _PayoutTile(payout: p))
@@ -349,13 +421,10 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
   }
 }
 
-// ── Sub-widgets ────────────────────────────────────────────────────────────
+// ── Balance Card ────────────────────────────────────────────────────────────
 
 class _BalanceCard extends StatelessWidget {
-  final double available;
-  final double totalEarned;
-  final double totalPaidOut;
-
+  final double available, totalEarned, totalPaidOut;
   const _BalanceCard({
     required this.available,
     required this.totalEarned,
@@ -364,7 +433,7 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(symbol: '\$');
+    final fmt = NumberFormat.currency(symbol: r'$');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -403,12 +472,9 @@ class _BalanceCard extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              _BalanceStat(
-                label: 'Total Earned',
-                value: fmt.format(totalEarned),
-              ),
+              _Stat(label: 'Total Earned', value: fmt.format(totalEarned)),
               const SizedBox(width: 24),
-              _BalanceStat(label: 'Paid Out', value: fmt.format(totalPaidOut)),
+              _Stat(label: 'Paid Out', value: fmt.format(totalPaidOut)),
             ],
           ),
         ],
@@ -417,76 +483,82 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _BalanceStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _BalanceStat({required this.label, required this.value});
-
+class _Stat extends StatelessWidget {
+  final String label, value;
+  const _Stat({required this.label, required this.value});
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white60, fontSize: 11),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+      Text(
+        value,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
-class _StripeStatusCard extends StatelessWidget {
+// ── Stripe Account Card ─────────────────────────────────────────────────────
+
+class _StripeAccountCard extends StatelessWidget {
   final Driver driver;
-  final bool connecting;
+  final Map<String, dynamic> status;
+  final bool loading;
+  final VoidCallback onCreateAccount;
+  final VoidCallback onCompleteKyc;
+  final VoidCallback onManageMethods;
   final VoidCallback onAddCard;
 
-  const _StripeStatusCard({
+  const _StripeAccountCard({
     required this.driver,
-    required this.connecting,
+    required this.status,
+    required this.loading,
+    required this.onCreateAccount,
+    required this.onCompleteKyc,
+    required this.onManageMethods,
     required this.onAddCard,
   });
 
-  static const _card = Color(0xFF1C1F2E);
+  static const _cardBg = Color(0xFF1C1F2E);
+  static const _accent = Color(0xFF6C63FF);
+  static const _green = Color(0xFF00C896);
 
   @override
   Widget build(BuildContext context) {
-    final status = driver.stripeAccountStatus ?? 'not_connected';
+    final accountStatus = driver.stripeAccountStatus ?? 'not_connected';
     final hasAccount = driver.stripeAccountId != null;
+    final payoutsEnabled = driver.payoutsEnabled;
+    final hasCard = driver.stripeDebitCardAdded;
 
-    Color statusColor;
-    String statusText;
-    switch (status) {
+    Color chipColor;
+    String chipLabel;
+    switch (accountStatus) {
       case 'active':
-        statusColor = const Color(0xFF00C896);
-        statusText = 'Verified & Active';
+        chipColor = _green;
+        chipLabel = 'Active';
         break;
       case 'pending':
-        statusColor = Colors.orange;
-        statusText = 'Verification Pending';
+        chipColor = Colors.orange;
+        chipLabel = 'Pending Verification';
         break;
       case 'restricted':
-        statusColor = Colors.redAccent;
-        statusText = 'Action Required';
+        chipColor = Colors.redAccent;
+        chipLabel = 'Action Required';
         break;
       default:
-        statusColor = Colors.white38;
-        statusText = 'Not Connected';
+        chipColor = Colors.white38;
+        chipLabel = 'Not Set Up';
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _card,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -496,12 +568,12 @@ class _StripeStatusCard extends StatelessWidget {
             children: [
               const Icon(
                 Icons.account_balance_wallet,
-                color: Color(0xFF6C63FF),
+                color: _accent,
                 size: 20,
               ),
               const SizedBox(width: 10),
               const Text(
-                'Stripe Payout Account',
+                'Payout Account',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -509,93 +581,68 @@ class _StripeStatusCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  statusText,
-                  style: TextStyle(color: statusColor, fontSize: 11),
-                ),
-              ),
+              _Chip(label: chipLabel, color: chipColor),
             ],
           ),
-          if (status == 'active') ...[
+          const SizedBox(height: 12),
+
+          if (!hasAccount) ...[
+            const Text(
+              'Connect a payout account to receive your earnings.',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
             const SizedBox(height: 12),
-            _CheckRow(
-              label: 'Payout account active',
-              ok: driver.payoutsEnabled,
+            _ActionButton(
+              label: 'Set Up Payout Account',
+              icon: Icons.add,
+              color: _accent,
+              loading: loading,
+              onTap: onCreateAccount,
+            ),
+          ] else ...[
+            _StatusRow(
+              label: 'Identity Verified',
+              ok: payoutsEnabled,
+              notOkText: 'Complete ID verification',
             ),
             const SizedBox(height: 4),
-            _CheckRow(
-              label: 'Debit card added (instant payouts)',
-              ok: driver.stripeDebitCardAdded,
-              warningIfFalse: 'Add a debit card to enable instant payouts',
+            _StatusRow(
+              label: 'Debit Card Added',
+              ok: hasCard,
+              notOkText: 'Add a debit card for instant payouts',
             ),
-            if (!driver.stripeDebitCardAdded) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: connecting ? null : onAddCard,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C896),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: connecting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.credit_card, size: 18),
-                  label: const Text(
-                    'Add Debit Card',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ],
-          if (!hasAccount || status != 'active') ...[
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: connecting ? null : onAddCard,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: connecting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.credit_card, size: 18),
-                label: const Text(
-                  'Add Debit Card for Payouts',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+            if (!payoutsEnabled)
+              _ActionButton(
+                label: 'Verify Identity (KYC)',
+                icon: Icons.verified_user,
+                color: Colors.orange,
+                loading: loading,
+                onTap: onCompleteKyc,
+              ),
+            if (payoutsEnabled && !hasCard) ...[
+              _ActionButton(
+                label: 'Add Debit Card (Instant)',
+                icon: Icons.credit_card,
+                color: _green,
+                loading: loading,
+                onTap: onAddCard,
+              ),
+              const SizedBox(height: 8),
+            ],
+            OutlinedButton.icon(
+              onPressed: onManageMethods,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white54,
+                side: const BorderSide(color: Colors.white24),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                minimumSize: const Size(double.infinity, 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
+              icon: const Icon(Icons.tune, size: 16),
+              label: const Text('Manage Payout Methods'),
             ),
           ],
         ],
@@ -604,240 +651,361 @@ class _StripeStatusCard extends StatelessWidget {
   }
 }
 
-class _CheckRow extends StatelessWidget {
+class _Chip extends StatelessWidget {
   final String label;
-  final bool ok;
-  final String? warningIfFalse;
-
-  const _CheckRow({required this.label, required this.ok, this.warningIfFalse});
-
+  final Color color;
+  const _Chip({required this.label, required this.color});
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          ok ? Icons.check_circle : Icons.radio_button_unchecked,
-          size: 16,
-          color: ok ? const Color(0xFF00C896) : Colors.white38,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: ok ? Colors.white70 : Colors.white38,
-                  fontSize: 13,
-                ),
-              ),
-              if (!ok && warningIfFalse != null)
-                Text(
-                  warningIfFalse!,
-                  style: const TextStyle(color: Colors.orange, fontSize: 11),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(label, style: TextStyle(color: color, fontSize: 11)),
+  );
 }
 
-class _CashOutButton extends StatelessWidget {
-  final Driver driver;
-  final double available;
-  final bool loading;
-  final VoidCallback? onTap;
+class _StatusRow extends StatelessWidget {
+  final String label;
+  final bool ok;
+  final String? notOkText;
+  const _StatusRow({required this.label, required this.ok, this.notOkText});
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        ok ? Icons.check_circle : Icons.radio_button_unchecked,
+        size: 16,
+        color: ok ? const Color(0xFF00C896) : Colors.white38,
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: ok ? Colors.white70 : Colors.white38,
+                fontSize: 13,
+              ),
+            ),
+            if (!ok && notOkText != null)
+              Text(
+                notOkText!,
+                style: const TextStyle(color: Colors.orange, fontSize: 11),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool loading;
+  final VoidCallback onTap;
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.loading,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      onPressed: loading ? null : onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      icon: loading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+    ),
+  );
+}
+
+// ── Cash Out Button ─────────────────────────────────────────────────────────
+
+class _CashOutButton extends StatelessWidget {
+  final String label, subtitle;
+  final IconData icon;
+  final Color color;
+  final bool enabled, loading;
+  final VoidCallback? onTap;
   const _CashOutButton({
-    required this.driver,
-    required this.available,
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.enabled,
     required this.loading,
     this.onTap,
   });
-
-  bool get _canInstant => driver.payoutsEnabled && driver.stripeDebitCardAdded;
-
-  String get _disabledReason {
-    if (driver.stripeAccountId == null ||
-        (driver.stripeAccountStatus ?? '') == 'not_connected') {
-      return 'Connect your Stripe account to cash out';
-    }
-    if (!driver.payoutsEnabled) {
-      return 'Complete KYC verification in Stripe to enable payouts';
-    }
-    if (!driver.stripeDebitCardAdded) {
-      return 'Add a debit card to enable instant payouts';
-    }
-    if (available <= 0) {
-      return 'No available balance to cash out';
-    }
-    return '';
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null && _canInstant && available > 0;
-    final fmt = NumberFormat.currency(symbol: '\$');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            gradient: enabled
-                ? const LinearGradient(
-                    colors: [Color(0xFF00C896), Color(0xFF00A876)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: enabled ? null : const Color(0xFF2A2D3E),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF00C896).withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: enabled ? onTap : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                child: loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      )
-                    : Column(
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 200),
+    decoration: BoxDecoration(
+      gradient: enabled
+          ? LinearGradient(
+              colors: [color, color.withValues(alpha: 0.7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+          : null,
+      color: enabled ? null : const Color(0xFF2A2D3E),
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: enabled
+          ? [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ]
+          : null,
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: enabled && !loading ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : Row(
+                  children: [
+                    Icon(icon, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.bolt_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Cash Out Now',
+                          Text(
+                            label,
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
+                              color: enabled ? Colors.white : Colors.white38,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            enabled
-                                ? 'Instant · ${fmt.format(available)}'
-                                : 'Unavailable',
+                            subtitle,
                             style: TextStyle(
-                              color: enabled ? Colors.white70 : Colors.white38,
-                              fontSize: 13,
+                              color: enabled ? Colors.white60 : Colors.white24,
+                              fontSize: 12,
                             ),
                           ),
                         ],
                       ),
-              ),
-            ),
-          ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: enabled ? Colors.white60 : Colors.white24,
+                    ),
+                  ],
+                ),
         ),
-        if (!enabled && _disabledReason.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, size: 14, color: Colors.white38),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _disabledReason,
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+      ),
+    ),
+  );
+}
+
+// ── Payout Methods Summary ──────────────────────────────────────────────────
+
+class _PayoutMethodsSummary extends StatelessWidget {
+  final List<DriverPayoutMethod> methods;
+  const _PayoutMethodsSummary({required this.methods});
+  static const _cardBg = Color(0xFF1C1F2E);
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Payout Methods',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 10),
+      ...methods.map(
+        (m) => Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                m.isCard ? Icons.credit_card : Icons.account_balance,
+                color: const Color(0xFF6C63FF),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      m.isCard
+                          ? '${m.brand ?? 'Card'} •••• ${m.last4}'
+                          : '${m.bankName ?? 'Bank'} •••• ${m.last4}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      m.isCard
+                          ? 'Instant payouts'
+                          : 'Standard payouts (2–5 days)',
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (m.isDefault)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Default',
+                    style: TextStyle(color: Colors.white54, fontSize: 10),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-      ],
-    );
-  }
+        ),
+      ),
+      const SizedBox(height: 8),
+    ],
+  );
 }
+
+// ── Info & Feedback ─────────────────────────────────────────────────────────
 
 class _Banner extends StatelessWidget {
   final String message;
   final Color color;
   final IconData icon;
-
   const _Banner({
     required this.message,
     required this.color,
     required this.icon,
   });
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(message, style: TextStyle(color: color, fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      border: Border.all(color: color.withValues(alpha: 0.4)),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message, style: TextStyle(color: color, fontSize: 13)),
+        ),
+      ],
+    ),
+  );
 }
+
+class _InfoBanner extends StatelessWidget {
+  final String message;
+  final IconData icon;
+  const _InfoBanner({required this.message, required this.icon});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: Colors.white38, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ── Payout Tile ─────────────────────────────────────────────────────────────
 
 class _PayoutTile extends StatelessWidget {
   final PayoutRecord payout;
-
   const _PayoutTile({required this.payout});
-
-  static const _card = Color(0xFF1C1F2E);
+  static const _cardBg = Color(0xFF1C1F2E);
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(symbol: '\$');
+    final fmt = NumberFormat.currency(symbol: r'$');
     final dateFmt = DateFormat('MMM d, yyyy · h:mm a');
-
-    Color statusColor;
-    IconData statusIcon;
+    Color c;
+    IconData ico;
     switch (payout.status) {
       case 'paid':
-        statusColor = const Color(0xFF00C896);
-        statusIcon = Icons.check_circle;
+        c = const Color(0xFF00C896);
+        ico = Icons.check_circle;
         break;
       case 'failed':
-        statusColor = Colors.redAccent;
-        statusIcon = Icons.cancel;
+        c = Colors.redAccent;
+        ico = Icons.cancel;
         break;
       default:
-        statusColor = Colors.orange;
-        statusIcon = Icons.access_time;
+        c = Colors.orange;
+        ico = Icons.access_time;
     }
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _card,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -847,9 +1015,9 @@ class _PayoutTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: statusColor.withValues(alpha: 0.15),
+              color: c.withValues(alpha: 0.15),
             ),
-            child: Icon(statusIcon, color: statusColor, size: 20),
+            child: Icon(ico, color: c, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -882,7 +1050,7 @@ class _PayoutTile extends StatelessWidget {
           Text(
             fmt.format(payout.amount),
             style: TextStyle(
-              color: statusColor,
+              color: c,
               fontWeight: FontWeight.bold,
               fontSize: 15,
             ),
@@ -893,64 +1061,92 @@ class _PayoutTile extends StatelessWidget {
   }
 }
 
-class _EmptyPayouts extends StatelessWidget {
-  const _EmptyPayouts();
-
+class _EmptyHistory extends StatelessWidget {
+  const _EmptyHistory();
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            Icon(Icons.receipt_long, color: Colors.white24, size: 48),
-            SizedBox(height: 12),
-            Text(
-              'No payouts yet',
-              style: TextStyle(color: Colors.white38, fontSize: 14),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => const Center(
+    child: Padding(
+      padding: EdgeInsets.symmetric(vertical: 32),
+      child: Column(
+        children: [
+          Icon(Icons.receipt_long, color: Colors.white24, size: 48),
+          SizedBox(height: 12),
+          Text(
+            'No payouts yet',
+            style: TextStyle(color: Colors.white38, fontSize: 14),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
-// ── Cash Out Confirmation Dialog ───────────────────────────────────────────
+// ── Cash Out Confirmation Dialog ────────────────────────────────────────────
 
 class _CashOutDialog extends StatelessWidget {
-  final double amount;
-
-  const _CashOutDialog({required this.amount});
+  final int amountCents, feeCents, netCents;
+  final String payoutType;
+  const _CashOutDialog({
+    required this.amountCents,
+    required this.feeCents,
+    required this.netCents,
+    required this.payoutType,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(symbol: '\$');
+    final fmt = NumberFormat.currency(symbol: r'$');
     return AlertDialog(
       backgroundColor: const Color(0xFF1C1F2E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text(
-        'Confirm Cash Out',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      title: Text(
+        '${payoutType == 'instant' ? 'Instant' : 'Standard'} Payout',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.bolt_rounded, color: Color(0xFF00C896), size: 48),
+          Icon(
+            payoutType == 'instant'
+                ? Icons.bolt_rounded
+                : Icons.account_balance,
+            color: const Color(0xFF00C896),
+            size: 48,
+          ),
           const SizedBox(height: 12),
           Text(
-            fmt.format(amount),
+            fmt.format(amountCents / 100),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.bold,
             ),
           ),
+          if (feeCents > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Fee: ${fmt.format(feeCents / 100)}',
+              style: const TextStyle(color: Colors.orange, fontSize: 13),
+            ),
+            Text(
+              'You receive: ${fmt.format(netCents / 100)}',
+              style: const TextStyle(
+                color: Color(0xFF00C896),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
-          const Text(
-            'This will be transferred to your debit card via Stripe Instant Payout. Funds typically arrive within minutes.',
+          Text(
+            payoutType == 'instant'
+                ? 'Funds arrive to your debit card within minutes.'
+                : 'Funds arrive via ACH in 2–5 business days.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white60, fontSize: 13),
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
           ),
         ],
       ),
@@ -968,7 +1164,7 @@ class _CashOutDialog extends StatelessWidget {
           ),
           onPressed: () => Navigator.pop(context, true),
           child: const Text(
-            'Cash Out Now',
+            'Confirm',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
@@ -977,22 +1173,17 @@ class _CashOutDialog extends StatelessWidget {
   }
 }
 
-// ── Add Card Bottom Sheet ──────────────────────────────────────────────────
+// ── Add Card Bottom Sheet ───────────────────────────────────────────────────
 
 class _AddCardSheet extends StatefulWidget {
   const _AddCardSheet();
-
   @override
   State<_AddCardSheet> createState() => _AddCardSheetState();
 }
 
 class _AddCardSheetState extends State<_AddCardSheet> {
-  bool _cardComplete = false;
-  bool _loading = false;
+  bool _cardComplete = false, _loading = false;
   String? _error;
-
-  static const _bg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
 
   Future<void> _submit() async {
     setState(() {
@@ -1005,125 +1196,121 @@ class _AddCardSheetState extends State<_AddCardSheet> {
           params: CardTokenParams(type: TokenType.Card),
         ),
       );
-      final tokenId = tokenData.id;
-      if (tokenId.isEmpty) throw Exception('No token returned from Stripe.');
-      if (mounted) Navigator.pop(context, tokenId);
+      if (tokenData.id.isEmpty)
+        throw Exception('No token returned from Stripe.');
+      if (mounted) Navigator.pop(context, tokenData.id);
     } catch (e) {
-      final msg = e
-          .toString()
-          .replaceFirst('Exception: ', '')
-          .replaceFirst('StripeException: ', '');
       setState(() {
-        _error = msg;
+        _error = e
+            .toString()
+            .replaceFirst('Exception: ', '')
+            .replaceFirst('StripeException: ', '');
         _loading = false;
       });
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    child: Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1F2E),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: _bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Add Debit Card',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Add Debit Card',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Visa or Mastercard debit card only.\nUsed for instant payouts.',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          CardField(
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              fillColor: Color(0xFF0F1117),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFF2E3147)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFF2E3147)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFF6C63FF)),
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Payouts will be sent to this Visa or Mastercard debit card.',
-              style: TextStyle(color: Colors.white54, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            CardField(
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                fillColor: Color(0xFF0F1117),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide(color: Color(0xFF2E3147)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide(color: Color(0xFF2E3147)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                  borderSide: BorderSide(color: Color(0xFF6C63FF)),
-                ),
-              ),
-              onCardChanged: (details) {
-                setState(() => _cardComplete = details?.complete == true);
-              },
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (_cardComplete && !_loading) ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  disabledBackgroundColor: _accent.withValues(alpha: 0.4),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Save Card',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-              ),
+            onCardChanged: (d) =>
+                setState(() => _cardComplete = d?.complete == true),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
             ),
           ],
-        ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: (_cardComplete && !_loading) ? _submit : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C63FF),
+                disabledBackgroundColor: const Color(
+                  0xFF6C63FF,
+                ).withValues(alpha: 0.4),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Save Card',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

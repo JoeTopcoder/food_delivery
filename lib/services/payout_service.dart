@@ -566,6 +566,104 @@ class StripePayoutService {
     return res.data as Map<String, dynamic>;
   }
 
+  /// Creates a Stripe Custom Connected Account for the driver (idempotent).
+  Future<Map<String, dynamic>> createStripeAccount() async {
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {'action': 'create_account'},
+      );
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
+    _checkError(res);
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// Submits KYC identity data to Stripe for the driver.
+  Future<Map<String, dynamic>> updateKyc({
+    required String firstName,
+    required String lastName,
+    required int dobDay,
+    required int dobMonth,
+    required int dobYear,
+    String? ssnLast4,
+    String? addressLine1,
+    String? addressCity,
+    String? addressState,
+    String? addressPostal,
+    String addressCountry = 'US',
+  }) async {
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke('stripe-connect', body: {
+        'action':          'update_kyc',
+        'first_name':      firstName,
+        'last_name':       lastName,
+        'dob_day':         dobDay,
+        'dob_month':       dobMonth,
+        'dob_year':        dobYear,
+        if (ssnLast4 != null) 'ssn_last4': ssnLast4,
+        if (addressLine1 != null) 'address_line1': addressLine1,
+        if (addressCity != null) 'address_city': addressCity,
+        if (addressState != null) 'address_state': addressState,
+        if (addressPostal != null) 'address_postal': addressPostal,
+        'address_country': addressCountry,
+      });
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
+    _checkError(res);
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// Attaches a bank account (ACH) to the driver's Stripe Connect account.
+  Future<Map<String, dynamic>> addBankAccount({
+    required String accountNumber,
+    required String routingNumber,
+    required String accountHolderName,
+    String accountHolderType = 'individual',
+  }) async {
+    late final FunctionResponse res;
+    try {
+      res = await _client.functions.invoke('stripe-connect', body: {
+        'action':               'add_bank',
+        'account_number':       accountNumber,
+        'routing_number':       routingNumber,
+        'account_holder_name':  accountHolderName,
+        'account_holder_type':  accountHolderType,
+      });
+    } on FunctionException catch (e) {
+      throw Exception(_extractFunctionExceptionMessage(e));
+    }
+    _checkError(res);
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// Returns payout methods attached to the driver's Stripe account.
+  Future<List<DriverPayoutMethod>> getPayoutMethods() async {
+    final rows = await _client
+        .from('driver_payout_methods')
+        .select()
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .map((r) => DriverPayoutMethod.fromJson(Map<String, dynamic>.from(r as Map)))
+        .toList();
+  }
+
+  /// Returns driver transaction ledger (earnings + payouts).
+  Future<List<DriverTransaction>> getTransactions() async {
+    final rows = await _client
+        .from('driver_transactions')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(100);
+    return (rows as List)
+        .map((r) => DriverTransaction.fromJson(Map<String, dynamic>.from(r as Map)))
+        .toList();
+  }
+
   /// Fetches current Stripe Connect account status for the authenticated driver.
   Future<Map<String, dynamic>> getStripeStatus() async {
     late final FunctionResponse res;
@@ -694,4 +792,94 @@ class StripePayoutException implements Exception {
 
   @override
   String toString() => message;
+}
+
+// ── DriverPayoutMethod ──────────────────────────────────────────────────────
+
+class DriverPayoutMethod {
+  final String id;
+  final String driverId;
+  final String stripeExternalAccountId;
+  final String type; // 'bank_account' | 'card'
+  final String last4;
+  final String? brand;
+  final String? bankName;
+  final String currency;
+  final bool isDefault;
+  final DateTime createdAt;
+
+  const DriverPayoutMethod({
+    required this.id,
+    required this.driverId,
+    required this.stripeExternalAccountId,
+    required this.type,
+    required this.last4,
+    this.brand,
+    this.bankName,
+    required this.currency,
+    required this.isDefault,
+    required this.createdAt,
+  });
+
+  factory DriverPayoutMethod.fromJson(Map<String, dynamic> j) =>
+      DriverPayoutMethod(
+        id: j['id'] as String,
+        driverId: j['driver_id'] as String,
+        stripeExternalAccountId: j['stripe_external_account_id'] as String,
+        type: j['type'] as String,
+        last4: j['last4'] as String,
+        brand: j['brand'] as String?,
+        bankName: j['bank_name'] as String?,
+        currency: j['currency'] as String? ?? 'usd',
+        isDefault: j['is_default'] as bool? ?? true,
+        createdAt: DateTime.parse(j['created_at'] as String),
+      );
+
+  bool get isCard => type == 'card';
+  bool get isBank => type == 'bank_account';
+}
+
+// ── DriverTransaction ───────────────────────────────────────────────────────
+
+class DriverTransaction {
+  final String id;
+  final String driverId;
+  final String type; // 'earning' | 'payout' | 'adjustment' | 'fee' | 'tip'
+  final double amount;
+  final String currency;
+  final String status; // 'pending' | 'completed' | 'failed'
+  final String? description;
+  final String? orderId;
+  final String? payoutHistoryId;
+  final DateTime createdAt;
+
+  const DriverTransaction({
+    required this.id,
+    required this.driverId,
+    required this.type,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    this.description,
+    this.orderId,
+    this.payoutHistoryId,
+    required this.createdAt,
+  });
+
+  factory DriverTransaction.fromJson(Map<String, dynamic> j) =>
+      DriverTransaction(
+        id: j['id'] as String,
+        driverId: j['driver_id'] as String,
+        type: j['type'] as String,
+        amount: (j['amount'] as num).toDouble(),
+        currency: j['currency'] as String? ?? 'usd',
+        status: j['status'] as String? ?? 'completed',
+        description: j['description'] as String?,
+        orderId: j['order_id'] as String?,
+        payoutHistoryId: j['payout_history_id'] as String?,
+        createdAt: DateTime.parse(j['created_at'] as String),
+      );
+
+  bool get isCredit => type == 'earning' || type == 'tip' || (type == 'adjustment' && amount > 0);
+  bool get isDebit => !isCredit;
 }

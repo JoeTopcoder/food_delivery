@@ -15,7 +15,6 @@ import '../../providers/address_provider.dart';
 import '../../models/saved_card_model.dart';
 import '../../providers/payment_provider.dart';
 import '../../config/supabase_config.dart';
-import '../../services/payment_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../providers/wallet_provider.dart';
@@ -27,6 +26,7 @@ import '../../providers/feature_providers.dart';
 import '../../services/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../providers/recommendation_provider.dart';
+import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -66,6 +66,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _cvcCtrl.dispose();
     _customTipCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentUser = ref.read(currentUserProvider);
+    _hydratePaymentFields(currentUser);
   }
 
   void _hydratePaymentFields(User? currentUser) {
@@ -191,8 +198,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final deliveryAddress =
         selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
 
-    _hydratePaymentFields(currentUser);
-
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -201,7 +206,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             Icons.arrow_back,
             color: Theme.of(context).colorScheme.onSurface,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Clear group order state when backing out of checkout
+            if (ref.read(groupOrderParticipantCountProvider) > 0) {
+              ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
+              ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
+            }
+            Navigator.pop(context);
+          },
         ),
         title: Text(
           context.l10n.checkout,
@@ -1249,7 +1261,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             left: 0,
             right: 0,
             child: Container(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               child: SafeArea(
                 top: false,
@@ -1508,6 +1520,49 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final isFromAd =
           activeAd != null && activeAd.restaurantId == restaurantId;
 
+      // ── Card: complete Stripe payment BEFORE writing order to DB ───────
+      // This ensures a failed/cancelled payment never leaves a dangling order.
+      String? stripePaymentIntentId;
+      if (_selectedPayment == 'card') {
+        final authUser = Supabase.instance.client.auth.currentUser;
+        final email = _selectedSavedCard?.email.isNotEmpty == true
+            ? _selectedSavedCard!.email
+            : (authUser?.email ?? _paymentEmailCtrl.text.trim());
+        final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
+            ? _selectedSavedCard!.cardholderName
+            : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
+
+        // Use a temporary placeholder order ID so the PaymentIntent can be
+        // linked to the real order once created.
+        const tempOrderId = 'pre-auth';
+        final stripeSession = await paymentService.createStripeCheckout(
+          orderId: tempOrderId,
+          amount: verifiedTotal,
+          customerEmail: email,
+          customerName: name,
+        );
+
+        if (!mounted) return;
+
+        final paymentCompleted = await paymentService.presentStripePaymentSheet(
+          session: stripeSession,
+          customerEmail: email,
+          customerName: name,
+        );
+
+        if (!mounted) return;
+
+        if (!paymentCompleted) {
+          // User cancelled or sheet was dismissed — show a clear message.
+          setState(() => _placingOrder = false);
+          AppSnackbar.error(context, 'Payment was not completed. Please try again.');
+          return;
+        }
+
+        stripePaymentIntentId = stripeSession.paymentIntentId;
+      }
+
+      // ── Create the order in the DB (only after payment is confirmed) ────
       final order = await orderService.createOrder(
         userId: userId,
         restaurantId: restaurantId,
@@ -1539,10 +1594,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (isFromAd) clearActiveAd(ref);
 
       if (order == null) {
-        throw Exception('Order could not be created.');
+        throw Exception('Order could not be created. Please try again.');
       }
 
-      // Wallet payment: deduct from wallet balance
+      // ── Wallet: deduct balance after order is written ────────────────────
       if (_selectedPayment == 'wallet') {
         try {
           await ref
@@ -1550,53 +1605,31 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               .payWithWallet(verifiedTotal, order.id);
         } catch (e) {
           await _deleteOrder(order.id);
-          rethrow;
+          if (!mounted) return;
+          AppSnackbar.error(context, 'Wallet payment failed: ${friendlyError(e)}');
+          setState(() => _placingOrder = false);
+          return;
         }
       }
 
-      if (_selectedPayment == 'card') {
-        StripePaymentSession stripeSession;
-        try {
-          final authUser = Supabase.instance.client.auth.currentUser;
-          final email = _selectedSavedCard?.email.isNotEmpty == true
-              ? _selectedSavedCard!.email
-              : (authUser?.email ?? _paymentEmailCtrl.text.trim());
-          final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
-              ? _selectedSavedCard!.cardholderName
-              : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
-
-          stripeSession = await paymentService.createStripeCheckout(
-            orderId: order.id,
-            amount: verifiedTotal,
-            customerEmail: email,
-            customerName: name,
+      // ── Card: link the pre-authorised PaymentIntent to the real order ────
+      if (_selectedPayment == 'card' && stripePaymentIntentId != null) {
+        final confirmed = await paymentService.confirmStripePayment(
+          paymentIntentId: stripePaymentIntentId,
+          orderId: order.id,
+        );
+        if (!confirmed) {
+          // Payment was taken but server confirmation failed — don't delete
+          // the order; log and surface a recoverable warning.
+          AppLogger.error(
+            'Stripe server confirmation failed for PI $stripePaymentIntentId / order ${order.id}',
           );
-
-          if (!mounted) return;
-
-          final paymentCompleted = await paymentService
-              .presentStripePaymentSheet(
-                session: stripeSession,
-                customerEmail: email,
-                customerName: name,
-              );
-
-          if (!mounted) return;
-
-          if (!paymentCompleted) {
-            await _deleteOrder(order.id);
-            setState(() => _placingOrder = false);
-            return;
+          if (mounted) {
+            AppSnackbar.error(
+              context,
+              'Payment processed but confirmation is pending. Contact support if your order does not update.',
+            );
           }
-
-          // Confirm server-side
-          await paymentService.confirmStripePayment(
-            paymentIntentId: stripeSession.paymentIntentId,
-            orderId: order.id,
-          );
-        } catch (e) {
-          await _deleteOrder(order.id);
-          rethrow;
         }
       }
 
@@ -1685,16 +1718,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       String message = e.toString();
       if (message.contains('NOT_FOUND') || message.contains('404')) {
-        message =
-            'Card payments are not available yet. The payment service has not been deployed.';
-      } else if (message.contains('Exception: ')) {
-        message = message.replaceFirst(RegExp(r'^Exception:\s*'), '');
+        message = 'Card payments are not available right now. Please try another payment method.';
+      } else if (message.contains('StripeException') || message.contains('stripe')) {
+        message = 'Payment failed. Please check your card details and try again.';
+      } else if (message.contains('network') || message.contains('SocketException')) {
+        message = 'Network error. Check your connection and try again.';
+      } else {
+        message = friendlyError(e);
       }
 
       AppSnackbar.error(context, message);
