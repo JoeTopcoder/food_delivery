@@ -46,6 +46,8 @@ import 'screens/customer/address_book_screen.dart';
 import 'screens/customer/order_history_screen.dart';
 import 'screens/customer/referral_screen.dart';
 import 'screens/customer/earnings_screen.dart';
+import 'screens/driver/driver_referral_screen.dart';
+import 'screens/restaurant/restaurant_referral_screen.dart';
 import 'screens/customer/favorites_screen.dart';
 import 'screens/customer/smart_search_screen.dart';
 import 'screens/customer/restaurant_reviews_screen.dart';
@@ -627,6 +629,20 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: ReferralScreen(),
+                ),
+              );
+            case '/driver-referral':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverReferralScreen(),
+                ),
+              );
+            case '/restaurant-referral':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantReferralScreen(),
                 ),
               );
             case '/earnings':

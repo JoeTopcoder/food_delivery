@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_logger.dart';
 
@@ -5,7 +6,14 @@ class ReferralService {
   final SupabaseClient _client;
   ReferralService(this._client);
 
-  /// Get the current user's referral code
+  /// Generate a random 8-character alphanumeric code
+  String _generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rng = Random.secure();
+    return List.generate(8, (_) => chars[rng.nextInt(chars.length)]).join();
+  }
+
+  /// Get the current user's referral code, auto-generating one if missing
   Future<String?> getReferralCode(String userId) async {
     try {
       final res = await _client
@@ -13,7 +21,27 @@ class ReferralService {
           .select('referral_code')
           .eq('id', userId)
           .maybeSingle();
-      return res?['referral_code'] as String?;
+      final existing = res?['referral_code'] as String?;
+      if (existing != null && existing.isNotEmpty) return existing;
+
+      // No code yet — generate one, ensuring uniqueness
+      String code;
+      do {
+        code = _generateCode();
+        final conflict = await _client
+            .from('users')
+            .select('id')
+            .eq('referral_code', code)
+            .maybeSingle();
+        if (conflict == null) break;
+      } while (true);
+
+      await _client
+          .from('users')
+          .update({'referral_code': code})
+          .eq('id', userId);
+
+      return code;
     } catch (e) {
       AppLogger.error('Error getting referral code: $e');
       return null;

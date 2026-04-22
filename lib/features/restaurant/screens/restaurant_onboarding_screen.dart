@@ -74,8 +74,10 @@ class _RestaurantOnboardingScreenState
             .read(onboardingProvider(OnboardingRole.restaurant).notifier)
             .setStep(0);
         if (!mounted) return;
-        AppSnackbar.info(context,
-            'Account created! Check your email to confirm. You can finish setup now.');
+        AppSnackbar.info(
+          context,
+          'Account created! Check your email to confirm. You can finish setup now.',
+        );
         return;
       }
       await _afterAuthSuccess();
@@ -188,7 +190,8 @@ class _RestaurantOnboardingScreenState
         0;
 
     // isAuthStep is true only when not yet authenticated AND no pending email confirmation.
-    final isAuthStep = !authState.isAuthenticated && !authState.emailConfirmationPending;
+    final isAuthStep =
+        !authState.isAuthenticated && !authState.emailConfirmationPending;
 
     return Scaffold(
       appBar: AppBar(
@@ -279,11 +282,17 @@ class _RestaurantOnboardingScreenState
                   ? null
                   : () {
                       if (_business.text.trim().isEmpty) {
-                        AppSnackbar.error(context, 'Please enter your business name.');
+                        AppSnackbar.error(
+                          context,
+                          'Please enter your business name.',
+                        );
                         return;
                       }
                       if (_phone.text.trim().isEmpty) {
-                        AppSnackbar.error(context, 'Please enter a business phone number.');
+                        AppSnackbar.error(
+                          context,
+                          'Please enter a business phone number.',
+                        );
                         return;
                       }
                       _saveStep(nextStep: 1);
@@ -306,7 +315,10 @@ class _RestaurantOnboardingScreenState
                   ? null
                   : () {
                       if (_address.text.trim().isEmpty) {
-                        AppSnackbar.error(context, 'Please enter your restaurant address.');
+                        AppSnackbar.error(
+                          context,
+                          'Please enter your restaurant address.',
+                        );
                         return;
                       }
                       _saveStep(nextStep: 3);
@@ -336,7 +348,8 @@ class _RestaurantOnboardingScreenState
               icon: const Icon(Icons.rocket_launch),
               label: _loading
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Create Restaurant'),
