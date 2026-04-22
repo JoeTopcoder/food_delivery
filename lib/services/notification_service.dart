@@ -18,6 +18,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
   final type = message.data['type'];
+
+  // Caller cancelled — dismiss any ringing call UI
+  if (type == 'call_cancelled') {
+    await FlutterCallkitIncoming.endAllCalls();
+    return;
+  }
+
   if (type == 'incoming_call') {
     final callId = message.data['call_id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
     if (_shownCallIds.contains(callId)) return;
@@ -276,6 +283,12 @@ class NotificationService {
     final notification = message.notification;
     final type = message.data['type'] as String?;
 
+    // Caller cancelled — dismiss the ringing call UI immediately
+    if (type == 'call_cancelled') {
+      cancelCallNotification();
+      return;
+    }
+
     // Incoming call — always show our custom call notification with
     // Answer/Decline buttons (whether data-only or notification+data)
     if (type == 'incoming_call') {
@@ -531,6 +544,10 @@ class NotificationService {
             );
           }
         }
+        break;
+      case 'call_cancelled':
+        AppLogger.info('Call cancelled remotely');
+        cancelCallNotification();
         break;
       case 'promo':
         AppLogger.info('Promo notification: $title');
