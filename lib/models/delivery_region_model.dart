@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+
 class DeliveryRegion {
   final String id;
   final String name;
@@ -8,6 +10,10 @@ class DeliveryRegion {
   final DateTime createdAt;
   final DateTime? updatedAt;
 
+  /// Ordered list of points forming a drawn polygon.
+  /// When non-null this is used for geo-checks instead of the circle.
+  final List<LatLng>? polygon;
+
   const DeliveryRegion({
     required this.id,
     required this.name,
@@ -17,20 +23,38 @@ class DeliveryRegion {
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
+    this.polygon,
   });
 
-  factory DeliveryRegion.fromJson(Map<String, dynamic> json) => DeliveryRegion(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    latitude: (json['latitude'] as num).toDouble(),
-    longitude: (json['longitude'] as num).toDouble(),
-    radiusKm: (json['radius_km'] as num?)?.toDouble() ?? 10.0,
-    isActive: json['is_active'] as bool? ?? true,
-    createdAt: DateTime.parse(json['created_at'] as String),
-    updatedAt: json['updated_at'] != null
-        ? DateTime.parse(json['updated_at'] as String)
-        : null,
-  );
+  bool get hasPolygon => polygon != null && polygon!.length >= 3;
+
+  factory DeliveryRegion.fromJson(Map<String, dynamic> json) {
+    List<LatLng>? polygon;
+    final raw = json['polygon'];
+    if (raw is List && raw.isNotEmpty) {
+      polygon = raw
+          .map(
+            (p) => LatLng(
+              (p['lat'] as num).toDouble(),
+              (p['lng'] as num).toDouble(),
+            ),
+          )
+          .toList();
+    }
+    return DeliveryRegion(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      radiusKm: (json['radius_km'] as num?)?.toDouble() ?? 10.0,
+      isActive: json['is_active'] as bool? ?? true,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      polygon: polygon,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -38,5 +62,9 @@ class DeliveryRegion {
     'longitude': longitude,
     'radius_km': radiusKm,
     'is_active': isActive,
+    if (polygon != null)
+      'polygon': polygon!
+          .map((p) => {'lat': p.latitude, 'lng': p.longitude})
+          .toList(),
   };
 }

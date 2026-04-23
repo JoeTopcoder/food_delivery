@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/delivery_region_model.dart';
 
@@ -30,6 +31,7 @@ class DeliveryRegionService {
     required double latitude,
     required double longitude,
     double radiusKm = 10.0,
+    List<LatLng>? polygon,
   }) async {
     final res = await _client
         .from('delivery_regions')
@@ -39,6 +41,10 @@ class DeliveryRegionService {
           'longitude': longitude,
           'radius_km': radiusKm,
           'is_active': true,
+          if (polygon != null && polygon.length >= 3)
+            'polygon': polygon
+                .map((p) => {'lat': p.latitude, 'lng': p.longitude})
+                .toList(),
         })
         .select()
         .single();
@@ -62,9 +68,27 @@ class DeliveryRegionService {
   Future<bool> isInsideActiveRegion(double lat, double lng) async {
     final regions = await getActive();
     if (regions.isEmpty) return true; // no regions configured → allow all
-    return regions.any(
-      (r) => _haversineKm(lat, lng, r.latitude, r.longitude) <= r.radiusKm,
-    );
+    return regions.any((r) {
+      if (r.hasPolygon) {
+        return _pointInPolygon(lat, lng, r.polygon!);
+      }
+      return _haversineKm(lat, lng, r.latitude, r.longitude) <= r.radiusKm;
+    });
+  }
+
+  /// Ray-casting point-in-polygon test.
+  static bool _pointInPolygon(double lat, double lng, List<LatLng> polygon) {
+    bool inside = false;
+    final n = polygon.length;
+    for (int i = 0, j = n - 1; i < n; j = i++) {
+      final xi = polygon[i].latitude, yi = polygon[i].longitude;
+      final xj = polygon[j].latitude, yj = polygon[j].longitude;
+      final intersect =
+          ((yi > lng) != (yj > lng)) &&
+          (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
   }
 
   /// Haversine distance in km between two lat/lng points.
