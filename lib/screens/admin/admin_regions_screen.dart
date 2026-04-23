@@ -150,14 +150,21 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
               Row(
                 children: [
                   Icon(
-                    region.hasPolygon ? Icons.pentagon_outlined : Icons.map_rounded,
-                    color: region.isActive ? const Color(0xFF10B981) : const Color(0xFF9CA3AF),
+                    region.hasPolygon
+                        ? Icons.pentagon_outlined
+                        : Icons.map_rounded,
+                    color: region.isActive
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFF9CA3AF),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       region.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                   Switch(
@@ -172,7 +179,9 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
                 children: [
                   _infoChip(
                     context,
-                    region.hasPolygon ? Icons.draw_outlined : Icons.circle_outlined,
+                    region.hasPolygon
+                        ? Icons.draw_outlined
+                        : Icons.circle_outlined,
                     region.hasPolygon
                         ? '${region.polygon!.length}-point polygon'
                         : '${region.radiusKm.toStringAsFixed(1)} km radius',
@@ -189,8 +198,15 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                  label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Colors.red,
+                  ),
+                  label: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
                   onPressed: () => _deleteRegion(region),
                 ),
               ),
@@ -211,7 +227,11 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 4),
           Text(label, style: const TextStyle(fontSize: 11)),
         ],
@@ -232,7 +252,10 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
         title: const Text('Delete Region'),
         content: Text('Delete "${region.name}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -244,7 +267,8 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
     if (confirmed == true) {
       final service = ref.read(deliveryRegionServiceProvider);
       await service.delete(region.id);
-      if (_selectedRegionId == region.id) setState(() => _selectedRegionId = null);
+      if (_selectedRegionId == region.id)
+        setState(() => _selectedRegionId = null);
       ref.invalidate(allRegionsProvider);
     }
   }
@@ -254,15 +278,24 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
       MaterialPageRoute(builder: (_) => const _RegionPolygonPicker()),
     );
     if (result != null && ctx.mounted) {
-      final service = ref.read(deliveryRegionServiceProvider);
-      await service.create(
-        name: result['name'] as String,
-        latitude: result['latitude'] as double,
-        longitude: result['longitude'] as double,
-        radiusKm: result['radiusKm'] as double,
-        polygon: result['polygon'] as List<LatLng>?,
-      );
-      ref.invalidate(allRegionsProvider);
+      try {
+        final service = ref.read(deliveryRegionServiceProvider);
+        await service.create(
+          name: result['name'] as String,
+          latitude: result['latitude'] as double,
+          longitude: result['longitude'] as double,
+          radiusKm: result['radiusKm'] as double,
+          polygon: result['polygon'] as List<LatLng>?,
+        );
+        ref.invalidate(allRegionsProvider);
+        if (ctx.mounted) {
+          AppSnackbar.success(ctx, 'Region "${result['name']}" saved');
+        }
+      } catch (e) {
+        if (ctx.mounted) {
+          AppSnackbar.error(ctx, friendlyError(e));
+        }
+      }
     }
   }
 
@@ -271,7 +304,10 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
     final regionsAsync = ref.watch(allRegionsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delivery Regions', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Delivery Regions',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF004E89),
         foregroundColor: Colors.white,
       ),
@@ -358,14 +394,23 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
   }
 
   void _addPoint(LatLng pt) => setState(() => _points.add(pt));
-  void _undoLast() { if (_points.isNotEmpty) setState(() => _points.removeLast()); }
+  void _undoLast() {
+    if (_points.isNotEmpty) setState(() => _points.removeLast());
+  }
+
   void _clearAll() => setState(() => _points.clear());
 
   void _submit() {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) { AppSnackbar.warning(context, 'Enter a region name'); return; }
+    if (name.isEmpty) {
+      AppSnackbar.warning(context, 'Enter a region name');
+      return;
+    }
     if (_points.length < 3) {
-      AppSnackbar.warning(context, 'Tap at least 3 points on the map to draw the region');
+      AppSnackbar.warning(
+        context,
+        'Tap at least 3 points on the map to draw the region',
+      );
       return;
     }
     final c = _centroid;
@@ -384,14 +429,25 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Draw Region', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Draw Region',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF004E89),
         foregroundColor: Colors.white,
         actions: [
           if (_points.isNotEmpty)
-            IconButton(icon: const Icon(Icons.undo), tooltip: 'Undo last point', onPressed: _undoLast),
+            IconButton(
+              icon: const Icon(Icons.undo),
+              tooltip: 'Undo last point',
+              onPressed: _undoLast,
+            ),
           if (_points.isNotEmpty)
-            IconButton(icon: const Icon(Icons.clear_all), tooltip: 'Clear all', onPressed: _clearAll),
+            IconButton(
+              icon: const Icon(Icons.clear_all),
+              tooltip: 'Clear all',
+              onPressed: _clearAll,
+            ),
         ],
       ),
       body: Stack(
@@ -441,7 +497,10 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isFirst ? const Color(0xFF10B981) : Colors.white,
-                        border: Border.all(color: const Color(0xFF10B981), width: 2),
+                        border: Border.all(
+                          color: const Color(0xFF10B981),
+                          width: 2,
+                        ),
                       ),
                     ),
                   );
@@ -452,7 +511,9 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
 
           // Instruction banner
           Positioned(
-            top: 12, left: 16, right: 16,
+            top: 12,
+            left: 16,
+            right: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
@@ -463,8 +524,8 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                 _points.isEmpty
                     ? 'Tap the map to place polygon points'
                     : _points.length < 3
-                        ? 'Keep tapping — need ${3 - _points.length} more point(s)'
-                        : '${_points.length} points  •  tap to add more',
+                    ? 'Keep tapping — need ${3 - _points.length} more point(s)'
+                    : '${_points.length} points  •  tap to add more',
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
@@ -473,14 +534,27 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
 
           // Bottom panel
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, -4)),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
                 ],
               ),
               child: Column(
@@ -491,7 +565,9 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                     decoration: InputDecoration(
                       labelText: 'Region Name',
                       hintText: 'e.g. George Town',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -502,7 +578,9 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                         '${_points.length} point${_points.length == 1 ? "" : "s"} placed',
                         style: TextStyle(
                           fontSize: 13,
-                          color: hasPolygon ? const Color(0xFF10B981) : Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: hasPolygon
+                              ? const Color(0xFF10B981)
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -519,11 +597,18 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.check, color: Colors.white),
-                      label: const Text('Save Region', style: TextStyle(color: Colors.white)),
+                      label: const Text(
+                        'Save Region',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: hasPolygon ? const Color(0xFF10B981) : Colors.grey,
+                        backgroundColor: hasPolygon
+                            ? const Color(0xFF10B981)
+                            : Colors.grey,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onPressed: hasPolygon ? _submit : null,
                     ),
