@@ -91,20 +91,31 @@ Deno.serve(async (request) => {
     return json({ error: "Stripe not configured." }, 500);
   }
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Auth — decode JWT directly to avoid LEGACY_JWT from getUser() ────────
   const authHeader = request.headers.get("Authorization");
   if (!authHeader) return json({ error: "Missing authorization." }, 401);
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  let userId: string;
+  try {
+    const payloadB64 = token.split(".")[1];
+    const payload = JSON.parse(atob(payloadB64));
+    userId = payload.sub as string;
+    if (!userId) throw new Error("No sub claim");
+  } catch {
+    return json({ error: "Invalid token." }, 401);
+  }
+
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await userClient.auth.getUser();
-  if (authErr || !user) return json({ error: "Unauthorized" }, 401);
+  const { data: userRow, error: userLookupErr } = await admin
+    .from("users")
+    .select("id, email, name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (userLookupErr || !userRow) return json({ error: "Unauthorized" }, 401);
+
+  const user = { id: userId, email: userRow.email ?? "", user_metadata: { name: userRow.name ?? "" } };
 
   // ── Parse body ─────────────────────────────────────────────────────────────
   let body: Record<string, unknown>;

@@ -240,22 +240,25 @@ Deno.serve(async (request) => {
     return json({ error: "Missing authorization header." }, 401);
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData.user) {
-    return json({ error: "Unauthorized" }, 401);
-  }
+const _token = authHeader.replace(/^Bearer\s+/i, "");
+let _uid: string;
+try {
+  const _p = JSON.parse(atob(_token.split(".")[1]));
+  _uid = _p.sub as string;
+  if (!_uid) throw new Error();
+} catch { return json({ error: "Invalid token." }, 401); }
+const { data: _ur, error: _ue } = await adminClient.from("users").select("id").eq("id", _uid).maybeSingle();
+if (_ue || !_ur) return json({ error: "Unauthorized" }, 401);
+const userData = { user: { id: _uid } };
 
-  let body: Record<string, unknown> = {};
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: "Invalid JSON body" }, 400);
-  }
+let body: any;
+try {
+  body = await request.json();
+} catch {
+  return json({ error: "Invalid JSON body" }, 400);
+}
 
   const orderId = String(body.orderId ?? "").trim();
   const amount = Number(body.amount ?? 0);

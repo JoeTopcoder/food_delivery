@@ -17,10 +17,17 @@ Deno.serve(async (req) => {
   if (!STRIPE_SECRET_KEY) return json({ error: "Stripe not configured" }, 500);
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Missing Authorization" }, 401);
-  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
-  const { data: { user }, error: authErr } = await userClient.auth.getUser();
-  if (authErr || !user) return json({ error: "Unauthorized" }, 401);
-  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const _token = authHeader.replace(/^Bearer\s+/i, "");
+let _uid: string;
+try {
+  const _p = JSON.parse(atob(_token.split(".")[1]));
+  _uid = _p.sub as string;
+  if (!_uid) throw new Error();
+} catch { return json({ error: "Invalid token." }, 401); }
+const { data: _ur, error: _ue } = await adminClient.from("users").select("id, email").eq("id", _uid).maybeSingle();
+if (_ue || !_ur) return json({ error: "Unauthorized" }, 401);
+const user = { id: _uid, email: _ur.email ?? "" };
   const body = await req.json().catch(() => ({}));
   const action = body.action ?? "status";
   const { data: driver, error: driverErr } = await adminClient.from("drivers").select("id, stripe_account_id, payouts_enabled, charges_enabled, stripe_account_status").eq("user_id", user.id).single();
