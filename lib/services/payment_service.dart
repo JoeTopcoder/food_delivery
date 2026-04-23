@@ -104,18 +104,42 @@ class PaymentService {
     String type = 'order',
   }) async {
     try {
-      final response = await _supabaseClient.functions.invoke(
-        AppConstants.stripePaymentFunction,
-        body: {
-          'action': 'create_payment_intent',
-          'orderId': orderId,
-          'amount': amount,
-          'email': customerEmail,
-          'name': customerName,
-          'type': type,
-          'currency': AppConstants.currencyCode.toLowerCase(),
-        },
-      );
+      late FunctionResponse response;
+      try {
+        response = await _supabaseClient.functions.invoke(
+          AppConstants.stripePaymentFunction,
+          body: {
+            'action': 'create_payment_intent',
+            'orderId': orderId,
+            'amount': amount,
+            'email': customerEmail,
+            'name': customerName,
+            'type': type,
+            'currency': AppConstants.currencyCode.toLowerCase(),
+          },
+        );
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        if (fe.status == 401 || fe.status == 403 ||
+            raw.contains('LEGACY_JWT') || raw.contains('ES256') ||
+            raw.contains('JWT')) {
+          await _supabaseClient.auth.refreshSession();
+          response = await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {
+              'action': 'create_payment_intent',
+              'orderId': orderId,
+              'amount': amount,
+              'email': customerEmail,
+              'name': customerName,
+              'type': type,
+              'currency': AppConstants.currencyCode.toLowerCase(),
+            },
+          );
+        } else {
+          rethrow;
+        }
+      }
 
       final data = response.data;
       if (data is! Map<String, dynamic>) {
