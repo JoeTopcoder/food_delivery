@@ -88,7 +88,7 @@ class OrderService {
 
       // Supabase client throws FunctionException for non-2xx — catch JWT
       // errors, refresh the session, and retry once.
-      late HttpResponse response;
+      late FunctionResponse response;
       try {
         response = await _supabaseClient.functions.invoke(
           'place-order',
