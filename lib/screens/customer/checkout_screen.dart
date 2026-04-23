@@ -1686,7 +1686,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
         // Server-side confirmation
         final confirmed = await paymentService.confirmStripePayment(
-          paymentIntentId: stripePaymentIntentId!,
+          paymentIntentId: stripePaymentIntentId,
           orderId: order.id,
         );
         if (!confirmed) {

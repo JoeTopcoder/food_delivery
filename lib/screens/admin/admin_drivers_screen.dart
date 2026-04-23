@@ -640,13 +640,11 @@ class _DriverList extends StatelessWidget {
                           ),
                           _DetailItem(
                             label: 'Member Since',
-                            value: driver.createdAt != null
-                                ? driver.createdAt!
-                                      .toLocal()
-                                      .toString()
-                                      .split('.')
-                                      .first
-                                : 'N/A',
+                            value: driver.createdAt
+                                .toLocal()
+                                .toString()
+                                .split('.')
+                                .first,
                           ),
                         ],
                       ),
