@@ -224,3 +224,58 @@ final adminNewOrderRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
     AppLogger.info('Admin Realtime: admin_new_orders channel disposed');
   });
 });
+
+/// Watches drivers + restaurants tables for any INSERT/UPDATE so that the
+/// "Needs Attention" pending counts on the dashboard refresh in real time.
+final adminPendingRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
+  ref,
+) {
+  void onDriverChange(PostgresChangePayload payload) {
+    AppLogger.info('Admin Realtime: drivers table changed — refreshing pending');
+    ref.invalidate(dashboardSummaryProvider);
+    ref.invalidate(pendingDriversProvider);
+    ref.invalidate(driverStatisticsProvider);
+  }
+
+  void onRestaurantChange(PostgresChangePayload payload) {
+    AppLogger.info(
+      'Admin Realtime: restaurants table changed — refreshing pending',
+    );
+    ref.invalidate(dashboardSummaryProvider);
+    ref.invalidate(pendingRestaurantsProvider);
+    ref.invalidate(restaurantStatisticsProvider);
+  }
+
+  final channel = SupabaseConfig.client
+      .channel('admin_pending_attention')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'drivers',
+        callback: onDriverChange,
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'drivers',
+        callback: onDriverChange,
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'restaurants',
+        callback: onRestaurantChange,
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'restaurants',
+        callback: onRestaurantChange,
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    SupabaseConfig.client.removeChannel(channel);
+    AppLogger.info('Admin Realtime: admin_pending_attention channel disposed');
+  });
+});

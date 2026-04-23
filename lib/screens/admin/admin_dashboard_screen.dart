@@ -37,6 +37,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // Keep realtime subscription alive for new order notifications
     ref.watch(adminNewOrderRealtimeProvider);
+    // Keep realtime subscription for pending drivers/restaurants (Needs Attention)
+    ref.watch(adminPendingRealtimeProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
