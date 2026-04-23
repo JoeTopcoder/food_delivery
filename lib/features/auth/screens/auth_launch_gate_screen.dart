@@ -50,6 +50,8 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
     if (auth.isAuthenticated) {
       final role = auth.user?.role;
       switch (role) {
+        case 'customer':
+          return const MainNavigationScreen();
         case 'driver':
           return const DriverDashboardScreen();
         case 'restaurant':
@@ -57,7 +59,13 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
         case 'admin':
           return const AdminDashboardScreen();
         default:
-          return const MainNavigationScreen();
+          // Unknown / null role — sign out immediately and return to role
+          // selection so an unrecognised role can NEVER silently see any
+          // home screen.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(authNotifierProvider.notifier).signOut();
+          });
+          return const RoleSelectionScreen();
       }
     }
 
