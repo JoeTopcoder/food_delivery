@@ -194,6 +194,7 @@ class AdminService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('is_verified', false)
+          .neq('status', 'rejected')
           .order('created_at', ascending: true);
 
       final restaurants = (response as List)
@@ -207,15 +208,34 @@ class AdminService {
     }
   }
 
+  /// Get restaurants that were rejected by admin
+  Future<List<Restaurant>> getRejectedRestaurants() async {
+    try {
+      AppLogger.info('Fetching rejected restaurants');
+
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select()
+          .eq('is_verified', false)
+          .eq('status', 'rejected')
+          .order('updated_at', ascending: false);
+
+      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching rejected restaurants: $e');
+      return [];
+    }
+  }
+
   /// Verify/reject restaurant
   Future<void> verifyRestaurant(String restaurantId, bool isVerified) async {
     try {
       AppLogger.info('Verifying restaurant: $restaurantId -> $isVerified');
 
-      await _supabaseClient
-          .from(AppConstants.tableRestaurants)
-          .update({'is_verified': isVerified})
-          .eq('id', restaurantId);
+      await _supabaseClient.rpc(
+        'admin_verify_restaurant',
+        params: {'p_restaurant_id': restaurantId, 'p_is_verified': isVerified},
+      );
 
       AppLogger.info('Restaurant verification updated');
     } catch (e) {
@@ -493,7 +513,7 @@ class AdminService {
     }
   }
 
-  /// Get drivers pending verification
+  /// Get drivers pending verification (not yet reviewed)
   Future<List<Driver>> getPendingDrivers() async {
     try {
       AppLogger.info('Fetching drivers pending verification');
@@ -502,6 +522,7 @@ class AdminService {
           .from(AppConstants.tableDrivers)
           .select()
           .eq('is_verified', false)
+          .neq('documents_status', 'rejected')
           .order('created_at', ascending: true);
 
       final drivers = (response as List)
@@ -515,15 +536,34 @@ class AdminService {
     }
   }
 
+  /// Get drivers that were rejected by admin
+  Future<List<Driver>> getRejectedDrivers() async {
+    try {
+      AppLogger.info('Fetching rejected drivers');
+
+      final response = await _supabaseClient
+          .from(AppConstants.tableDrivers)
+          .select()
+          .eq('is_verified', false)
+          .eq('documents_status', 'rejected')
+          .order('updated_at', ascending: false);
+
+      return (response as List).map((d) => Driver.fromJson(d)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching rejected drivers: $e');
+      return [];
+    }
+  }
+
   /// Verify/reject driver
   Future<void> verifyDriver(String driverId, bool isVerified) async {
     try {
       AppLogger.info('Verifying driver: $driverId -> $isVerified');
 
-      await _supabaseClient
-          .from(AppConstants.tableDrivers)
-          .update({'is_verified': isVerified})
-          .eq('id', driverId);
+      await _supabaseClient.rpc(
+        'admin_verify_driver',
+        params: {'p_driver_id': driverId, 'p_is_verified': isVerified},
+      );
 
       AppLogger.info('Driver verification updated');
     } catch (e) {

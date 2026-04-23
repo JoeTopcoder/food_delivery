@@ -24,7 +24,7 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -36,10 +36,19 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
   Future<void> _refresh() async {
     ref.invalidate(allDriversAdminProvider);
     ref.invalidate(pendingDriversProvider);
+    ref.invalidate(rejectedDriversProvider);
   }
 
   @override
   Widget build(BuildContext context) {
+    final allAsync = ref.watch(allDriversAdminProvider((0, 200)));
+    final pendingAsync = ref.watch(pendingDriversProvider);
+    final rejectedAsync = ref.watch(rejectedDriversProvider);
+
+    int allCount = allAsync.valueOrNull?.length ?? 0;
+    int pendingCount = pendingAsync.valueOrNull?.length ?? 0;
+    int rejectedCount = rejectedAsync.valueOrNull?.length ?? 0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
@@ -58,11 +67,16 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
           unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 13,
           ),
-          tabs: const [
-            Tab(text: 'All Drivers'),
-            Tab(text: 'Pending'),
+          tabs: [
+            _countTab('All', allCount),
+            _countTab('Pending', pendingCount, color: const Color(0xFFFEF3C7)),
+            _countTab(
+              'Rejected',
+              rejectedCount,
+              color: const Color(0xFFFEE2E2),
+            ),
           ],
         ),
       ),
@@ -80,19 +94,56 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
         controller: _tabController,
         children: [
           _DriverList(
-            asyncValue: ref.watch(allDriversAdminProvider((0, 100))),
+            asyncValue: allAsync,
             onRefresh: _refresh,
             showVerifyActions: true,
             ref: ref,
           ),
           _DriverList(
-            asyncValue: ref.watch(pendingDriversProvider),
+            asyncValue: pendingAsync,
             onRefresh: _refresh,
             showVerifyActions: true,
             ref: ref,
             emptyMessage: 'No drivers pending verification',
             emptyIcon: Icons.check_circle_outline,
           ),
+          _DriverList(
+            asyncValue: rejectedAsync,
+            onRefresh: _refresh,
+            showVerifyActions: true,
+            ref: ref,
+            emptyMessage: 'No rejected drivers',
+            emptyIcon: Icons.cancel_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Tab _countTab(String label, int count, {Color? color}) {
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: color ?? Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: color != null ? const Color(0xFF92400E) : Colors.white,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -374,6 +425,26 @@ class _DriverList extends StatelessWidget {
                         ),
                       ],
 
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showDriverDetails(context, driver),
+                          icon: const Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('View Full Details'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF6366F1),
+                            side: const BorderSide(color: Color(0xFF6366F1)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+
                       if (!isVerified) ...[
                         const SizedBox(height: 12),
                         Row(
@@ -450,6 +521,298 @@ class _DriverList extends StatelessWidget {
         loading: () => const AppLoadingIndicator(message: 'Loading drivers…'),
         error: (e, _) =>
             AppErrorState(message: friendlyError(e), onRetry: onRefresh),
+      ),
+    );
+  }
+
+  void _showDriverDetails(BuildContext context, Driver driver) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (ctx, scrollController) {
+          final isVerified = driver.isVerified == true;
+          return Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: isVerified
+                                  ? const Color(
+                                      0xFF10B981,
+                                    ).withValues(alpha: 0.12)
+                                  : const Color(
+                                      0xFFF59E0B,
+                                    ).withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.directions_bike_rounded,
+                              color: isVerified
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFF59E0B),
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  driver.vehicleNumber?.isNotEmpty == true
+                                      ? driver.vehicleNumber!
+                                      : 'No vehicle number',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  driver.vehicleType?.isNotEmpty == true
+                                      ? (driver.vehicleType![0].toUpperCase() +
+                                            driver.vehicleType!.substring(1))
+                                      : 'Unknown type',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _StatusBadge(isVerified: isVerified),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _DetailSection(
+                        title: 'Driver Info',
+                        children: [
+                          _DetailItem(label: 'Driver ID', value: driver.id),
+                          _DetailItem(label: 'User ID', value: driver.userId),
+                          _DetailItem(
+                            label: 'License Number',
+                            value: driver.licenseNumber ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Documents Status',
+                            value: driver.documentsStatus ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Available',
+                            value: driver.isAvailable == true ? 'Yes' : 'No',
+                          ),
+                          _DetailItem(
+                            label: 'Member Since',
+                            value: driver.createdAt != null
+                                ? driver.createdAt!
+                                      .toLocal()
+                                      .toString()
+                                      .split('.')
+                                      .first
+                                : 'N/A',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _DetailSection(
+                        title: 'Performance',
+                        children: [
+                          _DetailItem(
+                            label: 'Rating',
+                            value: driver.rating?.toStringAsFixed(2) ?? '0.00',
+                          ),
+                          _DetailItem(
+                            label: 'Completed Deliveries',
+                            value: '${driver.completedDeliveries ?? 0}',
+                          ),
+                          _DetailItem(
+                            label: 'Cancelled Deliveries',
+                            value: '${driver.cancelledDeliveries ?? 0}',
+                          ),
+                          _DetailItem(
+                            label: 'Total Earnings',
+                            value:
+                                '${AppConstants.currencySymbol}${driver.totalEarnings?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
+                          _DetailItem(
+                            label: 'Total Paid Out',
+                            value:
+                                '${AppConstants.currencySymbol}${driver.totalPaidOut?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
+                          _DetailItem(
+                            label: 'Cash Float',
+                            value:
+                                '${AppConstants.currencySymbol}${driver.cashFloat?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _DetailSection(
+                        title: 'Banking',
+                        children: [
+                          _DetailItem(
+                            label: 'Bank Name',
+                            value: driver.bankName ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Branch',
+                            value: driver.bankBranch ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Account Holder',
+                            value: driver.bankAccountHolder ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Account Number',
+                            value: driver.bankAccountNumber ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Account Type',
+                            value: driver.bankAccountType ?? 'N/A',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _DetailSection(
+                        title: 'Stripe / Payouts',
+                        children: [
+                          _DetailItem(
+                            label: 'Stripe Account ID',
+                            value: driver.stripeAccountId ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Stripe Status',
+                            value: driver.stripeAccountStatus ?? 'N/A',
+                          ),
+                          _DetailItem(
+                            label: 'Payouts Enabled',
+                            value: driver.payoutsEnabled == true ? 'Yes' : 'No',
+                          ),
+                          _DetailItem(
+                            label: 'Debit Card Added',
+                            value: driver.stripeDebitCardAdded == true
+                                ? 'Yes'
+                                : 'No',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      if (!isVerified) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _confirmAction(
+                                    context,
+                                    driver.id,
+                                    driver.vehicleNumber ?? 'this driver',
+                                    false,
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text('Reject'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _confirmAction(
+                                    context,
+                                    driver.id,
+                                    driver.vehicleNumber ?? 'this driver',
+                                    true,
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text('Verify Driver'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _confirmAction(
+                                context,
+                                driver.id,
+                                driver.vehicleNumber ?? 'this driver',
+                                false,
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('Revoke Verification'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -766,6 +1129,95 @@ class _DriverStat extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+// ─── Detail Section / Item ────────────────────────────────────────────────────
+
+class _DetailSection extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _DetailSection({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: List.generate(children.length, (i) {
+              return Column(
+                children: [
+                  children[i],
+                  if (i < children.length - 1)
+                    Divider(
+                      height: 1,
+                      color: Theme.of(context).dividerColor,
+                      indent: 16,
+                    ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailItem extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -74,6 +74,13 @@ final pendingRestaurantsProvider =
       return adminService.getPendingVerificationRestaurants();
     });
 
+/// Rejected restaurants provider
+final rejectedRestaurantsProvider =
+    riverpod_pkg.FutureProvider<List<Restaurant>>((ref) async {
+      final adminService = ref.watch(adminServiceProvider);
+      return adminService.getRejectedRestaurants();
+    });
+
 /// Restaurant statistics provider
 final restaurantStatisticsProvider =
     riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
@@ -100,6 +107,14 @@ final pendingDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
 ) async {
   final adminService = ref.watch(adminServiceProvider);
   return adminService.getPendingDrivers();
+});
+
+/// Rejected drivers provider
+final rejectedDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
+  ref,
+) async {
+  final adminService = ref.watch(adminServiceProvider);
+  return adminService.getRejectedDrivers();
 });
 
 /// Driver statistics provider
