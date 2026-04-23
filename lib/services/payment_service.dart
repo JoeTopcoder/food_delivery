@@ -120,8 +120,10 @@ class PaymentService {
         );
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
-        if (fe.status == 401 || fe.status == 403 ||
-            raw.contains('LEGACY_JWT') || raw.contains('ES256') ||
+        if (fe.status == 401 ||
+            fe.status == 403 ||
+            raw.contains('LEGACY_JWT') ||
+            raw.contains('ES256') ||
             raw.contains('JWT')) {
           await _supabaseClient.auth.refreshSession();
           response = await _supabaseClient.functions.invoke(

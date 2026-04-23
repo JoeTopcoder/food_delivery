@@ -1585,52 +1585,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final isFromAd =
           activeAd != null && activeAd.restaurantId == restaurantId;
 
-      // ── Card: complete Stripe payment BEFORE writing order to DB ───────
-      // This ensures a failed/cancelled payment never leaves a dangling order.
+      // ── Card: complete Stripe payment ────────────────────────────────────
+      // Order must exist first so the edge function can validate the orderId.
+      // Flow: create order (pending) → Stripe sheet → confirm → done.
+      // On cancel/failure the pending order is deleted.
       String? stripePaymentIntentId;
-      if (_selectedPayment == 'card') {
-        final authUser = Supabase.instance.client.auth.currentUser;
-        final email = _selectedSavedCard?.email.isNotEmpty == true
-            ? _selectedSavedCard!.email
-            : (authUser?.email ?? _paymentEmailCtrl.text.trim());
-        final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
-            ? _selectedSavedCard!.cardholderName
-            : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
 
-        // Use a temporary placeholder order ID so the PaymentIntent can be
-        // linked to the real order once created.
-        const tempOrderId = 'pre-auth';
-        final stripeSession = await paymentService.createStripeCheckout(
-          orderId: tempOrderId,
-          amount: verifiedTotal,
-          customerEmail: email,
-          customerName: name,
-        );
-
-        if (!mounted) return;
-
-        final paymentCompleted = await paymentService.presentStripePaymentSheet(
-          session: stripeSession,
-          customerEmail: email,
-          customerName: name,
-        );
-
-        if (!mounted) return;
-
-        if (!paymentCompleted) {
-          // User cancelled or sheet was dismissed — show a clear message.
-          setState(() => _placingOrder = false);
-          AppSnackbar.error(
-            context,
-            'Payment was not completed. Please try again.',
-          );
-          return;
-        }
-
-        stripePaymentIntentId = stripeSession.paymentIntentId;
-      }
-
-      // ── Create the order in the DB (only after payment is confirmed) ────
+      // ── Create the order in the DB ────────────────────────────────────────
       final order = await orderService.createOrder(
         userId: userId,
         restaurantId: restaurantId,
@@ -1683,15 +1644,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
       }
 
-      // ── Card: link the pre-authorised PaymentIntent to the real order ────
-      if (_selectedPayment == 'card' && stripePaymentIntentId != null) {
+      // ── Card: present Stripe sheet using real order ID ────────────────────
+      if (_selectedPayment == 'card') {
+        final authUser = Supabase.instance.client.auth.currentUser;
+        final email = _selectedSavedCard?.email.isNotEmpty == true
+            ? _selectedSavedCard!.email
+            : (authUser?.email ?? _paymentEmailCtrl.text.trim());
+        final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
+            ? _selectedSavedCard!.cardholderName
+            : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
+
+        final stripeSession = await paymentService.createStripeCheckout(
+          orderId: order.id,
+          amount: verifiedTotal,
+          customerEmail: email,
+          customerName: name,
+        );
+
+        if (!mounted) return;
+
+        final paymentCompleted = await paymentService.presentStripePaymentSheet(
+          session: stripeSession,
+          customerEmail: email,
+          customerName: name,
+        );
+
+        if (!mounted) return;
+
+        if (!paymentCompleted) {
+          // User cancelled — delete the pending order and stop.
+          await _deleteOrder(order.id);
+          setState(() => _placingOrder = false);
+          AppSnackbar.error(
+            context,
+            'Payment was not completed. Please try again.',
+          );
+          return;
+        }
+
+        stripePaymentIntentId = stripeSession.paymentIntentId;
+
+        // Server-side confirmation
         final confirmed = await paymentService.confirmStripePayment(
-          paymentIntentId: stripePaymentIntentId,
+          paymentIntentId: stripePaymentIntentId!,
           orderId: order.id,
         );
         if (!confirmed) {
-          // Payment was taken but server confirmation failed — don't delete
-          // the order; log and surface a recoverable warning.
           AppLogger.error(
             'Stripe server confirmation failed for PI $stripePaymentIntentId / order ${order.id}',
           );
