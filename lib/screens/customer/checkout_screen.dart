@@ -191,10 +191,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
-        (subtotal - promoDiscount - loyaltyDiscount + activeFee + platformServiceFee + tax).clamp(
-          activeFee,
-          double.infinity,
-        );
+        (subtotal -
+                promoDiscount -
+                loyaltyDiscount +
+                activeFee +
+                platformServiceFee +
+                tax)
+            .clamp(activeFee, double.infinity);
     final total = orderTotal + _driverTip;
 
     final deliveryAddress =
@@ -316,13 +319,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                         final sel = selectedAddress?.id == a.id;
                                         return GestureDetector(
                                           onTap: () {
-                                              ref
-                                                  .read(
-                                                    selectedAddressIdProvider
-                                                        .notifier,
-                                                  )
-                                                  .state = sel ? null : a.id;
-                                              setState(() => _addressConfirmed = false);
+                                            ref
+                                                .read(
+                                                  selectedAddressIdProvider
+                                                      .notifier,
+                                                )
+                                                .state = sel
+                                                ? null
+                                                : a.id;
+                                            setState(
+                                              () => _addressConfirmed = false,
+                                            );
                                           },
                                           child: _AddressChip(
                                             address: a,
@@ -1278,15 +1285,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         Expanded(
                           child: Text(
                             'I agree to the MealHub terms and conditions',
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     GestureDetector(
-                      onTap: (!_addressConfirmed && _agreeToTerms && cart.isNotEmpty)
+                      onTap:
+                          (!_addressConfirmed &&
+                              _agreeToTerms &&
+                              cart.isNotEmpty)
                           ? () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -1301,57 +1313,57 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             }
                           : null,
                       child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                      onPressed:
-                          _agreeToTerms &&
-                              _addressConfirmed &&
-                              !_placingOrder &&
-                              cart.isNotEmpty &&
-                              currentUserId != null
-                          ? () => _placeOrder(
-                              userId: currentUserId,
-                              subtotal: subtotal,
-                              deliveryFee: activeFee,
-                              tax: tax,
-                              total: total,
-                              deliveryAddress: deliveryAddress,
-                              currentUser: currentUser,
-                              promoDiscount: promoDiscount,
-                              loyaltyDiscount: loyaltyDiscount,
-                              driverTip: isPickup ? 0 : _driverTip,
-                              isPickup: isPickup,
-                              pickupFee: isPickup ? pickupServiceFee : null,
-                            )
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey[300],
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _placingOrder
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed:
+                              _agreeToTerms &&
+                                  _addressConfirmed &&
+                                  !_placingOrder &&
+                                  cart.isNotEmpty &&
+                                  currentUserId != null
+                              ? () => _placeOrder(
+                                  userId: currentUserId,
+                                  subtotal: subtotal,
+                                  deliveryFee: activeFee,
+                                  tax: tax,
+                                  total: total,
+                                  deliveryAddress: deliveryAddress,
+                                  currentUser: currentUser,
+                                  promoDiscount: promoDiscount,
+                                  loyaltyDiscount: loyaltyDiscount,
+                                  driverTip: isPickup ? 0 : _driverTip,
+                                  isPickup: isPickup,
+                                  pickupFee: isPickup ? pickupServiceFee : null,
+                                )
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey[300],
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            elevation: 0,
+                          ),
+                          child: _placingOrder
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                        ),
                       ),
-                    ),
                     ),
                   ],
                 ),
@@ -1460,6 +1472,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _placingOrder = true);
 
     try {
+      // Proactively refresh the session so edge functions always get a fresh HS256 token.
+      try {
+        await SupabaseConfig.client.auth.refreshSession();
+      } catch (_) {
+        /* ignore — we'll let the order attempt surface any auth error */
+      }
+
       final orderService = ref.read(orderServiceProvider);
       final orderCalcService = ref.read(orderCalculationServiceProvider);
       final paymentService = ref.read(paymentServiceProvider);
@@ -1601,7 +1620,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         if (!paymentCompleted) {
           // User cancelled or sheet was dismissed — show a clear message.
           setState(() => _placingOrder = false);
-          AppSnackbar.error(context, 'Payment was not completed. Please try again.');
+          AppSnackbar.error(
+            context,
+            'Payment was not completed. Please try again.',
+          );
           return;
         }
 
@@ -1652,7 +1674,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         } catch (e) {
           await _deleteOrder(order.id);
           if (!mounted) return;
-          AppSnackbar.error(context, 'Wallet payment failed: ${friendlyError(e)}');
+          AppSnackbar.error(
+            context,
+            'Wallet payment failed: ${friendlyError(e)}',
+          );
           setState(() => _placingOrder = false);
           return;
         }
@@ -1768,20 +1793,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final raw = e.toString();
 
-      // ES256 / legacy JWT — don't sign out mid-checkout, just show a message
-      if (raw.contains('ES256') || raw.contains('UNSUPPORTED_TOKEN_ALGORITHM') ||
-          raw.contains('LEGACY_JWT') || raw.contains('Invalid JWT')) {
+      // JWT errors — session was refreshed & retried automatically; if we
+      // still land here the token truly could not be renewed.
+      if (raw.contains('ES256') ||
+          raw.contains('UNSUPPORTED_TOKEN_ALGORITHM') ||
+          raw.contains('LEGACY_JWT') ||
+          raw.contains('Invalid JWT') ||
+          raw.contains('UNAUTHORIZED')) {
         AppSnackbar.error(
           context,
-          'Session error. Please sign out and sign back in, then try again.',
+          'Authentication error. Please sign out and sign back in, then try again.',
         );
         return;
       }
 
       String message = raw.replaceAll('Exception: ', '');
       if (message.contains('StripeException') || message.contains('stripe')) {
-        message = 'Payment failed. Please check your card details and try again.';
-      } else if (message.contains('SocketException') || message.contains('failed host lookup')) {
+        message =
+            'Payment failed. Please check your card details and try again.';
+      } else if (message.contains('SocketException') ||
+          message.contains('failed host lookup')) {
         message = 'Network error. Check your connection and try again.';
       }
 
@@ -2212,7 +2243,9 @@ class _SummaryRow extends StatelessWidget {
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
                 fontSize: isBold ? 15 : 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -2291,105 +2324,115 @@ class _AddressSliderState extends State<_AddressSlider>
   @override
   Widget build(BuildContext context) {
     final confirmed = widget.confirmed;
-    return LayoutBuilder(builder: (context, constraints) {
-      final trackWidth = constraints.maxWidth;
-      final maxDrag = trackWidth - _thumbSize - 8;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final trackWidth = constraints.maxWidth;
+        final maxDrag = trackWidth - _thumbSize - 8;
 
-      return GestureDetector(
-        onTap: confirmed ? widget.onReset : null,
-        child: Container(
-          height: _trackHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color: confirmed
-                ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                : AppTheme.primaryColor.withValues(alpha: 0.08),
-            border: Border.all(
+        return GestureDetector(
+          onTap: confirmed ? widget.onReset : null,
+          child: Container(
+            height: _trackHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
               color: confirmed
-                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                  : AppTheme.primaryColor.withValues(alpha: 0.25),
+                  ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                  : AppTheme.primaryColor.withValues(alpha: 0.08),
+              border: Border.all(
+                color: confirmed
+                    ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                    : AppTheme.primaryColor.withValues(alpha: 0.25),
+              ),
             ),
-          ),
-          child: Stack(
-            alignment: Alignment.centerLeft,
-            children: [
-              // Label
-              Center(
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
-                  opacity: confirmed ? 1.0 : (1 - (_dragPosition / maxDrag.clamp(1, double.infinity))),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        confirmed
-                            ? Icons.check_circle_rounded
-                            : Icons.chevron_right_rounded,
-                        size: 15,
-                        color: confirmed
-                            ? const Color(0xFF10B981)
-                            : AppTheme.primaryColor.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        confirmed
-                            ? 'Address confirmed — tap to change'
-                            : 'Slide to confirm delivery address',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                // Label
+                Center(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: confirmed
+                        ? 1.0
+                        : (1 -
+                              (_dragPosition /
+                                  maxDrag.clamp(1, double.infinity))),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          confirmed
+                              ? Icons.check_circle_rounded
+                              : Icons.chevron_right_rounded,
+                          size: 15,
                           color: confirmed
                               ? const Color(0xFF10B981)
-                              : AppTheme.primaryColor.withValues(alpha: 0.7),
+                              : AppTheme.primaryColor.withValues(alpha: 0.6),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Thumb
-              if (!confirmed)
-                GestureDetector(
-                  onHorizontalDragUpdate: (d) {
-                    setState(() {
-                      _dragPosition =
-                          (_dragPosition + d.delta.dx).clamp(0.0, maxDrag);
-                    });
-                    if (_dragPosition >= maxDrag) {
-                      widget.onConfirmed();
-                    }
-                  },
-                  onHorizontalDragEnd: (_) {
-                    if (_dragPosition < maxDrag) _snapBack();
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 4 + _dragPosition),
-                    child: Container(
-                      width: _thumbSize,
-                      height: _thumbSize - 4,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                        const SizedBox(width: 4),
+                        Text(
+                          confirmed
+                              ? 'Address confirmed — tap to change'
+                              : 'Slide to confirm delivery address',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: confirmed
+                                ? const Color(0xFF10B981)
+                                : AppTheme.primaryColor.withValues(alpha: 0.7),
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-            ],
+                // Thumb
+                if (!confirmed)
+                  GestureDetector(
+                    onHorizontalDragUpdate: (d) {
+                      setState(() {
+                        _dragPosition = (_dragPosition + d.delta.dx).clamp(
+                          0.0,
+                          maxDrag,
+                        );
+                      });
+                      if (_dragPosition >= maxDrag) {
+                        widget.onConfirmed();
+                      }
+                    },
+                    onHorizontalDragEnd: (_) {
+                      if (_dragPosition < maxDrag) _snapBack();
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 4 + _dragPosition),
+                      child: Container(
+                        width: _thumbSize,
+                        height: _thumbSize - 4,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.35,
+                              ),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
