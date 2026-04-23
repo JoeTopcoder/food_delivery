@@ -1793,30 +1793,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final raw = e.toString();
 
-      // JWT errors — session was refreshed & retried automatically; if we
-      // still land here the token truly could not be renewed.
-      if (raw.contains('ES256') ||
-          raw.contains('UNSUPPORTED_TOKEN_ALGORITHM') ||
-          raw.contains('LEGACY_JWT') ||
-          raw.contains('Invalid JWT') ||
-          raw.contains('UNAUTHORIZED')) {
-        AppSnackbar.error(
-          context,
-          'Authentication error. Please sign out and sign back in, then try again.',
-        );
-        return;
-      }
-
-      String message = raw.replaceAll('Exception: ', '');
-      if (message.contains('StripeException') || message.contains('stripe')) {
-        message =
-            'Payment failed. Please check your card details and try again.';
-      } else if (message.contains('SocketException') ||
-          message.contains('failed host lookup')) {
-        message = 'Network error. Check your connection and try again.';
-      }
-
-      AppSnackbar.error(context, message);
+      // Show raw error for debugging — remove friendly masks temporarily
+      AppSnackbar.error(context, raw);
     } finally {
       if (mounted) {
         setState(() => _placingOrder = false);

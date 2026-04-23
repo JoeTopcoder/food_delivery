@@ -95,30 +95,32 @@ class OrderCalculationService {
     double? deliveryLongitude,
   }) async {
     try {
-      var response = await _client.functions.invoke(
-        'calculate-order-total',
-        body: {
-          'restaurant_id': restaurantId,
-          'user_id': userId,
-          'items': items,
-          'promo_code': ?promoCode,
-          'redeem_points': redeemPoints,
-          'driver_tip': driverTip,
-          'payment_method': paymentMethod,
-          'is_pickup': isPickup,
-          'delivery_latitude': ?deliveryLatitude,
-          'delivery_longitude': ?deliveryLongitude,
-        },
-      );
-
-      // Auto-refresh and retry on any JWT error
-      if (response.status == 401 || response.status == 403) {
-        final errStr = response.data?.toString() ?? '';
-        if (errStr.contains('ES256') ||
-            errStr.contains('UNSUPPORTED_TOKEN') ||
-            errStr.contains('LEGACY_JWT') ||
-            errStr.contains('Invalid JWT') ||
-            errStr.contains('JWT')) {
+      // Supabase client throws FunctionException for non-2xx — catch JWT
+      // errors, refresh the session, and retry once.
+      late HttpResponse response;
+      try {
+        response = await _client.functions.invoke(
+          'calculate-order-total',
+          body: {
+            'restaurant_id': restaurantId,
+            'user_id': userId,
+            'items': items,
+            'promo_code': ?promoCode,
+            'redeem_points': redeemPoints,
+            'driver_tip': driverTip,
+            'payment_method': paymentMethod,
+            'is_pickup': isPickup,
+            'delivery_latitude': ?deliveryLatitude,
+            'delivery_longitude': ?deliveryLongitude,
+          },
+        );
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        if (fe.status == 401 ||
+            fe.status == 403 ||
+            raw.contains('LEGACY_JWT') ||
+            raw.contains('ES256') ||
+            raw.contains('JWT')) {
           await _client.auth.refreshSession();
           response = await _client.functions.invoke(
             'calculate-order-total',
@@ -135,6 +137,8 @@ class OrderCalculationService {
               'delivery_longitude': ?deliveryLongitude,
             },
           );
+        } else {
+          rethrow;
         }
       }
 
