@@ -92,9 +92,13 @@ class OrderService {
       );
 
       // If we get an ES256 JWT error, refresh the session and retry once.
-      if (response.status == 401) {
+      if (response.status == 401 || response.status == 403) {
         final errStr = response.data?.toString() ?? '';
-        if (errStr.contains('ES256') || errStr.contains('UNSUPPORTED_TOKEN')) {
+        if (errStr.contains('ES256') ||
+            errStr.contains('UNSUPPORTED_TOKEN') ||
+            errStr.contains('LEGACY_JWT') ||
+            errStr.contains('Invalid JWT') ||
+            errStr.contains('JWT')) {
           await _supabaseClient.auth.refreshSession();
           response = await _supabaseClient.functions.invoke(
             'place-order',
@@ -107,7 +111,9 @@ class OrderService {
         final errorData = response.data is String
             ? jsonDecode(response.data as String) as Map<String, dynamic>
             : (response.data as Map?)?.cast<String, dynamic>() ?? {};
-        final errMsg = errorData['error'] as String? ?? 'Failed to place order (${response.status})';
+        final errMsg =
+            errorData['error'] as String? ??
+            'Failed to place order (${response.status})';
         final details = errorData['details'] as String?;
         throw Exception(details != null ? '$errMsg — $details' : errMsg);
       }

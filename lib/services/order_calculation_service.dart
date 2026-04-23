@@ -111,10 +111,14 @@ class OrderCalculationService {
         },
       );
 
-      // Auto-refresh and retry on ES256 JWT error
-      if (response.status == 401) {
+      // Auto-refresh and retry on any JWT error
+      if (response.status == 401 || response.status == 403) {
         final errStr = response.data?.toString() ?? '';
-        if (errStr.contains('ES256') || errStr.contains('UNSUPPORTED_TOKEN')) {
+        if (errStr.contains('ES256') ||
+            errStr.contains('UNSUPPORTED_TOKEN') ||
+            errStr.contains('LEGACY_JWT') ||
+            errStr.contains('Invalid JWT') ||
+            errStr.contains('JWT')) {
           await _client.auth.refreshSession();
           response = await _client.functions.invoke(
             'calculate-order-total',
@@ -133,7 +137,6 @@ class OrderCalculationService {
           );
         }
       }
-
 
       final body = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>
