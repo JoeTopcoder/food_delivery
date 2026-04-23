@@ -46,6 +46,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _selectedPayment = 'cash';
   SavedCard? _selectedSavedCard;
   bool _agreeToTerms = false;
+  bool _addressConfirmed = false;
   bool _applyingPromo = false;
   bool _placingOrder = false;
   bool _paymentFieldsHydrated = false;
@@ -187,9 +188,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
+    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
-        (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
+        (subtotal - promoDiscount - loyaltyDiscount + activeFee + platformServiceFee + tax).clamp(
           activeFee,
           double.infinity,
         );
@@ -228,10 +230,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.only(
-              bottom: 110,
+              bottom: 180,
               left: 16,
               right: 16,
-              top: 16,
+              top: 8,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,15 +315,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       children: addresses.map((a) {
                                         final sel = selectedAddress?.id == a.id;
                                         return GestureDetector(
-                                          onTap: () =>
+                                          onTap: () {
                                               ref
                                                   .read(
                                                     selectedAddressIdProvider
                                                         .notifier,
                                                   )
-                                                  .state = sel
-                                              ? null
-                                              : a.id,
+                                                  .state = sel ? null : a.id;
+                                              setState(() => _addressConfirmed = false);
+                                          },
                                           child: _AddressChip(
                                             address: a,
                                             isSelected: sel,
@@ -371,10 +373,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        _AddressSlider(
+                          confirmed: _addressConfirmed,
+                          onConfirmed: () =>
+                              setState(() => _addressConfirmed = true),
+                          onReset: () =>
+                              setState(() => _addressConfirmed = false),
+                        ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Schedule (optional / forced when closed) ─────────
                 Builder(
@@ -461,7 +471,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Payment ───────────────────────────────────────────
                 _Section(
@@ -794,7 +804,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Promo Code ────────────────────────────────────────
                 _Section(
@@ -900,7 +910,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Loyalty Points ────────────────────────────────────
                 if (loyaltyAsync != null)
@@ -966,7 +976,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     },
                   ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Contactless Delivery (hidden for pickup) ──────────
                 if (!isPickup)
@@ -1006,7 +1016,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Driver Tip (hidden for pickup) ────────────────────
                 if (!isPickup)
@@ -1017,13 +1027,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '100% of your tip goes directly to the driver',
+                          '100% goes directly to your driver',
                           style: TextStyle(
                             color: Colors.grey.shade600,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             // No-tip chip
@@ -1092,7 +1102,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             }),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         TextField(
                           controller: _customTipCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
@@ -1127,7 +1137,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Notes ─────────────────────────────────────────────
                 _Section(
@@ -1135,18 +1145,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   icon: Icons.notes_rounded,
                   child: TextField(
                     controller: _notesCtrl,
-                    maxLines: 2,
+                    maxLines: 1,
                     decoration: InputDecoration(
                       hintText: 'Allergies, ring bell, gate code…',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      contentPadding: const EdgeInsets.all(12),
+                      contentPadding: const EdgeInsets.all(10),
                       isDense: true,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Order Summary ──────────────────────────────────────
                 Container(
@@ -1214,6 +1224,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               : null,
                         ),
                       _SummaryRow(
+                        'Service Fee (5%)',
+                        '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
+                      ),
+                      _SummaryRow(
                         'Tax (10%)',
                         '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                       ),
@@ -1232,86 +1246,114 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                // Terms
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _agreeToTerms,
-                      onChanged: (v) =>
-                          setState(() => _agreeToTerms = v ?? false),
-                      activeColor: AppTheme.primaryColor,
-                    ),
-                    Expanded(
-                      child: Text(
-                        'I agree to the MealHub terms and conditions',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
 
-          // Place Order button
+          // Place Order button + terms
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
               color: Theme.of(context).cardColor,
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SafeArea(
                 top: false,
-                child: ElevatedButton(
-                  onPressed:
-                      _agreeToTerms &&
-                          !_placingOrder &&
-                          cart.isNotEmpty &&
-                          currentUserId != null
-                      ? () => _placeOrder(
-                          userId: currentUserId,
-                          subtotal: subtotal,
-                          deliveryFee: activeFee,
-                          tax: tax,
-                          total: total,
-                          deliveryAddress: deliveryAddress,
-                          currentUser: currentUser,
-                          promoDiscount: promoDiscount,
-                          loyaltyDiscount: loyaltyDiscount,
-                          driverTip: isPickup ? 0 : _driverTip,
-                          isPickup: isPickup,
-                          pickupFee: isPickup ? pickupServiceFee : null,
-                        )
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey[300],
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _placingOrder
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Terms
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _agreeToTerms,
+                          onChanged: (v) =>
+                              setState(() => _agreeToTerms = v ?? false),
+                          activeColor: AppTheme.primaryColor,
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'I agree to the MealHub terms and conditions',
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.grey[600]),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: (!_addressConfirmed && _agreeToTerms && cart.isNotEmpty)
+                          ? () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please slide to confirm your delivery address first',
+                                  ),
+                                  backgroundColor: Colors.orange,
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          : null,
+                      child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                      onPressed:
+                          _agreeToTerms &&
+                              _addressConfirmed &&
+                              !_placingOrder &&
+                              cart.isNotEmpty &&
+                              currentUserId != null
+                          ? () => _placeOrder(
+                              userId: currentUserId,
+                              subtotal: subtotal,
+                              deliveryFee: activeFee,
+                              tax: tax,
+                              total: total,
+                              deliveryAddress: deliveryAddress,
+                              currentUser: currentUser,
+                              promoDiscount: promoDiscount,
+                              loyaltyDiscount: loyaltyDiscount,
+                              driverTip: isPickup ? 0 : _driverTip,
+                              isPickup: isPickup,
+                              pickupFee: isPickup ? pickupServiceFee : null,
+                            )
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _placingOrder
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                      ),
+                    ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1487,11 +1529,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final verifiedDiscount =
           (breakdown?.promoDiscount ?? promoDiscount) +
           (breakdown?.loyaltyDiscount ?? loyaltyDiscount);
-      // Recalculate total if we overrode the delivery fee
+      // Platform 5% service fee applied on the verified subtotal
+      final verifiedServiceFee =
+          verifiedSubtotal * AppConstants.platformServiceFeeRate;
+      // Recalculate total if we overrode the delivery fee, then add service fee
       final serverTotal = breakdown?.grandTotal ?? total;
-      final verifiedTotal = serverDeliveryFee == verifiedDeliveryFee
+      final baseVerifiedTotal = serverDeliveryFee == verifiedDeliveryFee
           ? serverTotal
           : serverTotal - serverDeliveryFee + verifiedDeliveryFee;
+      final verifiedTotal = baseVerifiedTotal + verifiedServiceFee;
 
       final orderItems = cart
           .map(
@@ -1720,15 +1766,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      String message = e.toString();
-      if (message.contains('NOT_FOUND') || message.contains('404')) {
-        message = 'Card payments are not available right now. Please try another payment method.';
-      } else if (message.contains('StripeException') || message.contains('stripe')) {
+      final raw = e.toString();
+
+      // ES256 / legacy JWT — don't sign out mid-checkout, just show a message
+      if (raw.contains('ES256') || raw.contains('UNSUPPORTED_TOKEN_ALGORITHM') ||
+          raw.contains('LEGACY_JWT') || raw.contains('Invalid JWT')) {
+        AppSnackbar.error(
+          context,
+          'Session error. Please sign out and sign back in, then try again.',
+        );
+        return;
+      }
+
+      String message = raw.replaceAll('Exception: ', '');
+      if (message.contains('StripeException') || message.contains('stripe')) {
         message = 'Payment failed. Please check your card details and try again.';
-      } else if (message.contains('network') || message.contains('SocketException')) {
+      } else if (message.contains('SocketException') || message.contains('failed host lookup')) {
         message = 'Network error. Check your connection and try again.';
-      } else {
-        message = friendlyError(e);
       }
 
       AppSnackbar.error(context, message);
@@ -1767,9 +1821,9 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
@@ -1778,19 +1832,19 @@ class _Section extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
+              Icon(icon, size: 15, color: AppTheme.primaryColor),
+              const SizedBox(width: 6),
               Text(
                 title,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           child,
         ],
       ),
@@ -1907,12 +1961,12 @@ class _PaymentTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+              : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
             width: selected ? 1.5 : 1,
@@ -1921,23 +1975,23 @@ class _PaymentTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: selected
                     ? AppTheme.primaryColor.withValues(alpha: 0.12)
-                    : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? AppTheme.primaryColor
                     : const Color(0xFF9CA3AF),
-                size: 20,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2158,7 +2212,7 @@ class _SummaryRow extends StatelessWidget {
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
                 fontSize: isBold ? 15 : 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -2175,5 +2229,167 @@ class _SummaryRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Slide-to-confirm address widget ───────────────────────────────────────────
+class _AddressSlider extends StatefulWidget {
+  final bool confirmed;
+  final VoidCallback onConfirmed;
+  final VoidCallback onReset;
+
+  const _AddressSlider({
+    required this.confirmed,
+    required this.onConfirmed,
+    required this.onReset,
+  });
+
+  @override
+  State<_AddressSlider> createState() => _AddressSliderState();
+}
+
+class _AddressSliderState extends State<_AddressSlider>
+    with SingleTickerProviderStateMixin {
+  double _dragPosition = 0;
+  late AnimationController _snapCtrl;
+  late Animation<double> _snapAnim;
+
+  static const double _thumbSize = 40;
+  static const double _trackHeight = 44;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_AddressSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.confirmed && oldWidget.confirmed) {
+      _snapCtrl.stop();
+      setState(() => _dragPosition = 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _snapCtrl.dispose();
+    super.dispose();
+  }
+
+  void _snapBack() {
+    _snapAnim = Tween<double>(begin: _dragPosition, end: 0).animate(
+      CurvedAnimation(parent: _snapCtrl, curve: Curves.easeOut),
+    )..addListener(() => setState(() => _dragPosition = _snapAnim.value));
+    _snapCtrl.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final confirmed = widget.confirmed;
+    return LayoutBuilder(builder: (context, constraints) {
+      final trackWidth = constraints.maxWidth;
+      final maxDrag = trackWidth - _thumbSize - 8;
+
+      return GestureDetector(
+        onTap: confirmed ? widget.onReset : null,
+        child: Container(
+          height: _trackHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: confirmed
+                ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                : AppTheme.primaryColor.withValues(alpha: 0.08),
+            border: Border.all(
+              color: confirmed
+                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                  : AppTheme.primaryColor.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              // Label
+              Center(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: confirmed ? 1.0 : (1 - (_dragPosition / maxDrag.clamp(1, double.infinity))),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        confirmed
+                            ? Icons.check_circle_rounded
+                            : Icons.chevron_right_rounded,
+                        size: 15,
+                        color: confirmed
+                            ? const Color(0xFF10B981)
+                            : AppTheme.primaryColor.withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        confirmed
+                            ? 'Address confirmed — tap to change'
+                            : 'Slide to confirm delivery address',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: confirmed
+                              ? const Color(0xFF10B981)
+                              : AppTheme.primaryColor.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Thumb
+              if (!confirmed)
+                GestureDetector(
+                  onHorizontalDragUpdate: (d) {
+                    setState(() {
+                      _dragPosition =
+                          (_dragPosition + d.delta.dx).clamp(0.0, maxDrag);
+                    });
+                    if (_dragPosition >= maxDrag) {
+                      widget.onConfirmed();
+                    }
+                  },
+                  onHorizontalDragEnd: (_) {
+                    if (_dragPosition < maxDrag) _snapBack();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 4 + _dragPosition),
+                    child: Container(
+                      width: _thumbSize,
+                      height: _thumbSize - 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }

@@ -86,16 +86,30 @@ class OrderService {
       if (fromAd) body['from_ad'] = true;
       if (adId != null) body['ad_id'] = adId;
 
-      final response = await _supabaseClient.functions.invoke(
+      var response = await _supabaseClient.functions.invoke(
         'place-order',
         body: body,
       );
 
+      // If we get an ES256 JWT error, refresh the session and retry once.
+      if (response.status == 401) {
+        final errStr = response.data?.toString() ?? '';
+        if (errStr.contains('ES256') || errStr.contains('UNSUPPORTED_TOKEN')) {
+          await _supabaseClient.auth.refreshSession();
+          response = await _supabaseClient.functions.invoke(
+            'place-order',
+            body: body,
+          );
+        }
+      }
+
       if (response.status != 200) {
-        final errorData = jsonDecode(response.data as String? ?? '{}');
-        throw Exception(
-          errorData['error'] ?? 'Failed to place order (${response.status})',
-        );
+        final errorData = response.data is String
+            ? jsonDecode(response.data as String) as Map<String, dynamic>
+            : (response.data as Map?)?.cast<String, dynamic>() ?? {};
+        final errMsg = errorData['error'] as String? ?? 'Failed to place order (${response.status})';
+        final details = errorData['details'] as String?;
+        throw Exception(details != null ? '$errMsg — $details' : errMsg);
       }
 
       final data = response.data is String

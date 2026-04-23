@@ -95,8 +95,9 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
         !isPickup;
     final effectiveFee = subDeliveryFree ? 0.0 : totalActiveFee;
 
+    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
     final tax = subtotal * AppConstants.taxRate;
-    final total = subtotal + effectiveFee + tax;
+    final total = subtotal + effectiveFee + platformServiceFee + tax;
 
     return Scaffold(
       appBar: AppBar(
@@ -530,6 +531,11 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(
+                              'Service Fee (5%)',
+                              '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
+                            ),
+                            const SizedBox(height: 8),
+                            _PriceRow(
                               'Tax',
                               '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                             ),
@@ -778,9 +784,7 @@ class _PriceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: isBold
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
             ),
             overflow: TextOverflow.ellipsis,
           ),
