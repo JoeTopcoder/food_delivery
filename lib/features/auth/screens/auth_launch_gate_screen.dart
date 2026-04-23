@@ -5,6 +5,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../screens/main_navigation_screen.dart';
 import '../../../screens/driver/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/restaurant_dashboard_screen.dart';
+import '../../../screens/admin/admin_dashboard_screen.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 import 'role_selection_screen.dart';
@@ -53,6 +54,8 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
           return const DriverDashboardScreen();
         case 'restaurant':
           return const RestaurantDashboardScreen();
+        case 'admin':
+          return const AdminDashboardScreen();
         default:
           return const MainNavigationScreen();
       }
