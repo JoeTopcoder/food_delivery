@@ -86,24 +86,28 @@ class OrderService {
       if (fromAd) body['from_ad'] = true;
       if (adId != null) body['ad_id'] = adId;
 
-      var response = await _supabaseClient.functions.invoke(
-        'place-order',
-        body: body,
-      );
-
-      // If we get an ES256 JWT error, refresh the session and retry once.
-      if (response.status == 401 || response.status == 403) {
-        final errStr = response.data?.toString() ?? '';
-        if (errStr.contains('ES256') ||
-            errStr.contains('UNSUPPORTED_TOKEN') ||
-            errStr.contains('LEGACY_JWT') ||
-            errStr.contains('Invalid JWT') ||
-            errStr.contains('JWT')) {
+      // Supabase client throws FunctionException for non-2xx — catch JWT
+      // errors, refresh the session, and retry once.
+      late HttpResponse response;
+      try {
+        response = await _supabaseClient.functions.invoke(
+          'place-order',
+          body: body,
+        );
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        if (fe.status == 401 ||
+            fe.status == 403 ||
+            raw.contains('LEGACY_JWT') ||
+            raw.contains('ES256') ||
+            raw.contains('JWT')) {
           await _supabaseClient.auth.refreshSession();
           response = await _supabaseClient.functions.invoke(
             'place-order',
             body: body,
           );
+        } else {
+          rethrow;
         }
       }
 
