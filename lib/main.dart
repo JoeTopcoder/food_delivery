@@ -207,17 +207,19 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   static Widget _getHomeForRole(String? role) {
     switch (role) {
+      case 'customer':
+      case 'user':
+        return const MainNavigationScreen();
       case 'driver':
         return const DriverDashboardScreen();
       case 'restaurant':
         return const RestaurantDashboardScreen();
       case 'admin':
         return const AdminDashboardScreen();
-      case 'customer':
-      case 'user':
-        return const MainNavigationScreen();
       default:
-        return const MainNavigationScreen();
+        // Unknown/null role must never silently show the customer screen.
+        // Return the gate — AuthLaunchGateScreen will sign them out.
+        return const AuthLaunchGateScreen();
     }
   }
 

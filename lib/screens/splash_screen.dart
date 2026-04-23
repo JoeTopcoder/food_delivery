@@ -8,6 +8,7 @@ import '../screens/driver/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';
 import '../screens/restaurant/restaurant_dashboard_screen.dart';
+import '../screens/admin/admin_dashboard_screen.dart';
 
 /// Role-specific splash screen with animated branding.
 /// Shows a beautiful animated intro before navigating to the role's home.
@@ -558,14 +559,23 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     if (auth.isAuthenticated) {
       final role = auth.user?.role;
       switch (role) {
+        case 'customer':
+        case 'user':
+          destination = const MainNavigationScreen();
+          break;
         case 'driver':
           destination = const DriverDashboardScreen();
           break;
         case 'restaurant':
           destination = const RestaurantDashboardScreen();
           break;
+        case 'admin':
+          destination = const AdminDashboardScreen();
+          break;
         default:
-          destination = const MainNavigationScreen();
+          // Unknown role — sign out to prevent wrong screen
+          await ref.read(authNotifierProvider.notifier).signOut();
+          destination = const AuthLaunchGateScreen();
       }
     } else {
       destination = const AuthLaunchGateScreen();
