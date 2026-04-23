@@ -847,7 +847,9 @@ class _DriverList extends StatelessWidget {
                     .verifyDriver(driverId, verify);
                 ref.invalidate(allDriversAdminProvider);
                 ref.invalidate(pendingDriversProvider);
+                ref.invalidate(rejectedDriversProvider);
                 ref.invalidate(driverStatisticsProvider);
+                ref.invalidate(dashboardSummaryProvider);
                 if (context.mounted) {
                   if (verify) {
                     AppSnackbar.success(

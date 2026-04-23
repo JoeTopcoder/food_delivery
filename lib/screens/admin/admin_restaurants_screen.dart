@@ -832,7 +832,9 @@ class _RestaurantList extends StatelessWidget {
                     .verifyRestaurant(restaurantId, verify);
                 ref.invalidate(allRestaurantsAdminProvider);
                 ref.invalidate(pendingRestaurantsProvider);
+                ref.invalidate(rejectedRestaurantsProvider);
                 ref.invalidate(restaurantStatisticsProvider);
+                ref.invalidate(dashboardSummaryProvider);
                 if (context.mounted) {
                   if (verify) {
                     AppSnackbar.success(
