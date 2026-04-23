@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../models/earning_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/earning_provider.dart';
 import '../../providers/premium_providers.dart';

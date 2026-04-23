@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -271,12 +270,14 @@ class RestaurantReferralScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   _HowItWorksStep(
                     step: '1',
-                    text: 'Share your referral code with another restaurant owner',
+                    text:
+                        'Share your referral code with another restaurant owner',
                     color: const Color(0xFF0891B2),
                   ),
                   _HowItWorksStep(
                     step: '2',
-                    text: 'They register their restaurant on MealHub using your code',
+                    text:
+                        'They register their restaurant on MealHub using your code',
                     color: const Color(0xFF0891B2),
                   ),
                   _HowItWorksStep(
