@@ -80,6 +80,13 @@ const { data: _ur, error: _ue } = await adminClient.from("users").select("id").e
 if (_ue || !_ur) return json({ error: "Unauthorized" }, 401);
 const user = { id: _uid };
 
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
   const { amount_cents, payout_type = "instant" } = body as {
     amount_cents: number;
     payout_type?: "instant" | "standard";
