@@ -49,18 +49,20 @@ Deno.serve(async (request) => {
     return json({ error: "Missing authorization header." }, 401);
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  if (userError || !userData.user) {
-    return json({ error: "Unauthorized" }, 401);
-  }
-
-  // Use service role — this is called from the app after admin approval
-  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-  // Verify the caller is an admin
+const token = authHeader.replace(/^Bearer\s+/i, "");
+let _userId: string;
+try {
+  const payloadB64 = token.split(".")[1];
+  const payload = JSON.parse(atob(payloadB64));
+  _userId = payload.sub as string;
+  if (!_userId) throw new Error("No sub");
+} catch {
+  return json({ error: "Invalid token." }, 401);
+}
+const { data: _userRow2, error: _userErr2 } = await adminClient
+  .from("users").select("id").eq("id", _userId).maybeSingle();
+if (_userErr2 || !_userRow2) return json({ error: "Unauthorized" }, 401);
+const userData = { user: { id: _userId } };
   const { data: callerUser } = await adminClient
     .from("users")
     .select("role")
