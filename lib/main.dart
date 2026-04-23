@@ -115,6 +115,12 @@ void main() async {
   // Load DB-driven config (depends on Supabase being ready)
   await AppConfigService(SupabaseConfig.client).load();
 
+  // Refresh session on startup so we always have a fresh token.
+  try {
+    await SupabaseConfig.client.auth.refreshSession();
+  } catch (_) {
+    // Not signed in yet or refresh failed — ignore.
+  }
   // Initialize Stripe (non-blocking — don't await applySettings)
   final stripeKey = AppConstants.stripePublishableKey;
   if (stripeKey.isNotEmpty) {

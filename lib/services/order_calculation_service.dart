@@ -95,7 +95,7 @@ class OrderCalculationService {
     double? deliveryLongitude,
   }) async {
     try {
-      final response = await _client.functions.invoke(
+      var response = await _client.functions.invoke(
         'calculate-order-total',
         body: {
           'restaurant_id': restaurantId,
@@ -110,6 +110,30 @@ class OrderCalculationService {
           'delivery_longitude': ?deliveryLongitude,
         },
       );
+
+      // Auto-refresh and retry on ES256 JWT error
+      if (response.status == 401) {
+        final errStr = response.data?.toString() ?? '';
+        if (errStr.contains('ES256') || errStr.contains('UNSUPPORTED_TOKEN')) {
+          await _client.auth.refreshSession();
+          response = await _client.functions.invoke(
+            'calculate-order-total',
+            body: {
+              'restaurant_id': restaurantId,
+              'user_id': userId,
+              'items': items,
+              'promo_code': ?promoCode,
+              'redeem_points': redeemPoints,
+              'driver_tip': driverTip,
+              'payment_method': paymentMethod,
+              'is_pickup': isPickup,
+              'delivery_latitude': ?deliveryLatitude,
+              'delivery_longitude': ?deliveryLongitude,
+            },
+          );
+        }
+      }
+
 
       final body = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>

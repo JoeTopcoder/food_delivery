@@ -160,9 +160,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     final subDeliveryFree = subEligible;
     if (subDeliveryFree) activeFee = 0.0;
 
+    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
-        (subtotal - promoDiscount - loyaltyDiscount + activeFee + tax).clamp(
+        (subtotal - promoDiscount - loyaltyDiscount + activeFee + platformServiceFee + tax).clamp(
           activeFee,
           double.infinity,
         );
@@ -902,6 +903,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                               ? const Color(0xFF6C63FF)
                               : null,
                         ),
+                      _SummaryRow(
+                        'Service Fee (5%)',
+                        '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
+                      ),
                       _SummaryRow(
                         'Tax (10%)',
                         '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',

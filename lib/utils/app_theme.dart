@@ -144,6 +144,12 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.dark,
+    ).copyWith(
+      surface: const Color(0xFF111827),
+      onSurface: Colors.white,
+      onSurfaceVariant: const Color(0xFFD1D5DB),   // light grey — readable on dark cards
+      surfaceContainerHighest: const Color(0xFF1F2937),
+      outline: const Color(0xFF374151),
     ),
     scaffoldBackgroundColor: const Color(0xFF111827),
     appBarTheme: const AppBarTheme(
@@ -231,6 +237,17 @@ class AppTheme {
       unselectedItemColor: Color(0xFF6B7280),
     ),
     dividerColor: const Color(0xFF374151),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.white),
+      bodyMedium: TextStyle(color: Color(0xFFE5E7EB)),
+      bodySmall: TextStyle(color: Color(0xFFD1D5DB)),
+      titleLarge: TextStyle(color: Colors.white),
+      titleMedium: TextStyle(color: Colors.white),
+      titleSmall: TextStyle(color: Color(0xFFE5E7EB)),
+      labelLarge: TextStyle(color: Colors.white),
+      labelMedium: TextStyle(color: Color(0xFFD1D5DB)),
+      labelSmall: TextStyle(color: Color(0xFFD1D5DB)),
+    ),
     chipTheme: ChipThemeData(
       backgroundColor: const Color(0xFF374151),
       selectedColor: primaryColor,

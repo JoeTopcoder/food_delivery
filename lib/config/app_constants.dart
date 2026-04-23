@@ -118,6 +118,7 @@
 
   // Fees (in USD)
   static double taxRate = 0.0; // No income tax in Cayman Islands
+  static double platformServiceFeeRate = 0.05; // 5% platform service fee on subtotal
   static double defaultDeliveryFee = 5.0;
   static double pickupServiceFee = 2.0;
   static double driverFeePerDelivery = 5.0;
