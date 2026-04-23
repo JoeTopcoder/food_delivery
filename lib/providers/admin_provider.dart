@@ -231,7 +231,9 @@ final adminPendingRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
   ref,
 ) {
   void onDriverChange(PostgresChangePayload payload) {
-    AppLogger.info('Admin Realtime: drivers table changed — refreshing pending');
+    AppLogger.info(
+      'Admin Realtime: drivers table changed — refreshing pending',
+    );
     ref.invalidate(dashboardSummaryProvider);
     ref.invalidate(pendingDriversProvider);
     ref.invalidate(driverStatisticsProvider);
