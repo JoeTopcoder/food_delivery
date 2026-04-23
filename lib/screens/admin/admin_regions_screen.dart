@@ -426,7 +426,7 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
                       points: [..._points, if (hasPolygon) _points.first],
                       color: const Color(0xFF10B981),
                       strokeWidth: 2,
-                      isDotted: true,
+                      pattern: const StrokePattern.dotted(),
                     ),
                 ],
               ),
