@@ -7,6 +7,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../shared/ai_voice_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -112,6 +113,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 ],
                               ),
                             ),
+                            Material(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AiVoiceScreen(role: 'admin'),
+                                  ),
+                                ),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: Icon(
+                                    Icons.smart_toy_outlined,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Material(
                               color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),

@@ -14,6 +14,7 @@ import '../../services/delivery_fee_service.dart';
 import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../widgets/ai_fab.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -100,6 +101,10 @@ class _ActiveDeliveriesScreenState
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
+          floatingActionButton: AiFab(
+            role: 'driver',
+            orderId: deliveriesAsync.valueOrNull?.firstOrNull?.id,
+          ),
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [

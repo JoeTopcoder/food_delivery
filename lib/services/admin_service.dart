@@ -69,7 +69,7 @@ class AdminService {
     }
   }
 
-  /// Get users by role
+  /// Get users by role (capped at 500 — use getAllUsers with pagination for full lists)
   Future<List<user_models.User>> getUsersByRole(String role) async {
     try {
       AppLogger.info('Fetching users by role: $role');
@@ -78,7 +78,8 @@ class AdminService {
           .from(AppConstants.tableUsers)
           .select()
           .eq('role', role)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(500);
 
       final users = (response as List)
           .map((user) => user_models.User.fromJson(user))
@@ -195,7 +196,8 @@ class AdminService {
           .select()
           .eq('is_verified', false)
           .neq('status', 'rejected')
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(200);
 
       final restaurants = (response as List)
           .map((rest) => Restaurant.fromJson(rest))
@@ -218,7 +220,8 @@ class AdminService {
           .select()
           .eq('is_verified', false)
           .eq('status', 'rejected')
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(200);
 
       return (response as List).map((r) => Restaurant.fromJson(r)).toList();
     } catch (e) {
@@ -303,7 +306,9 @@ class AdminService {
         query = query.eq('restaurant_id', restaurantId);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      final response = await query
+          .order('created_at', ascending: false)
+          .limit(500);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       AppLogger.error('Error fetching restaurant ads: $e');
@@ -318,7 +323,8 @@ class AdminService {
           .from('restaurant_ads')
           .select('*, restaurants(name, image_url, cuisine_type)')
           .eq('is_active', true)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(50);
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -374,86 +380,18 @@ class AdminService {
     }
   }
 
-  /// Get financial statistics for admin dashboard
+  /// Get financial statistics for admin dashboard — uses DB-side aggregates
+  /// to avoid fetching millions of order rows into Flutter memory.
   Future<Map<String, dynamic>> getFinancialStatistics() async {
     try {
-      AppLogger.info('Fetching financial statistics');
+      AppLogger.info('Fetching financial statistics via RPC');
 
-      // Get all delivered orders with commission data
-      final orders = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select(
-            'total_amount, commission_amount, commission_rate, delivery_fee, driver_tip, restaurant_id, driver_id, status',
-          )
-          .eq('status', 'delivered');
-
-      double totalSales = 0;
-      double totalCommission = 0;
-      double totalDeliveryFees = 0;
-      double totalDriverTips = 0;
-      final Map<String, double> restaurantPayouts = {};
-      final Map<String, double> driverPayouts = {};
-
-      for (var order in orders as List) {
-        final amount = (order['total_amount'] ?? 0).toDouble();
-        final commission = (order['commission_amount'] ?? 0).toDouble();
-        final deliveryFee = (order['delivery_fee'] ?? 0).toDouble();
-        final driverTip = (order['driver_tip'] ?? 0).toDouble();
-        final restaurantId = order['restaurant_id'] as String?;
-        final driverId = order['driver_id'] as String?;
-
-        totalSales += amount;
-        totalCommission += commission;
-        totalDeliveryFees += deliveryFee;
-        totalDriverTips += driverTip;
-
-        // Restaurant payout = order total - commission - delivery fee
-        if (restaurantId != null) {
-          restaurantPayouts[restaurantId] =
-              (restaurantPayouts[restaurantId] ?? 0) +
-              (amount - commission - deliveryFee);
-        }
-
-        // Driver payout = delivery fee + tips
-        if (driverId != null) {
-          driverPayouts[driverId] =
-              (driverPayouts[driverId] ?? 0) + deliveryFee + driverTip;
-        }
+      final result = await _supabaseClient.rpc('get_financial_statistics');
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
       }
-
-      final totalRestaurantPayout = restaurantPayouts.values.fold(
-        0.0,
-        (a, b) => a + b,
-      );
-      final totalDriverPayout = driverPayouts.values.fold(0.0, (a, b) => a + b);
-
-      // Monthly stats
-      final now = DateTime.now();
-      final monthStart = DateTime(now.year, now.month, 1).toIso8601String();
-      final monthlyOrders = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('total_amount, commission_amount, delivery_fee, driver_tip')
-          .eq('status', 'delivered')
-          .gte('ordered_at', monthStart);
-
-      double monthlySales = 0;
-      double monthlyCommission = 0;
-      for (var order in monthlyOrders as List) {
-        monthlySales += (order['total_amount'] ?? 0).toDouble();
-        monthlyCommission += (order['commission_amount'] ?? 0).toDouble();
-      }
-
-      return {
-        'total_sales': totalSales,
-        'total_commission': totalCommission,
-        'total_delivery_fees': totalDeliveryFees,
-        'total_driver_tips': totalDriverTips,
-        'total_restaurant_payout': totalRestaurantPayout,
-        'total_driver_payout': totalDriverPayout,
-        'monthly_sales': monthlySales,
-        'monthly_commission': monthlyCommission,
-        'order_count': (orders as List).length,
-      };
+      // Fallback: return empty map if RPC not yet deployed
+      return {};
     } catch (e) {
       AppLogger.error('Error fetching financial stats: $e');
       return {};
@@ -523,7 +461,8 @@ class AdminService {
           .select()
           .eq('is_verified', false)
           .neq('documents_status', 'rejected')
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(200);
 
       final drivers = (response as List)
           .map((driver) => Driver.fromJson(driver))
@@ -546,7 +485,8 @@ class AdminService {
           .select()
           .eq('is_verified', false)
           .eq('documents_status', 'rejected')
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(200);
 
       return (response as List).map((d) => Driver.fromJson(d)).toList();
     } catch (e) {

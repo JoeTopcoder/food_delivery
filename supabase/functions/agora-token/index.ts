@@ -32,15 +32,17 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Use service role to bypass RLS and verify user JWT
-    const serviceClient = createClient(
+    // Use an anon-key client carrying the user's token in the Authorization header.
+    // This works for both HS256 (legacy) and RS256 tokens, avoiding
+    // UNAUTHORIZED_LEGACY_JWT errors that occur when passing the JWT directly
+    // to serviceClient.auth.getUser(jwt).
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const userClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: authHeader } } },
     )
-
-    // Verify the user JWT using service role client (avoids ES256 algorithm issues)
-    const jwt = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await serviceClient.auth.getUser(jwt)
+    const { data: { user }, error: authError } = await userClient.auth.getUser()
     if (authError || !user) {
       console.error('Auth error:', authError?.message)
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -48,6 +50,12 @@ Deno.serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    // Service role client for DB queries (bypasses RLS)
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
 
     const { channelName, callId } = await req.json()
 

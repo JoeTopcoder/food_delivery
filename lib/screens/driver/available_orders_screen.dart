@@ -15,6 +15,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
+import '../../widgets/ai_fab.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -130,6 +131,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
         )));
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
+          floatingActionButton: const AiFab(role: 'driver'),
           appBar: AppBar(
             backgroundColor: const Color(0xFF0F1117),
             foregroundColor: Colors.white,

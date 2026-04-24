@@ -54,7 +54,8 @@ class RestaurantService {
           )
           .eq('is_open', true)
           .eq('is_verified', true)
-          .neq('store_type', 'grocery');
+          .neq('store_type', 'grocery')
+          .limit(50);
 
       final restaurants = (response as List)
           .map((restaurant) => Restaurant.fromJson(restaurant))
@@ -130,7 +131,8 @@ class RestaurantService {
           .select()
           .eq('cuisine_type', cuisineType)
           .eq('is_open', true)
-          .neq('store_type', 'grocery');
+          .neq('store_type', 'grocery')
+          .limit(50);
 
       final restaurants = (response as List)
           .map((restaurant) => Restaurant.fromJson(restaurant))

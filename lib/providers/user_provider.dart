@@ -63,8 +63,9 @@ final restaurantByIdProvider = FutureProvider.family
       final restaurantService = ref.watch(restaurantServiceProvider);
 
       // Real-time: refresh when this restaurant row changes
+      // Stable channel name — avoids churn from microsecond-suffix unique names
       final channel = Supabase.instance.client.realtime.channel(
-        'rest_${restaurantId}_${DateTime.now().microsecondsSinceEpoch}',
+        'rest_$restaurantId',
       );
       channel
           .onPostgresChanges(
@@ -515,7 +516,9 @@ class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
       final current = state[existingIndex].quantity;
       if (current >= menuItem.maxQuantity) return;
       final newList = [...state];
-      newList[existingIndex] = state[existingIndex].copyWith(quantity: current + 1);
+      newList[existingIndex] = state[existingIndex].copyWith(
+        quantity: current + 1,
+      );
       state = newList;
     } else {
       if (menuItem.maxQuantity <= 0) return;

@@ -145,39 +145,30 @@ class OrderService {
     }
   }
 
-  // Get order by ID
+  // Get order by ID — single nested query (no N+1)
   Future<Order?> getOrderById(String orderId) async {
     try {
       AppLogger.info('Fetching order: $orderId');
 
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
+          .select(
+            '*, ${AppConstants.tableOrderItems}(*, ${AppConstants.tableOrderItemSides}(*))',
+          )
           .eq('id', orderId)
           .single();
 
-      // Fetch order items
-      final itemsResponse = await _supabaseClient
-          .from(AppConstants.tableOrderItems)
-          .select()
-          .eq('order_id', orderId);
-
-      final items = <OrderItem>[];
-      for (final itemJson in (itemsResponse as List)) {
-        final sidesResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItemSides)
-            .select()
-            .eq('order_item_id', itemJson['id']);
-        final sides = (sidesResponse as List)
-            .map((s) => OrderItemSide.fromJson(s))
-            .toList();
-        items.add(
-          OrderItem.fromJson({
-            ...itemJson,
-            'sides': sides.map((s) => s.toJson()).toList(),
-          }),
-        );
-      }
+      final rawItems = (response[AppConstants.tableOrderItems] as List? ?? []);
+      final items = rawItems.map((itemJson) {
+        final sides =
+            (itemJson[AppConstants.tableOrderItemSides] as List? ?? [])
+                .map((s) => OrderItemSide.fromJson(s as Map<String, dynamic>))
+                .toList();
+        return OrderItem.fromJson({
+          ...itemJson as Map<String, dynamic>,
+          'sides': sides.map((s) => s.toJson()).toList(),
+        });
+      }).toList();
 
       final order = Order.fromJson({
         ...response,
@@ -192,48 +183,44 @@ class OrderService {
     }
   }
 
-  // Get user's orders
-  Future<List<Order>> getUserOrders(String userId) async {
+  // Get user's orders — single nested query with pagination (no N+1)
+  Future<List<Order>> getUserOrders(
+    String userId, {
+    int offset = 0,
+    int limit = 20,
+  }) async {
     try {
-      AppLogger.info('Fetching orders for user: $userId');
+      AppLogger.info(
+        'Fetching orders for user: $userId (offset=$offset, limit=$limit)',
+      );
 
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
+          .select(
+            '*, ${AppConstants.tableOrderItems}(*, ${AppConstants.tableOrderItemSides}(*))',
+          )
           .eq('user_id', userId)
-          .order('ordered_at', ascending: false);
+          .order('ordered_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
-      final orders = <Order>[];
-      for (var orderData in response as List) {
-        final itemsResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItems)
-            .select()
-            .eq('order_id', orderData['id']);
-
-        final items = <OrderItem>[];
-        for (final itemJson in (itemsResponse as List)) {
-          final sidesResponse = await _supabaseClient
-              .from(AppConstants.tableOrderItemSides)
-              .select()
-              .eq('order_item_id', itemJson['id']);
-          final sides = (sidesResponse as List)
-              .map((s) => OrderItemSide.fromJson(s))
-              .toList();
-          items.add(
-            OrderItem.fromJson({
-              ...itemJson,
-              'sides': sides.map((s) => s.toJson()).toList(),
-            }),
-          );
-        }
-
-        orders.add(
-          Order.fromJson({
-            ...orderData,
-            'items': items.map((item) => item.toJson()).toList(),
-          }),
-        );
-      }
+      final orders = (response as List).map((orderData) {
+        final rawItems =
+            (orderData[AppConstants.tableOrderItems] as List? ?? []);
+        final items = rawItems.map((itemJson) {
+          final sides =
+              (itemJson[AppConstants.tableOrderItemSides] as List? ?? [])
+                  .map((s) => OrderItemSide.fromJson(s as Map<String, dynamic>))
+                  .toList();
+          return OrderItem.fromJson({
+            ...itemJson as Map<String, dynamic>,
+            'sides': sides.map((s) => s.toJson()).toList(),
+          });
+        }).toList();
+        return Order.fromJson({
+          ...orderData as Map<String, dynamic>,
+          'items': items.map((item) => item.toJson()).toList(),
+        });
+      }).toList();
 
       AppLogger.info('Fetched ${orders.length} orders');
       return orders;

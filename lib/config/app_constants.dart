@@ -14,8 +14,12 @@
   );
 
   // Stripe Payment Configuration — loaded from app_config DB at startup
-  static String stripePublishableKey =
-      'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF';
+  // Fallback can be overridden at build time: --dart-define=STRIPE_PK=pk_live_...
+  static String stripePublishableKey = String.fromEnvironment(
+    'STRIPE_PK',
+    defaultValue:
+        'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
+  );
   static const String stripePaymentFunction = 'stripe-payment';
   static const String stripeMerchantId = 'merchant.com.foodhub.delivery';
 
@@ -118,7 +122,8 @@
 
   // Fees (in USD)
   static double taxRate = 0.0; // No income tax in Cayman Islands
-  static double platformServiceFeeRate = 0.05; // 5% platform service fee on subtotal
+  static double platformServiceFeeRate =
+      0.05; // 5% platform service fee on subtotal
   static double defaultDeliveryFee = 5.0;
   static double pickupServiceFee = 2.0;
   static double driverFeePerDelivery = 5.0;

@@ -186,9 +186,12 @@ final pendingDisputesProvider =
 
 /// Watches the orders table via Supabase Realtime for any new orders.
 /// Notifies admin in-app whenever a customer places an order.
+/// Throttled to fire at most once per 2 s at peak order volume.
 final adminNewOrderRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
   ref,
 ) {
+  DateTime? lastFire;
+
   final channel = SupabaseConfig.client.realtime.channel('admin_new_orders');
 
   channel.onPostgresChanges(
@@ -196,6 +199,12 @@ final adminNewOrderRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
     schema: 'public',
     table: 'orders',
     callback: (payload) {
+      final now = DateTime.now();
+      if (lastFire != null && now.difference(lastFire!).inSeconds < 2) {
+        return; // throttle — skip if fired within last 2 s
+      }
+      lastFire = now;
+
       final record = payload.newRecord;
       final orderId = record['id'] ?? '';
       final shortId = orderId.toString().length >= 8

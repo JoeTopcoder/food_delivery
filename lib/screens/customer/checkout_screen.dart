@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -1788,11 +1790,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-
-      final raw = e.toString();
-
-      // Show raw error for debugging — remove friendly masks temporarily
-      AppSnackbar.error(context, raw);
+      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) {
         setState(() => _placingOrder = false);

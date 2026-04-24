@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/search_service.dart';
@@ -7,11 +8,41 @@ final searchServiceProvider = Provider<SearchService>((ref) {
   return SearchService(Supabase.instance.client);
 });
 
-/// Search query state
-final searchQueryProvider = StateProvider<String>((ref) => '');
 final searchCuisineProvider = StateProvider<String?>((ref) => null);
 final searchMaxPriceProvider = StateProvider<double?>((ref) => null);
 final searchMinRatingProvider = StateProvider<double?>((ref) => null);
+
+/// Debounced search query notifier — emits a new value only after 400 ms of
+/// inactivity, preventing a DB call on every keystroke.
+class DebouncedSearchNotifier extends StateNotifier<String> {
+  Timer? _timer;
+
+  DebouncedSearchNotifier() : super('');
+
+  void update(String value) {
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 400), () {
+      state = value;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
+
+final searchQueryProvider =
+    StateNotifierProvider<DebouncedSearchNotifier, String>(
+      (ref) => DebouncedSearchNotifier(),
+    );
+
+/// Convenience method — call this to update the search query with debounce.
+/// Usage: ref.read(searchQueryProvider.notifier).update(value)
+extension SearchQueryExt on DebouncedSearchNotifier {
+  void setQuery(String v) => update(v);
+}
 
 /// Menu item search results (reactive to query/filters)
 final menuSearchResultsProvider = FutureProvider<List<MenuSearchResult>>((

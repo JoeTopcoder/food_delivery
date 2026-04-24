@@ -66,7 +66,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
     setState(() => _query = value.trim().toLowerCase());
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      ref.read(searchQueryProvider.notifier).state = _query;
+      ref.read(searchQueryProvider.notifier).update(_query);
     });
   }
 

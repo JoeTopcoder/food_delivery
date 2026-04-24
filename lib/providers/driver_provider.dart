@@ -22,24 +22,33 @@ final driverProfileProvider = FutureProvider.family
 
 // Available Orders Provider (takes driverId + driver location for 2km proximity filter)
 final availableOrdersProvider = FutureProvider.autoDispose
-    .family<List<Order>, ({String? driverId, double? lat, double? lng})>(
-      (ref, params) async {
-        final driverService = ref.watch(driverServiceProvider);
-        return driverService.getAvailableOrders(
-          driverId: params.driverId,
-          driverLat: params.lat,
-          driverLng: params.lng,
-        );
-      });
+    .family<List<Order>, ({String? driverId, double? lat, double? lng})>((
+      ref,
+      params,
+    ) async {
+      final driverService = ref.watch(driverServiceProvider);
+      return driverService.getAvailableOrders(
+        driverId: params.driverId,
+        driverLat: params.lat,
+        driverLng: params.lng,
+      );
+    });
 
 /// Realtime listener that auto-refreshes available orders for drivers.
+/// Filtered to INSERT events with status 'ready' — avoids broadcasting
+/// every platform-wide order mutation to every connected driver.
 final driverOrderRealtimeProvider = Provider.autoDispose<void>((ref) {
   final channel = SupabaseConfig.client
       .channel('driver_available_orders')
       .onPostgresChanges(
-        event: PostgresChangeEvent.all,
+        event: PostgresChangeEvent.insert,
         schema: 'public',
         table: 'orders',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'status',
+          value: 'ready',
+        ),
         callback: (_) => ref.invalidate(availableOrdersProvider),
       )
       .subscribe();
@@ -128,8 +137,11 @@ class DriverAvailabilityNotifier extends StateNotifier<bool> {
   final DriverService _driverService;
   final String _driverId;
 
-  DriverAvailabilityNotifier(this._driverService, this._driverId, {bool initialState = false})
-    : super(initialState);
+  DriverAvailabilityNotifier(
+    this._driverService,
+    this._driverId, {
+    bool initialState = false,
+  }) : super(initialState);
 
   Future<void> toggleAvailability() async {
     try {
@@ -152,12 +164,18 @@ final driverAvailabilityProvider =
       final userId = SupabaseConfig.client.auth.currentUser?.id;
       bool initialAvailable = false;
       if (userId != null) {
-        final cachedDriver = ref.read(driverProfileProvider(userId)).valueOrNull;
+        final cachedDriver = ref
+            .read(driverProfileProvider(userId))
+            .valueOrNull;
         if (cachedDriver != null && cachedDriver.id == driverId) {
           initialAvailable = cachedDriver.isAvailable;
         }
       }
-      return DriverAvailabilityNotifier(driverService, driverId, initialState: initialAvailable);
+      return DriverAvailabilityNotifier(
+        driverService,
+        driverId,
+        initialState: initialAvailable,
+      );
     });
 
 /// Watches the orders table via Supabase Realtime for new available orders.

@@ -9,6 +9,7 @@ import '../../services/notification_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
+import '../shared/ai_voice_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -259,6 +260,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                             ],
                           ),
                         ),
+                        _GlassIconButton(
+                          icon: Icons.smart_toy_outlined,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const AiVoiceScreen(role: 'driver'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         _GlassIconButton(
                           icon: Icons.settings_rounded,
                           onTap: () => Navigator.of(
@@ -752,8 +764,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               title: 'Refer a Driver',
               subtitle: 'Earn a bonus for every driver you refer',
               gradient: const [Color(0xFF10B981), Color(0xFF059669)],
-              onTap: () =>
-                  Navigator.of(context).pushNamed('/driver-referral'),
+              onTap: () => Navigator.of(context).pushNamed('/driver-referral'),
             ),
           ),
         ),
