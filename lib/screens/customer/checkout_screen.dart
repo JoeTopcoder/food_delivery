@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -77,6 +78,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.didChangeDependencies();
     final currentUser = ref.read(currentUserProvider);
     _hydratePaymentFields(currentUser);
+    // Auto-confirm address on first load when:
+    // - pickup is selected (no delivery address needed), OR
+    // - the user already has a saved/default address pre-filled.
+    if (!_addressConfirmed) {
+      final isPickup = ref.read(isPickupProvider);
+      final selectedAddress = ref.read(selectedAddressProvider);
+      if (isPickup || selectedAddress != null || currentUser?.address != null) {
+        // Use setState so the button re-renders as enabled immediately.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _addressConfirmed = true);
+        });
+      }
+    }
   }
 
   void _hydratePaymentFields(User? currentUser) {
@@ -1305,6 +1319,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     GestureDetector(
                       onTap:
                           (!_addressConfirmed &&
+                              !isPickup &&
                               _agreeToTerms &&
                               cart.isNotEmpty)
                           ? () {
@@ -1325,7 +1340,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         child: ElevatedButton(
                           onPressed:
                               _agreeToTerms &&
-                                  _addressConfirmed &&
+                                  (_addressConfirmed || isPickup) &&
                                   !_placingOrder &&
                                   cart.isNotEmpty &&
                                   currentUserId != null
@@ -1641,13 +1656,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               .read(walletNotifierProvider.notifier)
               .payWithWallet(verifiedTotal, order.id);
         } catch (e) {
-          await _deleteOrder(order.id);
           if (!mounted) return;
+          setState(() => _placingOrder = false);
+
+          // Ensure unpaid order is removed server-side.
+          final cleaned = await paymentService
+              .cleanupUnpaidOrder(order.id)
+              .timeout(const Duration(seconds: 10), onTimeout: () => false);
+          if (!cleaned) {
+            await _deleteOrder(order.id);
+          }
+
           AppSnackbar.error(
             context,
             'Wallet payment failed: ${friendlyError(e)}',
           );
-          setState(() => _placingOrder = false);
           return;
         }
       }
@@ -1671,18 +1694,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
         if (!mounted) return;
 
-        final paymentCompleted = await paymentService.presentStripePaymentSheet(
-          session: stripeSession,
-          customerEmail: email,
-          customerName: name,
-        );
+        final paymentCompleted = await paymentService
+            .presentStripePaymentSheet(
+              session: stripeSession,
+              customerEmail: email,
+              customerName: name,
+            )
+            .timeout(const Duration(seconds: 90), onTimeout: () => false);
 
         if (!mounted) return;
 
         if (!paymentCompleted) {
-          // User cancelled — delete the pending order and stop.
-          await _deleteOrder(order.id);
+          // User cancelled. Release loading state first, then perform reliable
+          // server-side cleanup so unpaid orders are not left in DB.
           setState(() => _placingOrder = false);
+
+          final cleaned = await paymentService
+              .cleanupUnpaidOrder(order.id)
+              .timeout(const Duration(seconds: 10), onTimeout: () => false);
+          if (!cleaned) {
+            await _deleteOrder(order.id);
+          }
+
           AppSnackbar.error(
             context,
             'Payment was not completed. Please try again.',
@@ -1692,97 +1725,38 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
         stripePaymentIntentId = stripeSession.paymentIntentId;
 
-        // Server-side confirmation
-        final confirmed = await paymentService.confirmStripePayment(
-          paymentIntentId: stripePaymentIntentId,
-          orderId: order.id,
+        // Server-side confirmation — fire-and-forget so the UI is never stalled.
+        // The payment was already confirmed by the Stripe SDK; this is just a DB sync.
+        unawaited(
+          paymentService
+              .confirmStripePayment(
+                paymentIntentId: stripePaymentIntentId,
+                orderId: order.id,
+              )
+              .then((confirmed) {
+                if (!confirmed) {
+                  AppLogger.error(
+                    'Stripe server confirmation pending for PI $stripePaymentIntentId / order ${order.id}',
+                  );
+                }
+              })
+              .catchError((e) {
+                AppLogger.error('Stripe server confirmation error: $e');
+              }),
         );
-        if (!confirmed) {
-          AppLogger.error(
-            'Stripe server confirmation failed for PI $stripePaymentIntentId / order ${order.id}',
-          );
-          if (mounted) {
-            AppSnackbar.error(
-              context,
-              'Payment processed but confirmation is pending. Contact support if your order does not update.',
-            );
-          }
-        }
       }
 
-      // Mark promo as used
-      if (appliedPromo != null) {
-        await ref.read(promoServiceProvider).markUsed(appliedPromo.id);
-      }
-
-      // Redeem loyalty points if selected
-      if (redeemPts > 0) {
-        await ref
-            .read(loyaltyServiceProvider)
-            .redeemPoints(userId: userId, orderId: order.id, points: redeemPts);
-      }
-      // Earn loyalty points from this order
-      await ref
-          .read(loyaltyServiceProvider)
-          .earnPoints(userId: userId, orderId: order.id, orderTotal: total);
-
-      // Consume subscription delivery only when server confirmed fee-free delivery.
-      final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
-      final fallbackSubEligible =
-          currentSub != null && currentSub.isActive && currentSub.hasDeliveries;
-      final usedSubscriptionDelivery =
-          !isPickup &&
-          verifiedDeliveryFee <= 0.0 &&
-          ((breakdown?.subscriptionDeliveryFree == true &&
-                  breakdown?.subscriptionId != null) ||
-              (breakdown == null && fallbackSubEligible));
-      if (usedSubscriptionDelivery) {
-        final subscriptionId = breakdown?.subscriptionId ?? currentSub!.id;
-        await ref
-            .read(subscriptionServiceProvider)
-            .useSubscriptionDelivery(
-              subscriptionId: subscriptionId,
-              orderId: order.id,
-            );
-        ref.invalidate(activeSubscriptionProvider);
-      }
-
-      // Track order completion for AI engine
-      ref
-          .read(behaviorTrackingProvider)
-          .trackOrderCompleted(userId, order.id, verifiedTotal);
-
+      // ── Navigate to success immediately ─────────────────────────────────
+      // Do this before any post-order bookkeeping so the user is never
+      // left staring at the checkout loading spinner.
       ref.read(cartProvider.notifier).clearCart();
       ref.read(appliedPromoProvider.notifier).clear();
       ref.read(redeemPointsProvider.notifier).state = 0;
       ref.read(selectedAddressIdProvider.notifier).state = null;
       ref.read(isPickupProvider.notifier).state = false;
 
-      // If this was a group order checkout, mark it as ordered and clean up.
-      final groupOrderId = ref.read(groupOrderIdForCheckoutProvider);
-      if (groupOrderId != null) {
-        try {
-          final goService = ref.read(groupOrderServiceProvider);
-          await goService.markAsOrdered(groupOrderId);
-        } catch (_) {
-          // Non-fatal: the order was placed; group close failure is ignorable.
-        }
-        ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
-        ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
-      }
-      // Refresh loyalty balance so it reflects redeemed/earned points.
-      if (userId.isNotEmpty) {
-        ref.invalidate(loyaltyAccountProvider(userId));
-      }
-      // Refresh brain engine so coupon/recommendations update after order
-      ref.invalidate(brainEngineProvider);
-      // Ensure the new order shows in order history immediately
-      ref.invalidate(userOrdersProvider(userId));
-
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
+      setState(() => _placingOrder = false);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => OrderSuccessScreen(
@@ -1793,6 +1767,88 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             receiptNumber: order.receiptNumber,
           ),
         ),
+      );
+
+      // ── Post-order bookkeeping (fire-and-forget) ─────────────────────────
+      unawaited(
+        Future(() async {
+          // Mark promo as used
+          if (appliedPromo != null) {
+            try {
+              await ref.read(promoServiceProvider).markUsed(appliedPromo.id);
+            } catch (_) {}
+          }
+
+          // Redeem loyalty points if selected
+          if (redeemPts > 0) {
+            try {
+              await ref
+                  .read(loyaltyServiceProvider)
+                  .redeemPoints(
+                    userId: userId,
+                    orderId: order.id,
+                    points: redeemPts,
+                  );
+            } catch (_) {}
+          }
+
+          // Earn loyalty points from this order
+          try {
+            await ref
+                .read(loyaltyServiceProvider)
+                .earnPoints(
+                  userId: userId,
+                  orderId: order.id,
+                  orderTotal: total,
+                );
+          } catch (_) {}
+
+          // Consume subscription delivery
+          final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;
+          final fallbackSubEligible =
+              currentSub != null &&
+              currentSub.isActive &&
+              currentSub.hasDeliveries;
+          final usedSubscriptionDelivery =
+              !isPickup &&
+              verifiedDeliveryFee <= 0.0 &&
+              ((breakdown?.subscriptionDeliveryFree == true &&
+                      breakdown?.subscriptionId != null) ||
+                  (breakdown == null && fallbackSubEligible));
+          if (usedSubscriptionDelivery) {
+            try {
+              final subscriptionId =
+                  breakdown?.subscriptionId ?? currentSub!.id;
+              await ref
+                  .read(subscriptionServiceProvider)
+                  .useSubscriptionDelivery(
+                    subscriptionId: subscriptionId,
+                    orderId: order.id,
+                  );
+              ref.invalidate(activeSubscriptionProvider);
+            } catch (_) {}
+          }
+
+          // Group order cleanup
+          final groupOrderId = ref.read(groupOrderIdForCheckoutProvider);
+          if (groupOrderId != null) {
+            try {
+              await ref
+                  .read(groupOrderServiceProvider)
+                  .markAsOrdered(groupOrderId);
+            } catch (_) {}
+            ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
+            ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
+          }
+
+          // Invalidate providers so UI refreshes with latest data
+          if (userId.isNotEmpty) ref.invalidate(loyaltyAccountProvider(userId));
+          ref.invalidate(brainEngineProvider);
+          ref.invalidate(userOrdersProvider(userId));
+          ref
+              .read(behaviorTrackingProvider)
+              .trackOrderCompleted(userId, order.id, verifiedTotal);
+        }),
       );
     } catch (e) {
       if (!mounted) return;

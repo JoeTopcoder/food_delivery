@@ -599,6 +599,137 @@ async function getPersonalizationContext(
   }
 }
 
+// ── Comprehensive user profile — fetched on every customer request ──────────
+async function getFullUserProfile(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<string> {
+  try {
+    const [
+      userRes,
+      walletRes,
+      loyaltyRes,
+      metricsRes,
+      intelligenceRes,
+      preferencesRes,
+      subscriptionRes,
+      recentOrdersRes,
+      activePromoRes,
+    ] = await Promise.all([
+      client.from('users').select('name, email, phone, address, created_at, referral_code, referred_by, onboarding_completed').eq('id', userId).maybeSingle(),
+      client.from('wallets').select('balance, cashback_balance').eq('user_id', userId).maybeSingle(),
+      client.from('loyalty_accounts').select('points, total_earned, total_redeemed, tier').eq('user_id', userId).maybeSingle(),
+      client.from('user_metrics').select('total_orders, avg_order_value, days_since_last_order, order_frequency, segment, last_order_at').eq('user_id', userId).maybeSingle(),
+      client.from('user_intelligence_profiles').select('taste_profile, price_sensitivity, deal_sensitivity, order_habit, churn_risk, user_segment, activity_score, summary_text, cuisine_scores, favorite_categories, preferred_order_times').eq('user_id', userId).maybeSingle(),
+      client.from('user_preferences').select('preferred_cuisines, dietary_restrictions').eq('user_id', userId).maybeSingle(),
+      client.from('user_subscriptions').select('status, plan_type, next_delivery, deliveries_remaining, auto_renew, current_period_end').eq('user_id', userId).eq('status', 'active').maybeSingle(),
+      client.from('orders').select('total_amount, ordered_at, status, restaurants(name)').eq('user_id', userId).order('ordered_at', { ascending: false }).limit(5),
+      client.from('user_promotions').select('promo_codes(code, discount_type, discount_value, description, expires_at)').eq('user_id', userId).eq('is_used', false).limit(5),
+    ])
+
+    const u = userRes.data
+    if (!u) return ''
+
+    const memberSince = u.created_at
+      ? new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+      : 'Unknown'
+
+    let ctx = `=== CUSTOMER PROFILE ===\n`
+    ctx += `Name: ${u.name ?? 'Not set'}\n`
+    ctx += `Email: ${u.email ?? 'Not set'}\n`
+    ctx += `Phone: ${u.phone ?? 'Not set'}\n`
+    ctx += `Member since: ${memberSince}\n`
+    if (u.address) ctx += `Default address: ${u.address}\n`
+
+    // Wallet
+    const wallet = walletRes.data
+    if (wallet) {
+      ctx += `Wallet balance: $${Number(wallet.balance ?? 0).toFixed(2)}\n`
+      if (Number(wallet.cashback_balance ?? 0) > 0) {
+        ctx += `Cashback balance: $${Number(wallet.cashback_balance).toFixed(2)}\n`
+      }
+    }
+
+    // Loyalty
+    const loyalty = loyaltyRes.data
+    if (loyalty) {
+      ctx += `Loyalty points: ${loyalty.points ?? 0} pts (Tier: ${loyalty.tier ?? 'standard'}, Lifetime earned: ${loyalty.total_earned ?? 0} pts)\n`
+    }
+
+    // Order metrics
+    const metrics = metricsRes.data
+    if (metrics) {
+      ctx += `Total orders placed: ${metrics.total_orders ?? 0}\n`
+      if (metrics.avg_order_value) ctx += `Average order value: $${Number(metrics.avg_order_value).toFixed(2)}\n`
+      if (metrics.days_since_last_order !== null) ctx += `Days since last order: ${metrics.days_since_last_order}\n`
+      if (metrics.order_frequency) ctx += `Order frequency: ${Number(metrics.order_frequency).toFixed(2)} orders/week\n`
+      if (metrics.segment) ctx += `Customer segment: ${metrics.segment}\n`
+      if (metrics.last_order_at) {
+        const daysAgo = Math.round((Date.now() - new Date(metrics.last_order_at).getTime()) / 86400000)
+        ctx += `Last order: ${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`}\n`
+      }
+    }
+
+    // AI intelligence profile  
+    const intel = intelligenceRes.data
+    if (intel) {
+      if (intel.summary_text) ctx += `Customer insight: ${intel.summary_text}\n`
+      if (intel.taste_profile) ctx += `Taste profile: ${intel.taste_profile}\n`
+      if (intel.order_habit) ctx += `Order habit: ${intel.order_habit}\n`
+      if (intel.price_sensitivity) ctx += `Price sensitivity: ${intel.price_sensitivity}\n`
+      if (intel.deal_sensitivity) ctx += `Deal sensitivity: ${intel.deal_sensitivity}\n`
+      if (intel.churn_risk) ctx += `Churn risk: ${intel.churn_risk}\n`
+      if (intel.activity_score) ctx += `Activity score: ${intel.activity_score}\n`
+      if (intel.favorite_categories?.length) ctx += `Favourite categories: ${(intel.favorite_categories as string[]).join(', ')}\n`
+      if (intel.preferred_order_times?.length) ctx += `Preferred order times: ${(intel.preferred_order_times as string[]).join(', ')}\n`
+    }
+
+    // Preferences
+    const prefs = preferencesRes.data
+    if (prefs) {
+      if (prefs.preferred_cuisines?.length) ctx += `Preferred cuisines: ${(prefs.preferred_cuisines as string[]).join(', ')}\n`
+      if (prefs.dietary_restrictions?.length) ctx += `Dietary restrictions: ${(prefs.dietary_restrictions as string[]).join(', ')}\n`
+    }
+
+    // Active subscription
+    const sub = subscriptionRes.data
+    if (sub) {
+      ctx += `Active subscription: ${sub.plan_type ?? 'Premium'}`
+      if (sub.deliveries_remaining !== null) ctx += ` (${sub.deliveries_remaining} deliveries remaining)`
+      if (sub.next_delivery) ctx += `, next delivery: ${new Date(sub.next_delivery).toLocaleDateString()}`
+      ctx += `\n`
+    }
+
+    // Recent order history
+    if (recentOrdersRes.data?.length) {
+      ctx += `Recent orders:\n`
+      for (const o of recentOrdersRes.data as any[]) {
+        const daysAgo = Math.round((Date.now() - new Date(o.ordered_at).getTime()) / 86400000)
+        const when = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`
+        ctx += `  • ${(o.restaurants as any)?.name ?? 'Unknown'} — $${Number(o.total_amount).toFixed(2)} — ${o.status} (${when})\n`
+      }
+    }
+
+    // Unused promos
+    if (activePromoRes.data?.length) {
+      ctx += `Unused promo codes:\n`
+      for (const up of activePromoRes.data as any[]) {
+        const p = up.promo_codes
+        if (!p) continue
+        const discountText = p.discount_type === 'percentage' ? `${p.discount_value}% off` : `$${p.discount_value} off`
+        const expiry = p.expires_at ? ` (expires ${new Date(p.expires_at).toLocaleDateString()})` : ''
+        ctx += `  • ${p.code}: ${discountText}${p.description ? ` — ${p.description}` : ''}${expiry}\n`
+      }
+    }
+
+    ctx += `========================`
+    return ctx
+  } catch (e) {
+    console.error('getFullUserProfile error:', e)
+    return ''
+  }
+}
+
 // ── Phase 3: Auto-issue wallet credit ───────────────────────────────────────
 async function issueWalletCredit(
   client: ReturnType<typeof createClient>,
@@ -716,6 +847,12 @@ Deno.serve(async (req: Request) => {
         intent,
         action: 'escalate_to_support',
       })
+    }
+
+    // ── Fetch full user profile (always, for customers) ────────────────────
+    let userProfileContext = ''
+    if (role === 'customer') {
+      userProfileContext = await getFullUserProfile(serviceClient, user.id)
     }
 
     // ── Fetch order context ─────────────────────────────────────────────────
@@ -897,12 +1034,17 @@ Deno.serve(async (req: Request) => {
     // ── Phase 3: Sentiment detection ────────────────────────────────────────
     const sentiment = detectSentiment(message)
 
-    // ── Phase 3: Personalization context (for reorder / predict intents) ────
-    const personalIntents = ['reorder', 'suggest_reorder_ai', 'predict_needs', 'recommend_action']
-    if (role === 'customer' && personalIntents.includes(intent)) {
-      const personCtx = await getPersonalizationContext(serviceClient, user.id)
-      if (personCtx) {
-        fullContext = `${personCtx}\n\n${fullContext}`.trim()
+    // ── Phase 3: Personalization context — always inject for customers ──────
+    if (role === 'customer' && userProfileContext) {
+      fullContext = `${userProfileContext}\n\n${fullContext}`.trim()
+    } else if (role === 'customer') {
+      // Fallback: legacy personalization for reorder / predict intents
+      const personalIntents = ['reorder', 'suggest_reorder_ai', 'predict_needs', 'recommend_action']
+      if (personalIntents.includes(intent)) {
+        const personCtx = await getPersonalizationContext(serviceClient, user.id)
+        if (personCtx) {
+          fullContext = `${personCtx}\n\n${fullContext}`.trim()
+        }
       }
     }
 
@@ -1416,8 +1558,15 @@ function buildSystemPrompt(
   etaMinutes: number | null = null,
   restaurantId: string | null = null,
 ): string {
+  // Detect terminal statuses before building the context block
+  const _statusMatchCtx = orderContext.match(/Status: ([^\n]+)/)
+  const _currentStatusCtx = _statusMatchCtx?.[1]?.toLowerCase() ?? ''
+  const _isTerminalCtx = _currentStatusCtx.includes('delivered') || _currentStatusCtx.includes('cancelled')
+
   const contextBlock = orderContext
-    ? `\n\n${orderContext}\n`
+    ? _isTerminalCtx
+      ? `\n\nNO ACTIVE ORDER IN PROGRESS. The customer has no ongoing delivery right now. The data below is for a PAST/COMPLETED order only — reference it for history, receipts, or ratings, but do NOT treat it as an active delivery:\n\n${orderContext}\n`
+      : `\n\n${orderContext}\n`
     : '\n\nNo active order found for this user right now.\n'
 
   const langInstruction = language !== 'en'
@@ -1691,27 +1840,34 @@ function buildSystemPrompt(
 
   const intentNote = intentGuidance[intent] ?? intentGuidance.general_question
 
-  const baseRules = `You are MealHub AI, a helpful and empathetic voice assistant for a food delivery app.
+  const baseRules = `You are Aria, MealHub's senior customer experience specialist. You are professional, warm, articulate, and highly knowledgeable — responding like a well-educated human expert who genuinely cares about each customer and knows their account inside out.
 ${langInstruction}
 DETECTED INTENT: ${intent.replace(/_/g, ' ')}
 SITUATION GUIDANCE: ${intentNote}
 
-STRICT RULES:
-- Keep answers concise (2-4 sentences) — responses are spoken aloud.
-- NEVER share or mention the driver's phone number in any response. Never say any phone digits for the driver. When a customer wants to call the driver, tell them a call button will appear in this chat — they can tap it to connect directly.
-- When referring to a driver by name, use first name and last initial only (e.g. "John S."). Never say the driver's full last name.
+PERSONA & TONE RULES:
+- Address the customer by their first name when you know it (from CUSTOMER PROFILE) — use it naturally, not every sentence.
+- Respond like a knowledgeable human professional: thoughtful, composed, and precise. Never robotic.
+- For routine questions: be concise and clear (2-4 sentences). For sensitive issues (delays, refunds, complaints): be more thorough and empathetic.
+- Mirror the customer's tone: if they're casual, be warm and conversational. If they're upset, be calm and reassuring. If they're urgent, be swift and decisive.
+- Reference the customer's actual data when relevant (e.g. "I can see you have $X in your wallet", "Based on your order history with us...", "Your loyalty tier is..."). This makes responses feel genuinely personalised.
+- NEVER sound scripted or robotic. Avoid phrases like "I understand your concern" as an opener — lead with the substance.
+- Use contractions naturally (I'll, we'll, you're, it's) to sound human.
+
+STRICT DATA RULES:
+- NEVER share or mention the driver's phone number. When a customer wants to call the driver, tell them a call button will appear in this chat.
+- When referring to a driver by name, use first name and last initial only (e.g. "John S.").
 - Use ONLY data from ORDER CONTEXT — never invent or guess order details.
 - ETA must come ONLY from ORDER CONTEXT — you cannot calculate it yourself.
 - Never expose full order UUIDs. Short IDs like #AB1234 are fine.
-- Never share raw coordinates — describe location in plain language if needed.
-- CASH ORDERS: Customers who paid cash are NOT eligible for refunds or wallet credits. If the payment_method is 'cash' or 'cash_on_delivery', NEVER mention refunds, credits, or compensation. Instead offer to escalate the issue to support.
-- If information is missing from context, acknowledge it and offer a next step (contact driver, contact support, check app).
-- NEVER say "I don't have access to" data — if TOP OPEN RESTAURANTS is in the context block, USE it to answer. Always check the full context before saying data is unavailable.
-- Always provide an action-oriented follow-up: what the user should do next.
-- Be warm, empathetic, and professional. For delays/issues, always apologize first.
-- For questions about stages/phases, explain in plain language what each status means.
+- Never share raw coordinates — describe location in plain language.
+- CASH ORDERS: If payment_method is 'cash' or 'cash_on_delivery', NEVER mention refunds or wallet credits. Escalate to support instead.
+- If specific data is missing from context, acknowledge it gracefully and offer a clear next step.
+- NEVER say "I don't have access to" data — check the full context before saying something is unavailable.
+- Always end with an action-oriented next step.
+- For delays or issues, lead with acknowledgement before solutions.
 
-ORDER STAGES REFERENCE (use when explaining status):
+ORDER STAGES REFERENCE (explain in plain language when needed):
   pending    → Restaurant hasn't confirmed yet (usually 2-5 min)
   confirmed  → Restaurant confirmed, kitchen preparing soon
   preparing  → Kitchen actively preparing food (15-25 min typical)
@@ -1887,7 +2043,18 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
   if (role === 'customer') {
     return `${baseRules}
 
-You assist CUSTOMERS with their food orders. You have comprehensive knowledge of every feature, policy, and service in the app (see APP KNOWLEDGE BASE above). You can answer virtually any question about ordering, delivery, payment, drivers, restaurants, accounts, promotions, subscriptions, safety, privacy, and support. Always use the APP KNOWLEDGE BASE to answer general questions. Use ORDER CONTEXT for live order-specific data.
+You are speaking with a CUSTOMER. You have their full profile in CUSTOMER PROFILE below — use it to personalise every response. Reference their name, wallet balance, loyalty points, order history, preferences, and subscription when relevant. Never ask for information you already have in the profile.
+
+Key personalisation rules:
+- If CUSTOMER PROFILE shows a name, use it naturally in conversation.
+- If they ask about their wallet, quote the exact balance from CUSTOMER PROFILE.
+- If they ask about loyalty points or tier, reference the exact numbers.
+- If they have unused promo codes, proactively mention them when relevant (e.g. at checkout questions).
+- If their segment is "at_risk" or churn_risk is high, be especially warm and solution-focused.
+- If they're a frequent orderer, acknowledge their loyalty genuinely.
+- If they have dietary restrictions, factor them into any food recommendations.
+
+You can answer any question about ordering, delivery, payment, drivers, restaurants, accounts, promotions, subscriptions, safety, privacy, and support using the APP KNOWLEDGE BASE.
 ${contextBlock}`
   }
 
