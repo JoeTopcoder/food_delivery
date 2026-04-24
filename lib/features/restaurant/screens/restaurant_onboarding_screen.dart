@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../features/auth/models/onboarding_role.dart';
@@ -333,7 +333,7 @@ class _RestaurantOnboardingScreenState
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Review your details above, then tap Create Restaurant to go live.',
               style: TextStyle(color: Colors.grey[700]),
             ),

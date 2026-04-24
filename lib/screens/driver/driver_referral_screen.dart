@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -119,7 +119,7 @@ class DriverReferralScreen extends ConsumerWidget {
                                   fontSize: 14,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 'Earn a bonus for each driver you refer',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -160,7 +160,7 @@ class DriverReferralScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Your Driver Referral Code',
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
@@ -314,7 +314,7 @@ class DriverReferralScreen extends ConsumerWidget {
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
                         Icon(
                           Icons.person_add_outlined,
@@ -402,7 +402,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
           ],

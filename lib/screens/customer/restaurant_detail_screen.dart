@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -706,7 +706,7 @@ class _RestaurantDetailScreenState
                     ),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.schedule_rounded,
                           size: 18,
                           color: AppTheme.accentColor,
@@ -717,7 +717,7 @@ class _RestaurantDetailScreenState
                             'This restaurant is closed. '
                             '${widget.restaurant.nextOpenLabel}. '
                             'You can schedule an order.',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.accentColor,
                               fontWeight: FontWeight.w500,

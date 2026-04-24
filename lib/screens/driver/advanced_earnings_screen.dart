@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../config/app_constants.dart';
@@ -49,7 +49,7 @@ class _AdvancedEarningsScreenState
           ),
         );
       }
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -241,7 +241,7 @@ class _AdvancedEarningsScreenState
 
                   // ── Earnings Summary ──────────────────────────────────
                   earningsAsync.when(
-                    loading: () => const Padding(
+                    loading: () => Padding(
                       padding: EdgeInsets.all(48),
                       child: Center(
                         child: CircularProgressIndicator(
@@ -321,7 +321,7 @@ class _BalanceHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

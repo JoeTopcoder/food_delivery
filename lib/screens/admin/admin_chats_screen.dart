@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +27,7 @@ class AdminChatsScreen extends ConsumerWidget {
         elevation: 0,
       ),
       body: chatsAsync.when(
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
         error: (e, _) => Center(

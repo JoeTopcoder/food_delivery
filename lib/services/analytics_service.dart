@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_config.dart';
 import '../utils/app_logger.dart';
 
 /// Analytics data models

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,7 +165,7 @@ class _CreateGroceryStoreViewState
                         color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.storefront_rounded,
                         size: 40,
                         color: AppTheme.primaryColor,
@@ -301,7 +301,7 @@ class _CreateGroceryStoreViewState
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
         ),
       );
 }
@@ -326,7 +326,7 @@ class _GroceryStoreBody extends ConsumerWidget {
               store.name,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
             ),
-            const Text(
+            Text(
               'Grocery Store',
               style: TextStyle(
                 fontSize: 12,
@@ -401,7 +401,7 @@ class _GroceryStoreBody extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.category_rounded,
                           size: 16,
                           color: AppTheme.primaryColor,
@@ -642,7 +642,7 @@ class _GroceryProductTile extends StatelessWidget {
                     children: [
                       Text(
                         '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppTheme.primaryColor,
                           fontSize: 13,
@@ -703,7 +703,7 @@ class _GroceryProductTile extends StatelessWidget {
                     break;
                 }
               },
-              icon: const Icon(Icons.more_vert, color: Colors.grey[700]),
+              icon: Icon(Icons.more_vert, color: Colors.grey[700]),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -943,7 +943,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.local_grocery_store,
                       color: AppTheme.primaryColor,
                     ),
@@ -1166,7 +1166,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+      borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
     ),
   );
 }
@@ -1322,7 +1322,7 @@ class _DeliverySettingsSheetState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
+                borderSide: BorderSide(
                   color: AppTheme.primaryColor,
                   width: 2,
                 ),

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -338,7 +338,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.handshake_rounded,
                       size: 36,
                       color: AppTheme.primaryColor,
@@ -803,7 +803,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: const Border(
+        border: Border(
           left: BorderSide(color: AppTheme.primaryColor, width: 3),
         ),
       ),
@@ -840,7 +840,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
             width: 32,
             child: Text(
               num,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.primaryColor,
@@ -872,7 +872,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
             width: 32,
             child: Text(
               num,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.primaryColor,

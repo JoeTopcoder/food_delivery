@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/theme_provider.dart';
@@ -147,7 +147,7 @@ class _ThemeOption extends StatelessWidget {
         ),
       ),
       trailing: selected
-          ? const Icon(Icons.check_circle, color: AppTheme.primaryColor)
+          ? Icon(Icons.check_circle, color: AppTheme.primaryColor)
           : null,
       onTap: onTap,
     );
@@ -243,7 +243,7 @@ class _LanguageOption extends StatelessWidget {
         ),
       ),
       trailing: selected
-          ? const Icon(Icons.check_circle, color: AppTheme.primaryColor)
+          ? Icon(Icons.check_circle, color: AppTheme.primaryColor)
           : null,
       onTap: onTap,
     );

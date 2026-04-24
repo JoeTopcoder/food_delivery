@@ -29,7 +29,6 @@ import '../../services/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/decision_engine_provider.dart';
-import '../../services/decision_engine_service.dart';
 import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
@@ -355,7 +354,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.place_rounded,
                                 color: AppTheme.primaryColor,
                                 size: 18,
@@ -441,7 +440,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 'This restaurant is currently closed. '
                                 '${restaurant.nextOpenLabel}. '
                                 'Your order will be scheduled.',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.accentColor,
                                   fontWeight: FontWeight.w500,
@@ -763,7 +762,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: const BorderSide(
+                                        borderSide: BorderSide(
                                           color: AppTheme.primaryColor,
                                         ),
                                       ),
@@ -2146,7 +2145,7 @@ class _PaymentTile extends StatelessWidget {
             ),
             if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
             if (selected)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 color: AppTheme.primaryColor,
                 size: 20,
@@ -2274,7 +2273,7 @@ class _SavedCardTile extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             if (selected)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 color: AppTheme.primaryColor,
                 size: 18,

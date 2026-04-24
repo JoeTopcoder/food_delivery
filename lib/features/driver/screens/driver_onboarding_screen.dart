@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../features/auth/models/onboarding_role.dart';
@@ -435,7 +435,7 @@ class _DriverOnboardingScreenState
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Check the box once you have uploaded your ID and any required documents.',
               style: TextStyle(color: Colors.grey[700]),
             ),
@@ -463,7 +463,7 @@ class _DriverOnboardingScreenState
                   : const Text('Create Driver'),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Status: Pending approval. Limited mode remains available until approval.',
               style: TextStyle(color: Colors.grey[700], fontSize: 12),
             ),

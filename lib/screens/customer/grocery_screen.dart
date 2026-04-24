@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -516,7 +516,7 @@ class _SearchProductCard extends ConsumerWidget {
                             product.discount != null && product.discount! > 0
                                 ? '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}'
                                 : '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.primaryColor,
@@ -685,7 +685,7 @@ class _GroceryCartIcon extends ConsumerWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            const Icon(
+            Icon(
               Icons.shopping_cart_rounded,
               color: AppTheme.primaryColor,
               size: 26,

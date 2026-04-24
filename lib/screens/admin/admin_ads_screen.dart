@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/admin_provider.dart';
@@ -375,7 +375,7 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      title: Row(
         children: [
           Icon(Icons.campaign_rounded, color: AppTheme.primaryColor),
           SizedBox(width: 8),

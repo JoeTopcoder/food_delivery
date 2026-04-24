@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -286,7 +286,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(
+                          borderSide: BorderSide(
                             color: AppTheme.primaryColor,
                           ),
                         ),
@@ -300,7 +300,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppTheme.primaryColor,
                         shape: BoxShape.circle,
                       ),

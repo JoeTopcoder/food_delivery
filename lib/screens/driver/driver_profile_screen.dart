@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
@@ -62,7 +62,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
           }
         });
       }
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: AppLoadingIndicator(
           message: 'Loading profile...',
@@ -368,7 +368,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: Color(0xFF0B0D14),
         body: AppLoadingIndicator(
           message: 'Loading driver profile...',
@@ -447,7 +447,7 @@ class _HeroHeader extends StatelessWidget {
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [AppTheme.primaryColor, Color(0xFF6366F1)],
                       ),
                     ),
@@ -704,7 +704,7 @@ class _StyledField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppTheme.primaryColor,
             width: 1.5,
           ),

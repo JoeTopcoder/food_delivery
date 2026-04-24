@@ -1,4 +1,4 @@
-import 'package:confetti/confetti.dart';
+﻿import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
@@ -259,7 +259,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                 emissionFrequency: 0.06,
                 gravity: 0.2,
                 shouldLoop: false,
-                colors: const [
+                colors: [
                   AppTheme.primaryColor,
                   Color(0xFF10B981),
                   Color(0xFF6366F1),

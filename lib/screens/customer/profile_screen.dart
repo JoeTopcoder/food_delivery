@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -448,7 +448,7 @@ class _ProfileStat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppTheme.primaryColor,
@@ -542,7 +542,7 @@ class _SettingsTile extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward, size: 20, color: Colors.grey[700]),
+        trailing: Icon(Icons.arrow_forward, size: 20, color: Colors.grey[700]),
         onTap: onTap,
       ),
     );

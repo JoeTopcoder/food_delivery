@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -531,7 +531,7 @@ class _FilterChipButton extends StatelessWidget {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppTheme.primaryColor,
                   shape: BoxShape.circle,
                 ),
@@ -659,7 +659,7 @@ class _RestaurantSearchCard extends StatelessWidget {
                         const SizedBox(width: 12),
                         Text(
                           '${AppConstants.currencySymbol}${restaurant.deliveryFee ?? 0}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.primaryColor,
                             fontWeight: FontWeight.w600,
@@ -906,7 +906,7 @@ class _MenuItemCard extends StatelessWidget {
                     children: [
                       Text(
                         '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryColor,

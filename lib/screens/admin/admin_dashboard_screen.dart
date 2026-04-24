@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -7,8 +7,6 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
-import 'admin_analytics_screen.dart';
-import 'admin_ai_panel_screen.dart';
 import '../shared/ai_voice_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -74,7 +72,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
+                                gradient: LinearGradient(
                                   colors: [
                                     AppTheme.primaryColor,
                                     Color(0xFFFF8C5A),
@@ -213,7 +211,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
+                              gradient: LinearGradient(
                                 colors: [
                                   AppTheme.primaryColor,
                                   Color(0xFFFF8C5A),
@@ -1247,7 +1245,7 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+        borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
@@ -689,7 +689,7 @@ class _CartItemWidget extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppTheme.priceColor,
                     fontWeight: FontWeight.w700,
                   ),

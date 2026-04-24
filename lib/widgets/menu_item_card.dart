@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -37,7 +37,7 @@ class MenuItemCard extends StatelessWidget {
                 children: [
                   Text(
                     item.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                       color: AppTheme.textPrimary,
@@ -50,7 +50,7 @@ class MenuItemCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item.description!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         color: AppTheme.textSecondary,
                       ),
@@ -65,7 +65,7 @@ class MenuItemCard extends StatelessWidget {
                       if (item.discount != null && item.discount! > 0) ...[
                         Text(
                           '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textLight,
                             decoration: TextDecoration.lineThrough,
@@ -75,7 +75,7 @@ class MenuItemCard extends StatelessWidget {
                       ],
                       Text(
                         '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
                           color: AppTheme.priceColor,
@@ -138,7 +138,7 @@ class MenuItemCard extends StatelessWidget {
                   width: 90,
                   height: 90,
                   color: Colors.grey[100],
-                  child: const Icon(
+                  child: Icon(
                     Icons.fastfood,
                     size: 36,
                     color: Colors.grey[700],

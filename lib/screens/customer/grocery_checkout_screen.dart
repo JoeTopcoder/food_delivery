@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -219,7 +219,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.storefront_rounded,
                             color: AppTheme.primaryColor,
                             size: 20,
@@ -362,7 +362,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.place_rounded,
                                 color: AppTheme.primaryColor,
                                 size: 18,
@@ -1569,7 +1569,7 @@ class _PaymentTile extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 color: AppTheme.primaryColor,
                 size: 20,
@@ -1648,7 +1648,7 @@ class _SavedCardTile extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 color: AppTheme.primaryColor,
                 size: 20,
@@ -1763,7 +1763,7 @@ class _CvcInputCard extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.primaryColor),
+                  borderSide: BorderSide(color: AppTheme.primaryColor),
                 ),
               ),
             ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -199,7 +199,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
                       item.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -237,7 +237,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         ],
                         Text(
                           '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.priceColor,
@@ -392,7 +392,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Text(
                           '$_quantity',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.textPrimary,
@@ -444,7 +444,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       backgroundColor: AppTheme.primaryColor,
                       disabledBackgroundColor: Colors.grey[300],
                       foregroundColor: Colors.white,
-                      disabledForegroundcolor: Colors.grey[700],
+                      disabledForegroundColor: Colors.grey[700],
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -527,7 +527,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
@@ -575,10 +575,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
             Expanded(
               child: Text(
                 name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.textPrimary,
-                ),
+                style: TextStyle(fontSize: 15, color: AppTheme.textPrimary),
               ),
             ),
             if (showPrice)
@@ -586,7 +583,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 padding: const EdgeInsets.only(right: 12),
                 child: Text(
                   '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -189,7 +189,7 @@ class EarningsScreen extends ConsumerWidget {
                                   color: Theme.of(context).cardColor,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Column(
+                                child: Column(
                                   children: [
                                     Icon(
                                       Icons.person_add_outlined,
@@ -235,7 +235,7 @@ class EarningsScreen extends ConsumerWidget {
                         txAsync.when(
                           data: (txns) {
                             if (txns.isEmpty) {
-                              return const Padding(
+                              return Padding(
                                 padding: EdgeInsets.symmetric(vertical: 24),
                                 child: Center(
                                   child: Text(
@@ -275,7 +275,7 @@ class EarningsScreen extends ConsumerWidget {
       case 'builder':
         return const [Color(0xFF6366F1), Color(0xFF8B5CF6)];
       default:
-        return [AppTheme.primaryColor, const Color(0xFFFF8C42)];
+        return [AppTheme.primaryColor, Color(0xFFFF8C42)];
     }
   }
 
@@ -458,7 +458,7 @@ class _MonthlyCap extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.savings_outlined, size: 16, color: Colors.grey[700]),
+              Icon(Icons.savings_outlined, size: 16, color: Colors.grey[700]),
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
@@ -468,7 +468,7 @@ class _MonthlyCap extends StatelessWidget {
               ),
               Text(
                 '\$${used.toStringAsFixed(2)} / \$${cap.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -516,7 +516,7 @@ class _InviteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.card_giftcard_rounded,
                 color: AppTheme.primaryColor,
                 size: 20,
@@ -703,7 +703,7 @@ class _HowItWorks extends StatelessWidget {
             child: Center(
               child: Text(
                 num,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
@@ -769,7 +769,7 @@ class _StatChip extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
             ),
           ],
         ),
@@ -814,7 +814,7 @@ class _ReferralTile extends StatelessWidget {
             backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
             child: Text(
               initial,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.primaryColor,
                 fontWeight: FontWeight.bold,
               ),
@@ -834,7 +834,7 @@ class _ReferralTile extends StatelessWidget {
                 ),
                 Text(
                   joined,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -911,7 +911,7 @@ class _TransactionTile extends StatelessWidget {
                 ),
                 Text(
                   '$date$expiryInfo',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
                 ),
               ],
             ),

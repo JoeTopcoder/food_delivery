@@ -198,7 +198,7 @@ class _SummarySection extends StatelessWidget {
                   color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.smart_toy_outlined,
                   color: AppTheme.primaryColor,
                   size: 20,

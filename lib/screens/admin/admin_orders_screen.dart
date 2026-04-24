@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/supabase_config.dart';
@@ -269,7 +269,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                     color: Color(0xFF9CA3AF),
                     fontSize: 14,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search,
                     color: AppTheme.primaryColor,
                     size: 20,
@@ -296,7 +296,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
+                    borderSide: BorderSide(
                       color: AppTheme.primaryColor,
                       width: 1.5,
                     ),
@@ -985,7 +985,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.two_wheeler_rounded,
                     color: AppTheme.primaryColor,
                     size: 20,
@@ -1035,7 +1035,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                   color: Color(0xFF9CA3AF),
                   fontSize: 13,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search,
                   color: AppTheme.primaryColor,
                   size: 18,
@@ -1122,7 +1122,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
                               ),
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppTheme.primaryColor,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,

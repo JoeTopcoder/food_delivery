@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/premium_providers.dart';
@@ -42,7 +42,7 @@ class _DriverLeaderboardScreenState
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
                       begin: Alignment.topLeft,
@@ -177,7 +177,7 @@ class _DriverLeaderboardScreenState
                   ),
                 );
               },
-              loading: () => const SliverFillRemaining(
+              loading: () => SliverFillRemaining(
                 child: Center(
                   child: CircularProgressIndicator(
                     color: AppTheme.primaryColor,

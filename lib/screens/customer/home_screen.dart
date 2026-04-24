@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -601,7 +601,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                         if (cartItems.isEmpty) return const SizedBox.shrink();
                         return Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppTheme.accentColor,
                             shape: BoxShape.circle,
                           ),
@@ -1163,7 +1163,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                       color: AppTheme.textPrimary,
@@ -1174,7 +1174,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                     restaurant.cuisineType ?? 'Multi-cuisine',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textSecondary,
                     ),
@@ -1202,7 +1202,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                             const SizedBox(width: 2),
                             Text(
                               '${restaurant.rating ?? '-'}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.textPrimary,
@@ -1220,7 +1220,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         '${restaurant.estimatedDeliveryTime ?? 30} min',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.textSecondary,
                         ),
