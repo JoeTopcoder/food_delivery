@@ -20,11 +20,14 @@ final userServiceProvider = Provider<UserService>((ref) {
 
 // Current Supabase User Provider
 final currentSupabaseUserProvider = StreamProvider<User?>((ref) {
+  ref.keepAlive();
   final authService = ref.watch(authServiceProvider);
+  // Use ref.read for services inside async callbacks — ref.watch is not safe
+  // inside asyncMap because the async closure outlives any single build cycle.
+  final userService = ref.read(userServiceProvider);
 
   return authService.onAuthStateChanged().asyncMap((event) async {
     if (event.session != null) {
-      final userService = ref.watch(userServiceProvider);
       try {
         final user = await userService.getUserById(event.session!.user.id);
         return user;
@@ -51,6 +54,7 @@ final currentUserIdProvider = Provider<String?>((ref) {
 
 // Current User Role Provider
 final currentUserRoleProvider = FutureProvider<String?>((ref) async {
+  ref.keepAlive();
   final user = await ref.watch(currentSupabaseUserProvider.future);
   return user?.role;
 });

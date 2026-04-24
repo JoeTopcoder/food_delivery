@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'ai_voice_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -179,6 +180,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.smart_toy_outlined,
+              color: Color(0xFF6366F1),
+            ),
+            tooltip: 'AI Assistant',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    AiVoiceScreen(role: role, orderId: widget.orderId),
+              ),
+            ),
+          ),
           if (widget.receiverId != null && widget.receiverId!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call_rounded, color: Color(0xFF22C55E)),

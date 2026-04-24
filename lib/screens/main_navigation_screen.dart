@@ -12,6 +12,7 @@ import '../utils/context_extensions.dart';
 import '../utils/friendly_error.dart';
 import '../widgets/restaurant_card.dart';
 import '../widgets/order_countdown_timer.dart';
+import '../widgets/ai_fab.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
@@ -38,7 +39,27 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userId = ref.watch(currentUserIdProvider);
+
+    // Find active orders to pass as context to the AI
+    final ordersAsync = userId != null
+        ? ref.watch(userOrdersProvider(userId))
+        : null;
+    final allActiveOrders =
+        ordersAsync?.valueOrNull
+            ?.where((o) => o.status != 'delivered' && o.status != 'cancelled')
+            .toList() ??
+        [];
+    final activeOrderId = allActiveOrders.length == 1
+        ? allActiveOrders.first.id
+        : null;
+
     return Scaffold(
+      floatingActionButton: AiFab(
+        role: 'customer',
+        orderId: activeOrderId,
+        activeOrders: allActiveOrders.isNotEmpty ? allActiveOrders : null,
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [

@@ -12,6 +12,7 @@ import '../../providers/location_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../shared/ai_voice_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -120,7 +121,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               : order.estimatedDeliveryAt,
           deliveryOtp: data['delivery_otp'] as String? ?? order.deliveryOtp,
           pickupCode: data['pickup_code'] as String? ?? order.pickupCode,
-          deliveryOtpVerified: data['delivery_otp_verified'] as bool? ?? order.deliveryOtpVerified,
+          deliveryOtpVerified:
+              data['delivery_otp_verified'] as bool? ??
+              order.deliveryOtpVerified,
         );
       },
       loading: () => order,
@@ -154,7 +157,20 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
-        actions: const [SosButton()],
+        actions: [
+          const SosButton(),
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            tooltip: 'AI Assistant',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    AiVoiceScreen(role: 'customer', orderId: order.id),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

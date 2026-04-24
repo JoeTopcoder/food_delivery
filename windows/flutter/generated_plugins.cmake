@@ -7,10 +7,12 @@ list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   file_selector_windows
   firebase_core
+  flutter_tts
   geolocator_windows
   iris_method_channel
   permission_handler_windows
   share_plus
+  speech_to_text_windows
   url_launcher_windows
 )
 

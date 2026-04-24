@@ -220,9 +220,19 @@ class ChatService {
           'Agora token: invoking edge function callId=$callId channel=$channelName',
         );
       }
+      // Refresh session to avoid UNAUTHORIZED_LEGACY_JWT with stale HS256 tokens.
+      try {
+        await _client.auth.refreshSession();
+      } catch (_) {}
+      final session = _client.auth.currentSession;
+      final headers = session != null
+          ? {'Authorization': 'Bearer ${session.accessToken}'}
+          : <String, String>{};
+
       final res = await _client.functions.invoke(
         'agora-token',
         body: {'callId': callId, 'channelName': channelName},
+        headers: headers,
       );
       if (kDebugMode) {
         debugPrint(

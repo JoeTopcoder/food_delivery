@@ -16,6 +16,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
+import '../../widgets/ai_fab.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
   const OrderHistoryScreen({super.key});
@@ -32,6 +33,13 @@ class OrderHistoryScreen extends ConsumerWidget {
     ref.watch(customerOrderRealtimeProvider(userId));
 
     return Scaffold(
+      floatingActionButton: AiFab(
+        role: 'customer',
+        orderId: ordersAsync.valueOrNull
+            ?.where((o) => o.status != 'delivered' && o.status != 'cancelled')
+            .firstOrNull
+            ?.id,
+      ),
       appBar: AppBar(
         title: Text(
           context.l10n.orderHistory,

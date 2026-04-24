@@ -42,25 +42,27 @@ class BehaviorTrackingService {
     }
   }
 
-  /// Flush buffered events (best-effort).
+  /// Flush buffered events in parallel (best-effort).
   Future<void> _flushBuffer() async {
     if (_buffer.isEmpty) return;
     final batch = List<Map<String, dynamic>>.from(_buffer);
     _buffer.clear();
-    for (final evt in batch) {
-      try {
-        await _client.rpc(
-          'track_user_event',
-          params: {
-            'p_user_id': evt['user_id'],
-            'p_event_type': evt['event_type'],
-            'p_metadata': evt['metadata'],
-          },
-        );
-      } catch (e) {
-        AppLogger.error('BehaviorTracking.flush failed: $e');
-      }
-    }
+    await Future.wait(
+      batch.map(
+        (evt) => _client
+            .rpc(
+              'track_user_event',
+              params: {
+                'p_user_id': evt['user_id'],
+                'p_event_type': evt['event_type'],
+                'p_metadata': evt['metadata'],
+              },
+            )
+            .catchError((e) {
+              AppLogger.error('BehaviorTracking.flush failed: $e');
+            }),
+      ),
+    );
   }
 
   // ── Convenience helpers ──────────────────────────────────────
