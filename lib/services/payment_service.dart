@@ -247,6 +247,24 @@ class PaymentService {
     }
   }
 
+  /// Cleanup an unpaid order server-side so cancelled/failed card attempts
+  /// never leave orphan pending orders in the database.
+  Future<bool> cleanupUnpaidOrder(String orderId) async {
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        AppConstants.stripePaymentFunction,
+        body: {'action': 'cleanup_unpaid_order', 'orderId': orderId},
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return false;
+      return data['success'] == true;
+    } catch (e) {
+      AppLogger.error('Stripe unpaid order cleanup error: $e');
+      return false;
+    }
+  }
+
   /// Create a Stripe SetupIntent for saving a card without charging it
   Future<Map<String, dynamic>> createSetupIntent({
     required String customerEmail,

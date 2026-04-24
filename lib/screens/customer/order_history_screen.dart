@@ -9,6 +9,9 @@ import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/promo_provider.dart';
+import '../../providers/loyalty_provider.dart';
+import '../../providers/address_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../widgets/rate_driver_sheet.dart';
 import '../../widgets/order_countdown_timer.dart';
@@ -548,33 +551,103 @@ class _OrderCard extends ConsumerWidget {
     );
   }
 
-  void _reorder(BuildContext context, WidgetRef ref, Order order) {
-    final cartNotifier = ref.read(cartProvider.notifier);
-    cartNotifier.clearCart();
+  void _reorder(BuildContext context, WidgetRef ref, Order order) async {
+    // Show a loading dialog while we fetch live menu items
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Preparing your order...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
-    for (final item in order.items) {
-      // Build a synthetic MenuItem from order item data
-      final menuItem = MenuItem(
-        id: item.menuItemId,
-        restaurantId: order.restaurantId,
-        name: item.itemName,
-        price: item.price,
-        category: 'Re-order',
-        isAvailable: true,
-        createdAt: DateTime.now(),
-      );
-      for (int i = 0; i < item.quantity; i++) {
-        cartNotifier.addItem(menuItem);
+    try {
+      final menuService = ref.read(menuServiceProvider);
+      final cartNotifier = ref.read(cartProvider.notifier);
+
+      // Fetch live menu items in parallel
+      final futures = order.items
+          .map((item) => menuService.getMenuItemById(item.menuItemId))
+          .toList();
+      final fetchedItems = await Future.wait(futures);
+
+      // Pair fetched items with the original order items
+      final available = <({MenuItem item, OrderItem orderItem})>[];
+      final unavailable = <String>[];
+
+      for (int i = 0; i < order.items.length; i++) {
+        final live = fetchedItems[i];
+        final orig = order.items[i];
+        if (live != null && live.isAvailable && live.inStock) {
+          available.add((item: live, orderItem: orig));
+        } else {
+          unavailable.add(orig.itemName);
+        }
+      }
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // close loading dialog
+
+      if (available.isEmpty) {
+        AppSnackbar.warning(
+          context,
+          'None of the items from this order are currently available.',
+        );
+        return;
+      }
+
+      // Clear cart and populate with live items
+      cartNotifier.clearCart();
+      for (final pair in available) {
+        for (int q = 0; q < pair.orderItem.quantity; q++) {
+          cartNotifier.addItem(pair.item);
+        }
+      }
+
+      // Reset checkout-related state so reorder behaves like a fresh
+      // cart -> checkout flow every time.
+      ref.read(appliedPromoProvider.notifier).clear();
+      ref.read(redeemPointsProvider.notifier).state = 0;
+      ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
+      ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
+      ref.read(isPickupProvider.notifier).state = order.isPickup;
+      if (order.isPickup) {
+        ref.read(selectedAddressIdProvider.notifier).state = null;
+      }
+
+      // Navigate to checkout immediately
+      Navigator.pushNamed(context, '/checkout');
+
+      // If some items were unavailable, inform the user after navigation
+      if (unavailable.isNotEmpty) {
+        // Small delay so the snackbar appears on the checkout screen
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (context.mounted) {
+          AppSnackbar.warning(
+            context,
+            '${unavailable.length} item(s) unavailable and were skipped: ${unavailable.join(', ')}',
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Reorder error: $e');
+      if (context.mounted) {
+        Navigator.pop(context); // close loading dialog on error
+        AppSnackbar.error(context, 'Could not load items. Please try again.');
       }
     }
-
-    AppSnackbar.show(
-      context,
-      message: '${order.items.length} item(s) added to cart',
-      type: AppSnackbarType.success,
-      actionLabel: 'Checkout',
-      onAction: () => Navigator.pushNamed(context, '/checkout'),
-    );
   }
 
   void _showPostTipSheet(BuildContext context, WidgetRef ref, Order order) {
@@ -660,7 +733,10 @@ class _OrderCard extends ConsumerWidget {
                           } catch (e) {
                             if (ctx.mounted) Navigator.pop(ctx);
                             if (context.mounted) {
-                              AppSnackbar.error(context, 'Failed to add tip. Please try again.');
+                              AppSnackbar.error(
+                                context,
+                                'Failed to add tip. Please try again.',
+                              );
                             }
                           }
                         }

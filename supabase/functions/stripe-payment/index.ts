@@ -356,6 +356,56 @@ Deno.serve(async (request) => {
     }
   }
 
+  // ── Cleanup Unpaid Order (cancel/fail safe cleanup) ────────────
+
+  if (action === "cleanup_unpaid_order") {
+    const orderId = String(body.orderId ?? "").trim();
+
+    if (!orderId) {
+      return json({ error: "Missing orderId." }, 400);
+    }
+
+    try {
+      const { data: order, error: orderError } = await adminClient
+        .from("orders")
+        .select("id, user_id, payment_status")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (orderError) {
+        return json({ error: `Order lookup failed: ${orderError.message}` }, 500);
+      }
+
+      if (!order) {
+        return json({ success: true, deleted: false, reason: "order_not_found" });
+      }
+
+      if (order.user_id !== userData.user.id) {
+        return json({ error: "Order does not belong to you." }, 403);
+      }
+
+      if (String(order.payment_status ?? "") === "completed") {
+        return json({ success: false, deleted: false, reason: "already_paid" }, 409);
+      }
+
+      await adminClient.from("order_items").delete().eq("order_id", orderId);
+      await adminClient.from("payments").delete().eq("order_id", orderId);
+      await adminClient
+        .from("orders")
+        .delete()
+        .eq("id", orderId)
+        .eq("user_id", userData.user.id)
+        .neq("payment_status", "completed");
+
+      return json({ success: true, deleted: true });
+    } catch (e) {
+      return json(
+        { error: `Cleanup error: ${(e as Error).message}` },
+        500
+      );
+    }
+  }
+
   // ── Create SetupIntent (for saving cards without charging) ────
 
   if (action === "create_setup_intent") {
