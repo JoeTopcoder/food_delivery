@@ -269,7 +269,7 @@ class _CategoryProductCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.grey[500],
+                        color: Colors.grey[700],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -286,7 +286,7 @@ class _CategoryProductCard extends ConsumerWidget {
                   if (product.weight != null)
                     Text(
                       product.weight!,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                     ),
                   const Spacer(),
                   Row(
@@ -308,7 +308,7 @@ class _CategoryProductCard extends ConsumerWidget {
                                     '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.grey[400],
+                                      color: Colors.grey[700],
                                       decoration: TextDecoration.lineThrough,
                                     ),
                                   ),

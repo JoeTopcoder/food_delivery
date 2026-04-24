@@ -229,7 +229,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                             '${AppConstants.currencySymbol}${item.price.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey[400],
+                              color: Colors.grey[700],
                               decoration: TextDecoration.lineThrough,
                             ),
                           ),
@@ -290,14 +290,14 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                             Icon(
                               Icons.edit_note_rounded,
                               size: 20,
-                              color: Colors.grey[500],
+                              color: Colors.grey[700],
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Add special cooking instructions',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[500],
+                                color: Colors.grey[700],
                               ),
                             ),
                           ],
@@ -313,7 +313,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'e.g. No onions, extra sauce...',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          hintStyle: TextStyle(color: Colors.grey[700]),
                           filled: true,
                           fillColor: Colors.grey[50],
                           border: OutlineInputBorder(
@@ -444,7 +444,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       backgroundColor: AppTheme.primaryColor,
                       disabledBackgroundColor: Colors.grey[300],
                       foregroundColor: Colors.white,
-                      disabledForegroundColor: Colors.grey[500],
+                      disabledForegroundcolor: Colors.grey[700],
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),

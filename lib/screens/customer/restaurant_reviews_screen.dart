@@ -192,7 +192,7 @@ class _ReviewCard extends StatelessWidget {
                     if (createdAt != null)
                       Text(
                         _formatDate(createdAt),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                       ),
                   ],
                 ),

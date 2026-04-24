@@ -79,11 +79,11 @@ class _RestaurantSettingsScreenState
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.grey[400]),
+        Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.grey[700]),
         const SizedBox(height: 8),
         Text(
           'Tap to add restaurant photo',
-          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+          style: TextStyle(color: Colors.grey[700], fontSize: 13),
         ),
       ],
     );
@@ -581,7 +581,7 @@ class _RestaurantSettingsScreenState
                         ] else
                           const Text(
                             'Closed',
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
                           ),
                       ],
                     ),

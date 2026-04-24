@@ -296,7 +296,7 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                             child: Center(
                               child: Text(
                                 'No active orders in any zone right now',
-                                style: TextStyle(color: Colors.grey, fontSize: 14),
+                                style: TextStyle(color: Colors.grey[700], fontSize: 14),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -355,7 +355,7 @@ class _LegendRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+        Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 11)),
       ],
     );
   }
@@ -432,14 +432,14 @@ class _ZoneListItem extends StatelessWidget {
                   children: [
                     Text(
                       '${zone.activeOrders} orders',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
                     ),
                     const SizedBox(width: 8),
                     Text('•', style: TextStyle(color: Colors.grey[600])),
                     const SizedBox(width: 8),
                     Text(
                       '${zone.availableDrivers} drivers',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
                     ),
                   ],
                 ),

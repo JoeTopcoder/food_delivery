@@ -70,6 +70,22 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
+  /// Formats peak hour windows from DB-sourced AppConstants.
+  /// e.g. "Peak hours: 11 am–2 pm & 6–9 pm"
+  String _formatPeakHours() {
+    String fmt(int h) {
+      if (h == 0) return '12 am';
+      if (h == 12) return '12 pm';
+      return h < 12 ? '$h am' : '${h - 12} pm';
+    }
+
+    final w1 =
+        '${fmt(AppConstants.peakHoursStart)}–${fmt(AppConstants.peakHoursEnd)}';
+    final w2 =
+        '${fmt(AppConstants.peakHoursStart2)}–${fmt(AppConstants.peakHoursEnd2)}';
+    return 'Peak hours: $w1 & $w2';
+  }
+
   @override
   Widget build(BuildContext context) {
     // Keep realtime subscription alive while dashboard is visible
@@ -580,7 +596,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                               Text(
                                 'Score: ${stats.score.toStringAsFixed(0)}/100  •  ${stats.bonusMultiplier > 1 ? '+${((stats.bonusMultiplier - 1) * 100).toStringAsFixed(0)}% bonus' : 'No bonus yet'}',
                                 style: TextStyle(
-                                  color: Colors.grey[400],
+                                  color: Colors.grey[700],
                                   fontSize: 12,
                                 ),
                               ),
@@ -801,9 +817,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Peak hours: 12–2 pm & 6–9 pm',
-                          style: TextStyle(
+                        Text(
+                          _formatPeakHours(),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                             fontSize: 13,

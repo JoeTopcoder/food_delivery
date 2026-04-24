@@ -168,7 +168,7 @@ class RestaurantCard extends StatelessWidget {
                       Icon(
                         Icons.access_time_rounded,
                         size: 15,
-                        color: Colors.grey[400],
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(width: 4),
                       Flexible(
@@ -187,7 +187,7 @@ class RestaurantCard extends StatelessWidget {
                       Icon(
                         Icons.delivery_dining_rounded,
                         size: 15,
-                        color: Colors.grey[400],
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -234,7 +234,7 @@ class _PlaceholderImage extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'No image available',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
           ),
         ],
       ),

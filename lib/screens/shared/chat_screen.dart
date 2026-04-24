@@ -142,6 +142,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final userId = ref.watch(currentUserIdProvider) ?? '';
     final role = ref.watch(currentUserProvider)?.role ?? 'user';
+    final isCustomer = role == 'customer' || role == 'user';
     final msgsAsync = ref.watch(chatMessagesProvider(widget.orderId));
 
     // Auto-scroll to bottom when new messages arrive
@@ -180,20 +181,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.smart_toy_outlined,
-              color: Color(0xFF6366F1),
-            ),
-            tooltip: 'AI Assistant',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    AiVoiceScreen(role: role, orderId: widget.orderId),
+          if (isCustomer)
+            IconButton(
+              icon: const Icon(
+                Icons.smart_toy_outlined,
+                color: Color(0xFF6366F1),
+              ),
+              tooltip: 'AI Assistant',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AiVoiceScreen(role: role, orderId: widget.orderId),
+                ),
               ),
             ),
-          ),
           if (widget.receiverId != null && widget.receiverId!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call_rounded, color: Color(0xFF22C55E)),

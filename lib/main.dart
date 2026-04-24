@@ -13,6 +13,7 @@ import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
 import 'services/notification_service.dart';
 import 'config/app_constants.dart';
+import 'utils/theme_service.dart';
 import 'screens/auth/signin_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
@@ -64,6 +65,8 @@ import 'screens/admin/admin_promos_screen.dart';
 import 'screens/admin/admin_chats_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
 import 'screens/admin/admin_financials_screen.dart';
+import 'screens/admin/admin_analytics_screen.dart';
+import 'screens/admin/admin_ai_panel_screen.dart';
 import 'screens/admin/admin_disputes_screen.dart';
 import 'screens/admin/admin_feedback_screen.dart';
 import 'screens/admin/admin_surge_screen.dart';
@@ -114,6 +117,9 @@ void main() async {
 
   // Load DB-driven config (depends on Supabase being ready)
   await AppConfigService(SupabaseConfig.client).load();
+
+  // Load remote color theme (non-blocking fallback to defaults)
+  await ThemeService.load();
 
   // Refresh session on startup so we always have a fresh token.
   try {
@@ -594,6 +600,20 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminFinancialsScreen(),
+                ),
+              );
+            case '/admin-analytics':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAnalyticsScreen(),
+                ),
+              );
+            case '/admin-ai-panel':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAiPanelScreen(),
                 ),
               );
             case '/admin-earnings':

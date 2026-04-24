@@ -200,7 +200,7 @@ class PayoutSuccessScreen extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade500,
+              color: Colors.grey.shade700,
               fontWeight: FontWeight.w500,
             ),
           ),

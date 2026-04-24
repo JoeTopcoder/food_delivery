@@ -50,11 +50,11 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
           children: [
             Text(
               'User: ${account.userName ?? account.userId.substring(0, 8)}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style: const TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             Text(
               'Current tier: ${account.tierDisplayName}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style: const TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -173,7 +173,7 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
               return const Center(
                 child: Text(
                   'No earning accounts yet',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.grey[700]),
                 ),
               );
             }
@@ -489,7 +489,7 @@ class _AccountTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${a.totalDirectRefs} refs · ${a.totalOrdersGenerated} orders · \$${a.monthlyEarned.toStringAsFixed(2)} this mo',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -508,7 +508,7 @@ class _AccountTile extends StatelessWidget {
               ),
               const Text(
                 'earned',
-                style: TextStyle(fontSize: 10, color: Colors.grey),
+                style: TextStyle(fontSize: 10, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -526,7 +526,7 @@ class _AccountTile extends StatelessWidget {
               child: const Icon(
                 Icons.tune_rounded,
                 size: 16,
-                color: Colors.grey,
+                color: Colors.grey[700],
               ),
             ),
           ),

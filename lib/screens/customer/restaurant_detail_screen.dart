@@ -45,6 +45,7 @@ class _RestaurantDetailScreenState
 
   Future<void> _saveToGroupOrder() async {
     final participantId = widget.groupParticipantId;
+    final groupOrderId = widget.groupOrderId;
     if (participantId == null) return;
     final cartItems = ref.read(cartProvider);
     if (cartItems.isEmpty) {
@@ -54,17 +55,107 @@ class _RestaurantDetailScreenState
     setState(() => _savingToGroup = true);
     try {
       final service = ref.read(groupOrderServiceProvider);
-      final items = cartItems.map((c) => c.toJson()).toList();
-      final subtotal = cartItems.fold(0.0, (sum, c) => sum + c.subtotal);
+
+      // Fetch the current participant's existing items so we can MERGE,
+      // not replace. This allows adding items across multiple trips.
+      List<dynamic> existingItems = [];
+      if (groupOrderId != null) {
+        final groupOrder = await service.getGroupOrder(groupOrderId);
+        final participant = groupOrder?.participants.firstWhere(
+          (p) => p.id == participantId,
+          orElse: () => groupOrder.participants.first,
+        );
+        existingItems = List<dynamic>.from(participant?.items ?? []);
+      }
+
+      // Merge: for each new cart item, check if an identical item (same
+      // menu item id + same sides + same options) already exists — if so,
+      // increment its quantity; otherwise append as new.
+      final merged = List<Map<String, dynamic>>.from(
+        existingItems.cast<Map<String, dynamic>>(),
+      );
+      for (final cartItem in cartItems) {
+        final newJson = cartItem.toJson();
+        final newId = (newJson['menuItem'] as Map)['id'] as String?;
+        final newSides = (newJson['selectedSides'] as List)
+            .map((s) => (s as Map)['id'] ?? (s)['name'])
+            .toSet();
+        final newOpts = (newJson['selectedOptions'] as Map).values
+            .expand(
+              (v) => (v as List).map((c) => (c as Map)['id'] ?? c['name']),
+            )
+            .toSet();
+
+        int? matchIdx;
+        for (int i = 0; i < merged.length; i++) {
+          final e = merged[i];
+          final eId = (e['menuItem'] as Map)['id'] as String?;
+          if (eId != newId) continue;
+          final eSides = (e['selectedSides'] as List? ?? [])
+              .map((s) => (s as Map)['id'] ?? (s)['name'])
+              .toSet();
+          final eOpts = (e['selectedOptions'] as Map? ?? {}).values
+              .expand(
+                (v) => (v as List).map((c) => (c as Map)['id'] ?? c['name']),
+              )
+              .toSet();
+          if (eSides.length == newSides.length &&
+              eOpts.length == newOpts.length &&
+              eSides.containsAll(newSides) &&
+              eOpts.containsAll(newOpts)) {
+            matchIdx = i;
+            break;
+          }
+        }
+
+        if (matchIdx != null) {
+          final existing = Map<String, dynamic>.from(merged[matchIdx]);
+          existing['quantity'] =
+              ((existing['quantity'] as int? ?? 1) + cartItem.quantity);
+          merged[matchIdx] = existing;
+        } else {
+          merged.add(newJson);
+        }
+      }
+
+      final subtotal = merged.fold<double>(0.0, (sum, itemJson) {
+        final json = itemJson;
+        final qty = (json['quantity'] as int? ?? 1).toDouble();
+        final price =
+            ((json['menuItem'] as Map)['price'] as num?)?.toDouble() ?? 0.0;
+        final sidesTotal = (json['selectedSides'] as List? ?? []).fold<double>(
+          0.0,
+          (s, side) => s + ((side as Map)['price'] as num? ?? 0).toDouble(),
+        );
+        final optsTotal = (json['selectedOptions'] as Map? ?? {}).values
+            .fold<double>(
+              0.0,
+              (s, choices) =>
+                  s +
+                  (choices as List).fold<double>(
+                    0.0,
+                    (cs, c) =>
+                        cs + ((c as Map)['price'] as num? ?? 0).toDouble(),
+                  ),
+            );
+        return sum + (price + sidesTotal + optsTotal) * qty;
+      });
+
       final ok = await service.updateParticipantItems(
         participantId: participantId,
-        items: items,
+        items: merged,
         subtotal: subtotal,
       );
       if (!mounted) return;
       if (ok) {
-        AppSnackbar.success(context, 'Items saved to group order!');
-        // Clear the regular cart so items aren't double-counted
+        final totalItems = merged.fold<int>(
+          0,
+          (sum, j) => sum + ((j as Map)['quantity'] as int? ?? 1),
+        );
+        AppSnackbar.success(
+          context,
+          'Saved! You now have $totalItems item${totalItems != 1 ? 's' : ''} in the group order.',
+        );
         ref.read(cartProvider.notifier).clearCart();
         Navigator.pop(context);
       } else {
@@ -219,9 +310,22 @@ class _RestaurantDetailScreenState
                     Icons.share_outlined,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
-                  onPressed: () => Share.share(
-                    'Check out ${widget.restaurant.name} on MealHub!',
-                  ),
+                  onPressed: () {
+                    final id = widget.restaurant.id;
+                    final name = widget.restaurant.name;
+                    final cuisine =
+                        widget.restaurant.cuisineType ?? 'great food';
+                    final rating = widget.restaurant.rating != null
+                        ? ' ⭐ ${widget.restaurant.rating}'
+                        : '';
+                    Share.share(
+                      '🍽️ $name$rating\n'
+                      '$cuisine • Order on MealHub\n\n'
+                      'Use code NEWUSER for 30% off your first order!\n'
+                      'https://mealhub.app/restaurant/$id',
+                      subject: 'Check out $name on MealHub!',
+                    );
+                  },
                 ),
               ],
             )
@@ -374,7 +478,7 @@ class _RestaurantDetailScreenState
                               Icon(
                                 Icons.location_on_outlined,
                                 size: 16,
-                                color: Colors.grey[500],
+                                color: Colors.grey[700],
                               ),
                               const SizedBox(width: 4),
                               Expanded(
@@ -585,6 +689,44 @@ class _RestaurantDetailScreenState
                     ],
                   ),
                 ),
+                // Closed banner — shown at top so it's immediately visible
+                if (!widget.restaurant.isCurrentlyOpen)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppTheme.accentColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: AppTheme.accentColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This restaurant is closed. '
+                            '${widget.restaurant.nextOpenLabel}. '
+                            'You can schedule an order.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.accentColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 // Menu Items
                 menuItemsAsync.when(
                   data: (menuItems) {
@@ -690,7 +832,7 @@ class _RestaurantDetailScreenState
                   error: (err, stack) =>
                       AppErrorState(message: friendlyError(err)),
                 ),
-                const SizedBox(height: 100),
+                const SizedBox(height: 140),
               ],
             ),
           ),
@@ -760,47 +902,6 @@ class _RestaurantDetailScreenState
                       ),
                     ] else ...[
                       // ── Normal mode ─────────────────────────────────────
-                      if (!widget.restaurant.isCurrentlyOpen) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: AppTheme.accentColor.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.schedule_rounded,
-                                size: 18,
-                                color: AppTheme.accentColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'This restaurant is closed. '
-                                  '${widget.restaurant.nextOpenLabel}. '
-                                  'You can schedule an order.',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.accentColor,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                       SizedBox(
                         width: double.infinity,
                         child: Row(

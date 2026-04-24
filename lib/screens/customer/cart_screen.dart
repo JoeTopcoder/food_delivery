@@ -131,7 +131,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   Icon(
                     Icons.shopping_cart_outlined,
                     size: 80,
-                    color: Colors.grey[400],
+                    color: Colors.grey[700],
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -397,7 +397,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             imageUrl: cartItem.menuItem.imageUrl,
                             quantity: cartItem.quantity,
                             price: cartItem.menuItem.discountedPrice,
-                            customizationSummary: _buildCustomizationSummary(cartItem),
+                            customizationSummary: _buildCustomizationSummary(
+                              cartItem,
+                            ),
                             onRemove: () {
                               ref
                                   .read(cartProvider.notifier)
@@ -537,7 +539,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(
-                              'Service Fee (5%)',
+                              'Service Fee',
                               '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),
@@ -762,7 +764,9 @@ class _PriceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
             ),
             overflow: TextOverflow.ellipsis,
           ),

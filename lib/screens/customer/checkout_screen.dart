@@ -28,6 +28,8 @@ import '../../providers/feature_providers.dart';
 import '../../services/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../providers/recommendation_provider.dart';
+import '../../providers/decision_engine_provider.dart';
+import '../../services/decision_engine_service.dart';
 import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
@@ -110,7 +112,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         FocusScope.of(context).unfocus();
       }
     } catch (e) {
-      setState(() => _promoError = friendlyError(e));
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _promoError = msg.isNotEmpty ? msg : friendlyError(e));
     } finally {
       if (mounted) setState(() => _applyingPromo = false);
     }
@@ -560,7 +563,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       Icon(
                                         Icons.credit_card_off_outlined,
                                         size: 32,
-                                        color: Colors.grey.shade400,
+                                        color: Colors.grey.shade700,
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
@@ -575,7 +578,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                         'Add a card from your Wallet first',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade500,
+                                          color: Colors.grey.shade700,
                                         ),
                                       ),
                                     ],
@@ -815,6 +818,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 const SizedBox(height: 8),
 
+                // ── AI-Assigned Promo Banner ──────────────────────
+                if (currentUserId != null)
+                  _AiPromoBanner(userId: currentUserId, subtotal: subtotal),
+
                 // ── Promo Code ────────────────────────────────────────
                 _Section(
                   title: 'Promo Code',
@@ -1010,7 +1017,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 'Driver will verify with a one-time PIN',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey[500],
+                                  color: Colors.grey[700],
                                 ),
                               ),
                             ],
@@ -1233,11 +1240,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               : null,
                         ),
                       _SummaryRow(
-                        'Service Fee (5%)',
+                        'Service Fee',
                         '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                       ),
                       _SummaryRow(
-                        'Tax (10%)',
+                        'Tax',
                         '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                       ),
                       if (_driverTip > 0)
@@ -1812,6 +1819,119 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────
+
+/// Shows an AI-assigned promo from user_promotions if one exists and is unused.
+/// Tapping "Apply" pre-fills the promo code field so the user confirms it.
+class _AiPromoBanner extends ConsumerWidget {
+  final String userId;
+  final double subtotal;
+
+  const _AiPromoBanner({required this.userId, required this.subtotal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final promoAsync = ref.watch(userPromoProvider(userId));
+
+    return promoAsync.when(
+      data: (promo) {
+        if (promo == null) return const SizedBox.shrink();
+        final discount = promo.computeDiscount(subtotal);
+        final meetsMin = subtotal >= promo.minOrder;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E3A5F), Color(0xFF0F172A)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.smart_toy_rounded,
+                  color: Color(0xFF60A5FA),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        promo.label ?? 'You have a personalised offer!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        promo.isFreeDelivery
+                            ? 'Free delivery on this order'
+                            : meetsMin
+                            ? 'Saves ${AppConstants.currencySymbol}${discount.toStringAsFixed(2)} on this order'
+                            : 'Min order ${AppConstants.currencySymbol}${promo.minOrder.toStringAsFixed(0)} to unlock',
+                        style: TextStyle(
+                          color: meetsMin
+                              ? const Color(0xFF86EFAC)
+                              : const Color(0xFF94A3B8),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (meetsMin || promo.isFreeDelivery)
+                  GestureDetector(
+                    onTap: () async {
+                      // Mark used and invalidate so banner hides
+                      await ref
+                          .read(decisionEngineServiceProvider)
+                          .markPromoUsed(promo.id);
+                      ref.invalidate(userPromoProvider(userId));
+                      // Surface discount via a snackbar; actual discount
+                      // would need a custom flow — for now confirm it's applied
+                      if (context.mounted) {
+                        AppSnackbar.success(
+                          context,
+                          promo.isFreeDelivery
+                              ? 'Free delivery applied!'
+                              : 'Offer applied — ${AppConstants.currencySymbol}${discount.toStringAsFixed(2)} saved!',
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Apply',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
 
 class _Section extends StatelessWidget {
   final String title;

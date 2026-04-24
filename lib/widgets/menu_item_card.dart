@@ -141,7 +141,7 @@ class MenuItemCard extends StatelessWidget {
                   child: const Icon(
                     Icons.fastfood,
                     size: 36,
-                    color: Colors.grey,
+                    color: Colors.grey[700],
                   ),
                 ),
               ),

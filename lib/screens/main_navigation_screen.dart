@@ -271,7 +271,7 @@ class OrdersScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Your order history will appear here',
-                    style: TextStyle(color: Colors.grey[500]),
+                    style: TextStyle(color: Colors.grey[700]),
                   ),
                 ],
               ),

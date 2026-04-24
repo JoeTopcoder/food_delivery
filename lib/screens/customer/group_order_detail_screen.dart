@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/group_order_model.dart';
 import '../../providers/auth_provider.dart';
@@ -160,11 +161,118 @@ class _GroupOrderDetailScreenState
     }
   }
 
+  String _inviteLink(GroupOrder group) =>
+      'https://mealhub.app/join-group/${group.inviteCode}';
+
   void _shareInvite(GroupOrder group) {
+    final link = _inviteLink(group);
     Share.share(
-      'Join my group order "${group.name}" on MealHub! '
-      'Use invite code: ${group.inviteCode}\n\n'
-      'Open the app → Group Orders → Join with code.',
+      '🍽️ Join my group order "${group.name}" on MealHub!\n\n'
+      'Tap the link to join instantly:\n$link\n\n'
+      'Or open MealHub → Group Orders → Join → enter code: ${group.inviteCode}',
+      subject: 'Join my MealHub group order!',
+    );
+  }
+
+  void _showQrDialog(GroupOrder group) {
+    final link = _inviteLink(group);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Scan to Join',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                group.name,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              QrImageView(
+                data: link,
+                version: QrVersions.auto,
+                size: 220,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  group.inviteCode,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 6,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Code expires when order is locked',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: link));
+                        Navigator.pop(ctx);
+                        AppSnackbar.success(context, 'Link copied!');
+                      },
+                      icon: const Icon(Icons.link_rounded, size: 16),
+                      label: const Text('Copy Link'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _shareInvite(group);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.share_rounded, size: 16),
+                      label: const Text('Share'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -223,6 +331,7 @@ class _GroupOrderDetailScreenState
                     group: group,
                     onCopy: () => _copyCode(group),
                     onShare: () => _shareInvite(group),
+                    onQr: () => _showQrDialog(group),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -521,11 +630,13 @@ class _InviteCodeCard extends StatelessWidget {
   final GroupOrder group;
   final VoidCallback onCopy;
   final VoidCallback onShare;
+  final VoidCallback onQr;
 
   const _InviteCodeCard({
     required this.group,
     required this.onCopy,
     required this.onShare,
+    required this.onQr,
   });
 
   @override
@@ -619,6 +730,23 @@ class _InviteCodeCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          // QR code button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onQr,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.qr_code_rounded, size: 16),
+              label: const Text('Show QR Code'),
+            ),
           ),
         ],
       ),

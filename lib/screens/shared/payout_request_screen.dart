@@ -491,7 +491,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
                 ),
                 Text(
                   DateFormat('MMM d, yyyy · h:mm a').format(p.createdAt),
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
                 if (p.adminNotes != null && p.adminNotes!.isNotEmpty)
                   Padding(

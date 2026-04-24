@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1215,7 +1215,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                       Icon(
                         Icons.access_time_rounded,
                         size: 13,
-                        color: Colors.grey[400],
+                        color: Colors.grey[700],
                       ),
                       const SizedBox(width: 3),
                       Text(
@@ -1614,7 +1614,7 @@ class _AdPopupDialog extends StatelessWidget {
                           Icon(
                             Icons.storefront,
                             size: 15,
-                            color: Colors.grey[500],
+                            color: Colors.grey[700],
                           ),
                           const SizedBox(width: 4),
                           Flexible(
@@ -1639,7 +1639,7 @@ class _AdPopupDialog extends StatelessWidget {
                                 maxLines: 1,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey[400],
+                                  color: Colors.grey[700],
                                 ),
                               ),
                             ),

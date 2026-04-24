@@ -226,7 +226,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                 const Spacer(),
                 Text(
                   DateFormat('MMM d, y').format(p.createdAt),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -353,7 +353,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: Colors.grey[700],
                 fontWeight: FontWeight.w500,
               ),
             ),

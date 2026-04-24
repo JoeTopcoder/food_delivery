@@ -115,7 +115,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                               '\$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} ad credits + ${(EarningConfig.restaurantRefCommissionDiscount * 100).toStringAsFixed(0)}% commission discount per referral',
                               style: const TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey,
+                                color: Colors.grey[700],
                               ),
                             ),
                           ],
@@ -149,7 +149,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                 children: [
                   const Text(
                     'Your Restaurant Referral Code',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),
                   codeAsync.when(
@@ -308,16 +308,16 @@ class RestaurantReferralScreen extends ConsumerWidget {
                         Icon(
                           Icons.store_outlined,
                           size: 48,
-                          color: Colors.grey,
+                          color: Colors.grey[700],
                         ),
                         SizedBox(height: 8),
                         Text(
                           'No referrals yet',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey[700]),
                         ),
                         Text(
                           'Share your code to start earning ad credits!',
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(color: Colors.grey[700], fontSize: 12),
                         ),
                       ],
                     ),
@@ -391,7 +391,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
           ],

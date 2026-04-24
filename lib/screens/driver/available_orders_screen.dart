@@ -15,7 +15,6 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
-import '../../widgets/ai_fab.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -87,7 +86,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
                     Text(
                       'Go online from the dashboard to see and accept delivery orders.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
@@ -131,7 +130,6 @@ class AvailableOrdersScreen extends ConsumerWidget {
         )));
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
-          floatingActionButton: const AiFab(role: 'driver'),
           appBar: AppBar(
             backgroundColor: const Color(0xFF0F1117),
             foregroundColor: Colors.white,
@@ -474,7 +472,7 @@ class _OrderCard extends ConsumerWidget {
                           Text(
                             '${(orderScore?.metrics.distanceMiles ?? ((totalKm ?? 0) * AppConstants.kmToMiles)).toStringAsFixed(1)} mi',
                             style: TextStyle(
-                              color: Colors.grey[400],
+                              color: Colors.grey[700],
                               fontSize: 12,
                             ),
                           ),
@@ -654,7 +652,7 @@ class _OrderCard extends ConsumerWidget {
                           '${item.itemName} x${item.quantity}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[400],
+                            color: Colors.grey[700],
                           ),
                         ),
                       ),
@@ -682,7 +680,7 @@ class _OrderCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[400],
+                        color: Colors.grey[700],
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -823,12 +821,12 @@ class _OrderCard extends ConsumerWidget {
         ),
         content: Text(
           'You will be assigned to pick up from the restaurant and deliver to the customer.',
-          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          style: TextStyle(color: Colors.grey[700], fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[500])),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -914,7 +912,7 @@ class _RouteRow extends StatelessWidget {
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 11),
                 ),
             ],
           ),
@@ -1228,7 +1226,7 @@ class _OrderScoreBanner extends StatelessWidget {
                   score.recommendation,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 11),
                 ),
               ],
             ),

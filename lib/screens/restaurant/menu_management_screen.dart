@@ -608,13 +608,13 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                               Icon(
                                 Icons.add_a_photo_rounded,
                                 size: 36,
-                                color: Colors.grey[400],
+                                color: Colors.grey[700],
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Tap to add photo',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
+                                  color: Colors.grey[700],
                                   fontSize: 13,
                                 ),
                               ),

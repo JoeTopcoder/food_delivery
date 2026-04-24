@@ -8,7 +8,6 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
-import '../../widgets/ai_fab.dart';
 
 class DeliveryHistoryScreen extends ConsumerWidget {
   const DeliveryHistoryScreen({super.key});
@@ -39,7 +38,6 @@ class DeliveryHistoryScreen extends ConsumerWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
-          floatingActionButton: const AiFab(role: 'driver'),
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/promo_model.dart';
 import '../utils/app_logger.dart';
@@ -8,18 +10,47 @@ class PromoService {
 
   Future<PromoCode?> validateCode(String code, double subtotal) async {
     try {
-      final res = await _client
-          .from('promo_codes')
-          .select()
-          .eq('code', code.toUpperCase())
-          .eq('is_active', true)
-          .maybeSingle();
-      if (res == null) return null;
-      final promo = PromoCode.fromJson(res);
-      return promo.isValid(subtotal) ? promo : null;
+      final res = await _client.functions.invoke(
+        'validate-promo',
+        body: {'code': code.trim().toUpperCase(), 'subtotal': subtotal},
+      );
+      if (res.status >= 400) {
+        AppLogger.error('validate-promo HTTP ${res.status}: ${res.data}');
+        return null;
+      }
+      final raw = res.data;
+      final data = raw is Map<String, dynamic>
+          ? raw
+          : raw is String
+          ? (jsonDecode(raw) as Map<String, dynamic>?)
+          : null;
+      if (data == null || data['valid'] != true) {
+        final serverMsg = data?['error'] as String?;
+        AppLogger.error('validate-promo invalid: $serverMsg');
+        // Throw so checkout screen can show the server's specific error message.
+        throw Exception(serverMsg ?? 'Invalid or expired code');
+      }
+      final promoData = data['promo'] as Map<String, dynamic>;
+      // All validation was done server-side.
+      return PromoCode(
+        id: promoData['id'] as String,
+        code: promoData['code'] as String,
+        discountType: promoData['discount_type'] as String,
+        discountValue: (promoData['discount_value'] as num).toDouble(),
+        minOrderAmount: (promoData['min_order_amount'] as num?)?.toDouble(),
+        maxUses: null,
+        usedCount: 0,
+        expiresAt: promoData['expires_at'] != null
+            ? DateTime.parse(promoData['expires_at'] as String)
+            : null,
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+    } on Exception {
+      rethrow; // promo-specific errors propagate to the UI
     } catch (e) {
       AppLogger.error('Error validating promo code: $e');
-      return null;
+      throw Exception('Could not validate code. Please try again.');
     }
   }
 

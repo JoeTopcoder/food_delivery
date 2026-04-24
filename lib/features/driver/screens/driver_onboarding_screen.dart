@@ -437,7 +437,7 @@ class _DriverOnboardingScreenState
             const SizedBox(height: 8),
             const Text(
               'Check the box once you have uploaded your ID and any required documents.',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
             CheckboxListTile(
@@ -465,7 +465,7 @@ class _DriverOnboardingScreenState
             const SizedBox(height: 12),
             const Text(
               'Status: Pending approval. Limited mode remains available until approval.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
             ),
           ],
 

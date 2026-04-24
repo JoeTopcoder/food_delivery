@@ -312,19 +312,19 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
       final call = await ref
           .read(chatServiceProvider)
           .initiateCall(orderId: effectiveOrderId, receiverId: driverUserId);
-      if (mounted) {
-        Navigator.pushNamed(
-          context,
-          '/call',
-          arguments: {
-            'call': call,
-            'isCaller': true,
-            'otherPartyName': driverName,
-          },
-        );
-      }
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        '/call',
+        arguments: {
+          'call': call,
+          'isCaller': true,
+          'otherPartyName': driverName,
+        },
+      );
     } catch (e) {
-      if (mounted) AppSnackbar.error(context, friendlyError(e));
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
     }
   }
 
@@ -595,7 +595,9 @@ class _MessageBubble extends StatelessWidget {
               bottomLeft: Radius.circular(4),
               bottomRight: Radius.circular(16),
             ),
-            border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.4)),
+            border: Border.all(
+              color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1075,7 +1077,7 @@ class _ActionBannerState extends State<_ActionBanner> {
     String message;
     if (isCreditIssued) {
       final amount = widget.action.creditAmount?.toStringAsFixed(2) ?? '0.00';
-      message = '\$${amount} wallet credit added as an apology for the delay.';
+      message = '\$$amount wallet credit added as an apology for the delay.';
     } else {
       message = widget.action.creditReason ?? 'Action completed.';
     }
@@ -1087,7 +1089,7 @@ class _ActionBannerState extends State<_ActionBanner> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: iconColor.withOpacity(0.4)),
+        border: Border.all(color: iconColor.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -1116,15 +1118,6 @@ class _OrderPickerOverlay extends StatelessWidget {
 
   final List<Order> orders;
   final void Function(String orderId) onPick;
-
-  static const _activeStatuses = {
-    'pending',
-    'confirmed',
-    'preparing',
-    'ready',
-    'picked_up',
-    'on_the_way',
-  };
 
   static const _statusLabel = <String, String>{
     'pending': 'Waiting for confirmation',

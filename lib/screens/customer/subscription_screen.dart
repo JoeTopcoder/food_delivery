@@ -704,7 +704,7 @@ class _PlanOptionCard extends StatelessWidget {
                       padding: EdgeInsets.only(bottom: 4, left: 2),
                       child: Text(
                         '/month',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                       ),
                     ),
                   ],
