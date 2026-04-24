@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -221,7 +221,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(
+          loading: () => Center(
             child: CircularProgressIndicator(color: AppTheme.primaryColor),
           ),
           error: (e, _) => Center(

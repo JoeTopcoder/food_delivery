@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1322,7 +1322,7 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person_add_rounded,
                       color: AppTheme.primaryColor,
                       size: 22,
@@ -1522,7 +1522,7 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+        borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );

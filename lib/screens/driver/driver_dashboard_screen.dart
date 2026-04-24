@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
@@ -185,7 +185,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: isOnline
-                                ? const LinearGradient(
+                                ? LinearGradient(
                                     colors: [
                                       AppTheme.primaryColor,
                                       Color(0xFFFF9A5C),
@@ -303,7 +303,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         gradient: isOnline
-                            ? const LinearGradient(
+                            ? LinearGradient(
                                 colors: [
                                   AppTheme.primaryColor,
                                   Color(0xFFFF8F5E),
@@ -806,7 +806,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       color: AppTheme.primaryColor.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.lightbulb_rounded,
                       color: AppTheme.primaryColor,
                       size: 20,
@@ -866,7 +866,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.delivery_dining_rounded,
                   size: 56,
                   color: AppTheme.primaryColor,

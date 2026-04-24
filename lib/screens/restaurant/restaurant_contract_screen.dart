@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -131,7 +131,7 @@ class _RestaurantContractScreenState
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.handshake_rounded,
                   size: 36,
                   color: AppTheme.primaryColor,
@@ -162,7 +162,7 @@ class _RestaurantContractScreenState
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
                   ),
                   borderRadius: BorderRadius.circular(10),
@@ -275,7 +275,7 @@ class _RestaurantContractScreenState
               const TextSpan(text: ' for the first '),
               TextSpan(
                 text: '$introDays days',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryColor,
                 ),
@@ -290,7 +290,7 @@ class _RestaurantContractScreenState
               const TextSpan(text: 'After the introductory period:\n• '),
               TextSpan(
                 text: '$commissionMin%–$commissionMax%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryColor,
                 ),
@@ -298,7 +298,7 @@ class _RestaurantContractScreenState
               const TextSpan(text: ' per order (standard delivery)\n• '),
               TextSpan(
                 text: '$ownMin%–$ownMax%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryColor,
                 ),
@@ -320,7 +320,7 @@ class _RestaurantContractScreenState
               ),
               TextSpan(
                 text: '$paymentHours hours',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryColor,
                 ),
@@ -406,7 +406,7 @@ class _RestaurantContractScreenState
               ),
               TextSpan(
                 text: '$terminationDays days',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryColor,
                 ),
@@ -542,7 +542,7 @@ class _RestaurantContractScreenState
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: const Border(
+        border: Border(
           left: BorderSide(color: AppTheme.primaryColor, width: 3),
         ),
       ),
@@ -603,7 +603,7 @@ class _RestaurantContractScreenState
             width: 32,
             child: Text(
               num,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.primaryColor,
@@ -635,7 +635,7 @@ class _RestaurantContractScreenState
             width: 32,
             child: Text(
               num,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.primaryColor,

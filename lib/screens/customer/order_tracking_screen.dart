@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -637,7 +637,7 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const orange = AppTheme.primaryColor;
+    final orange = AppTheme.primaryColor;
     final dotColor = isCompleted || isCurrent
         ? orange
         : const Color(0xFFD1D5DB);
@@ -857,7 +857,7 @@ class _AddressCard extends StatelessWidget {
               color: AppTheme.primaryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.location_on_rounded,
               color: AppTheme.primaryColor,
               size: 18,
@@ -1009,7 +1009,7 @@ class _SupportChatButtonState extends ConsumerState<_SupportChatButton> {
       child: OutlinedButton.icon(
         onPressed: _loading ? null : _openSupport,
         icon: _loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
@@ -1024,7 +1024,7 @@ class _SupportChatButtonState extends ConsumerState<_SupportChatButton> {
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppTheme.primaryColor,
-          side: const BorderSide(color: AppTheme.primaryColor),
+          side: BorderSide(color: AppTheme.primaryColor),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -579,7 +579,7 @@ class _RestaurantSettingsScreenState
                             onTap: () => _pickTime(day, 'close'),
                           ),
                         ] else
-                          const Text(
+                          Text(
                             'Closed',
                             style: TextStyle(color: Colors.grey[700], fontSize: 13),
                           ),
@@ -662,7 +662,7 @@ class _TimePickerChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppTheme.primaryColor,

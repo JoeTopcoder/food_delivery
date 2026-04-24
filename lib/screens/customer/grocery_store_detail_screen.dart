@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/restaurant_model.dart';
@@ -433,7 +433,7 @@ class _ProductCard extends ConsumerWidget {
                                   children: [
                                     Text(
                                       '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w800,
                                         color: AppTheme.primaryColor,
@@ -452,7 +452,7 @@ class _ProductCard extends ConsumerWidget {
                                 )
                               : Text(
                                   '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.primaryColor,

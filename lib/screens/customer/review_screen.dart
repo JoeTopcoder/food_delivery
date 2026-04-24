@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -135,7 +135,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       color: AppTheme.primaryColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.receipt_long_rounded,
                       color: AppTheme.primaryColor,
                     ),
@@ -278,7 +278,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
+                        borderSide: BorderSide(
                           color: AppTheme.primaryColor,
                           width: 1.5,
                         ),
@@ -535,7 +535,7 @@ class _OverallScore extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [AppTheme.primaryColor, Color(0xFFFF8C42)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

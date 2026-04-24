@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/earning_model.dart';
 import '../../providers/earning_provider.dart';
@@ -50,11 +50,11 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
           children: [
             Text(
               'User: ${account.userName ?? account.userId.substring(0, 8)}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             Text(
               'Current tier: ${account.tierDisplayName}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -170,7 +170,7 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
               Center(child: AppErrorState(message: friendlyError(e))),
           data: (accounts) {
             if (accounts.isEmpty) {
-              return const Center(
+              return Center(
                 child: Text(
                   'No earning accounts yet',
                   style: TextStyle(color: Colors.grey[700]),
@@ -489,7 +489,7 @@ class _AccountTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${a.totalDirectRefs} refs · ${a.totalOrdersGenerated} orders · \$${a.monthlyEarned.toStringAsFixed(2)} this mo',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -506,7 +506,7 @@ class _AccountTile extends StatelessWidget {
                   color: Color(0xFF10B981),
                 ),
               ),
-              const Text(
+              Text(
                 'earned',
                 style: TextStyle(fontSize: 10, color: Colors.grey[700]),
               ),
@@ -523,7 +523,7 @@ class _AccountTile extends StatelessWidget {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.tune_rounded,
                 size: 16,
                 color: Colors.grey[700],

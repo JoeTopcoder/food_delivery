@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/ai_voice_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -236,7 +236,7 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [AppTheme.primaryColor, Color(0xFF9C27B0)],
               ),
               shape: BoxShape.circle,
@@ -602,7 +602,7 @@ class _MessageBubble extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.smart_toy_outlined,
                 color: AppTheme.primaryColor,
                 size: 13,
@@ -646,7 +646,7 @@ class _MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           gradient: isUser
-              ? const LinearGradient(
+              ? LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFF9C27B0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -669,13 +669,13 @@ class _MessageBubble extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.smart_toy_outlined,
                       color: AppTheme.primaryColor,
                       size: 13,
                     ),
                     const SizedBox(width: 4),
-                    const Text(
+                    Text(
                       'MealHub AI',
                       style: TextStyle(
                         color: AppTheme.primaryColor,
@@ -750,7 +750,7 @@ class _ThinkingIndicator extends StatelessWidget {
         color: AppTheme.primaryColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
@@ -841,7 +841,7 @@ class _MicButtonRow extends StatelessWidget {
                             ? [const Color(0xFF10B981), const Color(0xFF059669)]
                             : isSpeaking
                             ? [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)]
-                            : [AppTheme.primaryColor, const Color(0xFF9C27B0)],
+                            : [AppTheme.primaryColor, Color(0xFF9C27B0)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -992,7 +992,7 @@ class _TextInputBar extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.send_rounded, color: AppTheme.primaryColor),
+            icon: Icon(Icons.send_rounded, color: AppTheme.primaryColor),
             onPressed: onSend,
           ),
         ],
@@ -1016,7 +1016,7 @@ class _EscalateBar extends StatelessWidget {
       ),
       child: ListTile(
         dense: true,
-        leading: const Icon(
+        leading: Icon(
           Icons.support_agent,
           color: AppTheme.warningColor,
           size: 20,
@@ -1027,7 +1027,7 @@ class _EscalateBar extends StatelessWidget {
         ),
         trailing: TextButton(
           onPressed: onEscalate,
-          child: const Text(
+          child: Text(
             'Connect',
             style: TextStyle(
               color: AppTheme.warningColor,
@@ -1142,7 +1142,7 @@ class _OrderPickerOverlay extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFF9C27B0)],
                 ),
                 borderRadius: BorderRadius.circular(16),
@@ -1207,7 +1207,7 @@ class _OrderPickerOverlay extends StatelessWidget {
                               ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.receipt_long_outlined,
                               color: AppTheme.primaryColor,
                               size: 22,
@@ -1244,7 +1244,7 @@ class _OrderPickerOverlay extends StatelessWidget {
                                       ),
                                       child: Text(
                                         statusText,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: AppTheme.primaryColor,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
@@ -1299,7 +1299,7 @@ class _EmptyStateHint extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFF9C27B0)],
                 ),
                 shape: BoxShape.circle,

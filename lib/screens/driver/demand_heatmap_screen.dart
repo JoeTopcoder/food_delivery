@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,7 +18,7 @@ class DemandHeatmapScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: zonesAsync.when(
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
         error: (e, _) => Center(
@@ -291,7 +291,7 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                   const SizedBox(height: 8),
                   Flexible(
                     child: activeZones.isEmpty
-                        ? const Padding(
+                        ? Padding(
                             padding: EdgeInsets.all(24),
                             child: Center(
                               child: Text(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -700,7 +700,7 @@ class _PlanOptionCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(bottom: 4, left: 2),
                       child: Text(
                         '/month',

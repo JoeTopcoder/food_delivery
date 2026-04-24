@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -184,7 +184,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                     ),
                   );
                 },
-                loading: () => const SliverFillRemaining(
+                loading: () => SliverFillRemaining(
                   child: AppLoadingIndicator(
                     message: 'Loading history...',
                     color: AppTheme.primaryColor,
@@ -198,7 +198,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: AppLoadingIndicator(
           message: 'Loading driver...',
@@ -230,7 +230,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Items',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,

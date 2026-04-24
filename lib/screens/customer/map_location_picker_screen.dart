@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -184,7 +184,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
           ),
 
           // ── Centre pin icon ────────────────────
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.only(bottom: 36),
               child: Icon(
@@ -238,7 +238,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.location_on,
                         color: AppTheme.primaryColor,
                         size: 22,

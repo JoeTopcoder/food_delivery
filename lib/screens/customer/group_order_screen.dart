@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -228,7 +228,7 @@ class _GroupOrderCard extends StatelessWidget {
                       color: const Color(0xFFFFF3E0),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
+                    child: Text(
                       'HOST',
                       style: TextStyle(
                         fontSize: 9,

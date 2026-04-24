@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/driver_intelligence_models.dart';
@@ -37,7 +37,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
           ),
         );
       }
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -74,7 +74,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: statsAsync.when(
-              loading: () => const Padding(
+              loading: () => Padding(
                 padding: EdgeInsets.all(48),
                 child: Center(
                   child: CircularProgressIndicator(

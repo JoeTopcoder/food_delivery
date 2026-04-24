@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +36,7 @@ class ReferralScreen extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFFFF8C42)],
                 ),
                 borderRadius: BorderRadius.circular(16),
@@ -120,7 +120,7 @@ class ReferralScreen extends ConsumerWidget {
                               ),
                               Text(
                                 '\$${EarningConfig.directOrderRate.toStringAsFixed(2)} per order from referrals',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey[700],
                                 ),
@@ -128,7 +128,7 @@ class ReferralScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
                           color: AppTheme.primaryColor,
                         ),
@@ -159,7 +159,7 @@ class ReferralScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Your Referral Code',
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
@@ -170,7 +170,7 @@ class ReferralScreen extends ConsumerWidget {
                       children: [
                         Text(
                           code ?? 'N/A',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 4,
@@ -180,7 +180,7 @@ class ReferralScreen extends ConsumerWidget {
                         if (code != null) ...[
                           const SizedBox(width: 12),
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.copy_rounded,
                               color: AppTheme.primaryColor,
                             ),
@@ -275,7 +275,7 @@ class ReferralScreen extends ConsumerWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
                         Icon(
                           Icons.person_add_outlined,
@@ -363,7 +363,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
           ],

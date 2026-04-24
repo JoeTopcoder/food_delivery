@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -696,7 +696,7 @@ class _OrderCard extends ConsumerWidget {
           controller: scrollCtrl,
           padding: const EdgeInsets.all(24),
           children: [
-            const Center(
+            Center(
               child: Text(
                 'MealHub',
                 style: TextStyle(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -113,7 +113,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                             ),
                             Text(
                               '\$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} ad credits + ${(EarningConfig.restaurantRefCommissionDiscount * 100).toStringAsFixed(0)}% commission discount per referral',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey[700],
                               ),
@@ -147,7 +147,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Your Restaurant Referral Code',
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
@@ -303,7 +303,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
                         Icon(
                           Icons.store_outlined,
@@ -391,7 +391,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
           ],

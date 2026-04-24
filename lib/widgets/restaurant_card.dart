@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
@@ -75,7 +75,7 @@ class RestaurantCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Text(
                           '${restaurant.rating ?? '-'}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                             color: AppTheme.textPrimary,
@@ -123,7 +123,7 @@ class RestaurantCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           restaurant.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                             color: AppTheme.textPrimary,
@@ -157,7 +157,7 @@ class RestaurantCard extends StatelessWidget {
                   // Cuisine tags
                   Text(
                     restaurant.cuisineType ?? 'Multi-cuisine',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       color: AppTheme.textSecondary,
                     ),

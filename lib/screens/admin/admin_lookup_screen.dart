@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -175,13 +175,13 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
                         color: Color(0xFF9CA3AF),
                         fontSize: 14,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.search,
                         color: AppTheme.primaryColor,
                         size: 20,
                       ),
                       suffixIcon: IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_forward_rounded,
                           color: AppTheme.primaryColor,
                         ),
@@ -196,7 +196,7 @@ class _AdminLookupScreenState extends ConsumerState<AdminLookupScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
+                        borderSide: BorderSide(
                           color: AppTheme.primaryColor,
                           width: 1.5,
                         ),

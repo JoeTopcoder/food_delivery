@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -55,7 +55,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
           ),
         );
       }
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Color(0xFF0F1117),
         body: Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
@@ -170,7 +170,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,

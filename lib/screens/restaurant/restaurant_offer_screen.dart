@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_theme.dart';
 
@@ -219,7 +219,7 @@ class RestaurantOfferScreen extends StatelessWidget {
                                   ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'MealHub',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(

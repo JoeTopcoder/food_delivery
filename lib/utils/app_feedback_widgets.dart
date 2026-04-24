@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ class AppLoadingIndicator extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -290,7 +290,7 @@ class AppEmptyState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
@@ -302,7 +302,7 @@ class AppEmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   color: AppTheme.textSecondary,
                   height: 1.4,
@@ -373,7 +373,7 @@ class AppErrorState extends StatelessWidget {
               child: Icon(icon, size: 36, color: Colors.red.shade400),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Something went wrong',
               style: TextStyle(
                 fontSize: 17,
@@ -385,7 +385,7 @@ class AppErrorState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
                 color: AppTheme.textSecondary,
                 height: 1.4,
@@ -489,7 +489,7 @@ class AppConfirmDialog extends StatelessWidget {
             if (icon != null) const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
@@ -500,7 +500,7 @@ class AppConfirmDialog extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
                 height: 1.5,
@@ -515,7 +515,7 @@ class AppConfirmDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.textSecondary,
-                      side: const BorderSide(color: AppTheme.borderColor),
+                      side: BorderSide(color: AppTheme.borderColor),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -621,7 +621,7 @@ class AppSuccessDialog extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
@@ -633,7 +633,7 @@ class AppSuccessDialog extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 message!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   color: AppTheme.textSecondary,
                   height: 1.5,
@@ -716,7 +716,7 @@ class AppLoadingOverlay {
                   const SizedBox(height: 18),
                   Text(
                     message,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,7 +90,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             // ── Gradient Header ──────────────────────────────────────────
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFFFF8C42)],
                   begin: Alignment.topLeft,
@@ -354,7 +354,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -392,7 +392,7 @@ class _GradientButton extends StatelessWidget {
               ? const LinearGradient(
                   colors: [Color(0xFFD1D5DB), Color(0xFFD1D5DB)],
                 )
-              : const LinearGradient(
+              : LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFFFF8C42)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
@@ -226,7 +226,7 @@ class _RestaurantDashboardScreenState
                                   width: 48,
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
+                                    gradient: LinearGradient(
                                       colors: [
                                         AppTheme.primaryColor,
                                         Color(0xFFFF8C5A),
@@ -829,7 +829,7 @@ class _RestaurantDashboardScreenState
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
                       ),
                       shape: BoxShape.circle,
@@ -988,7 +988,7 @@ class _RestaurantDashboardScreenState
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
         ),
       ),
       validator: required

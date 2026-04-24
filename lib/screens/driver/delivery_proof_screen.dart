@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/order_model.dart';
@@ -143,7 +143,7 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.location_on_rounded,
                           size: 14,
                           color: AppTheme.primaryColor,
@@ -211,7 +211,7 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.pin_rounded,
                   size: 36,
                   color: AppTheme.primaryColor,
@@ -274,7 +274,7 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
+                          borderSide: BorderSide(
                             color: AppTheme.primaryColor,
                             width: 2,
                           ),

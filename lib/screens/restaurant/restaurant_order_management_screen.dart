@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
@@ -201,7 +201,7 @@ class _StatusTabSection extends StatelessWidget {
           controller: tabController,
           isScrollable: true,
           labelColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelcolor: Colors.grey[700],
+          unselectedLabelColor: Colors.grey[700],
           indicatorSize: TabBarIndicatorSize.label,
           tabs: _statusLabels.map((label) {
             final count = allOrders
@@ -591,7 +591,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.grey[700]),
+                  Icon(Icons.location_on, size: 16, color: Colors.grey[700]),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -609,7 +609,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.note, size: 16, color: Colors.grey[700]),
+                  Icon(Icons.note, size: 16, color: Colors.grey[700]),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
