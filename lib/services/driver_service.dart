@@ -538,36 +538,28 @@ class DriverService {
     try {
       AppLogger.info('Fetching delivery history for driver: $driverId');
 
+      // Single query with nested joins — eliminates N+1 round-trips
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
+          .select(
+            '*, ${AppConstants.tableOrderItems}(*, ${AppConstants.tableOrderItemSides}(*))',
+          )
           .eq('driver_id', driverId)
           .eq('status', AppConstants.orderDelivered)
           .order('completed_at', ascending: false);
 
       final orders = <Order>[];
-      for (var orderData in response as List) {
-        final itemsResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItems)
-            .select()
-            .eq('order_id', orderData['id']);
-
-        final items = <OrderItem>[];
-        for (final itemJson in (itemsResponse as List)) {
-          final sidesResponse = await _supabaseClient
-              .from(AppConstants.tableOrderItemSides)
-              .select()
-              .eq('order_item_id', itemJson['id']);
-          final sides = (sidesResponse as List)
-              .map((s) => OrderItemSide.fromJson(s))
-              .toList();
-          items.add(
-            OrderItem.fromJson({
-              ...itemJson,
-              'sides': sides.map((s) => s.toJson()).toList(),
-            }),
-          );
-        }
+      for (final orderData in response as List) {
+        final rawItems = orderData[AppConstants.tableOrderItems] as List? ?? [];
+        final items = rawItems.map((itemJson) {
+          final rawSides =
+              itemJson[AppConstants.tableOrderItemSides] as List? ?? [];
+          final sides = rawSides.map((s) => OrderItemSide.fromJson(s)).toList();
+          return OrderItem.fromJson({
+            ...itemJson as Map<String, dynamic>,
+            'sides': sides.map((s) => s.toJson()).toList(),
+          });
+        }).toList();
 
         orders.add(
           Order.fromJson({

@@ -82,7 +82,7 @@ class _SosSheetContent extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'If you are in danger, contact emergency services immediately',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -232,7 +232,7 @@ class _SosOption extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   ),
                 ],
               ),

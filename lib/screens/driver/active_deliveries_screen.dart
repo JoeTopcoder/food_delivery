@@ -14,7 +14,6 @@ import '../../services/delivery_fee_service.dart';
 import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
-import '../../widgets/ai_fab.dart';
 import 'delivery_proof_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -101,10 +100,6 @@ class _ActiveDeliveriesScreenState
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
-          floatingActionButton: AiFab(
-            role: 'driver',
-            orderId: deliveriesAsync.valueOrNull?.firstOrNull?.id,
-          ),
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
@@ -552,7 +547,7 @@ class _DeliveryCard extends ConsumerWidget {
                           '#${delivery.id.substring(0, 8).toUpperCase()}',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[500],
+                            color: Colors.grey[700],
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -606,7 +601,7 @@ class _DeliveryCard extends ConsumerWidget {
                     if (totalKm != null)
                       Text(
                         '${(totalKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        style: TextStyle(color: Colors.grey[700], fontSize: 12),
                       ),
                   ],
                 ),
@@ -699,7 +694,7 @@ class _DeliveryCard extends ConsumerWidget {
                           '${item.itemName} x${item.quantity}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[400],
+                            color: Colors.grey[700],
                           ),
                         ),
                       ),
@@ -859,7 +854,7 @@ class _RouteRow extends StatelessWidget {
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 11),
                 ),
             ],
           ),

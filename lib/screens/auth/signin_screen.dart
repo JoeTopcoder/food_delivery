@@ -372,7 +372,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             'or continue with',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[500],
+                              color: Colors.grey[700],
                             ),
                           ),
                         ),

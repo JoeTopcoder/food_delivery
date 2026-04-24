@@ -263,7 +263,7 @@ class _AdvancedEarningsScreenState
                             padding: const EdgeInsets.all(32),
                             child: Text(
                               'No earnings for this period.',
-                              style: TextStyle(color: Colors.grey[500]),
+                              style: TextStyle(color: Colors.grey[700]),
                             ),
                           ),
                         );
@@ -436,7 +436,7 @@ class _HourlyCard extends StatelessWidget {
             children: [
               Text(
                 'Session',
-                style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                style: TextStyle(color: Colors.grey[700], fontSize: 10),
               ),
               Text(
                 '${AppConstants.currencySymbol}${stats.sessionEarnings.toStringAsFixed(2)}',
@@ -517,7 +517,7 @@ class _CashFloatCard extends StatelessWidget {
                   cashFloat > 0
                       ? 'Cash collected — hand over to admin'
                       : 'No outstanding cash float',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -566,7 +566,7 @@ class _EarningsSummaryCard extends StatelessWidget {
               ),
               Text(
                 '${summary.deliveryCount} deliveries',
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
               ),
             ],
           ),
@@ -633,7 +633,7 @@ class _MiniStat extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(color: Colors.grey[500], fontSize: 10),
+              style: TextStyle(color: Colors.grey[700], fontSize: 10),
               textAlign: TextAlign.center,
             ),
           ],
@@ -716,7 +716,7 @@ class _PayBreakdownCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item.label,
-                      style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
                     ),
                   ),
                   Text(
@@ -844,7 +844,7 @@ class _MetricBox extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 10)),
+          Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 10)),
         ],
       ),
     );
@@ -949,7 +949,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                               fmt.format(d.earnedAt),
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey[500],
+                                color: Colors.grey[700],
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -986,7 +986,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                       ),
                       Text(
                         '${AppConstants.currencySymbol}${d.earningsPerHour.toStringAsFixed(0)}/hr',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[700]),
                       ),
                     ],
                   ),
@@ -1036,7 +1036,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
           Text(
             '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)}',
             style: TextStyle(

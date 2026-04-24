@@ -335,7 +335,7 @@ class _RestaurantOnboardingScreenState
             const SizedBox(height: 8),
             const Text(
               'Review your details above, then tap Create Restaurant to go live.',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: Colors.grey[700]),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(

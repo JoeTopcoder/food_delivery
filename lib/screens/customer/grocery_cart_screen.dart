@@ -140,7 +140,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                   Icon(
                     Icons.local_grocery_store_outlined,
                     size: 80,
-                    color: Colors.grey[400],
+                    color: Colors.grey[700],
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -755,7 +755,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
     width: 64,
     height: 64,
     color: Colors.grey[100],
-    child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400], size: 28),
+    child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[700], size: 28),
   );
 }
 

@@ -334,7 +334,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                 ),
                 child: Text(
                   'No products found for "$_searchQuery"',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
               ),
             );
@@ -492,7 +492,7 @@ class _SearchProductCard extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey[500],
+                          color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),

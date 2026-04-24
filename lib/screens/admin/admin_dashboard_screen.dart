@@ -7,6 +7,8 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import 'admin_analytics_screen.dart';
+import 'admin_ai_panel_screen.dart';
 import '../shared/ai_voice_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -527,6 +529,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-financials'),
                           ),
                           _GridAction(
+                            icon: Icons.bar_chart_rounded,
+                            label: 'Analytics',
+                            color: const Color(0xFF0EA5E9),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-analytics'),
+                          ),
+                          _GridAction(
+                            icon: Icons.psychology_rounded,
+                            label: 'AI Engine',
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-ai-panel'),
+                          ),
+                          _GridAction(
                             icon: Icons.description_rounded,
                             label: 'Contracts',
                             color: const Color(0xFF10B981),
@@ -758,7 +776,7 @@ class _KpiCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade500,
+                    color: Colors.grey.shade700,
                   ),
                 ),
               ],

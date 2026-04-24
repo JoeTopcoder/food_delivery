@@ -76,7 +76,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
         FocusScope.of(context).unfocus();
       }
     } catch (e) {
-      setState(() => _promoError = friendlyError(e));
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _promoError = msg.isNotEmpty ? msg : friendlyError(e));
     } finally {
       if (mounted) setState(() => _applyingPromo = false);
     }
@@ -163,10 +164,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
     final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
     final tax = subtotal * AppConstants.taxRate;
     final orderTotal =
-        (subtotal - promoDiscount - loyaltyDiscount + activeFee + platformServiceFee + tax).clamp(
-          activeFee,
-          double.infinity,
-        );
+        (subtotal -
+                promoDiscount -
+                loyaltyDiscount +
+                activeFee +
+                platformServiceFee +
+                tax)
+            .clamp(activeFee, double.infinity);
     final total = orderTotal + _driverTip;
 
     final deliveryAddress =
@@ -493,7 +497,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                                       Icon(
                                         Icons.credit_card_off_outlined,
                                         size: 32,
-                                        color: Colors.grey.shade400,
+                                        color: Colors.grey.shade700,
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
@@ -508,7 +512,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
                                         'Add a card from your Wallet first',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade500,
+                                          color: Colors.grey.shade700,
                                         ),
                                       ),
                                     ],

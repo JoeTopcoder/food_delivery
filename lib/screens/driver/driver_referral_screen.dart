@@ -123,7 +123,7 @@ class DriverReferralScreen extends ConsumerWidget {
                                 'Earn a bonus for each driver you refer',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey,
+                                  color: Colors.grey[700],
                                 ),
                               ),
                             ],
@@ -162,7 +162,7 @@ class DriverReferralScreen extends ConsumerWidget {
                 children: [
                   const Text(
                     'Your Driver Referral Code',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),
                   codeAsync.when(
@@ -319,16 +319,16 @@ class DriverReferralScreen extends ConsumerWidget {
                         Icon(
                           Icons.person_add_outlined,
                           size: 48,
-                          color: Colors.grey,
+                          color: Colors.grey[700],
                         ),
                         SizedBox(height: 8),
                         Text(
                           'No referrals yet',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey[700]),
                         ),
                         Text(
                           'Share your code to start earning!',
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(color: Colors.grey[700], fontSize: 12),
                         ),
                       ],
                     ),
@@ -402,7 +402,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
           ],

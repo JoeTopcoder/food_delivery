@@ -201,7 +201,7 @@ class _StatusTabSection extends StatelessWidget {
           controller: tabController,
           isScrollable: true,
           labelColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelColor: Colors.grey,
+          unselectedLabelcolor: Colors.grey[700],
           indicatorSize: TabBarIndicatorSize.label,
           tabs: _statusLabels.map((label) {
             final count = allOrders
@@ -591,7 +591,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                  const Icon(Icons.location_on, size: 16, color: Colors.grey[700]),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -609,7 +609,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.note, size: 16, color: Colors.grey),
+                  const Icon(Icons.note, size: 16, color: Colors.grey[700]),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(

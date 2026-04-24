@@ -1,27 +1,27 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'theme_service.dart';
 
 class AppTheme {
-  // Colors – 7krave-inspired palette
-  static const Color primaryColor = Color(0xFF7C3AED); // Purple
-  static const Color secondaryColor = Color(0xFF004E89);
-  static const Color accentColor = Color(
-    0xFFE74C3C,
-  ); // Red-orange (prices / alerts)
-  static const Color backgroundColor = Color(0xFFF7F8FA);
-  static const Color errorColor = Color(0xFFE63946);
-  static const Color successColor = Color(0xFF06A77D);
-  static const Color warningColor = Color(0xFFFFA630);
-  static const Color priceColor = Color(0xFFE74C3C); // Red-orange for prices
+  // Colors – remotely configurable via get-theme edge function.
+  // Falls back to compile-time defaults when offline.
+  static Color get primaryColor => ThemeService.current.primaryColor;
+  static Color get secondaryColor => ThemeService.current.secondaryColor;
+  static Color get accentColor => ThemeService.current.accentColor;
+  static Color get backgroundColor => ThemeService.current.backgroundColor;
+  static Color get errorColor => ThemeService.current.errorColor;
+  static Color get successColor => ThemeService.current.successColor;
+  static Color get warningColor => ThemeService.current.warningColor;
+  static Color get priceColor => ThemeService.current.priceColor;
 
   // Neutral Colors
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textLight = Color(0xFF9CA3AF);
-  static const Color borderColor = Color(0xFFE5E7EB);
-  static const Color dividerColor = Color(0xFFF3F4F6);
+  static Color get textPrimary => ThemeService.current.textPrimary;
+  static Color get textSecondary => ThemeService.current.textSecondary;
+  static Color get textLight => ThemeService.current.textLight;
+  static Color get borderColor => ThemeService.current.borderColor;
+  static Color get dividerColor => ThemeService.current.dividerColor;
 
   // Light Theme
-  static ThemeData lightTheme = ThemeData(
+  static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: ColorScheme.fromSeed(
@@ -46,7 +46,7 @@ class AppTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: primaryColor,
-        side: const BorderSide(color: primaryColor),
+        side: BorderSide(color: primaryColor),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -58,19 +58,19 @@ class AppTheme {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: borderColor),
+        borderSide: BorderSide(color: borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: borderColor),
+        borderSide: BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: primaryColor, width: 2),
+        borderSide: BorderSide(color: primaryColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: errorColor),
+        borderSide: BorderSide(color: errorColor),
       ),
       filled: true,
       fillColor: Colors.white,
@@ -80,10 +80,10 @@ class AppTheme {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: borderColor, width: 0.5),
+        side: BorderSide(color: borderColor, width: 0.5),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
@@ -111,7 +111,7 @@ class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       behavior: SnackBarBehavior.floating,
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
       selectedItemColor: primaryColor,
       unselectedItemColor: textSecondary,
@@ -119,15 +119,26 @@ class AppTheme {
     chipTheme: ChipThemeData(
       backgroundColor: backgroundColor,
       selectedColor: primaryColor,
-      labelStyle: const TextStyle(color: textPrimary),
+      labelStyle: TextStyle(color: textPrimary),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
-    listTileTheme: const ListTileThemeData(
+    listTileTheme: ListTileThemeData(
       textColor: textPrimary,
       subtitleTextStyle: TextStyle(fontSize: 13, color: textSecondary),
       iconColor: textSecondary,
     ),
     dividerColor: dividerColor,
+    textTheme: TextTheme(
+      bodyLarge: TextStyle(color: textPrimary),
+      bodyMedium: TextStyle(color: textPrimary),
+      bodySmall: TextStyle(color: textSecondary),
+      titleLarge: TextStyle(color: textPrimary),
+      titleMedium: TextStyle(color: textPrimary),
+      titleSmall: TextStyle(color: textSecondary),
+      labelLarge: TextStyle(color: textPrimary),
+      labelMedium: TextStyle(color: textSecondary),
+      labelSmall: TextStyle(color: textSecondary),
+    ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
         color: textPrimary,
@@ -138,7 +149,7 @@ class AppTheme {
   );
 
   // Dark Theme
-  static ThemeData darkTheme = ThemeData(
+  static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: ColorScheme.fromSeed(
@@ -147,7 +158,7 @@ class AppTheme {
     ).copyWith(
       surface: const Color(0xFF111827),
       onSurface: Colors.white,
-      onSurfaceVariant: const Color(0xFFD1D5DB),   // light grey — readable on dark cards
+      onSurfaceVariant: const Color(0xFFD1D5DB),
       surfaceContainerHighest: const Color(0xFF1F2937),
       outline: const Color(0xFF374151),
     ),
@@ -189,11 +200,11 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: primaryColor, width: 2),
+        borderSide: BorderSide(color: primaryColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: errorColor),
+        borderSide: BorderSide(color: errorColor),
       ),
       filled: true,
       fillColor: const Color(0xFF1F2937),
@@ -269,49 +280,49 @@ class AppTheme {
   );
 
   // Text Styles
-  static const TextStyle headingLarge = TextStyle(
+  static TextStyle get headingLarge => TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static const TextStyle headingMedium = TextStyle(
+  static TextStyle get headingMedium => TextStyle(
     fontSize: 24,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static const TextStyle headingSmall = TextStyle(
+  static TextStyle get headingSmall => TextStyle(
     fontSize: 20,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static const TextStyle bodyLarge = TextStyle(
+  static TextStyle get bodyLarge => TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: textPrimary,
   );
 
-  static const TextStyle bodyMedium = TextStyle(
+  static TextStyle get bodyMedium => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: textPrimary,
   );
 
-  static const TextStyle bodySmall = TextStyle(
+  static TextStyle get bodySmall => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: textSecondary,
   );
 
-  static const TextStyle labelLarge = TextStyle(
+  static TextStyle get labelLarge => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
-  static const TextStyle labelSmall = TextStyle(
+  static TextStyle get labelSmall => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     color: textSecondary,

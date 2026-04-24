@@ -331,7 +331,7 @@ class _GroceryStoreBody extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
-                color: Colors.grey,
+                color: Colors.grey[700],
               ),
             ),
           ],
@@ -420,7 +420,7 @@ class _GroceryStoreBody extends ConsumerWidget {
                           '${items.length} items',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
@@ -654,7 +654,7 @@ class _GroceryProductTile extends StatelessWidget {
                           product.brand!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
@@ -664,7 +664,7 @@ class _GroceryProductTile extends StatelessWidget {
                           product.weight!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
@@ -703,7 +703,7 @@ class _GroceryProductTile extends StatelessWidget {
                     break;
                 }
               },
-              icon: const Icon(Icons.more_vert, color: Colors.grey),
+              icon: const Icon(Icons.more_vert, color: Colors.grey[700]),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -987,13 +987,13 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                               Icon(
                                 Icons.add_photo_alternate_outlined,
                                 size: 36,
-                                color: Colors.grey[400],
+                                color: Colors.grey[700],
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'Tap to add photo',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
+                                  color: Colors.grey[700],
                                   fontSize: 13,
                                 ),
                               ),
@@ -1359,11 +1359,11 @@ class _DeliverySettingsSheetState
             children: [
               Text(
                 '10 min',
-                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[700]),
               ),
               Text(
                 '120 min',
-                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[700]),
               ),
             ],
           ),

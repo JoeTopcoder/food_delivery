@@ -213,7 +213,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
                                     'No restaurants found',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.grey[500],
+                                      color: Colors.grey[700],
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -222,7 +222,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
                                     'Try adjusting your filters',
                                     style: TextStyle(
                                       fontSize: 13,
-                                      color: Colors.grey[400],
+                                      color: Colors.grey[700],
                                     ),
                                   ),
                                 ],
@@ -622,7 +622,7 @@ class _RestaurantSearchCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       restaurant.cuisineType ?? 'Restaurant',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -712,14 +712,14 @@ class _MenuItemsSearchTab extends ConsumerWidget {
                     'Search for dishes',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey[500],
+                      color: Colors.grey[700],
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Type a dish name to search across all menus',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -736,7 +736,7 @@ class _MenuItemsSearchTab extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Based on your order history',
-                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
               ),
               const SizedBox(height: 12),
               ...recs.map(
@@ -774,14 +774,14 @@ class _MenuItemsSearchTab extends ConsumerWidget {
                   'No menu items found',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey[500],
+                    color: Colors.grey[700],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Try a different search term',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -890,7 +890,7 @@ class _MenuItemCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     restaurantName,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -898,7 +898,7 @@ class _MenuItemCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       category!,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                     ),
                   ],
                   const SizedBox(height: 6),
@@ -918,7 +918,7 @@ class _MenuItemCard extends StatelessWidget {
                           '${AppConstants.currencySymbol}${originalPrice!.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[400],
+                            color: Colors.grey[700],
                             decoration: TextDecoration.lineThrough,
                           ),
                         ),

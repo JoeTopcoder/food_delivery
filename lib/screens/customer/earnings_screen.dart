@@ -194,17 +194,17 @@ class EarningsScreen extends ConsumerWidget {
                                     Icon(
                                       Icons.person_add_outlined,
                                       size: 40,
-                                      color: Colors.grey,
+                                      color: Colors.grey[700],
                                     ),
                                     SizedBox(height: 8),
                                     Text(
                                       'No referrals yet',
-                                      style: TextStyle(color: Colors.grey),
+                                      style: TextStyle(color: Colors.grey[700]),
                                     ),
                                     Text(
                                       'Share your code to start earning!',
                                       style: TextStyle(
-                                        color: Colors.grey,
+                                        color: Colors.grey[700],
                                         fontSize: 12,
                                       ),
                                     ),
@@ -240,7 +240,7 @@ class EarningsScreen extends ConsumerWidget {
                                 child: Center(
                                   child: Text(
                                     'No earnings yet',
-                                    style: TextStyle(color: Colors.grey),
+                                    style: TextStyle(color: Colors.grey[700]),
                                   ),
                                 ),
                               );
@@ -458,7 +458,7 @@ class _MonthlyCap extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.savings_outlined, size: 16, color: Colors.grey),
+              const Icon(Icons.savings_outlined, size: 16, color: Colors.grey[700]),
               const SizedBox(width: 6),
               const Expanded(
                 child: Text(
@@ -468,7 +468,7 @@ class _MonthlyCap extends StatelessWidget {
               ),
               Text(
                 '\$${used.toStringAsFixed(2)} / \$${cap.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -769,7 +769,7 @@ class _StatChip extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
             ),
           ],
         ),
@@ -834,7 +834,7 @@ class _ReferralTile extends StatelessWidget {
                 ),
                 Text(
                   joined,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -911,7 +911,7 @@ class _TransactionTile extends StatelessWidget {
                 ),
                 Text(
                   '$date$expiryInfo',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey[700]),
                 ),
               ],
             ),

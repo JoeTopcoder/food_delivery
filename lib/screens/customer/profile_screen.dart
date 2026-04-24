@@ -542,7 +542,7 @@ class _SettingsTile extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward, size: 20, color: Colors.grey),
+        trailing: const Icon(Icons.arrow_forward, size: 20, color: Colors.grey[700]),
         onTap: onTap,
       ),
     );

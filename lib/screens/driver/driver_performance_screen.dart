@@ -278,7 +278,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                                   Text(
                                     'Your guaranteed pay rate + tips',
                                     style: TextStyle(
-                                      color: Colors.grey[400],
+                                      color: Colors.grey[700],
                                       fontSize: 12,
                                     ),
                                   ),
@@ -288,7 +288,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                             Text(
                               'Min \$${AppConstants.driverMinBasePay.toStringAsFixed(0)}',
                               style: TextStyle(
-                                color: Colors.grey[500],
+                                color: Colors.grey[700],
                                 fontSize: 12,
                               ),
                             ),
@@ -419,7 +419,7 @@ class _TierCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Driver Score: ${stats.score.toStringAsFixed(0)}/100',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
                     ),
                   ],
                 ),
@@ -442,7 +442,7 @@ class _TierCard extends StatelessWidget {
                 ),
                 Text(
                   '$nextTierScore pts to next tier',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
                 ),
               ],
             ),
@@ -600,7 +600,7 @@ class _ScoreRow extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
             ),
             Text(
               '$value/$maxValue',
@@ -667,7 +667,7 @@ class _RateCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(color: Colors.grey[500], fontSize: 10),
+            style: TextStyle(color: Colors.grey[700], fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ],
@@ -725,7 +725,7 @@ class _StatTile extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  style: TextStyle(color: Colors.grey[700], fontSize: 11),
                 ),
               ],
             ),
@@ -981,7 +981,7 @@ class _RecommendationsCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       zone.name,
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
                     ),
                   ],
                 ),

@@ -221,14 +221,14 @@ class _CouponPopupContent extends StatelessWidget {
                         Text(
                           'Min. order: \$${coupon.minOrder.toStringAsFixed(0)}',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade700,
                             fontSize: 12,
                           ),
                         ),
                       Text(
                         'Expires in ${coupon.expiresInHours ~/ 24} days',
                         style: TextStyle(
-                          color: Colors.grey.shade500,
+                          color: Colors.grey.shade700,
                           fontSize: 12,
                         ),
                       ),
@@ -282,7 +282,7 @@ class _CouponPopupContent extends StatelessWidget {
                         child: Text(
                           'Maybe later',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -508,7 +508,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           '·',
-                          style: TextStyle(color: Colors.grey.shade400),
+                          style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -562,7 +562,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                         Icon(
                           Icons.schedule_rounded,
                           size: 12,
-                          color: Colors.grey.shade500,
+                          color: Colors.grey.shade700,
                         ),
                         const SizedBox(width: 3),
                         Text(

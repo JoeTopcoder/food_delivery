@@ -29,7 +29,7 @@ class FavoritesScreen extends ConsumerWidget {
                   Icon(
                     Icons.favorite_border_rounded,
                     size: 64,
-                    color: Colors.grey.shade400,
+                    color: Colors.grey.shade700,
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -134,7 +134,7 @@ class FavoritesScreen extends ConsumerWidget {
                                   const SizedBox(width: 12),
                                   Icon(
                                     Icons.access_time,
-                                    color: Colors.grey.shade500,
+                                    color: Colors.grey.shade700,
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
@@ -189,7 +189,7 @@ class _PlaceholderImage extends StatelessWidget {
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(Icons.restaurant, color: Colors.grey.shade400, size: 32),
+      child: Icon(Icons.restaurant, color: Colors.grey.shade700, size: 32),
     );
   }
 }

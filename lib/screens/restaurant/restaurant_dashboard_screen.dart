@@ -856,7 +856,7 @@ class _RestaurantDashboardScreenState
                 Center(
                   child: Text(
                     'Fill in your restaurant details to get started',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ),
