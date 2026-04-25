@@ -532,51 +532,31 @@ class OrderService {
     }
   }
 
-  // Get orders for multiple restaurants (for multi-restaurant owners)
+  // Get orders for multiple restaurants (for multi-restaurant owners).
+  // Single nested query — avoids N+1 round-trips for items/sides.
   Future<List<Order>> getOrdersForRestaurants(
-    List<String> restaurantIds,
-  ) async {
+    List<String> restaurantIds, {
+    int? limit,
+  }) async {
     try {
       if (restaurantIds.isEmpty) return [];
       AppLogger.info('Fetching orders for ${restaurantIds.length} restaurants');
 
-      final response = await _supabaseClient
+      final query = _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
-          .inFilter('restaurant_id', restaurantIds)
-          .order('ordered_at', ascending: false);
+          .select(
+            '*, items:${AppConstants.tableOrderItems}'
+            '(*, sides:${AppConstants.tableOrderItemSides}(*))',
+          )
+          .inFilter('restaurant_id', restaurantIds);
 
-      final orders = <Order>[];
-      for (var orderData in response as List) {
-        final itemsResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItems)
-            .select()
-            .eq('order_id', orderData['id']);
+      final response = limit != null
+          ? await query.order('ordered_at', ascending: false).limit(limit)
+          : await query.order('ordered_at', ascending: false);
 
-        final items = <OrderItem>[];
-        for (final itemJson in (itemsResponse as List)) {
-          final sidesResponse = await _supabaseClient
-              .from(AppConstants.tableOrderItemSides)
-              .select()
-              .eq('order_item_id', itemJson['id']);
-          final sides = (sidesResponse as List)
-              .map((s) => OrderItemSide.fromJson(s))
-              .toList();
-          items.add(
-            OrderItem.fromJson({
-              ...itemJson,
-              'sides': sides.map((s) => s.toJson()).toList(),
-            }),
-          );
-        }
-
-        orders.add(
-          Order.fromJson({
-            ...orderData,
-            'items': items.map((item) => item.toJson()).toList(),
-          }),
-        );
-      }
+      final orders = (response as List)
+          .map((row) => Order.fromJson(row as Map<String, dynamic>))
+          .toList();
 
       AppLogger.info('Fetched ${orders.length} orders across restaurants');
       return orders;

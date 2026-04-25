@@ -534,9 +534,9 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   }
 
   Future<void> _initialize() async {
-    // Run minimum splash delay + all async work in parallel
+    // Keep a short branded splash, but don't hold the app for several seconds.
     await Future.wait([
-      Future.delayed(const Duration(milliseconds: 5000)),
+      Future.delayed(const Duration(milliseconds: 1200)),
       _doPermissionsAndAuth(),
     ]);
   }

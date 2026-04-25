@@ -108,25 +108,13 @@ import 'providers/feature_providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Run independent init tasks in parallel
+  // Keep only the minimum boot dependencies on the critical path.
   await Future.wait([
     Firebase.initializeApp(),
     SupabaseConfig.initialize(),
     CacheService.init(),
   ]);
 
-  // Load DB-driven config (depends on Supabase being ready)
-  await AppConfigService(SupabaseConfig.client).load();
-
-  // Load remote color theme (non-blocking fallback to defaults)
-  await ThemeService.load();
-
-  // Refresh session on startup so we always have a fresh token.
-  try {
-    await SupabaseConfig.client.auth.refreshSession();
-  } catch (_) {
-    // Not signed in yet or refresh failed — ignore.
-  }
   // Initialize Stripe (non-blocking — don't await applySettings)
   final stripeKey = AppConstants.stripePublishableKey;
   if (stripeKey.isNotEmpty) {
@@ -150,10 +138,15 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  bool _startupHydrated = false;
 
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hydrateDeferredStartup();
+    });
 
     // Start listening for admin pricing changes in real time
     ref.read(appConfigRealtimeProvider);
@@ -211,6 +204,27 @@ class _MyAppState extends ConsumerState<MyApp> {
     });
   }
 
+  Future<void> _hydrateDeferredStartup() async {
+    await Future.wait([
+      AppConfigService(SupabaseConfig.client).load(),
+      ThemeService.load(),
+      _refreshSession(),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      _startupHydrated = true;
+    });
+  }
+
+  Future<void> _refreshSession() async {
+    try {
+      await SupabaseConfig.client.auth.refreshSession();
+    } catch (_) {
+      // Not signed in yet or refresh failed — ignore.
+    }
+  }
+
   static Widget _getHomeForRole(String? role) {
     switch (role) {
       case 'customer':
@@ -236,6 +250,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final locale = ref.watch(localeProvider);
     // Initialize notifications
     ref.watch(initNotificationProvider);
+    final _ = _startupHydrated;
 
     return IncomingCallListener(
       navigatorKey: _navigatorKey,
