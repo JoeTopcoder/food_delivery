@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../models/order_model.dart';
 import '../../utils/app_theme.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
@@ -23,6 +24,7 @@ class _RestaurantDashboardScreenState
     extends ConsumerState<RestaurantDashboardScreen> {
   bool _togglingAvailability = false;
   bool _creatingRestaurant = false;
+  bool _secondaryReady = false;
 
   // Setup form
   final _nameController = TextEditingController();
@@ -30,6 +32,17 @@ class _RestaurantDashboardScreenState
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _setupFormKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer non-visible work (realtime subscription, KPI/orders watch)
+    // until after the hero header has painted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _secondaryReady = true);
+    });
+  }
 
   @override
   void dispose() {
@@ -193,8 +206,13 @@ class _RestaurantDashboardScreenState
           return _buildSetupRestaurant(currentUserId);
         }
 
-        ref.watch(ownerOrderRealtimeProvider(currentUserId));
-        final ordersAsync = ref.watch(ownerAllOrdersProvider(currentUserId));
+        // Defer realtime subscription and orders fetch until after first paint.
+        final ordersAsync = _secondaryReady
+            ? ref.watch(ownerAllOrdersProvider(currentUserId))
+            : const AsyncValue<List<Order>>.loading();
+        if (_secondaryReady) {
+          ref.watch(ownerOrderRealtimeProvider(currentUserId));
+        }
 
         return Scaffold(
           body: RefreshIndicator(
