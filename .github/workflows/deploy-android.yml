@@ -48,14 +48,14 @@ jobs:
         run: flutter pub get
 
       - name: Decode keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
 
       - name: Create key.properties
         run: |
           cat > android/key.properties <<EOF
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=upload
           storeFile=upload-keystore.jks
           EOF
 
@@ -63,7 +63,7 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Create Play Store service account JSON
-        run: echo "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON_B64 }}" | base64 --decode > play-store-key.json
+        run: echo '${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}' > play-store-key.json
 
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
