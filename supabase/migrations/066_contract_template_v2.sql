@@ -18,7 +18,7 @@ ALTER TABLE public.contracts ADD COLUMN IF NOT EXISTS restaurant_id UUID REFEREN
 -- Update defaults for V2 template
 ALTER TABLE public.contracts ALTER COLUMN proprietor_name SET DEFAULT 'Joel Scott';
 ALTER TABLE public.contracts ALTER COLUMN trading_as SET DEFAULT '';
-ALTER TABLE public.contracts ALTER COLUMN support_email SET DEFAULT 'suppor@applizonecentralja.com';
+ALTER TABLE public.contracts ALTER COLUMN support_email SET DEFAULT 'support@applizonecentralja.com';
 ALTER TABLE public.contracts ALTER COLUMN ceo_name SET DEFAULT 'Joel Scott';
 ALTER TABLE public.contracts ALTER COLUMN ceo_title SET DEFAULT '';
 ALTER TABLE public.contracts ALTER COLUMN ceo_company SET DEFAULT '';

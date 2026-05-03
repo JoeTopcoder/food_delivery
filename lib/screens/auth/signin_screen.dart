@@ -180,7 +180,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     Container(
                       width: 90,
                       height: 90,
-                      padding: const EdgeInsets.all(12),
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -194,12 +194,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       ),
                       child: Image.asset(
                         'assets/images/mealhub_logo.png',
-                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'MealHub',
+                      '7DASH',
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
@@ -209,7 +211,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Fresh, hot meals. Delivered daily.',
+                      'Food. Fast. Delivered.',
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,

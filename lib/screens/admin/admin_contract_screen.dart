@@ -136,7 +136,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
     _feePercent.text = '10';
     _feeCapPercent.text = '5';
     _feeCapMonths.text = '24';
-    _supportEmail.text = 'support@7krave.com';
+    _supportEmail.text = 'support@applizonecentralja.com';
     _bankName.text = '';
     _accountNumber.text = '';
     _accountName.text = '';

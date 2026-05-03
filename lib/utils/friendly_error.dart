@@ -52,6 +52,9 @@ String friendlyError(Object? error) {
       msg.contains('refresh_token_not_found')) {
     return 'Your session has expired. Please sign in again.';
   }
+  if (msg.contains('please sign in first')) {
+    return 'Please sign in (or confirm your email) to continue.';
+  }
   if (msg.contains('not authorized') ||
       msg.contains('permission denied') ||
       msg.contains('insufficient_privilege')) {

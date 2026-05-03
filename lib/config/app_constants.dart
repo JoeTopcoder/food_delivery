@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'MealHub';
+  static const String appName = '7DASH';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -21,7 +21,7 @@
         'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
   );
   static const String stripePaymentFunction = 'stripe-payment';
-  static const String stripeMerchantId = 'merchant.com.foodhub.delivery';
+  static const String stripeMerchantId = 'merchant.com.sevendash.app';
 
   // Legacy NCB configuration (kept for reference, no longer used in app)
   static const String ncbApiKey = String.fromEnvironment(

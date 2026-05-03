@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.contracts (
   fee_percent NUMERIC(5,2) NOT NULL DEFAULT 10,
   fee_cap_percent NUMERIC(5,2) NOT NULL DEFAULT 5,
   fee_cap_months INTEGER NOT NULL DEFAULT 24,
-  support_email TEXT NOT NULL DEFAULT 'support@7krave.com',
+  support_email TEXT NOT NULL DEFAULT 'support@applizonecentralja.com',
   bank_name TEXT NOT NULL DEFAULT '',
   account_number TEXT NOT NULL DEFAULT '',
   account_name TEXT NOT NULL DEFAULT '',

@@ -109,7 +109,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
     _introDays.text = (d['intro_days'] ?? 14).toString();
     _paymentHours.text = d['payment_hours'] ?? '24-48';
     _terminationDays.text = (d['termination_days'] ?? 14).toString();
-    _supportEmail.text = d['support_email'] ?? 'suppor@applizonecentralja.com';
+    _supportEmail.text = d['support_email'] ?? 'support@applizonecentralja.com';
     _supportPhone.text = d['support_phone'] ?? '876-305-4847';
     _restaurantName.text = d['restaurant_name'] ?? '';
     _authorizedPersonnel.text = d['authorized_personnel'] ?? '';
@@ -129,7 +129,7 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
     _introDays.text = '14';
     _paymentHours.text = '24-48';
     _terminationDays.text = '14';
-    _supportEmail.text = 'suppor@applizonecentralja.com';
+    _supportEmail.text = 'support@applizonecentralja.com';
     _supportPhone.text = '876-305-4847';
     _restaurantName.text = '';
     _authorizedPersonnel.text = '';

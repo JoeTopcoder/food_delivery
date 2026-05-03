@@ -123,11 +123,13 @@ class AvailableOrdersScreen extends ConsumerWidget {
         }
 
         // ── Online – show available orders ──────────────────────────
-        final ordersAsync = ref.watch(availableOrdersProvider((
-          driverId: driver.id,
-          lat: driver.currentLatitude,
-          lng: driver.currentLongitude,
-        )));
+        final ordersAsync = ref.watch(
+          availableOrdersProvider((
+            driverId: driver.id,
+            lat: driver.currentLatitude,
+            lng: driver.currentLongitude,
+          )),
+        );
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           appBar: AppBar(
@@ -1037,7 +1039,8 @@ class _OrderMap extends StatelessWidget {
                 initialCenter: center,
                 initialZoom: zoom,
                 interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.pinchZoom |
+                  flags:
+                      InteractiveFlag.pinchZoom |
                       InteractiveFlag.drag |
                       InteractiveFlag.doubleTapZoom,
                 ),
@@ -1045,7 +1048,7 @@ class _OrderMap extends StatelessWidget {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.foodhub.delivery',
+                  userAgentPackageName: 'sevendash.app',
                 ),
                 MarkerLayer(markers: markers),
               ],
@@ -1107,7 +1110,7 @@ class _OrderMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),
             ],

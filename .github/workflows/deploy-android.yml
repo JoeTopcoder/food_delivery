@@ -69,7 +69,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: play-store-key.json
-          packageName: com.foodhub.delivery
+          packageName: sevendash.app
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.track || 'production' }}
           status: completed

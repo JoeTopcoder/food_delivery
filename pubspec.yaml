@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+2
+version: 1.0.1+4
 
 environment:
   sdk: ^3.9.0
@@ -120,6 +120,7 @@ dev_dependencies:
   
   # Testing
   mockito: ^5.4.0
+  flutter_launcher_icons: ^0.14.3
   # integration_test: temporarily removed — causes AAPT resource conflict in release builds
   #   sdk: flutter
 
@@ -144,6 +145,7 @@ flutter:
 
   assets:
     - assets/images/mealhub_logo.png
+    - assets/adi-registration.properties
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
@@ -164,3 +166,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  image_path: assets/images/app_icon.png
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: assets/images/app_icon.png

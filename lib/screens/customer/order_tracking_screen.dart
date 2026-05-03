@@ -157,20 +157,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
-        actions: [
-          const SosButton(),
-          IconButton(
-            icon: const Icon(Icons.smart_toy_outlined),
-            tooltip: 'AI Assistant',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    AiVoiceScreen(role: 'customer', orderId: order.id),
-              ),
-            ),
-          ),
-        ],
+        actions: [const SosButton()],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -502,7 +489,7 @@ class _LiveMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),
             ],

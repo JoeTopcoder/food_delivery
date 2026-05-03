@@ -181,21 +181,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (isCustomer)
-            IconButton(
-              icon: const Icon(
-                Icons.smart_toy_outlined,
-                color: Color(0xFF6366F1),
-              ),
-              tooltip: 'AI Assistant',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      AiVoiceScreen(role: role, orderId: widget.orderId),
-                ),
-              ),
-            ),
           if (widget.receiverId != null && widget.receiverId!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call_rounded, color: Color(0xFF22C55E)),
@@ -286,9 +271,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(
-                            color: AppTheme.primaryColor,
-                          ),
+                          borderSide: BorderSide(color: AppTheme.primaryColor),
                         ),
                       ),
                       onSubmitted: (_) => _send(userId, role),

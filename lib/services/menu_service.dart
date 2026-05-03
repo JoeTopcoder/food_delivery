@@ -67,7 +67,9 @@ class MenuService {
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
           .select()
-          .or('name.ilike.%${_sanitizeQuery(query)}%,description.ilike.%${_sanitizeQuery(query)}%')
+          .or(
+            'name.ilike.%${_sanitizeQuery(query)}%,description.ilike.%${_sanitizeQuery(query)}%',
+          )
           .eq('is_available', true);
 
       final items = (response as List)
@@ -234,6 +236,7 @@ class MenuService {
     required String menuItemId,
     required String name,
     required double price,
+    String sideType = 'side',
   }) async {
     try {
       final response = await _supabaseClient
@@ -243,6 +246,7 @@ class MenuService {
             'name': name,
             'price': price,
             'is_available': true,
+            'side_type': sideType,
             'created_at': DateTime.now().toIso8601String(),
           })
           .select()
@@ -263,6 +267,36 @@ class MenuService {
           .eq('id', sideId);
     } catch (e) {
       AppLogger.error('Error deleting side: $e');
+      rethrow;
+    }
+  }
+
+  // Update an existing side (name, price, availability, type)
+  Future<MenuItemSide> updateSide({
+    required String sideId,
+    String? name,
+    double? price,
+    bool? isAvailable,
+    String? sideType,
+  }) async {
+    try {
+      final updates = <String, dynamic>{};
+      if (name != null) updates['name'] = name;
+      if (price != null) updates['price'] = price;
+      if (isAvailable != null) updates['is_available'] = isAvailable;
+      if (sideType != null) updates['side_type'] = sideType;
+      if (updates.isEmpty) {
+        throw ArgumentError('updateSide called with no fields to update');
+      }
+      final response = await _supabaseClient
+          .from(AppConstants.tableMenuItemSides)
+          .update(updates)
+          .eq('id', sideId)
+          .select()
+          .single();
+      return MenuItemSide.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error updating side: $e');
       rethrow;
     }
   }

@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 
 /// A reusable panel showing Google (and Apple on iOS/macOS) sign-in buttons.
@@ -17,7 +18,17 @@ class SocialAuthPanel extends StatelessWidget {
   final bool googleLoading;
   final bool appleLoading;
 
-  bool get _showApple => kIsWeb ? false : (Platform.isIOS || Platform.isMacOS);
+  // Show Apple sign-in only on Apple devices. On web we use the browser's
+  // reported platform (defaultTargetPlatform on Flutter web reflects the OS
+  // running the browser), so a Mac/iOS Safari user gets the button while a
+  // Windows / Android / Linux browser does not.
+  bool get _showApple {
+    if (kIsWeb) {
+      return defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.iOS;
+    }
+    return Platform.isIOS || Platform.isMacOS;
+  }
 
   @override
   Widget build(BuildContext context) {

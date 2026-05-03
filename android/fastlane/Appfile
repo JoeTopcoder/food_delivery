@@ -1,2 +1,2 @@
 json_key_file(ENV["PLAY_STORE_CONFIG_JSON"])
-package_name("com.foodhub.delivery")
+package_name("sevendash.app")

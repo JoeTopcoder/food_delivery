@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -26,7 +27,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   if (type == 'incoming_call') {
-    final callId = message.data['call_id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+    final callId =
+        message.data['call_id'] ??
+        DateTime.now().millisecondsSinceEpoch.toString();
     if (_shownCallIds.contains(callId)) return;
     _shownCallIds.add(callId);
     final callerName = message.data['caller_name'] ?? 'Incoming Call';
@@ -73,7 +76,10 @@ class NotificationService {
 
   NotificationService._internal();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  // Lazy: accessing FirebaseMessaging.instance throws if no Firebase app exists
+  // (e.g. on web without firebase_options.dart). Use a getter so construction
+  // of this singleton doesn't crash boot.
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -128,6 +134,14 @@ class NotificationService {
   /// Initialize notification service
   Future<void> initialize() async {
     if (_initialized) return;
+    // Skip FCM/CallKit/local notifications on web — Firebase web messaging
+    // requires firebase_options.dart and a service worker, neither of which
+    // are configured here. The web restaurant dashboard doesn't need push.
+    if (kIsWeb) {
+      _initialized = true;
+      AppLogger.info('Notification service skipped on web');
+      return;
+    }
     try {
       // Check existing permission before requesting to avoid re-prompting
       // every time the app opens (once the user has responded, don't ask again)
@@ -216,7 +230,13 @@ class NotificationService {
           case Event.actionCallAccept:
             final extra = event.body['extra'] as Map<dynamic, dynamic>? ?? {};
             final data = extra.map((k, v) => MapEntry(k.toString(), v));
-            handleNotificationByType('incoming_call', '', '', data, navigate: true);
+            handleNotificationByType(
+              'incoming_call',
+              '',
+              '',
+              data,
+              navigate: true,
+            );
             break;
           case Event.actionCallDecline:
           case Event.actionCallEnded:
@@ -417,7 +437,9 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      final callId = data?['call_id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final callId =
+          data?['call_id'] as String? ??
+          DateTime.now().millisecondsSinceEpoch.toString();
       if (_shownCallIds.contains(callId)) return;
       _shownCallIds.add(callId);
       final callerName = data?['caller_name'] as String? ?? title;
@@ -572,6 +594,7 @@ class NotificationService {
 
   /// Subscribe to notification topic
   Future<void> subscribeToTopic(String topic) async {
+    if (kIsWeb) return;
     try {
       await _messaging.subscribeToTopic(topic);
       AppLogger.info('Subscribed to topic: $topic');
@@ -582,6 +605,7 @@ class NotificationService {
 
   /// Unsubscribe from notification topic
   Future<void> unsubscribeFromTopic(String topic) async {
+    if (kIsWeb) return;
     try {
       await _messaging.unsubscribeFromTopic(topic);
       AppLogger.info('Unsubscribed from topic: $topic');

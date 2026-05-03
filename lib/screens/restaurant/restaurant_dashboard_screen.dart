@@ -618,111 +618,124 @@ class _RestaurantDashboardScreenState
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.95,
-                      children: [
-                        _QuickAction(
-                          icon: Icons.receipt_long_rounded,
-                          label: 'Orders',
-                          color: const Color(0xFF6366F1),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-orders'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.restaurant_menu_rounded,
-                          label: 'Menu',
-                          color: const Color(0xFFEC4899),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/menu-management'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.local_grocery_store_rounded,
-                          label: 'Grocery',
-                          color: const Color(0xFF14B8A6),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/grocery-management'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.analytics_rounded,
-                          label: 'Analytics',
-                          color: const Color(0xFF10B981),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-analytics'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.settings_rounded,
-                          label: 'Settings',
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-settings'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.account_balance_rounded,
-                          label: 'Bank Info',
-                          color: const Color(0xFF0EA5E9),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const BankInfoScreen(role: 'restaurant'),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final crossAxisCount = w >= 1100
+                            ? 6
+                            : w >= 800
+                            ? 5
+                            : w >= 560
+                            ? 4
+                            : 3;
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 1.05,
+                          children: [
+                            _QuickAction(
+                              icon: Icons.receipt_long_rounded,
+                              label: 'Orders',
+                              color: const Color(0xFF6366F1),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-orders'),
                             ),
-                          ),
-                        ),
-                        _QuickAction(
-                          icon: Icons.payments_rounded,
-                          label: 'Payout',
-                          color: const Color(0xFFF59E0B),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const PayoutRequestScreen(role: 'restaurant'),
+                            _QuickAction(
+                              icon: Icons.restaurant_menu_rounded,
+                              label: 'Menu',
+                              color: const Color(0xFFEC4899),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/menu-management'),
                             ),
-                          ),
-                        ),
-                        _QuickAction(
-                          icon: Icons.loyalty_rounded,
-                          label: 'Loyalty',
-                          color: const Color(0xFF7C3AED),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-loyalty'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.local_fire_department_rounded,
-                          label: 'Our Offer',
-                          color: const Color(0xFFEF4444),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-offer'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.description_rounded,
-                          label: 'Contract',
-                          color: const Color(0xFF0891B2),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-contract'),
-                        ),
-                        _QuickAction(
-                          icon: Icons.card_giftcard_rounded,
-                          label: 'Refer & Earn',
-                          color: const Color(0xFF10B981),
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-referral'),
-                        ),
-                      ],
+                            _QuickAction(
+                              icon: Icons.local_grocery_store_rounded,
+                              label: 'Grocery',
+                              color: const Color(0xFF14B8A6),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/grocery-management'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.analytics_rounded,
+                              label: 'Analytics',
+                              color: const Color(0xFF10B981),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-analytics'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.settings_rounded,
+                              label: 'Settings',
+                              color: const Color(0xFF8B5CF6),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-settings'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.account_balance_rounded,
+                              label: 'Bank Info',
+                              color: const Color(0xFF0EA5E9),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const BankInfoScreen(role: 'restaurant'),
+                                ),
+                              ),
+                            ),
+                            _QuickAction(
+                              icon: Icons.payments_rounded,
+                              label: 'Payout',
+                              color: const Color(0xFFF59E0B),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PayoutRequestScreen(
+                                    role: 'restaurant',
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _QuickAction(
+                              icon: Icons.loyalty_rounded,
+                              label: 'Loyalty',
+                              color: const Color(0xFF7C3AED),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-loyalty'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.local_fire_department_rounded,
+                              label: 'Our Offer',
+                              color: const Color(0xFFEF4444),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-offer'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.description_rounded,
+                              label: 'Contract',
+                              color: const Color(0xFF0891B2),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-contract'),
+                            ),
+                            _QuickAction(
+                              icon: Icons.card_giftcard_rounded,
+                              label: 'Refer & Earn',
+                              color: const Color(0xFF10B981),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/restaurant-referral'),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1076,7 +1089,7 @@ class _KpiCard extends StatelessWidget {
 
 // ─── Quick Action ──────────────────────────────────────────────────────────────
 
-class _QuickAction extends StatelessWidget {
+class _QuickAction extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -1090,35 +1103,107 @@ class _QuickAction extends StatelessWidget {
   });
 
   @override
+  State<_QuickAction> createState() => _QuickActionState();
+}
+
+class _QuickActionState extends State<_QuickAction> {
+  bool _hover = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).cardColor;
+    final shadowColor = widget.color.withValues(alpha: _hover ? 0.30 : 0.12);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        transform: Matrix4.identity()..translate(0.0, _hover ? -3.0 : 0.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: _hover ? 18 : 10,
+              offset: Offset(0, _hover ? 8 : 4),
             ),
           ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  surface,
+                  Color.lerp(surface, widget.color, isDark ? 0.18 : 0.08)!,
+                ],
+              ),
+              border: Border.all(
+                color: widget.color.withValues(alpha: _hover ? 0.55 : 0.18),
+                width: _hover ? 1.4 : 1.0,
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: widget.onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 18,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            widget.color.withValues(alpha: 0.95),
+                            widget.color.withValues(alpha: 0.70),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.color.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(widget.icon, color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

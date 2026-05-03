@@ -76,6 +76,10 @@ class MenuItemSide {
   final String name;
   final double price;
   final bool isAvailable;
+
+  /// Type of add-on: 'side' (default — extras like fries, coleslaw) or
+  /// 'drink' (beverages). Used to group choices in the customer UI.
+  final String sideType;
   final DateTime createdAt;
 
   MenuItemSide({
@@ -84,6 +88,7 @@ class MenuItemSide {
     required this.name,
     required this.price,
     this.isAvailable = true,
+    this.sideType = 'side',
     required this.createdAt,
   });
 

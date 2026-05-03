@@ -978,7 +978,8 @@ class _DeliveryMap extends StatelessWidget {
                 initialCenter: center,
                 initialZoom: zoom,
                 interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.pinchZoom |
+                  flags:
+                      InteractiveFlag.pinchZoom |
                       InteractiveFlag.drag |
                       InteractiveFlag.doubleTapZoom,
                 ),
@@ -986,7 +987,7 @@ class _DeliveryMap extends StatelessWidget {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.foodhub.delivery',
+                  userAgentPackageName: 'sevendash.app',
                 ),
                 MarkerLayer(markers: markers),
               ],
@@ -1048,7 +1049,7 @@ class _DeliveryMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),
             ],

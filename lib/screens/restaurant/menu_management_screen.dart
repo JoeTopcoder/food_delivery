@@ -131,6 +131,8 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                         (item) => Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
+                            onTap: () =>
+                                _showSidesDialog(context, item, restaurant.id),
                             leading: CircleAvatar(
                               backgroundColor: item.isAvailable
                                   ? Colors.green.withValues(alpha: 0.2)
@@ -685,6 +687,7 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
   late List<MenuItemSide> _sides;
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
+  String _newSideType = 'side';
   bool _adding = false;
 
   @override
@@ -713,11 +716,13 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
         menuItemId: widget.menuItem.id,
         name: name,
         price: price,
+        sideType: _newSideType,
       );
       setState(() {
         _sides.add(side);
         _nameController.clear();
         _priceController.clear();
+        _newSideType = 'side';
       });
       widget.onChanged();
     } catch (e) {
@@ -741,68 +746,251 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
     }
   }
 
+  Future<void> _toggleAvailability(MenuItemSide side) async {
+    try {
+      final updated = await widget.menuService.updateSide(
+        sideId: side.id,
+        isAvailable: !side.isAvailable,
+      );
+      setState(() {
+        final i = _sides.indexWhere((s) => s.id == side.id);
+        if (i != -1) _sides[i] = updated;
+      });
+      widget.onChanged();
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
+  Future<void> _editSide(MenuItemSide side) async {
+    final nameCtl = TextEditingController(text: side.name);
+    final priceCtl = TextEditingController(text: side.price.toStringAsFixed(2));
+    String editType = side.sideType;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Edit Side'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtl,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: priceCtl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Price'),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'side',
+                    label: Text('Side'),
+                    icon: Icon(Icons.lunch_dining_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'drink',
+                    label: Text('Drink'),
+                    icon: Icon(Icons.local_drink_outlined),
+                  ),
+                ],
+                selected: {editType},
+                onSelectionChanged: (s) => setLocal(() => editType = s.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != true) return;
+
+    final newName = nameCtl.text.trim();
+    final newPrice = double.tryParse(priceCtl.text.trim());
+    if (newName.isEmpty || newPrice == null) {
+      if (mounted) AppSnackbar.error(context, 'Invalid name or price');
+      return;
+    }
+    try {
+      final updated = await widget.menuService.updateSide(
+        sideId: side.id,
+        name: newName,
+        price: newPrice,
+        sideType: editType,
+      );
+      setState(() {
+        final i = _sides.indexWhere((s) => s.id == side.id);
+        if (i != -1) _sides[i] = updated;
+      });
+      widget.onChanged();
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text('Sides for ${widget.menuItem.name}'),
       content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_sides.isNotEmpty)
-              ...(_sides.map(
-                (side) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(side.name),
-                  subtitle: Text(
-                    '${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}',
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_sides.isNotEmpty)
+                ..._sides.map(
+                  (side) => Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: ListTile(
+                      dense: true,
+                      leading: Icon(
+                        side.sideType == 'drink'
+                            ? Icons.local_drink_outlined
+                            : Icons.lunch_dining_outlined,
+                        color: side.sideType == 'drink'
+                            ? Colors.blue
+                            : Colors.orange,
+                      ),
+                      title: Text(
+                        side.name,
+                        style: TextStyle(
+                          decoration: side.isAvailable
+                              ? null
+                              : TextDecoration.lineThrough,
+                          color: side.isAvailable ? null : Colors.grey,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${side.sideType == 'drink' ? 'Drink' : 'Side'} • '
+                        '${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}'
+                        '${side.isAvailable ? '' : ' • Unavailable'}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Tooltip(
+                            message: side.isAvailable
+                                ? 'Mark unavailable'
+                                : 'Mark available',
+                            child: Switch(
+                              value: side.isAvailable,
+                              onChanged: (_) => _toggleAvailability(side),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            tooltip: 'Edit',
+                            onPressed: () => _editSide(side),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            tooltip: 'Delete',
+                            onPressed: () => _deleteSide(side),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                    onPressed: () => _deleteSide(side),
-                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('No sides yet'),
                 ),
-              ))
-            else
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('No sides yet'),
+              const Divider(),
+              const Text(
+                'Add a new side',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-            const Divider(),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Side name',
-                isDense: true,
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Side name',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Price',
-                isDense: true,
+              const SizedBox(height: 8),
+              TextField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Price',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _adding ? null : _addSide,
-                icon: _adding
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add),
-                label: const Text('Add Side'),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Text(
+                    'Type:',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'side',
+                          label: Text('Side'),
+                          icon: Icon(Icons.lunch_dining_outlined),
+                        ),
+                        ButtonSegment(
+                          value: 'drink',
+                          label: Text('Drink'),
+                          icon: Icon(Icons.local_drink_outlined),
+                        ),
+                      ],
+                      selected: {_newSideType},
+                      onSelectionChanged: (s) =>
+                          setState(() => _newSideType = s.first),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              const Text(
+                'Sides are optional add-ons customers can choose at checkout.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _adding ? null : _addSide,
+                  icon: _adding
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add),
+                  label: const Text('Add Side'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

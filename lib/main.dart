@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter/services.dart';
 import 'l10n/app_localizations.dart';
 import 'config/supabase_config.dart';
 import 'services/app_config_service.dart';
@@ -107,6 +108,8 @@ import 'providers/feature_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // Keep only the minimum boot dependencies on the critical path.
   await Future.wait([

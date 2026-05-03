@@ -65,7 +65,7 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.foodhub.delivery',
+              userAgentPackageName: 'sevendash.app',
             ),
             // Surge radius circles — only where active orders exist
             CircleLayer(
@@ -296,7 +296,10 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                             child: Center(
                               child: Text(
                                 'No active orders in any zone right now',
-                                style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 14,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -305,7 +308,8 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             itemCount: activeZones.length,
                             shrinkWrap: true,
-                            itemBuilder: (_, i) => _ZoneListItem(zone: activeZones[i]),
+                            itemBuilder: (_, i) =>
+                                _ZoneListItem(zone: activeZones[i]),
                           ),
                   ),
                 ],
