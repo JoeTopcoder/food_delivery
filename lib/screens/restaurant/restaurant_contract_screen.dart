@@ -111,7 +111,10 @@ class _RestaurantContractScreenState
     final introDays = _val('intro_days', '14');
     final paymentHours = _val('payment_hours', '24-48');
     final terminationDays = _val('termination_days', '14');
-    final supportEmail = _val('support_email', 'suppor@applizonecentralja.com');
+    final supportEmail = _val(
+      'support_email',
+      'support@applizonecentralja.com',
+    );
     final supportPhone = _val('support_phone', '876-305-4847');
     final authorizedRep = _val('authorized_personnel');
     final contractDate = _val('contract_date');

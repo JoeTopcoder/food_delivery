@@ -150,33 +150,62 @@ class _RestaurantOnboardingScreenState
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
-      if (userId == null) throw Exception('Please sign in first to continue.');
 
-      await ref.read(roleProvider.notifier).setRole(OnboardingRole.restaurant);
-      await ref
-          .read(onboardingServiceProvider)
-          .saveRestaurantDraft(
-            userId: userId,
-            businessName: _business.text.trim(),
-            phone: _phone.text.trim(),
-            address: _address.text.trim().isEmpty ? null : _address.text.trim(),
-            onboardingStep: nextStep,
-            goLive: goLive,
-          );
+      // Try to persist the draft. Failures here (RLS, missing column,
+      // network) MUST NOT block onboarding — log them and keep moving,
+      // unless the user is hitting "Create Restaurant" (goLive).
+      if (userId != null) {
+        try {
+          await ref
+              .read(roleProvider.notifier)
+              .setRole(OnboardingRole.restaurant);
+          await ref
+              .read(onboardingServiceProvider)
+              .saveRestaurantDraft(
+                userId: userId,
+                businessName: _business.text.trim(),
+                phone: _phone.text.trim(),
+                address: _address.text.trim().isEmpty
+                    ? null
+                    : _address.text.trim(),
+                onboardingStep: nextStep,
+                goLive: goLive,
+              );
+        } catch (e, st) {
+          AppLogger.error('Restaurant draft save failed: $e\n$st');
+          if (goLive) {
+            if (mounted) {
+              AppSnackbar.error(
+                context,
+                'We couldn\'t finalize your restaurant. ${friendlyError(e)}',
+              );
+            }
+            return;
+          }
+          // Non-final step: continue silently. The user can retry on
+          // the next step or at go-live time.
+        }
+      }
 
+      // Always advance the local step so the UX flows.
       await ref
           .read(onboardingProvider(OnboardingRole.restaurant).notifier)
           .setStep(nextStep);
 
       if (goLive) {
         if (!mounted) return;
+        if (userId == null) {
+          AppSnackbar.info(
+            context,
+            'Confirm your email, then sign in to finish setup.',
+          );
+          Navigator.of(context).pushReplacementNamed('/signin/restaurant');
+          return;
+        }
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/restaurant-dashboard', (_) => false);
       }
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -214,6 +243,29 @@ class _RestaurantOnboardingScreenState
           Text(
             isAuthStep ? 'Step 1 of 4' : 'Step ${(step.clamp(0, 2) + 2)} of 4',
           ),
+          if (!isAuthStep && authState.emailConfirmationPending) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.mark_email_read_outlined, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'We sent you a confirmation email. Finish your details now — sign in after confirming to go live.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
 
           if (isAuthStep) ...[

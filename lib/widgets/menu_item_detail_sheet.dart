@@ -55,6 +55,12 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
   List<MenuItemSide> get availableSides =>
       item.sides?.where((s) => s.isAvailable).toList() ?? [];
 
+  List<MenuItemSide> get availableDrinks =>
+      availableSides.where((s) => s.sideType == 'drink').toList();
+
+  List<MenuItemSide> get availableSideOnly =>
+      availableSides.where((s) => s.sideType != 'drink').toList();
+
   @override
   void initState() {
     super.initState();
@@ -251,10 +257,28 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                   ...item.optionGroups.map((group) => _buildOptionGroup(group)),
 
                   // Sides / options
-                  if (availableSides.isNotEmpty) ...[
+                  if (availableSideOnly.isNotEmpty) ...[
                     _buildSectionHeader('Add Sides', false),
                     const SizedBox(height: 4),
-                    ...availableSides.map(
+                    ...availableSideOnly.map(
+                      (side) => _buildSelectionRow(
+                        name: side.name,
+                        price: side.price,
+                        showPrice: true,
+                        isSelected: _selectedSides[side.id] == true,
+                        onTap: () => setState(
+                          () => _selectedSides[side.id] =
+                              !(_selectedSides[side.id] ?? false),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // Drinks
+                  if (availableDrinks.isNotEmpty) ...[
+                    _buildSectionHeader('Drinks', false),
+                    const SizedBox(height: 4),
+                    ...availableDrinks.map(
                       (side) => _buildSelectionRow(
                         name: side.name,
                         price: side.price,

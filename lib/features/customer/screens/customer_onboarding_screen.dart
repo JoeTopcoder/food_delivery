@@ -105,8 +105,9 @@ class _CustomerOnboardingScreenState
       }
       await _afterAuthSuccess();
     } catch (e) {
+      AppLogger.error('Customer email signup failed: $e');
       if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
+      AppSnackbar.error(context, _detailedError(e));
     } finally {
       if (mounted) setState(() => _emailLoading = false);
     }
@@ -118,8 +119,9 @@ class _CustomerOnboardingScreenState
       await ref.read(authNotifierProvider.notifier).signInWithGoogle();
       await _afterAuthSuccess();
     } catch (e) {
+      AppLogger.error('Customer Google sign-in failed: $e');
       if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
+      AppSnackbar.error(context, _detailedError(e));
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -131,11 +133,23 @@ class _CustomerOnboardingScreenState
       await ref.read(authNotifierProvider.notifier).signInWithApple();
       await _afterAuthSuccess();
     } catch (e) {
+      AppLogger.error('Customer Apple sign-in failed: $e');
       if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
+      AppSnackbar.error(context, _detailedError(e));
     } finally {
       if (mounted) setState(() => _appleLoading = false);
     }
+  }
+
+  String _detailedError(Object e) {
+    final friendly = friendlyError(e);
+    final raw = e.toString();
+    // If friendlyError fell through to the generic message, expose the real error.
+    if (friendly.startsWith('Something went wrong')) {
+      final trimmed = raw.length > 200 ? '${raw.substring(0, 200)}…' : raw;
+      return trimmed;
+    }
+    return friendly;
   }
 
   Future<void> _afterAuthSuccess() async {

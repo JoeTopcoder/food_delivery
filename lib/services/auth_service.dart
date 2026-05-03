@@ -174,16 +174,6 @@ class AuthService {
       AppLogger.error('Google sign-in error: $e\n$stackTrace');
 
       final raw = e.toString().toLowerCase();
-      if (e is PlatformException) {
-        final code = e.code.toLowerCase();
-        if (code == '10' ||
-            code.contains('developer_error') ||
-            raw.contains('apiexception: 10')) {
-          throw Exception(
-            'Google sign-in is not fully configured for this app build. Add this app signing SHA key in Firebase and ensure Google provider is enabled in Supabase Auth.',
-          );
-        }
-      }
       if (raw.contains('unacceptable audience in id_token') ||
           raw.contains('invalid id token') ||
           raw.contains('id_token')) {

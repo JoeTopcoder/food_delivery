@@ -134,7 +134,7 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.foodhub.delivery',
+            userAgentPackageName: 'sevendash.app',
           ),
           CircleLayer(
             circles: zones.map((zone) {
@@ -481,7 +481,7 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
               // Delivery region circles (green, behind surge)
               CircleLayer(

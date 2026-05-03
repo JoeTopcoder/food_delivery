@@ -57,6 +57,7 @@ MenuItemSide _$MenuItemSideFromJson(Map<String, dynamic> json) => MenuItemSide(
   name: json['name'] as String,
   price: (json['price'] as num).toDouble(),
   isAvailable: json['is_available'] as bool? ?? true,
+  sideType: json['side_type'] as String? ?? 'side',
   createdAt: DateTime.parse(json['created_at'] as String),
 );
 
@@ -67,6 +68,7 @@ Map<String, dynamic> _$MenuItemSideToJson(MenuItemSide instance) =>
       'name': instance.name,
       'price': instance.price,
       'is_available': instance.isAvailable,
+      'side_type': instance.sideType,
       'created_at': instance.createdAt.toIso8601String(),
     };
 

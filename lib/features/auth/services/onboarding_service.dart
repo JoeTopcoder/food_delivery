@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_constants.dart';
 import '../../../config/supabase_config.dart';
+import '../../../utils/app_logger.dart';
 import '../models/onboarding_role.dart';
 
 class OnboardingService {
@@ -176,12 +177,19 @@ class OnboardingService {
     String? menuImageUrl,
     List<Map<String, dynamic>> quickItems = const [],
   }) async {
-    await ensureUserRecord(
-      userId: userId,
-      role: OnboardingRole.restaurant,
-      phone: phone,
-      onboardingCompleted: goLive,
-    );
+    // Best-effort sync of the user row. Never fail onboarding if this
+    // throws (RLS, missing column, etc.) — the trigger or a later sign-in
+    // will recover.
+    try {
+      await ensureUserRecord(
+        userId: userId,
+        role: OnboardingRole.restaurant,
+        phone: phone,
+        onboardingCompleted: goLive,
+      );
+    } catch (e) {
+      AppLogger.warning('ensureUserRecord (restaurant) failed: $e');
+    }
 
     // Base columns always present in schema.
     final basePayload = <String, dynamic>{
@@ -192,36 +200,71 @@ class OnboardingService {
     if (phone.isNotEmpty) basePayload['phone'] = phone;
     if (address != null && address.isNotEmpty) basePayload['address'] = address;
 
-    // Try with extended onboarding columns, fall back to base if not migrated yet.
-    Map<String, dynamic> restaurantPayload = basePayload;
+    // Build extended payload (status / onboarding_step). If those columns
+    // don't exist yet, the insert/update below will retry with base payload.
+    final extendedPayload = Map<String, dynamic>.from(basePayload);
+    extendedPayload['status'] = goLive ? 'active' : 'draft';
+    extendedPayload['onboarding_step'] = onboardingStep;
+    if (menuImageUrl != null) extendedPayload['menu_image_url'] = menuImageUrl;
+
+    // Look up an existing restaurant for this owner. We avoid Supabase's
+    // upsert (which requires a unique constraint we don't have on owner_id)
+    // and explicitly insert-or-update to keep things deterministic.
+    String? restaurantId;
     try {
-      final extended = Map<String, dynamic>.from(basePayload);
-      extended['status'] = goLive ? 'active' : 'draft';
-      extended['onboarding_step'] = onboardingStep;
-      if (menuImageUrl != null) extended['menu_image_url'] = menuImageUrl;
-      // Probe: run a small query first to see if columns exist.
-      await _client
+      final existing = await _client
           .from(AppConstants.tableRestaurants)
-          .select('status')
-          .limit(1);
-      restaurantPayload = extended;
-    } catch (_) {
-      // Extended columns not yet migrated — use base payload only.
+          .select('id')
+          .eq('owner_id', userId)
+          .limit(1)
+          .maybeSingle();
+      restaurantId = existing?['id'] as String?;
+    } catch (e) {
+      AppLogger.warning('Restaurant lookup failed (continuing): $e');
+      restaurantId = null;
     }
 
-    final restaurantRow = await _client
-        .from(AppConstants.tableRestaurants)
-        .upsert(restaurantPayload)
-        .select('id')
-        .single();
+    Future<Map<String, dynamic>?> writeRestaurant(
+      Map<String, dynamic> payload,
+    ) async {
+      if (restaurantId != null) {
+        return await _client
+            .from(AppConstants.tableRestaurants)
+            .update(payload)
+            .eq('id', restaurantId!)
+            .select('id')
+            .maybeSingle();
+      }
+      return await _client
+          .from(AppConstants.tableRestaurants)
+          .insert(payload)
+          .select('id')
+          .maybeSingle();
+    }
 
-    final restaurantId = restaurantRow['id'] as String;
-    if (quickItems.isNotEmpty) {
+    Map<String, dynamic>? restaurantRow;
+    try {
+      restaurantRow = await writeRestaurant(extendedPayload);
+    } on PostgrestException catch (e) {
+      AppLogger.warning(
+        'Extended restaurant write failed (${e.code}: ${e.message}); '
+        'retrying with base payload',
+      );
+      try {
+        restaurantRow = await writeRestaurant(basePayload);
+      } catch (e2) {
+        AppLogger.error('Base restaurant write also failed: $e2');
+        rethrow;
+      }
+    }
+
+    final newRestaurantId = restaurantRow?['id'] as String? ?? restaurantId;
+    if (newRestaurantId != null && quickItems.isNotEmpty) {
       final rows = quickItems
           .where((e) => (e['name'] as String?)?.trim().isNotEmpty == true)
           .map(
             (e) => {
-              'restaurant_id': restaurantId,
+              'restaurant_id': newRestaurantId,
               'name': e['name'],
               'price': e['price'] ?? 0,
               'image_url': e['image_url'],

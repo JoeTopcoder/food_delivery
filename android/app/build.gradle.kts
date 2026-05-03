@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.foodhub.delivery"
+    namespace = "sevendash.app"
     compileSdk = flutter.compileSdkVersion
     buildToolsVersion = "35.0.0"
     ndkVersion = flutter.ndkVersion
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.foodhub.delivery"
+        applicationId = "sevendash.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -72,7 +72,7 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Force a consistent version of androidx.core to fix AAPT resource conflicts
     // between integration_test and other plugins in release builds.
     implementation("androidx.core:core:1.16.0")

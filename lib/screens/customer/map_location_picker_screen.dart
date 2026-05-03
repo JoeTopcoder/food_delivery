@@ -115,7 +115,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
       );
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'com.foodhub.delivery'},
+        headers: {'User-Agent': 'sevendash.app'},
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -178,7 +178,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
             ],
           ),

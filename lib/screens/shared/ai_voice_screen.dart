@@ -111,6 +111,25 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
           next.pendingCancelOrders != prev?.pendingCancelOrders) {
         _showCancelOrderPicker(context, next.pendingCancelOrders!);
       }
+
+      // Auto-credit wallet for customer when AI issues a credit
+      if (widget.role == 'customer' &&
+          next.pendingAction != null &&
+          next.pendingAction != prev?.pendingAction &&
+          next.pendingAction!.type == 'credit_issued' &&
+          next.pendingAction!.creditAmount != null &&
+          next.pendingAction!.creditAmount! > 0) {
+        final amount = next.pendingAction!.creditAmount!;
+        final reason = next.pendingAction!.creditReason ?? 'AI credit';
+        // Call wallet deposit
+        ref
+            .read(walletNotifierProvider.notifier)
+            .deposit(amount, method: reason);
+        // Dismiss the action so it doesn't repeat
+        Future.microtask(
+          () => ref.read(aiVoiceProvider.notifier).dismissAction(),
+        );
+      }
     });
 
     // Auto-scroll to bottom when new messages arrive

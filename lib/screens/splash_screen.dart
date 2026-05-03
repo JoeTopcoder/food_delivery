@@ -227,12 +227,11 @@ class _SplashScreenState extends State<SplashScreen>
                               ],
                             ),
                             child: ClipOval(
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Image.asset(
-                                  'assets/images/mealhub_logo.png',
-                                  fit: BoxFit.contain,
-                                ),
+                              child: Image.asset(
+                                'assets/images/mealhub_logo.png',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
                               ),
                             ),
                           ),
@@ -254,7 +253,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'MealHub',
+                            '7DASH',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -274,7 +273,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'Fresh, hot meals. Delivered daily.',
+                            'Food. Fast. Delivered.',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -662,12 +661,11 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ],
                         ),
                         child: ClipOval(
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Image.asset(
-                              'assets/images/mealhub_logo.png',
-                              fit: BoxFit.contain,
-                            ),
+                          child: Image.asset(
+                            'assets/images/mealhub_logo.png',
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
@@ -687,7 +685,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            'MealHub',
+                            '7DASH',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,
@@ -704,7 +702,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Fresh, hot meals. Delivered daily.',
+                            'Food. Fast. Delivered.',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.85),

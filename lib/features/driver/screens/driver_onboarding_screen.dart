@@ -154,21 +154,22 @@ class _DriverOnboardingScreenState
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
       if (userId != null) {
-        await ref
-            .read(onboardingServiceProvider)
-            .saveDriverProfile(
-              userId: userId,
-              phone: phone,
-              name: _name.text.trim(),
-              email: _email.text.trim(),
-            );
+        try {
+          await ref
+              .read(onboardingServiceProvider)
+              .saveDriverProfile(
+                userId: userId,
+                phone: phone,
+                name: _name.text.trim(),
+                email: _email.text.trim(),
+              );
+        } catch (e, st) {
+          AppLogger.error('Driver profile save failed (continuing): $e\n$st');
+        }
       }
       await ref
           .read(onboardingProvider(OnboardingRole.driver).notifier)
           .setStep(3);
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -187,23 +188,24 @@ class _DriverOnboardingScreenState
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
       if (userId != null) {
-        await ref
-            .read(onboardingServiceProvider)
-            .saveDriverProfile(
-              userId: userId,
-              phone: _phone.text.trim(),
-              name: _name.text.trim().isEmpty ? null : _name.text.trim(),
-              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-              vehicleType: _vehicleType.text.trim(),
-              licensePlate: _plate.text.trim(),
-            );
+        try {
+          await ref
+              .read(onboardingServiceProvider)
+              .saveDriverProfile(
+                userId: userId,
+                phone: _phone.text.trim(),
+                name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+                email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+                vehicleType: _vehicleType.text.trim(),
+                licensePlate: _plate.text.trim(),
+              );
+        } catch (e, st) {
+          AppLogger.error('Driver vehicle save failed (continuing): $e\n$st');
+        }
       }
       await ref
           .read(onboardingProvider(OnboardingRole.driver).notifier)
           .setStep(4);
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -130,7 +130,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Container(
                         width: 80,
                         height: 80,
-                        padding: const EdgeInsets.all(10),
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -144,7 +144,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ),
                         child: Image.asset(
                           'assets/images/mealhub_logo.png',
-                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -159,7 +161,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Join MealHub today',
+                        'Join 7DASH today',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.85),

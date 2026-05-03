@@ -60,7 +60,7 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.foodhub.delivery',
+            userAgentPackageName: 'sevendash.app',
           ),
           PolygonLayer(
             polygons: polygonRegions.map((r) {
@@ -462,7 +462,7 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.foodhub.delivery',
+                userAgentPackageName: 'sevendash.app',
               ),
               if (hasPolygon)
                 PolygonLayer(
