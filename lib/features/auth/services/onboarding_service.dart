@@ -149,22 +149,42 @@ class OnboardingService {
     String? licensePlate,
     bool documentsUploaded = false,
   }) async {
-    await ensureUserRecord(
-      userId: userId,
-      role: OnboardingRole.driver,
-      phone: phone,
-      email: email,
-      name: name,
-      onboardingCompleted: false,
-    );
+    // Best-effort sync of the user row. Never fail driver onboarding if
+    // this throws (RLS, missing column, etc.).
+    try {
+      await ensureUserRecord(
+        userId: userId,
+        role: OnboardingRole.driver,
+        phone: phone,
+        email: email,
+        name: name,
+        onboardingCompleted: false,
+      );
+    } catch (e) {
+      AppLogger.warning('ensureUserRecord (driver) failed: $e');
+    }
 
-    await _client.from(AppConstants.tableDrivers).upsert({
+    final basePayload = <String, dynamic>{
       'user_id': userId,
       if (vehicleType != null) 'vehicle_type': vehicleType,
       if (licensePlate != null) 'license_number': licensePlate,
-      'documents_status': documentsUploaded ? 'approved' : 'pending',
       'updated_at': DateTime.now().toIso8601String(),
-    }, onConflict: 'user_id');
+    };
+    final extendedPayload = Map<String, dynamic>.from(basePayload)
+      ..['documents_status'] = documentsUploaded ? 'approved' : 'pending';
+
+    try {
+      await _client
+          .from(AppConstants.tableDrivers)
+          .upsert(extendedPayload, onConflict: 'user_id');
+    } on PostgrestException catch (e) {
+      AppLogger.warning(
+        'Driver upsert failed (${e.code}: ${e.message}); retrying base payload',
+      );
+      await _client
+          .from(AppConstants.tableDrivers)
+          .upsert(basePayload, onConflict: 'user_id');
+    }
   }
 
   Future<void> saveRestaurantDraft({
