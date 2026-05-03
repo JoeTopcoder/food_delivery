@@ -117,7 +117,13 @@ class _DriverOnboardingScreenState
 
   Future<void> _afterAuthSuccess() async {
     final user = ref.read(authNotifierProvider).user;
-    if (user == null) throw Exception('Sign in did not return a user.');
+    if (user == null) {
+      // No user yet (e.g. confirmation pending) — just advance.
+      await ref
+          .read(onboardingProvider(OnboardingRole.driver).notifier)
+          .setStep(2);
+      return;
+    }
 
     await ref.read(roleProvider.notifier).setRole(OnboardingRole.driver);
     try {
@@ -129,9 +135,13 @@ class _DriverOnboardingScreenState
             name: user.name,
           );
     } catch (e) {
-      AppLogger.error('Driver profile sync failed: $e');
+      AppLogger.error('Driver profile sync failed (continuing): $e');
     }
-    await ref.read(authNotifierProvider.notifier).refreshUser();
+    try {
+      await ref.read(authNotifierProvider.notifier).refreshUser();
+    } catch (e) {
+      AppLogger.warning('refreshUser failed (continuing): $e');
+    }
 
     if (user.email != null && _email.text.isEmpty) _email.text = user.email!;
     if (user.name != null && _name.text.isEmpty) _name.text = user.name!;
@@ -216,21 +226,33 @@ class _DriverOnboardingScreenState
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
       if (userId != null) {
-        await ref
-            .read(onboardingServiceProvider)
-            .saveDriverProfile(
-              userId: userId,
-              phone: _phone.text.trim(),
-              name: _name.text.trim().isEmpty ? null : _name.text.trim(),
-              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-              vehicleType: _vehicleType.text.trim().isEmpty
-                  ? null
-                  : _vehicleType.text.trim(),
-              licensePlate: _plate.text.trim().isEmpty
-                  ? null
-                  : _plate.text.trim(),
-              documentsUploaded: uploadedDocs,
+        try {
+          await ref
+              .read(onboardingServiceProvider)
+              .saveDriverProfile(
+                userId: userId,
+                phone: _phone.text.trim(),
+                name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+                email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+                vehicleType: _vehicleType.text.trim().isEmpty
+                    ? null
+                    : _vehicleType.text.trim(),
+                licensePlate: _plate.text.trim().isEmpty
+                    ? null
+                    : _plate.text.trim(),
+                documentsUploaded: uploadedDocs,
+              );
+        } catch (e, st) {
+          AppLogger.error('Driver finish save failed: $e\n$st');
+          if (mounted) {
+            AppSnackbar.error(
+              context,
+              'We saved your details locally but couldn\'t reach the server. ${friendlyError(e)}',
             );
+          }
+          // Don't return — still advance and route the user. The
+          // dashboard / sign-in screen will retry data sync.
+        }
       }
 
       await ref
@@ -242,15 +264,16 @@ class _DriverOnboardingScreenState
       // The migration 104 trigger will create their profile on first sign-in.
       final isAuth = ref.read(authNotifierProvider).isAuthenticated;
       if (!isAuth) {
+        AppSnackbar.info(
+          context,
+          'Confirm your email, then sign in to start driving.',
+        );
         Navigator.of(context).pushReplacementNamed('/signin/driver');
         return;
       }
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil('/driver-dashboard', (_) => false);
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
