@@ -57,7 +57,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
           );
         }
 
-        final menuAsync = ref.watch(restaurantMenuProvider(restaurant.id));
+        final menuAsync = ref.watch(restaurantMenuManagementProvider(restaurant.id));
 
         return Scaffold(
           appBar: AppBar(
@@ -66,7 +66,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () =>
-                    ref.invalidate(restaurantMenuProvider(restaurant.id)),
+                    ref.invalidate(restaurantMenuManagementProvider(restaurant.id)),
               ),
             ],
           ),
@@ -77,7 +77,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
             error: (error, _) => AppErrorState(
               message: friendlyError(error),
               onRetry: () =>
-                  ref.invalidate(restaurantMenuProvider(restaurant.id)),
+                  ref.invalidate(restaurantMenuManagementProvider(restaurant.id)),
             ),
             data: (menuItems) {
               if (menuItems.isEmpty) {
@@ -241,7 +241,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       builder: (dialogContext) => _ManageSidesDialog(
         menuItem: item,
         menuService: ref.read(menuServiceProvider),
-        onChanged: () => ref.invalidate(restaurantMenuProvider(restaurantId)),
+        onChanged: () => ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
       ),
     );
   }
@@ -253,7 +253,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
     String dialogTitle = 'Add Menu Item',
   }) {
     // Collect existing categories from current menu
-    final menuAsync = ref.read(restaurantMenuProvider(restaurantId));
+    final menuAsync = ref.read(restaurantMenuManagementProvider(restaurantId));
     final existingCategories = <String>{};
     menuAsync.whenData((items) {
       for (final item in items) {
@@ -269,7 +269,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
         presetCategory: presetCategory,
         dialogTitle: dialogTitle,
         onItemAdded: () {
-          ref.invalidate(restaurantMenuProvider(restaurantId));
+          ref.invalidate(restaurantMenuManagementProvider(restaurantId));
         },
         menuService: ref.read(menuServiceProvider),
       ),
@@ -349,7 +349,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
     String restaurantId, {
     required String sideType,
   }) async {
-    final menuAsync = ref.read(restaurantMenuProvider(restaurantId));
+    final menuAsync = ref.read(restaurantMenuManagementProvider(restaurantId));
     final items = menuAsync.maybeWhen(
       data: (data) => data,
       orElse: () => const <MenuItem>[],
@@ -378,7 +378,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       builder: (dialogContext) => _ManageSidesDialog(
         menuItem: selected,
         menuService: ref.read(menuServiceProvider),
-        onChanged: () => ref.invalidate(restaurantMenuProvider(restaurantId)),
+        onChanged: () => ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
         initialSideType: sideType,
       ),
     );
@@ -413,7 +413,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       try {
         final menuService = ref.read(menuServiceProvider);
         await menuService.deleteMenuItem(menuItemId);
-        ref.invalidate(restaurantMenuProvider(restaurantId));
+        ref.invalidate(restaurantMenuManagementProvider(restaurantId));
 
         if (context.mounted) {
           AppSnackbar.success(context, '"$itemName" deleted.');
@@ -1265,28 +1265,34 @@ class _SidesDrinksChips extends StatelessWidget {
 
     final chips = <Widget>[];
     if (sideCount > 0) {
-      chips.add(_chip(
-        icon: Icons.lunch_dining_outlined,
-        label: '$sideCount side${sideCount == 1 ? '' : 's'}',
-        bg: Colors.orange.withValues(alpha: 0.12),
-        fg: Colors.orange.shade800,
-      ));
+      chips.add(
+        _chip(
+          icon: Icons.lunch_dining_outlined,
+          label: '$sideCount side${sideCount == 1 ? '' : 's'}',
+          bg: Colors.orange.withValues(alpha: 0.12),
+          fg: Colors.orange.shade800,
+        ),
+      );
     }
     if (drinkCount > 0) {
-      chips.add(_chip(
-        icon: Icons.local_drink_outlined,
-        label: '$drinkCount drink${drinkCount == 1 ? '' : 's'}',
-        bg: Colors.blue.withValues(alpha: 0.12),
-        fg: Colors.blue.shade800,
-      ));
+      chips.add(
+        _chip(
+          icon: Icons.local_drink_outlined,
+          label: '$drinkCount drink${drinkCount == 1 ? '' : 's'}',
+          bg: Colors.blue.withValues(alpha: 0.12),
+          fg: Colors.blue.shade800,
+        ),
+      );
     }
     if (unavailable > 0) {
-      chips.add(_chip(
-        icon: Icons.visibility_off_outlined,
-        label: '$unavailable hidden',
-        bg: Colors.grey.withValues(alpha: 0.18),
-        fg: Colors.grey.shade800,
-      ));
+      chips.add(
+        _chip(
+          icon: Icons.visibility_off_outlined,
+          label: '$unavailable hidden',
+          bg: Colors.grey.withValues(alpha: 0.18),
+          fg: Colors.grey.shade800,
+        ),
+      );
     }
 
     return Wrap(spacing: 6, runSpacing: 4, children: chips);

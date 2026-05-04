@@ -120,6 +120,15 @@ final restaurantMenuProvider = FutureProvider.family
       return menuService.getMenuByRestaurant(restaurantId);
     });
 
+// Used by the restaurant owner's management screen — returns ALL menu items
+// (including ones marked unavailable) so they can manage everything.
+final restaurantMenuManagementProvider = FutureProvider.family
+    .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
+      ref.keepAlive();
+      final menuService = ref.watch(menuServiceProvider);
+      return menuService.getAllMenuByRestaurant(restaurantId);
+    });
+
 final menuItemByIdProvider = FutureProvider.family
     .autoDispose<MenuItem?, String>((ref, menuItemId) async {
       final menuService = ref.watch(menuServiceProvider);

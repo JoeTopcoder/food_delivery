@@ -51,3 +51,7 @@ app.*.map.json
 /android/app/upload-keystore.jks
 *.env
 *.hprof
+
+app-release.apks
+bundletool.jar
+android/app/*.apk

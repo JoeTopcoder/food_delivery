@@ -13,18 +13,35 @@ class MenuService {
 
   // Get menu items for a restaurant
   Future<List<MenuItem>> getMenuByRestaurant(String restaurantId) async {
+    return _fetchMenuByRestaurant(restaurantId, includeUnavailable: false);
+  }
+
+  // Get every menu item for a restaurant (including unavailable) — used by the
+  // restaurant management screen so owners can still see and edit hidden items.
+  Future<List<MenuItem>> getAllMenuByRestaurant(String restaurantId) async {
+    return _fetchMenuByRestaurant(restaurantId, includeUnavailable: true);
+  }
+
+  Future<List<MenuItem>> _fetchMenuByRestaurant(
+    String restaurantId, {
+    required bool includeUnavailable,
+  }) async {
     try {
-      AppLogger.info('Fetching menu for restaurant: $restaurantId');
+      AppLogger.info(
+        'Fetching menu for restaurant: $restaurantId (includeUnavailable=$includeUnavailable)',
+      );
 
       // Single query with embedded sides + option groups (with nested choices)
-      final response = await _supabaseClient
+      var query = _supabaseClient
           .from(AppConstants.tableMenus)
           .select(
             '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
           )
-          .eq('restaurant_id', restaurantId)
-          .eq('is_available', true)
-          .order('category');
+          .eq('restaurant_id', restaurantId);
+      if (!includeUnavailable) {
+        query = query.eq('is_available', true);
+      }
+      final response = await query.order('category');
 
       final items = (response as List).map((row) {
         final sidesJson = row[AppConstants.tableMenuItemSides] as List? ?? [];
