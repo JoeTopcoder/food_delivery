@@ -90,6 +90,7 @@ class _AdminAiPanelScreenState extends ConsumerState<AdminAiPanelScreen> {
         onRefresh: () async {
           ref.invalidate(segmentDistributionProvider);
           ref.invalidate(promotionStatsProvider);
+          ref.invalidate(promotionConfigsProvider);
         },
         color: AppTheme.primaryColor,
         child: ListView(
@@ -116,6 +117,29 @@ class _AdminAiPanelScreenState extends ConsumerState<AdminAiPanelScreen> {
                     : _SegmentChart(rows: rows),
                 loading: () => const _Skeleton(height: 160),
                 error: (e, _) => _ErrorCard(message: friendlyError(e)),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Promotion Caps (admin-editable) ───────────────────
+            _PanelCard(
+              title: 'AI Promotion Caps',
+              icon: Icons.tune_rounded,
+              iconColor: const Color(0xFF8B5CF6),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final cfgAsync = ref.watch(promotionConfigsProvider);
+                  return cfgAsync.when(
+                    data: (rows) => rows.isEmpty
+                        ? const _EmptyState(
+                            label: 'No promotions configured yet',
+                          )
+                        : _PromoConfigEditor(rows: rows),
+                    loading: () => const _Skeleton(height: 160),
+                    error: (e, _) => _ErrorCard(message: friendlyError(e)),
+                  );
+                },
               ),
             ),
 
@@ -628,6 +652,298 @@ class _ErrorCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Promotion Config Editor ──────────────────────────────────────────────────
+
+class _PromoConfigEditor extends ConsumerStatefulWidget {
+  final List<PromotionConfig> rows;
+  const _PromoConfigEditor({required this.rows});
+
+  @override
+  ConsumerState<_PromoConfigEditor> createState() => _PromoConfigEditorState();
+}
+
+class _PromoConfigEditorState extends ConsumerState<_PromoConfigEditor> {
+  static const _segmentOrder = ['new', 'active', 'loyal', 'at_risk', 'all'];
+  static const _segmentLabels = {
+    'new': 'New users',
+    'active': 'Regular (active)',
+    'loyal': 'Loyal',
+    'at_risk': 'At risk',
+    'all': 'Everyone',
+  };
+  static const _segmentColors = {
+    'new': Color(0xFF6366F1),
+    'active': Color(0xFF10B981),
+    'loyal': Color(0xFFF59E0B),
+    'at_risk': Color(0xFFEF4444),
+    'all': Color(0xFF6B7280),
+  };
+
+  // Local edits keyed by row id, only flushed on Save.
+  final Map<String, double> _editedValue = {};
+  final Map<String, double> _editedMin = {};
+  final Map<String, bool> _editedActive = {};
+  String? _saving;
+
+  Future<void> _save(PromotionConfig r) async {
+    final newValue = _editedValue[r.id] ?? r.value;
+    final newMin = _editedMin[r.id] ?? r.minOrder;
+    final newActive = _editedActive[r.id] ?? r.active;
+    if (newValue == r.value && newMin == r.minOrder && newActive == r.active) {
+      return;
+    }
+
+    // Sanity caps so the AI can never give away too much early.
+    if (r.type == 'discount' && (newValue < 0 || newValue > 50)) {
+      AppSnackbar.error(context, 'Discount % must be between 0 and 50.');
+      return;
+    }
+    if (newMin < 0) {
+      AppSnackbar.error(context, 'Min order must be 0 or greater.');
+      return;
+    }
+
+    setState(() => _saving = r.id);
+    try {
+      await ref
+          .read(decisionEngineServiceProvider)
+          .updatePromotionConfig(
+            id: r.id,
+            value: newValue,
+            minOrder: newMin,
+            active: newActive,
+          );
+      ref.invalidate(promotionConfigsProvider);
+      ref.invalidate(promotionStatsProvider);
+      if (mounted) AppSnackbar.success(context, 'Saved.');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _saving = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = AppConstants.currencySymbol;
+    final sorted = [...widget.rows]
+      ..sort((a, b) {
+        final ai = _segmentOrder.indexOf(a.targetSegment);
+        final bi = _segmentOrder.indexOf(b.targetSegment);
+        return (ai == -1 ? 99 : ai).compareTo(bi == -1 ? 99 : bi);
+      });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Set the maximum discount the AI is allowed to assign per segment. '
+          'Discounts are capped at 50%.',
+          style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(height: 12),
+        ...sorted.map((r) {
+          final color =
+              _segmentColors[r.targetSegment] ?? const Color(0xFF6B7280);
+          final segLabel = _segmentLabels[r.targetSegment] ?? r.targetSegment;
+          final value = _editedValue[r.id] ?? r.value;
+          final minOrder = _editedMin[r.id] ?? r.minOrder;
+          final active = _editedActive[r.id] ?? r.active;
+          final dirty =
+              value != r.value || minOrder != r.minOrder || active != r.active;
+          final isPct = r.type == 'discount';
+          final isFreeDelivery = r.type == 'free_delivery';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        segLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        r.label ?? '—',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: active,
+                      onChanged: (v) => setState(() => _editedActive[r.id] = v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (isFreeDelivery)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Free delivery — no % to set.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _NumberField(
+                          label: isPct ? 'Discount %' : 'Amount $cur',
+                          initial: value,
+                          suffix: isPct ? '%' : cur,
+                          max: isPct ? 50 : 9999,
+                          onChanged: (v) =>
+                              setState(() => _editedValue[r.id] = v),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _NumberField(
+                          label: 'Min order $cur',
+                          initial: minOrder,
+                          suffix: cur,
+                          max: 99999,
+                          onChanged: (v) =>
+                              setState(() => _editedMin[r.id] = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (isPct) ...[
+                  const SizedBox(height: 6),
+                  Slider(
+                    value: value.clamp(0, 50).toDouble(),
+                    min: 0,
+                    max: 50,
+                    divisions: 50,
+                    label: '${value.toStringAsFixed(0)}%',
+                    activeColor: color,
+                    onChanged: (v) =>
+                        setState(() => _editedValue[r.id] = v.roundToDouble()),
+                  ),
+                ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: dirty && _saving != r.id ? () => _save(r) : null,
+                    icon: _saving == r.id
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_rounded, size: 16),
+                    label: const Text('Save'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _NumberField extends StatefulWidget {
+  final String label;
+  final double initial;
+  final String suffix;
+  final double max;
+  final ValueChanged<double> onChanged;
+
+  const _NumberField({
+    required this.label,
+    required this.initial,
+    required this.suffix,
+    required this.max,
+    required this.onChanged,
+  });
+
+  @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  late final TextEditingController _ctrl = TextEditingController(
+    text: widget.initial == widget.initial.truncateToDouble()
+        ? widget.initial.toStringAsFixed(0)
+        : widget.initial.toString(),
+  );
+
+  @override
+  void didUpdateWidget(covariant _NumberField old) {
+    super.didUpdateWidget(old);
+    if (old.initial != widget.initial &&
+        double.tryParse(_ctrl.text) != widget.initial) {
+      _ctrl.text = widget.initial == widget.initial.truncateToDouble()
+          ? widget.initial.toStringAsFixed(0)
+          : widget.initial.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctrl,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixText: widget.suffix,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        border: const OutlineInputBorder(),
+      ),
+      style: const TextStyle(fontSize: 13),
+      onChanged: (s) {
+        final n = double.tryParse(s.trim());
+        if (n != null && n >= 0 && n <= widget.max) widget.onChanged(n);
+      },
     );
   }
 }
