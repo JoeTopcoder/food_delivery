@@ -597,20 +597,23 @@ class StripePayoutService {
   }) async {
     late final FunctionResponse res;
     try {
-      res = await _client.functions.invoke('stripe-connect', body: {
-        'action':          'update_kyc',
-        'first_name':      firstName,
-        'last_name':       lastName,
-        'dob_day':         dobDay,
-        'dob_month':       dobMonth,
-        'dob_year':        dobYear,
-        if (ssnLast4 != null) 'ssn_last4': ssnLast4,
-        if (addressLine1 != null) 'address_line1': addressLine1,
-        if (addressCity != null) 'address_city': addressCity,
-        if (addressState != null) 'address_state': addressState,
-        if (addressPostal != null) 'address_postal': addressPostal,
-        'address_country': addressCountry,
-      });
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {
+          'action': 'update_kyc',
+          'first_name': firstName,
+          'last_name': lastName,
+          'dob_day': dobDay,
+          'dob_month': dobMonth,
+          'dob_year': dobYear,
+          if (ssnLast4 != null) 'ssn_last4': ssnLast4,
+          if (addressLine1 != null) 'address_line1': addressLine1,
+          if (addressCity != null) 'address_city': addressCity,
+          if (addressState != null) 'address_state': addressState,
+          if (addressPostal != null) 'address_postal': addressPostal,
+          'address_country': addressCountry,
+        },
+      );
     } on FunctionException catch (e) {
       throw Exception(_extractFunctionExceptionMessage(e));
     }
@@ -627,13 +630,16 @@ class StripePayoutService {
   }) async {
     late final FunctionResponse res;
     try {
-      res = await _client.functions.invoke('stripe-connect', body: {
-        'action':               'add_bank',
-        'account_number':       accountNumber,
-        'routing_number':       routingNumber,
-        'account_holder_name':  accountHolderName,
-        'account_holder_type':  accountHolderType,
-      });
+      res = await _client.functions.invoke(
+        'stripe-connect',
+        body: {
+          'action': 'add_bank',
+          'account_number': accountNumber,
+          'routing_number': routingNumber,
+          'account_holder_name': accountHolderName,
+          'account_holder_type': accountHolderType,
+        },
+      );
     } on FunctionException catch (e) {
       throw Exception(_extractFunctionExceptionMessage(e));
     }
@@ -648,7 +654,10 @@ class StripePayoutService {
         .select()
         .order('created_at', ascending: false);
     return (rows as List)
-        .map((r) => DriverPayoutMethod.fromJson(Map<String, dynamic>.from(r as Map)))
+        .map(
+          (r) =>
+              DriverPayoutMethod.fromJson(Map<String, dynamic>.from(r as Map)),
+        )
         .toList();
   }
 
@@ -660,7 +669,10 @@ class StripePayoutService {
         .order('created_at', ascending: false)
         .limit(100);
     return (rows as List)
-        .map((r) => DriverTransaction.fromJson(Map<String, dynamic>.from(r as Map)))
+        .map(
+          (r) =>
+              DriverTransaction.fromJson(Map<String, dynamic>.from(r as Map)),
+        )
         .toList();
   }
 
@@ -880,6 +892,9 @@ class DriverTransaction {
         createdAt: DateTime.parse(j['created_at'] as String),
       );
 
-  bool get isCredit => type == 'earning' || type == 'tip' || (type == 'adjustment' && amount > 0);
+  bool get isCredit =>
+      type == 'earning' ||
+      type == 'tip' ||
+      (type == 'adjustment' && amount > 0);
   bool get isDebit => !isCredit;
 }

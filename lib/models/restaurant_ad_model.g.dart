@@ -7,24 +7,24 @@ part of 'restaurant_ad_model.dart';
 // **************************************************************************
 
 RestaurantAd _$RestaurantAdFromJson(Map<String, dynamic> json) => RestaurantAd(
-      id: json['id'] as String,
-      restaurantId: json['restaurant_id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String?,
-      imageUrl: json['image_url'] as String?,
-      isActive: json['is_active'] as bool? ?? true,
-      startsAt: DateTime.parse(json['starts_at'] as String),
-      endsAt: json['ends_at'] == null
-          ? null
-          : DateTime.parse(json['ends_at'] as String),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: json['updated_at'] == null
-          ? null
-          : DateTime.parse(json['updated_at'] as String),
-      restaurantName: json['restaurant_name'] as String?,
-      restaurantImageUrl: json['restaurant_image_url'] as String?,
-      cuisineType: json['cuisine_type'] as String?,
-    );
+  id: json['id'] as String,
+  restaurantId: json['restaurant_id'] as String,
+  title: json['title'] as String,
+  description: json['description'] as String?,
+  imageUrl: json['image_url'] as String?,
+  isActive: json['is_active'] as bool? ?? true,
+  startsAt: DateTime.parse(json['starts_at'] as String),
+  endsAt: json['ends_at'] == null
+      ? null
+      : DateTime.parse(json['ends_at'] as String),
+  createdAt: DateTime.parse(json['created_at'] as String),
+  updatedAt: json['updated_at'] == null
+      ? null
+      : DateTime.parse(json['updated_at'] as String),
+  restaurantName: json['restaurant_name'] as String?,
+  restaurantImageUrl: json['restaurant_image_url'] as String?,
+  cuisineType: json['cuisine_type'] as String?,
+);
 
 Map<String, dynamic> _$RestaurantAdToJson(RestaurantAd instance) =>
     <String, dynamic>{

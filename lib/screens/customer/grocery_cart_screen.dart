@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
@@ -784,7 +784,9 @@ class _PriceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: isBold ? 16 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
             ),
             overflow: TextOverflow.ellipsis,
           ),

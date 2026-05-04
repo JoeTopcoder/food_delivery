@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'theme_service.dart';
 
 class AppTheme {
@@ -152,16 +152,17 @@ class AppTheme {
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryColor,
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: const Color(0xFF111827),
-      onSurface: Colors.white,
-      onSurfaceVariant: const Color(0xFFD1D5DB),
-      surfaceContainerHighest: const Color(0xFF1F2937),
-      outline: const Color(0xFF374151),
-    ),
+    colorScheme:
+        ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.dark,
+        ).copyWith(
+          surface: const Color(0xFF111827),
+          onSurface: Colors.white,
+          onSurfaceVariant: const Color(0xFFD1D5DB),
+          surfaceContainerHighest: const Color(0xFF1F2937),
+          outline: const Color(0xFF374151),
+        ),
     scaffoldBackgroundColor: const Color(0xFF111827),
     appBarTheme: const AppBarTheme(
       elevation: 0,
@@ -280,35 +281,20 @@ class AppTheme {
   );
 
   // Text Styles
-  static TextStyle get headingLarge => TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.w700,
-    color: textPrimary,
-  );
+  static TextStyle get headingLarge =>
+      TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: textPrimary);
 
-  static TextStyle get headingMedium => TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w700,
-    color: textPrimary,
-  );
+  static TextStyle get headingMedium =>
+      TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: textPrimary);
 
-  static TextStyle get headingSmall => TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.w700,
-    color: textPrimary,
-  );
+  static TextStyle get headingSmall =>
+      TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: textPrimary);
 
-  static TextStyle get bodyLarge => TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w500,
-    color: textPrimary,
-  );
+  static TextStyle get bodyLarge =>
+      TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: textPrimary);
 
-  static TextStyle get bodyMedium => TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    color: textPrimary,
-  );
+  static TextStyle get bodyMedium =>
+      TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: textPrimary);
 
   static TextStyle get bodySmall => TextStyle(
     fontSize: 12,
@@ -316,11 +302,8 @@ class AppTheme {
     color: textSecondary,
   );
 
-  static TextStyle get labelLarge => TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    color: textPrimary,
-  );
+  static TextStyle get labelLarge =>
+      TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textPrimary);
 
   static TextStyle get labelSmall => TextStyle(
     fontSize: 12,

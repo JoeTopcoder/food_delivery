@@ -289,9 +289,7 @@ class _RestaurantList extends StatelessWidget {
                                     icon: Icons.star_rounded,
                                     color: const Color(0xFFF59E0B),
                                     value:
-                                        restaurant.rating?.toStringAsFixed(
-                                          1,
-                                        ) ??
+                                        restaurant.rating?.toStringAsFixed(1) ??
                                         '0.0',
                                     label: 'Rating',
                                   ),

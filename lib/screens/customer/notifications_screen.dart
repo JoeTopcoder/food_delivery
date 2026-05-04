@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -38,9 +38,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         (type, title, body, data) {
           if (!mounted) return;
           // Prefer the real DB notification ID if the edge function includes it
-          final dbId = data['notification_id'] as String?
-              ?? data['id'] as String?
-              ?? '${type}_${DateTime.now().millisecondsSinceEpoch}';
+          final dbId =
+              data['notification_id'] as String? ??
+              data['id'] as String? ??
+              '${type}_${DateTime.now().millisecondsSinceEpoch}';
           ref
               .read(notificationNotifierProvider.notifier)
               .addNotification(
@@ -73,17 +74,21 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           .limit(60);
 
       final notifier = ref.read(notificationNotifierProvider.notifier);
-      final loaded = (rows as List).map((row) => AppNotification(
-        id: row['id'] as String,
-        type: row['type'] as String? ?? 'info',
-        title: row['title'] as String? ?? '',
-        body: row['body'] as String? ?? '',
-        data: (row['data'] as Map<String, dynamic>?) ?? {},
-        timestamp:
-            DateTime.tryParse(row['created_at'] as String? ?? '') ??
-            DateTime.now(),
-        isRead: row['is_read'] as bool? ?? false,
-      )).toList();
+      final loaded = (rows as List)
+          .map(
+            (row) => AppNotification(
+              id: row['id'] as String,
+              type: row['type'] as String? ?? 'info',
+              title: row['title'] as String? ?? '',
+              body: row['body'] as String? ?? '',
+              data: (row['data'] as Map<String, dynamic>?) ?? {},
+              timestamp:
+                  DateTime.tryParse(row['created_at'] as String? ?? '') ??
+                  DateTime.now(),
+              isRead: row['is_read'] as bool? ?? false,
+            ),
+          )
+          .toList();
       notifier.setAll(loaded);
     } catch (_) {}
     if (mounted) setState(() => _loading = false);

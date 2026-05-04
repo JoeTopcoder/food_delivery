@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -328,7 +328,10 @@ class DriverReferralScreen extends ConsumerWidget {
                         ),
                         Text(
                           'Share your code to start earning!',
-                          style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),

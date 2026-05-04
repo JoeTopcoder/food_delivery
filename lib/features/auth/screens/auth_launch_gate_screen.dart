@@ -63,6 +63,7 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
           // selection so an unrecognised role can NEVER silently see any
           // home screen.
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             ref.read(authNotifierProvider.notifier).signOut();
           });
           return const RoleSelectionScreen();

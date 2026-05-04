@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -581,7 +581,10 @@ class _RestaurantSettingsScreenState
                         ] else
                           Text(
                             'Closed',
-                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                            ),
                           ),
                       ],
                     ),
