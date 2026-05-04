@@ -315,14 +315,13 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                 color: Colors.orange,
               ),
               title: const Text('Side'),
-              subtitle: const Text('Adds to the "Sides" category'),
+              subtitle: const Text('Attach a side to one of your menu items'),
               onTap: () {
                 Navigator.pop(sheetCtx);
-                _showAddMenuItemDialog(
+                _showAttachSideOrDrinkPicker(
                   context,
                   restaurantId,
-                  presetCategory: 'Sides',
-                  dialogTitle: 'Add Side',
+                  sideType: 'side',
                 );
               },
             ),
@@ -332,20 +331,59 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                 color: Colors.blue,
               ),
               title: const Text('Drink'),
-              subtitle: const Text('Adds to the "Drinks" category'),
+              subtitle: const Text('Attach a drink to one of your menu items'),
               onTap: () {
                 Navigator.pop(sheetCtx);
-                _showAddMenuItemDialog(
+                _showAttachSideOrDrinkPicker(
                   context,
                   restaurantId,
-                  presetCategory: 'Drinks',
-                  dialogTitle: 'Add Drink',
+                  sideType: 'drink',
                 );
               },
             ),
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showAttachSideOrDrinkPicker(
+    BuildContext context,
+    String restaurantId, {
+    required String sideType,
+  }) async {
+    final menuAsync = ref.read(restaurantMenuProvider(restaurantId));
+    final items = menuAsync.maybeWhen(
+      data: (data) => data,
+      orElse: () => const <MenuItem>[],
+    );
+    if (items.isEmpty) {
+      AppSnackbar.error(
+        context,
+        'Add a menu item first — sides and drinks attach to a menu item.',
+      );
+      return;
+    }
+
+    final label = sideType == 'drink' ? 'drink' : 'side';
+    final selected = await showDialog<MenuItem>(
+      context: context,
+      builder: (dialogCtx) => _PickMenuItemDialog(
+        title: 'Attach $label to which menu item?',
+        items: items,
+      ),
+    );
+    if (selected == null) return;
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _ManageSidesDialog(
+        menuItem: selected,
+        menuService: ref.read(menuServiceProvider),
+        onChanged: () => ref.invalidate(restaurantMenuProvider(restaurantId)),
+        initialSideType: sideType,
       ),
     );
   }
@@ -769,11 +807,13 @@ class _ManageSidesDialog extends StatefulWidget {
   final MenuItem menuItem;
   final MenuService menuService;
   final VoidCallback onChanged;
+  final String initialSideType;
 
   const _ManageSidesDialog({
     required this.menuItem,
     required this.menuService,
     required this.onChanged,
+    this.initialSideType = 'side',
   });
 
   @override
@@ -784,13 +824,14 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
   late List<MenuItemSide> _sides;
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
-  String _newSideType = 'side';
+  late String _newSideType;
   bool _adding = false;
 
   @override
   void initState() {
     super.initState();
     _sides = List.from(widget.menuItem.sides ?? []);
+    _newSideType = widget.initialSideType;
   }
 
   @override
@@ -829,7 +870,7 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
         _sides.add(side);
         _nameController.clear();
         _priceController.clear();
-        _newSideType = 'side';
+        // Keep _newSideType so the user can quickly add another of the same type.
       });
       widget.onChanged();
       if (mounted) AppSnackbar.success(context, 'Side added.');
@@ -1145,3 +1186,74 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
     );
   }
 }
+
+class _PickMenuItemDialog extends StatelessWidget {
+  final String title;
+  final List<MenuItem> items;
+
+  const _PickMenuItemDialog({required this.title, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    // Group items by category for a clearer dropdown / list.
+    final grouped = <String, List<MenuItem>>{};
+    for (final item in items) {
+      grouped.putIfAbsent(item.category, () => []).add(item);
+    }
+    final categories = grouped.keys.toList()..sort();
+
+    return AlertDialog(
+      title: Text(title),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final cat in categories) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                  child: Text(
+                    cat,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                ...grouped[cat]!.map(
+                  (item) => ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.fastfood,
+                      color: Colors.deepPurple,
+                    ),
+                    title: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => Navigator.of(context).pop(item),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
