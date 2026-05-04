@@ -1259,46 +1259,64 @@ class _SidesDrinksChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sideCount = sides.where((s) => s.sideType != 'drink').length;
-    final drinkCount = sides.where((s) => s.sideType == 'drink').length;
-    final unavailable = sides.where((s) => !s.isAvailable).length;
+    final sideItems = sides.where((s) => s.sideType != 'drink').toList();
+    final drinkItems = sides.where((s) => s.sideType == 'drink').toList();
 
-    final chips = <Widget>[];
-    if (sideCount > 0) {
-      chips.add(
-        _chip(
-          icon: Icons.lunch_dining_outlined,
-          label: '$sideCount side${sideCount == 1 ? '' : 's'}',
-          bg: Colors.orange.withValues(alpha: 0.12),
-          fg: Colors.orange.shade800,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Summary chip row
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            if (sideItems.isNotEmpty)
+              _summaryChip(
+                icon: Icons.lunch_dining_outlined,
+                label:
+                    '${sideItems.length} side${sideItems.length == 1 ? '' : 's'}',
+                bg: Colors.orange.withValues(alpha: 0.12),
+                fg: Colors.orange.shade800,
+              ),
+            if (drinkItems.isNotEmpty)
+              _summaryChip(
+                icon: Icons.local_drink_outlined,
+                label:
+                    '${drinkItems.length} drink${drinkItems.length == 1 ? '' : 's'}',
+                bg: Colors.blue.withValues(alpha: 0.12),
+                fg: Colors.blue.shade800,
+              ),
+          ],
         ),
-      );
-    }
-    if (drinkCount > 0) {
-      chips.add(
-        _chip(
-          icon: Icons.local_drink_outlined,
-          label: '$drinkCount drink${drinkCount == 1 ? '' : 's'}',
-          bg: Colors.blue.withValues(alpha: 0.12),
-          fg: Colors.blue.shade800,
+        const SizedBox(height: 4),
+        // Detailed name + price chips for each attached side / drink
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            ...sideItems.map(
+              (s) => _itemChip(
+                icon: Icons.lunch_dining_outlined,
+                side: s,
+                bg: Colors.orange.withValues(alpha: 0.08),
+                fg: Colors.orange.shade900,
+              ),
+            ),
+            ...drinkItems.map(
+              (s) => _itemChip(
+                icon: Icons.local_drink_outlined,
+                side: s,
+                bg: Colors.blue.withValues(alpha: 0.08),
+                fg: Colors.blue.shade900,
+              ),
+            ),
+          ],
         ),
-      );
-    }
-    if (unavailable > 0) {
-      chips.add(
-        _chip(
-          icon: Icons.visibility_off_outlined,
-          label: '$unavailable hidden',
-          bg: Colors.grey.withValues(alpha: 0.18),
-          fg: Colors.grey.shade800,
-        ),
-      );
-    }
-
-    return Wrap(spacing: 6, runSpacing: 4, children: chips);
+      ],
+    );
   }
 
-  Widget _chip({
+  Widget _summaryChip({
     required IconData icon,
     required String label,
     required Color bg,
@@ -1321,6 +1339,50 @@ class _SidesDrinksChips extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemChip({
+    required IconData icon,
+    required MenuItemSide side,
+    required Color bg,
+    required Color fg,
+  }) {
+    final priceText = side.price > 0
+        ? ' +${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}'
+        : '';
+    final hidden = !side.isAvailable;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: hidden ? Colors.grey.withValues(alpha: 0.15) : bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: hidden ? Colors.grey.shade400 : fg.withValues(alpha: 0.25),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: hidden ? Colors.grey.shade700 : fg),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: Text(
+              '${side.name}$priceText',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: hidden ? Colors.grey.shade700 : fg,
+                decoration: hidden ? TextDecoration.lineThrough : null,
+              ),
             ),
           ),
         ],
