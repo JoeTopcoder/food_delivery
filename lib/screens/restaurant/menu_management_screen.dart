@@ -225,9 +225,10 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
               );
             },
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _showAddMenuItemDialog(context, restaurant.id),
-            child: const Icon(Icons.add),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddMenuPicker(context, restaurant.id),
+            icon: const Icon(Icons.add),
+            label: const Text('Add'),
           ),
         );
       },
@@ -249,7 +250,12 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
     );
   }
 
-  void _showAddMenuItemDialog(BuildContext context, String restaurantId) {
+  void _showAddMenuItemDialog(
+    BuildContext context,
+    String restaurantId, {
+    String? presetCategory,
+    String dialogTitle = 'Add Menu Item',
+  }) {
     // Collect existing categories from current menu
     final menuAsync = ref.read(restaurantMenuProvider(restaurantId));
     final existingCategories = <String>{};
@@ -264,10 +270,82 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       builder: (dialogContext) => _AddMenuItemDialog(
         restaurantId: restaurantId,
         existingCategories: existingCategories.toList()..sort(),
+        presetCategory: presetCategory,
+        dialogTitle: dialogTitle,
         onItemAdded: () {
           ref.invalidate(restaurantMenuProvider(restaurantId));
         },
         menuService: ref.read(menuServiceProvider),
+      ),
+    );
+  }
+
+  void _showAddMenuPicker(BuildContext context, String restaurantId) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'What would you like to add?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.fastfood, color: Colors.deepPurple),
+              title: const Text('Menu item'),
+              subtitle: const Text('A main dish, combo, or anything else'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showAddMenuItemDialog(context, restaurantId);
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.lunch_dining_outlined,
+                color: Colors.orange,
+              ),
+              title: const Text('Side'),
+              subtitle: const Text('Adds to the "Sides" category'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showAddMenuItemDialog(
+                  context,
+                  restaurantId,
+                  presetCategory: 'Sides',
+                  dialogTitle: 'Add Side',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.local_drink_outlined,
+                color: Colors.blue,
+              ),
+              title: const Text('Drink'),
+              subtitle: const Text('Adds to the "Drinks" category'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _showAddMenuItemDialog(
+                  context,
+                  restaurantId,
+                  presetCategory: 'Drinks',
+                  dialogTitle: 'Add Drink',
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -320,12 +398,16 @@ class _AddMenuItemDialog extends StatefulWidget {
   final VoidCallback onItemAdded;
   final MenuService menuService;
   final List<String> existingCategories;
+  final String? presetCategory;
+  final String dialogTitle;
 
   const _AddMenuItemDialog({
     required this.restaurantId,
     required this.onItemAdded,
     required this.menuService,
     this.existingCategories = const [],
+    this.presetCategory,
+    this.dialogTitle = 'Add Menu Item',
   });
 
   @override
@@ -343,6 +425,21 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   double _discount = 0;
   bool _isAdding = false;
   File? _pickedImage;
+
+  @override
+  void initState() {
+    super.initState();
+    final preset = widget.presetCategory;
+    if (preset != null && preset.isNotEmpty) {
+      if (widget.existingCategories.contains(preset)) {
+        _selectedCategory = preset;
+        _isNewCategory = false;
+      } else {
+        _isNewCategory = true;
+        _categoryController.text = preset;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -464,7 +561,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Menu Item'),
+      title: Text(widget.dialogTitle),
       content: SizedBox(
         width: MediaQuery.of(context).size.width * 0.9,
         child: SingleChildScrollView(
