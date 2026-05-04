@@ -89,12 +89,17 @@ class _RestaurantAnalyticsScreenState
     final totalRevenue = orders.fold<double>(0, (s, o) => s + o.totalAmount);
     final delivered = orders.where((o) => o.status == 'delivered').toList();
     final cancelled = orders.where((o) => o.status == 'cancelled').toList();
-    final completionRate = orders.isEmpty
-        ? 0.0
-        : delivered.length / orders.length * 100;
-    final avgOrderValue = delivered.isEmpty
-        ? 0.0
-        : totalRevenue / delivered.length;
+    // Completion rate: % of finished orders (delivered + cancelled) that were
+    // actually delivered. Falls back to delivered/total if no order has been
+    // finalized yet, so the card always reflects the data we have.
+    final finished = delivered.length + cancelled.length;
+    final completionRate = finished > 0
+        ? delivered.length / finished * 100
+        : (orders.isEmpty ? 0.0 : delivered.length / orders.length * 100);
+    // Average order value across every order in the period (not just delivered),
+    // so it shows useful data as soon as orders start coming in.
+    final avgOrderValue = orders.isEmpty ? 0.0 : totalRevenue / orders.length;
+    final hasOrders = orders.isNotEmpty;
 
     // Top items
     final itemCounts = <String, int>{};
@@ -255,14 +260,17 @@ class _RestaurantAnalyticsScreenState
                       ),
                       _KpiCard(
                         label: 'Completion',
-                        value: '${completionRate.toStringAsFixed(0)}%',
+                        value: hasOrders
+                            ? '${completionRate.toStringAsFixed(0)}%'
+                            : '—',
                         icon: Icons.check_circle_rounded,
                         color: AppTheme.primaryColor,
                       ),
                       _KpiCard(
                         label: 'Avg. Order',
-                        value:
-                            '${AppConstants.currencySymbol}${avgOrderValue.toStringAsFixed(0)}',
+                        value: hasOrders
+                            ? '${AppConstants.currencySymbol}${avgOrderValue.toStringAsFixed(0)}'
+                            : '—',
                         icon: Icons.trending_up_rounded,
                         color: const Color(0xFFF59E0B),
                       ),
