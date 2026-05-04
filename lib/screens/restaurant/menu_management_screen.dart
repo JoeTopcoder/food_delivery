@@ -176,14 +176,10 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                                   ),
                                 ),
                                 if (item.sides != null &&
-                                    item.sides!.isNotEmpty)
-                                  Text(
-                                    '${item.sides!.length} side(s)',
-                                    style: const TextStyle(
-                                      color: Colors.blue,
-                                      fontSize: 12,
-                                    ),
-                                  ),
+                                    item.sides!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  _SidesDrinksChips(sides: item.sides!),
+                                ],
                               ],
                             ),
                             isThreeLine: true,
@@ -1257,3 +1253,72 @@ class _PickMenuItemDialog extends StatelessWidget {
   }
 }
 
+class _SidesDrinksChips extends StatelessWidget {
+  final List<MenuItemSide> sides;
+  const _SidesDrinksChips({required this.sides});
+
+  @override
+  Widget build(BuildContext context) {
+    final sideCount = sides.where((s) => s.sideType != 'drink').length;
+    final drinkCount = sides.where((s) => s.sideType == 'drink').length;
+    final unavailable = sides.where((s) => !s.isAvailable).length;
+
+    final chips = <Widget>[];
+    if (sideCount > 0) {
+      chips.add(_chip(
+        icon: Icons.lunch_dining_outlined,
+        label: '$sideCount side${sideCount == 1 ? '' : 's'}',
+        bg: Colors.orange.withValues(alpha: 0.12),
+        fg: Colors.orange.shade800,
+      ));
+    }
+    if (drinkCount > 0) {
+      chips.add(_chip(
+        icon: Icons.local_drink_outlined,
+        label: '$drinkCount drink${drinkCount == 1 ? '' : 's'}',
+        bg: Colors.blue.withValues(alpha: 0.12),
+        fg: Colors.blue.shade800,
+      ));
+    }
+    if (unavailable > 0) {
+      chips.add(_chip(
+        icon: Icons.visibility_off_outlined,
+        label: '$unavailable hidden',
+        bg: Colors.grey.withValues(alpha: 0.18),
+        fg: Colors.grey.shade800,
+      ));
+    }
+
+    return Wrap(spacing: 6, runSpacing: 4, children: chips);
+  }
+
+  Widget _chip({
+    required IconData icon,
+    required String label,
+    required Color bg,
+    required Color fg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
