@@ -190,9 +190,21 @@ class RestaurantCard extends StatelessWidget {
                         color: Colors.grey[700],
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '${AppConstants.currencySymbol}${restaurant.deliveryFee ?? 0}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      Flexible(
+                        child: Text(
+                          () {
+                            final fee = restaurant.deliveryFee;
+                            if (fee == null) return 'Delivery';
+                            if (fee <= 0) return 'Free delivery';
+                            return '${AppConstants.currencySymbol}${fee.toStringAsFixed(2)} delivery';
+                          }(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                       ),
                     ],
                   ),
