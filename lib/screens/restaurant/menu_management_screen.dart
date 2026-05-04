@@ -706,9 +706,19 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
   Future<void> _addSide() async {
     final name = _nameController.text.trim();
     final priceText = _priceController.text.trim();
-    if (name.isEmpty || priceText.isEmpty) return;
+    if (name.isEmpty) {
+      AppSnackbar.error(context, 'Enter a name for the side.');
+      return;
+    }
+    if (priceText.isEmpty) {
+      AppSnackbar.error(context, 'Enter a price (use 0 for free).');
+      return;
+    }
     final price = double.tryParse(priceText);
-    if (price == null) return;
+    if (price == null) {
+      AppSnackbar.error(context, 'Price must be a number.');
+      return;
+    }
 
     setState(() => _adding = true);
     try {
@@ -725,6 +735,7 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
         _newSideType = 'side';
       });
       widget.onChanged();
+      if (mounted) AppSnackbar.success(context, 'Side added.');
     } catch (e) {
       if (mounted) {
         AppSnackbar.error(context, friendlyError(e));
