@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +12,6 @@ import '../../providers/location_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
-import '../shared/ai_voice_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';

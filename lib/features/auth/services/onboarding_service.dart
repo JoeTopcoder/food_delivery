@@ -289,7 +289,7 @@ class OnboardingService {
         return await _client
             .from(AppConstants.tableRestaurants)
             .update(payload)
-            .eq('id', restaurantId!)
+            .eq('id', restaurantId)
             .select('id')
             .maybeSingle();
       }
