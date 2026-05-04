@@ -1157,15 +1157,16 @@ class _QuickActionState extends State<_QuickAction> {
               onTap: widget.onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 18,
+                  horizontal: 12,
+                  vertical: 12,
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 52,
-                      height: 52,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
@@ -1175,7 +1176,7 @@ class _QuickActionState extends State<_QuickAction> {
                             widget.color.withValues(alpha: 0.70),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: widget.color.withValues(alpha: 0.35),
@@ -1184,19 +1185,21 @@ class _QuickActionState extends State<_QuickAction> {
                           ),
                         ],
                       ),
-                      child: Icon(widget.icon, color: Colors.white, size: 26),
+                      child: Icon(widget.icon, color: Colors.white, size: 22),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.1,
-                        color: Theme.of(context).colorScheme.onSurface,
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: Text(
+                        widget.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.1,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ],
