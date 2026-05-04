@@ -604,7 +604,8 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
             Expanded(
               child: Text(
                 name,
-                maxLines: 2,
+                maxLines: 1,
+                softWrap: false,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
