@@ -608,7 +608,6 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
-                  height: 1.25,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary,
                 ),
