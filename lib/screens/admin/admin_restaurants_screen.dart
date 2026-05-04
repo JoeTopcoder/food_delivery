@@ -280,45 +280,58 @@ class _RestaurantList extends StatelessWidget {
                       // Stats row
                       Row(
                         children: [
-                          _RestaurantStat(
-                            icon: Icons.star_rounded,
-                            color: const Color(0xFFF59E0B),
-                            value:
-                                restaurant.rating?.toStringAsFixed(1) ?? '0.0',
-                            label: 'Rating',
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _RestaurantStat(
+                                    icon: Icons.star_rounded,
+                                    color: const Color(0xFFF59E0B),
+                                    value:
+                                        restaurant.rating?.toStringAsFixed(
+                                          1,
+                                        ) ??
+                                        '0.0',
+                                    label: 'Rating',
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _RestaurantStat(
+                                    icon: Icons.delivery_dining_rounded,
+                                    color: const Color(0xFF10B981),
+                                    value:
+                                        '${AppConstants.currencySymbol}${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
+                                    label: 'Delivery',
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _RestaurantStat(
+                                    icon: Icons.schedule_rounded,
+                                    color: const Color(0xFF6366F1),
+                                    value:
+                                        '${restaurant.estimatedDeliveryTime ?? 30}m',
+                                    label: 'Est.',
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _RestaurantStat(
+                                    icon: Icons.percent_rounded,
+                                    color: const Color(0xFF8B5CF6),
+                                    value:
+                                        '${((restaurant.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
+                                    label: 'Comm.',
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _RestaurantStat(
+                                    icon: Icons.shopping_bag_rounded,
+                                    color: const Color(0xFF0EA5E9),
+                                    value:
+                                        '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                                    label: 'Svc Fee',
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 16),
-                          _RestaurantStat(
-                            icon: Icons.delivery_dining_rounded,
-                            color: const Color(0xFF10B981),
-                            value:
-                                '${AppConstants.currencySymbol}${restaurant.deliveryFee?.toStringAsFixed(0) ?? '0'}',
-                            label: 'Delivery',
-                          ),
-                          const SizedBox(width: 16),
-                          _RestaurantStat(
-                            icon: Icons.schedule_rounded,
-                            color: const Color(0xFF6366F1),
-                            value: '${restaurant.estimatedDeliveryTime ?? 30}m',
-                            label: 'Est.',
-                          ),
-                          const SizedBox(width: 16),
-                          _RestaurantStat(
-                            icon: Icons.percent_rounded,
-                            color: const Color(0xFF8B5CF6),
-                            value:
-                                '${((restaurant.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
-                            label: 'Comm.',
-                          ),
-                          const SizedBox(width: 16),
-                          _RestaurantStat(
-                            icon: Icons.shopping_bag_rounded,
-                            color: const Color(0xFF0EA5E9),
-                            value:
-                                '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
-                            label: 'Svc Fee',
-                          ),
-                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
