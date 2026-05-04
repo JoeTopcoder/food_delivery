@@ -867,51 +867,86 @@ class _ManageSidesDialogState extends State<_ManageSidesDialog> {
                 ..._sides.map(
                   (side) => Card(
                     margin: const EdgeInsets.only(bottom: 6),
-                    child: ListTile(
-                      dense: true,
-                      leading: Icon(
-                        side.sideType == 'drink'
-                            ? Icons.local_drink_outlined
-                            : Icons.lunch_dining_outlined,
-                        color: side.sideType == 'drink'
-                            ? Colors.blue
-                            : Colors.orange,
-                      ),
-                      title: Text(
-                        side.name,
-                        style: TextStyle(
-                          decoration: side.isAvailable
-                              ? null
-                              : TextDecoration.lineThrough,
-                          color: side.isAvailable ? null : Colors.grey,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${side.sideType == 'drink' ? 'Drink' : 'Side'} • '
-                        '${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}'
-                        '${side.isAvailable ? '' : ' • Unavailable'}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Tooltip(
-                            message: side.isAvailable
-                                ? 'Mark unavailable'
-                                : 'Mark available',
+                          Icon(
+                            side.sideType == 'drink'
+                                ? Icons.local_drink_outlined
+                                : Icons.lunch_dining_outlined,
+                            color: side.sideType == 'drink'
+                                ? Colors.blue
+                                : Colors.orange,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  side.name,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    decoration: side.isAvailable
+                                        ? null
+                                        : TextDecoration.lineThrough,
+                                    color: side.isAvailable
+                                        ? null
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${side.sideType == 'drink' ? 'Drink' : 'Side'} • '
+                                  '${AppConstants.currencySymbol}${side.price.toStringAsFixed(2)}'
+                                  '${side.isAvailable ? '' : ' • Unavailable'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Transform.scale(
+                            scale: 0.8,
                             child: Switch(
                               value: side.isAvailable,
                               onChanged: (_) => _toggleAvailability(side),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.edit, size: 18),
                             tooltip: 'Edit',
                             onPressed: () => _editSide(side),
                           ),
                           IconButton(
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            padding: EdgeInsets.zero,
                             icon: const Icon(
                               Icons.delete,
-                              size: 20,
+                              size: 18,
                               color: Colors.red,
                             ),
                             tooltip: 'Delete',
