@@ -64,26 +64,54 @@ class _DriverOnboardingScreenState
     }
     setState(() => _loading = true);
     try {
-      await ref
-          .read(authNotifierProvider.notifier)
-          .signUp(email: email, password: password, name: name, role: 'driver');
-      final authState = ref.read(authNotifierProvider);
-      if (authState.emailConfirmationPending) {
-        // Email confirmation required but we still advance the onboarding.
-        // Pre-fill profile fields from sign-up data so the user doesn't
-        // have to retype their name/email on the next step.
-        _name.text = _signUpName.text.trim();
-        _email.text = _signUpEmail.text.trim();
+      try {
         await ref
-            .read(onboardingProvider(OnboardingRole.driver).notifier)
-            .setStep(2);
-        if (!mounted) return;
+            .read(authNotifierProvider.notifier)
+            .signUp(
+              email: email,
+              password: password,
+              name: name,
+              role: 'driver',
+            );
+      } catch (e, st) {
+        // Auth signup itself can throw "Account created. Please check
+        // your email..." — that is success, not failure. Detect it and
+        // continue to the email-pending branch instead of bailing out.
+        AppLogger.error('Driver email signup raised: $e\n$st');
+        final msg = e.toString().toLowerCase();
+        final isEmailPending =
+            msg.contains('check your email') ||
+            msg.contains('email_not_confirmed') ||
+            msg.contains('email not confirmed') ||
+            msg.contains('confirmation') ||
+            ref.read(authNotifierProvider).emailConfirmationPending;
+        if (!isEmailPending) {
+          if (mounted) AppSnackbar.error(context, friendlyError(e));
+          return;
+        }
+      }
+
+      final authState = ref.read(authNotifierProvider);
+
+      // Email confirmation flow OR direct authentication — both should
+      // advance the user. Pre-fill profile fields so they don't retype.
+      _name.text = _signUpName.text.trim();
+      _email.text = _signUpEmail.text.trim();
+
+      if (authState.isAuthenticated) {
+        await _afterAuthSuccess();
         return;
       }
-      await _afterAuthSuccess();
-    } catch (e) {
+
+      // Email-confirm pending: keep the flow moving locally.
+      await ref
+          .read(onboardingProvider(OnboardingRole.driver).notifier)
+          .setStep(2);
       if (!mounted) return;
-      AppSnackbar.error(context, friendlyError(e));
+      AppSnackbar.info(
+        context,
+        'Account created! Confirm your email when you can — keep filling in your details.',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -117,13 +145,7 @@ class _DriverOnboardingScreenState
 
   Future<void> _afterAuthSuccess() async {
     final user = ref.read(authNotifierProvider).user;
-    if (user == null) {
-      // No user yet (e.g. confirmation pending) — just advance.
-      await ref
-          .read(onboardingProvider(OnboardingRole.driver).notifier)
-          .setStep(2);
-      return;
-    }
+    if (user == null) throw Exception('Sign in did not return a user.');
 
     await ref.read(roleProvider.notifier).setRole(OnboardingRole.driver);
     try {
@@ -135,13 +157,9 @@ class _DriverOnboardingScreenState
             name: user.name,
           );
     } catch (e) {
-      AppLogger.error('Driver profile sync failed (continuing): $e');
+      AppLogger.error('Driver profile sync failed: $e');
     }
-    try {
-      await ref.read(authNotifierProvider.notifier).refreshUser();
-    } catch (e) {
-      AppLogger.warning('refreshUser failed (continuing): $e');
-    }
+    await ref.read(authNotifierProvider.notifier).refreshUser();
 
     if (user.email != null && _email.text.isEmpty) _email.text = user.email!;
     if (user.name != null && _name.text.isEmpty) _name.text = user.name!;
@@ -226,33 +244,21 @@ class _DriverOnboardingScreenState
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
       if (userId != null) {
-        try {
-          await ref
-              .read(onboardingServiceProvider)
-              .saveDriverProfile(
-                userId: userId,
-                phone: _phone.text.trim(),
-                name: _name.text.trim().isEmpty ? null : _name.text.trim(),
-                email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-                vehicleType: _vehicleType.text.trim().isEmpty
-                    ? null
-                    : _vehicleType.text.trim(),
-                licensePlate: _plate.text.trim().isEmpty
-                    ? null
-                    : _plate.text.trim(),
-                documentsUploaded: uploadedDocs,
-              );
-        } catch (e, st) {
-          AppLogger.error('Driver finish save failed: $e\n$st');
-          if (mounted) {
-            AppSnackbar.error(
-              context,
-              'We saved your details locally but couldn\'t reach the server. ${friendlyError(e)}',
+        await ref
+            .read(onboardingServiceProvider)
+            .saveDriverProfile(
+              userId: userId,
+              phone: _phone.text.trim(),
+              name: _name.text.trim().isEmpty ? null : _name.text.trim(),
+              email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+              vehicleType: _vehicleType.text.trim().isEmpty
+                  ? null
+                  : _vehicleType.text.trim(),
+              licensePlate: _plate.text.trim().isEmpty
+                  ? null
+                  : _plate.text.trim(),
+              documentsUploaded: uploadedDocs,
             );
-          }
-          // Don't return — still advance and route the user. The
-          // dashboard / sign-in screen will retry data sync.
-        }
       }
 
       await ref
@@ -264,16 +270,15 @@ class _DriverOnboardingScreenState
       // The migration 104 trigger will create their profile on first sign-in.
       final isAuth = ref.read(authNotifierProvider).isAuthenticated;
       if (!isAuth) {
-        AppSnackbar.info(
-          context,
-          'Confirm your email, then sign in to start driving.',
-        );
         Navigator.of(context).pushReplacementNamed('/signin/driver');
         return;
       }
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil('/driver-dashboard', (_) => false);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

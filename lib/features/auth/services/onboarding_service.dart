@@ -149,8 +149,6 @@ class OnboardingService {
     String? licensePlate,
     bool documentsUploaded = false,
   }) async {
-    // Best-effort sync of the user row. Never fail driver onboarding if
-    // this throws (RLS, missing column, etc.).
     try {
       await ensureUserRecord(
         userId: userId,
@@ -161,29 +159,69 @@ class OnboardingService {
         onboardingCompleted: false,
       );
     } catch (e) {
-      AppLogger.warning('ensureUserRecord (driver) failed: $e');
+      AppLogger.warning('saveDriverProfile.ensureUserRecord failed: $e');
     }
+
+    // documents_status is JSONB on remote — never write a plain string.
+    // Build a JSON object that matches the column shape.
+    final docsJson = documentsUploaded
+        ? {
+            'license': 'verified',
+            'registration': 'verified',
+            'insurance': 'verified',
+          }
+        : {
+            'license': 'pending',
+            'registration': 'pending',
+            'insurance': 'pending',
+          };
 
     final basePayload = <String, dynamic>{
       'user_id': userId,
-      if (vehicleType != null) 'vehicle_type': vehicleType,
-      if (licensePlate != null) 'license_number': licensePlate,
       'updated_at': DateTime.now().toIso8601String(),
     };
-    final extendedPayload = Map<String, dynamic>.from(basePayload)
-      ..['documents_status'] = documentsUploaded ? 'approved' : 'pending';
+    final extendedPayload = <String, dynamic>{
+      ...basePayload,
+      if (vehicleType != null) 'vehicle_type': vehicleType,
+      if (licensePlate != null) 'license_number': licensePlate,
+      'documents_status': docsJson,
+    };
 
     try {
-      await _client
+      final existing = await _client
           .from(AppConstants.tableDrivers)
-          .upsert(extendedPayload, onConflict: 'user_id');
-    } on PostgrestException catch (e) {
-      AppLogger.warning(
-        'Driver upsert failed (${e.code}: ${e.message}); retrying base payload',
-      );
-      await _client
-          .from(AppConstants.tableDrivers)
-          .upsert(basePayload, onConflict: 'user_id');
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (existing == null) {
+        try {
+          await _client.from(AppConstants.tableDrivers).insert(extendedPayload);
+        } catch (e) {
+          AppLogger.warning(
+            'drivers extended insert failed, retrying base: $e',
+          );
+          await _client.from(AppConstants.tableDrivers).insert(basePayload);
+        }
+      } else {
+        try {
+          await _client
+              .from(AppConstants.tableDrivers)
+              .update(extendedPayload)
+              .eq('user_id', userId);
+        } catch (e) {
+          AppLogger.warning(
+            'drivers extended update failed, retrying base: $e',
+          );
+          await _client
+              .from(AppConstants.tableDrivers)
+              .update(basePayload)
+              .eq('user_id', userId);
+        }
+      }
+    } catch (e) {
+      AppLogger.error('saveDriverProfile drivers write failed: $e');
+      // Do not rethrow — onboarding screen should keep flowing.
     }
   }
 
