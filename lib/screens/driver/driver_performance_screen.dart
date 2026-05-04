@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/driver_intelligence_models.dart';
@@ -148,7 +148,8 @@ class DriverPerformanceScreen extends ConsumerWidget {
                             child: _RateCard(
                               label: 'Decline',
                               value: () {
-                                final total = stats.ordersAccepted + stats.ordersDeclined;
+                                final total =
+                                    stats.ordersAccepted + stats.ordersDeclined;
                                 return total > 0
                                     ? (stats.ordersDeclined / total) * 100
                                     : 0.0;

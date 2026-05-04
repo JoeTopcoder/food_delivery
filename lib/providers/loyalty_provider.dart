@@ -7,15 +7,17 @@ final loyaltyServiceProvider = Provider<LoyaltyService>((ref) {
   return LoyaltyService(Supabase.instance.client);
 });
 
-final loyaltyAccountProvider =
-    FutureProvider.family<LoyaltyAccount?, String>((ref, userId) {
+final loyaltyAccountProvider = FutureProvider.family<LoyaltyAccount?, String>((
+  ref,
+  userId,
+) {
   return ref.watch(loyaltyServiceProvider).getAccount(userId);
 });
 
 final loyaltyTransactionsProvider =
     FutureProvider.family<List<LoyaltyTransaction>, String>((ref, userId) {
-  return ref.watch(loyaltyServiceProvider).getTransactions(userId);
-});
+      return ref.watch(loyaltyServiceProvider).getTransactions(userId);
+    });
 
 /// How many points the user is choosing to redeem (0 = none)
 final redeemPointsProvider = StateProvider<int>((ref) => 0);

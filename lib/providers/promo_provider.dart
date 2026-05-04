@@ -21,5 +21,5 @@ class AppliedPromoNotifier extends StateNotifier<PromoCode?> {
 
 final appliedPromoProvider =
     StateNotifierProvider<AppliedPromoNotifier, PromoCode?>((ref) {
-  return AppliedPromoNotifier();
-});
+      return AppliedPromoNotifier();
+    });

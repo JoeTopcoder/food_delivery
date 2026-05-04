@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1322,10 +1322,7 @@ class _DeliverySettingsSheetState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: AppTheme.primaryColor,
-                  width: 2,
-                ),
+                borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
               ),
             ),
           ),

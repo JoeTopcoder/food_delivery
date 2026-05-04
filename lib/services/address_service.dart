@@ -76,11 +76,14 @@ class AddressService {
     double? latitude,
     double? longitude,
   }) async {
-    await _client.from('user_addresses').update({
-      'label': label,
-      'address': address,
-      'latitude': ?latitude,
-      'longitude': ?longitude,
-    }).eq('id', addressId);
+    await _client
+        .from('user_addresses')
+        .update({
+          'label': label,
+          'address': address,
+          'latitude': ?latitude,
+          'longitude': ?longitude,
+        })
+        .eq('id', addressId);
   }
 }
