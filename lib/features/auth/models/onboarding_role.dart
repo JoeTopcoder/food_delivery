@@ -13,7 +13,8 @@ extension OnboardingRoleX on OnboardingRole {
   }
 
   String get legacySafeRole {
-    if (this == OnboardingRole.customer) return 'user';
+    // Constraint allows ('customer','driver','restaurant','admin'); use
+    // the canonical dbRole value.
     return dbRole;
   }
 

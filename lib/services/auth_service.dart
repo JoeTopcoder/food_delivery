@@ -302,9 +302,10 @@ class AuthService {
     required String name,
     required String role,
   }) async {
-    // Map to role values allowed by the live CHECK constraint.
-    // Live schema: ('user','driver','restaurant','admin'). 'customer' maps to 'user'.
-    final safeRole = role == 'customer' ? 'user' : role;
+    // The CHECK constraint on users.role allows
+    // ('customer','driver','restaurant','admin'). Map any legacy 'user'
+    // value to 'customer' so signup never violates the constraint.
+    final safeRole = role == 'user' ? 'customer' : role;
     try {
       await _supabaseClient.from(AppConstants.tableUsers).upsert({
         'id': userId,
