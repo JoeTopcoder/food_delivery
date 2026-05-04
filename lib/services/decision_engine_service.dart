@@ -105,6 +105,37 @@ class PromoStat {
   );
 }
 
+/// Editable AI promotion configuration row (the cap admins control).
+class PromotionConfig {
+  final String id;
+  final String type; // 'discount' | 'free_delivery' | 'fixed'
+  final double value; // % when type=='discount', amount when 'fixed'
+  final double minOrder;
+  final String targetSegment;
+  final String? label;
+  final bool active;
+
+  const PromotionConfig({
+    required this.id,
+    required this.type,
+    required this.value,
+    required this.minOrder,
+    required this.targetSegment,
+    required this.active,
+    this.label,
+  });
+
+  factory PromotionConfig.fromJson(Map<String, dynamic> j) => PromotionConfig(
+    id: j['id'] as String,
+    type: j['type'] as String? ?? 'discount',
+    value: (j['value'] as num?)?.toDouble() ?? 0.0,
+    minOrder: (j['min_order'] as num?)?.toDouble() ?? 0.0,
+    targetSegment: j['target_segment'] as String? ?? '',
+    label: j['label'] as String?,
+    active: j['active'] as bool? ?? true,
+  );
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 class DecisionEngineService {
@@ -186,6 +217,49 @@ class DecisionEngineService {
       await _client.rpc('run_decision_engine');
     } catch (e) {
       AppLogger.error('[DecisionEngine] runDecisionEngine error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetch the current AI promotion configs (one row per segment) so the
+  /// admin can review and cap how generous the AI is allowed to be.
+  Future<List<PromotionConfig>> getPromotionConfigs() async {
+    try {
+      final data = await _client
+          .from('promotions')
+          .select('id, type, value, min_order, target_segment, label, active')
+          .order('target_segment');
+      return (data as List)
+          .map(
+            (e) =>
+                PromotionConfig.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+    } catch (e) {
+      AppLogger.error('[DecisionEngine] getPromotionConfigs error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update a single AI promotion config (value %, min order, active).
+  Future<void> updatePromotionConfig({
+    required String id,
+    double? value,
+    double? minOrder,
+    bool? active,
+    String? label,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        if (value != null) 'value': value,
+        if (minOrder != null) 'min_order': minOrder,
+        if (active != null) 'active': active,
+        if (label != null) 'label': label,
+      };
+      if (payload.isEmpty) return;
+      await _client.from('promotions').update(payload).eq('id', id);
+    } catch (e) {
+      AppLogger.error('[DecisionEngine] updatePromotionConfig error: $e');
       rethrow;
     }
   }

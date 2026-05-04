@@ -29,3 +29,8 @@ final promotionStatsProvider = FutureProvider.autoDispose<List<PromoStat>>((
 ) async {
   return ref.watch(decisionEngineServiceProvider).getPromotionStats();
 });
+
+final promotionConfigsProvider =
+    FutureProvider.autoDispose<List<PromotionConfig>>((ref) async {
+      return ref.watch(decisionEngineServiceProvider).getPromotionConfigs();
+    });
