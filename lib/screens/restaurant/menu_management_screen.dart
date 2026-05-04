@@ -57,7 +57,9 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
           );
         }
 
-        final menuAsync = ref.watch(restaurantMenuManagementProvider(restaurant.id));
+        final menuAsync = ref.watch(
+          restaurantMenuManagementProvider(restaurant.id),
+        );
 
         return Scaffold(
           appBar: AppBar(
@@ -65,8 +67,9 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: () =>
-                    ref.invalidate(restaurantMenuManagementProvider(restaurant.id)),
+                onPressed: () => ref.invalidate(
+                  restaurantMenuManagementProvider(restaurant.id),
+                ),
               ),
             ],
           ),
@@ -76,8 +79,9 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
             ),
             error: (error, _) => AppErrorState(
               message: friendlyError(error),
-              onRetry: () =>
-                  ref.invalidate(restaurantMenuManagementProvider(restaurant.id)),
+              onRetry: () => ref.invalidate(
+                restaurantMenuManagementProvider(restaurant.id),
+              ),
             ),
             data: (menuItems) {
               if (menuItems.isEmpty) {
@@ -241,7 +245,8 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       builder: (dialogContext) => _ManageSidesDialog(
         menuItem: item,
         menuService: ref.read(menuServiceProvider),
-        onChanged: () => ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
+        onChanged: () =>
+            ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
       ),
     );
   }
@@ -378,7 +383,8 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       builder: (dialogContext) => _ManageSidesDialog(
         menuItem: selected,
         menuService: ref.read(menuServiceProvider),
-        onChanged: () => ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
+        onChanged: () =>
+            ref.invalidate(restaurantMenuManagementProvider(restaurantId)),
         initialSideType: sideType,
       ),
     );
