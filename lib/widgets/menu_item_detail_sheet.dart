@@ -549,23 +549,27 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+          Flexible(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Text(
             isRequired ? '(Required)' : '(Optional)',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               color: isRequired
                   ? const Color(0xFFB44D4D)
                   : AppTheme.textSecondary,
-              fontWeight: isRequired ? FontWeight.w500 : FontWeight.w400,
+              fontWeight: isRequired ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ],
@@ -585,39 +589,47 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Dark square bullet (7krave style)
             Container(
-              width: 18,
-              height: 18,
+              width: 16,
+              height: 16,
               decoration: BoxDecoration(
                 color: const Color(0xFF333333),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 name,
-                style: TextStyle(fontSize: 15, color: AppTheme.textPrimary),
-              ),
-            ),
-            if (showPrice)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Text(
-                  '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.25,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
                 ),
               ),
+            ),
+            if (showPrice && price > 0) ...[
+              const SizedBox(width: 8),
+              Text(
+                '+${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+            const SizedBox(width: 10),
             // Selection circle
             Container(
-              width: 24,
-              height: 24,
+              width: 22,
+              height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -627,7 +639,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 color: isSelected ? AppTheme.primaryColor : Colors.transparent,
               ),
               child: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
                   : null,
             ),
           ],
