@@ -81,7 +81,7 @@ Deno.serve(async (request) => {
     const { data: restaurants, error: rErr } = await admin
       .from("restaurants")
       .select(
-        "id, name, image_url, rating, review_count, delivery_fee, estimated_delivery_time, is_currently_open, is_active, opening_hours, latitude, longitude, address",
+        "id, name, image_url, rating, review_count, delivery_fee, estimated_delivery_time, is_open, is_active, operating_hours, opening_time, closing_time, latitude, longitude, address",
       )
       .eq("is_active", true);
     if (rErr) {
@@ -124,7 +124,7 @@ Deno.serve(async (request) => {
           rating: r.rating ?? null,
           delivery_fee: r.delivery_fee ?? null,
           estimated_delivery_time: r.estimated_delivery_time ?? null,
-          is_currently_open: r.is_currently_open ?? false,
+          is_currently_open: computeIsCurrentlyOpen(r),
           address: r.address ?? null,
         },
       };
@@ -135,3 +135,52 @@ Deno.serve(async (request) => {
     return json({ error: "Unexpected error", details: String(e) }, 500);
   }
 });
+
+/// Returns true when the restaurant is currently accepting orders, derived
+/// from the manual [is_open] flag and the [operating_hours] JSON. Mirrors
+/// the Restaurant.isCurrentlyOpen getter on the client (Eastern Time).
+function computeIsCurrentlyOpen(r: Record<string, unknown>): boolean {
+  const isOpen = r.is_open !== false; // default true if missing
+  if (!isOpen) return false;
+
+  // Eastern Time (UTC-5, no DST handling — matches client EstDateTime)
+  const now = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const days = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  const dayName = days[now.getUTCDay()];
+  const minutesNow = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+  const hours = r.operating_hours as Record<string, unknown> | null | undefined;
+  const today = hours?.[dayName] as Record<string, unknown> | undefined;
+
+  let open: string | undefined;
+  let close: string | undefined;
+  if (today && typeof today === "object") {
+    if (today.is_open === false) return false;
+    open = today.open as string | undefined;
+    close = today.close as string | undefined;
+  }
+  // Legacy fallback columns
+  open ??= r.opening_time as string | undefined;
+  close ??= r.closing_time as string | undefined;
+  if (!open || !close) return true; // no schedule, manual flag is true
+
+  const toMin = (s: string) => {
+    const [h, m] = s.split(":").map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  const o = toMin(open);
+  const c = toMin(close);
+  if (Number.isNaN(o) || Number.isNaN(c)) return true;
+  if (o === c) return true; // 24h
+  if (o < c) return minutesNow >= o && minutesNow < c;
+  // Overnight (e.g. 18:00 - 02:00)
+  return minutesNow >= o || minutesNow < c;
+}
