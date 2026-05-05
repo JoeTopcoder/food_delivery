@@ -232,7 +232,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       children: [
                         if (item.discount != null && item.discount! > 0) ...[
                           Text(
-                            '${AppConstants.currencySymbol}${item.price.toStringAsFixed(0)}',
+                            '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[700],
@@ -242,7 +242,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           const SizedBox(width: 8),
                         ],
                         Text(
-                          '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(0)}',
+                          '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -490,7 +490,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                               ),
                             ),
                             Text(
-                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(0)}',
+                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -617,7 +617,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
             if (showPrice && price > 0) ...[
               const SizedBox(width: 8),
               Text(
-                '+${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
+                '+${AppConstants.currencySymbol}${price.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
