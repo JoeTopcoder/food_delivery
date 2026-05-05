@@ -34,20 +34,9 @@ final isPeakHourProvider = StreamProvider<bool>((ref) {
 });
 
 // Fallback categories used when the DB hasn't loaded yet or returns empty.
-const _fallbackCategories = <Map<String, String>>[
-  {'emoji': '🍳', 'name': 'Breakfast'},
-  {'emoji': '🍔', 'name': 'Fast Food'},
-  {'emoji': '🍕', 'name': 'Pizza'},
-  {'emoji': '🍗', 'name': 'Chicken'},
-  {'emoji': '🌮', 'name': 'Mexican'},
-  {'emoji': '🍜', 'name': 'Chinese'},
-  {'emoji': '🍣', 'name': 'Sushi'},
-  {'emoji': '🥗', 'name': 'Healthy'},
-  {'emoji': '🍰', 'name': 'Dessert'},
-  {'emoji': '☕', 'name': 'Coffee'},
-  {'emoji': '🧋', 'name': 'Drinks'},
-  {'emoji': '🌱', 'name': 'Vegan'},
-];
+// Sourced from [AppConstants.homeFoodCategories] so the restaurant menu
+// dialog and the customer home stay in sync.
+const _fallbackCategories = AppConstants.homeFoodCategories;
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
   const CustomerHomeScreen({super.key});
