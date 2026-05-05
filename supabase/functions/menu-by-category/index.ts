@@ -100,7 +100,7 @@ Deno.serve(async (request) => {
     const { data: items, error: mErr } = await admin
       .from("menus")
       .select(
-        "id, restaurant_id, name, description, price, image_url, category, is_available, discount, rating, review_count, preparation_time, tags, calories, is_vegetarian, is_vegan, contains_nuts, contains_gluten, spice_level",
+        "id, restaurant_id, name, description, price, image_url, category, is_available, discount, rating, review_count, preparation_time, tags, calories, is_vegetarian, is_vegan, contains_nuts, contains_gluten, spice_level, unit, brand, weight, in_stock, max_quantity, product_type, created_at, updated_at",
       )
       .ilike("category", category)
       .eq("is_available", true)
