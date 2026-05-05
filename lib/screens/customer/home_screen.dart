@@ -22,6 +22,7 @@ import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
+import 'meals_by_category_screen.dart';
 
 /// Emits the current peak-hour status every 30 seconds so the UI updates
 /// in real time when a peak window starts or ends.
@@ -778,10 +779,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                                   .read(realtimeBoostProvider.notifier)
                                   .recordInteraction(cat['name']!);
                             }
-                            Navigator.pushNamed(
+                            Navigator.push(
                               context,
-                              '/all-restaurants',
-                              arguments: cat['name'],
+                              MaterialPageRoute(
+                                builder: (_) => MealsByCategoryScreen(
+                                  categoryName: cat['name']!,
+                                  categoryEmoji: cat['emoji'],
+                                ),
+                              ),
                             );
                           },
                           child: SizedBox(
