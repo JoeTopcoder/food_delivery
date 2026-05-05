@@ -652,15 +652,24 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                if (widget.existingCategories.isNotEmpty && !_isNewCategory)
+                if (!_isNewCategory)
                   DropdownButtonFormField<String>(
                     initialValue: _selectedCategory,
                     decoration: const InputDecoration(
                       labelText: 'Category',
                       prefixIcon: Icon(Icons.category),
+                      helperText:
+                          'Pick a standard category so customers find this dish on the home screen.',
+                      helperMaxLines: 2,
                     ),
                     items: [
-                      ...widget.existingCategories.map(
+                      // Merge restaurant's existing categories with the
+                      // canonical home-screen categories so meals get tagged
+                      // with names customers can browse to.
+                      ...{
+                        ...widget.existingCategories,
+                        ...AppConstants.homeFoodCategoryNames,
+                      }.map(
                         (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
                       ),
                       const DropdownMenuItem(
@@ -696,8 +705,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                             prefixIcon: Icon(Icons.category),
                           ),
                           validator: (value) {
-                            if (_isNewCategory ||
-                                widget.existingCategories.isEmpty) {
+                            if (_isNewCategory) {
                               if (value?.isEmpty ?? true) {
                                 return 'Please enter category';
                               }
@@ -706,17 +714,16 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                           },
                         ),
                       ),
-                      if (widget.existingCategories.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          tooltip: 'Pick existing category',
-                          onPressed: () {
-                            setState(() {
-                              _isNewCategory = false;
-                              _categoryController.clear();
-                            });
-                          },
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: 'Pick existing category',
+                        onPressed: () {
+                          setState(() {
+                            _isNewCategory = false;
+                            _categoryController.clear();
+                          });
+                        },
+                      ),
                     ],
                   ),
                 const SizedBox(height: 12),

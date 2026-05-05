@@ -192,4 +192,26 @@
 
   // System
   static int orderAssignmentCutoffMinutes = 30;
+
+  /// Canonical food categories surfaced on the customer home screen.
+  /// Restaurants should tag their menu items with one of these names so they
+  /// appear when a customer taps the matching category chip.
+  static const List<Map<String, String>> homeFoodCategories = [
+    {'emoji': '🍳', 'name': 'Breakfast'},
+    {'emoji': '🍔', 'name': 'Fast Food'},
+    {'emoji': '🍕', 'name': 'Pizza'},
+    {'emoji': '🍗', 'name': 'Chicken'},
+    {'emoji': '🌮', 'name': 'Mexican'},
+    {'emoji': '🍜', 'name': 'Chinese'},
+    {'emoji': '🍣', 'name': 'Sushi'},
+    {'emoji': '🥗', 'name': 'Healthy'},
+    {'emoji': '🍰', 'name': 'Dessert'},
+    {'emoji': '☕', 'name': 'Coffee'},
+    {'emoji': '🧋', 'name': 'Drinks'},
+    {'emoji': '🌱', 'name': 'Vegan'},
+  ];
+
+  /// Just the names from [homeFoodCategories].
+  static List<String> get homeFoodCategoryNames =>
+      homeFoodCategories.map((c) => c['name']!).toList();
 }
