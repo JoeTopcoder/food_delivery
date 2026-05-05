@@ -7,6 +7,7 @@ import '../models/menu_model.dart';
 import '../models/order_model.dart';
 import '../services/restaurant_service.dart';
 import '../services/menu_service.dart';
+import '../services/menu_category_service.dart';
 import '../services/order_service.dart';
 import '../services/order_calculation_service.dart';
 import '../services/notification_service.dart';
@@ -21,6 +22,19 @@ final restaurantServiceProvider = Provider<RestaurantService>((ref) {
 final menuServiceProvider = Provider<MenuService>((ref) {
   return MenuService(SupabaseConfig.client);
 });
+
+final menuCategoryServiceProvider = Provider<MenuCategoryService>((ref) {
+  return MenuCategoryService(SupabaseConfig.client);
+});
+
+// Meals across open restaurants for a specific category, fetched via the
+// `menu-by-category` Supabase edge function.
+final mealsByCategoryProvider = FutureProvider.family
+    .autoDispose<List<MenuItemWithRestaurant>, String>((ref, category) async {
+      ref.keepAlive();
+      final service = ref.watch(menuCategoryServiceProvider);
+      return service.getMealsByCategory(category);
+    });
 
 final orderServiceProvider = Provider<OrderService>((ref) {
   return OrderService(SupabaseConfig.client);
