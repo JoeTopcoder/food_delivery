@@ -77,13 +77,12 @@ Deno.serve(async (request) => {
   const limit = Math.min(readNumber(body, url, "limit") ?? 100, 200);
 
   try {
-    // Restaurant table is small; fetch open & active ones once, then filter in memory.
+    // Restaurant table is small; fetch them once, then filter in memory.
     const { data: restaurants, error: rErr } = await admin
       .from("restaurants")
       .select(
-        "id, name, image_url, rating, review_count, delivery_fee, estimated_delivery_time, is_open, is_active, operating_hours, opening_time, closing_time, latitude, longitude, address",
-      )
-      .eq("is_active", true);
+        "id, name, image_url, rating, review_count, delivery_fee, estimated_delivery_time, is_open, operating_hours, opening_time, closing_time, latitude, longitude, address",
+      );
     if (rErr) {
       return json({ error: "Failed to fetch restaurants", details: rErr.message }, 500);
     }
