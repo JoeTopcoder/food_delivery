@@ -1334,6 +1334,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
         ref.invalidate(loyaltyAccountProvider(userId));
       }
       ref.invalidate(brainEngineProvider);
+      ref.invalidate(activeCouponsProvider);
       // Ensure the new order shows in order history immediately
       ref.invalidate(userOrdersProvider(userId));
 
