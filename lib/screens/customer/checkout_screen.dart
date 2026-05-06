@@ -1844,6 +1844,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           // Invalidate providers so UI refreshes with latest data
           if (userId.isNotEmpty) ref.invalidate(loyaltyAccountProvider(userId));
           ref.invalidate(brainEngineProvider);
+          ref.invalidate(activeCouponsProvider);
           ref.invalidate(userOrdersProvider(userId));
           ref
               .read(behaviorTrackingProvider)
