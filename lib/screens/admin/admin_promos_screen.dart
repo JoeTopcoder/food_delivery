@@ -7,6 +7,7 @@ import '../../providers/promo_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import 'admin_broadcast_sheet.dart';
 
 class AdminPromosScreen extends ConsumerWidget {
   const AdminPromosScreen({super.key});
@@ -25,6 +26,16 @@ class AdminPromosScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Broadcast to customers',
+            icon: const Icon(Icons.campaign_rounded),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const AdminBroadcastSheet(),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.invalidate(allPromosProvider),
