@@ -15,6 +15,22 @@ class SmartOfferBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Apology coupons (code starts with SORRY) take priority and override
+    // every other offer banner — the user just had a bad experience.
+    final activeCouponsAsync = ref.watch(activeCouponsProvider);
+    final apology = activeCouponsAsync.maybeWhen(
+      data: (list) {
+        for (final c in list) {
+          if (c.code.toUpperCase().startsWith('SORRY')) return c;
+        }
+        return null;
+      },
+      orElse: () => null,
+    );
+    if (apology != null) {
+      return _ApologyCouponBanner(coupon: apology);
+    }
+
     // Banner is now just a thin reminder strip — main offer is in popup
     final brainAsync = ref.watch(brainEngineProvider);
 
@@ -788,6 +804,189 @@ class GrocerySmartSections extends ConsumerWidget {
       },
       loading: () => const _SmartSectionsLoading(),
       error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+// Apology Coupon Banner — overrides every other home offer when
+// the user just had a bad experience (low review or cancellation).
+// ════════════════════════════════════════════════════════════════
+
+class _ApologyCouponBanner extends StatelessWidget {
+  const _ApologyCouponBanner({required this.coupon});
+
+  final SmartCoupon coupon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: coupon.code));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code ${coupon.code} copied — apply at checkout'),
+            backgroundColor: const Color(0xFFB91C1C),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        showCouponPopup(context, coupon, 'apology');
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFB91C1C), Color(0xFFEF4444)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB91C1C).withValues(alpha: 0.25),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.favorite_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "We're sorry — here's a gift",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${coupon.discountPercent}% OFF your next order — code ${coupon.code}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// Apology Coupon Banner — overrides every other home offer when
+// the user just had a bad experience (low review or cancellation).
+// ════════════════════════════════════════════════════════════════
+
+class _ApologyCouponBanner extends StatelessWidget {
+  const _ApologyCouponBanner({required this.coupon});
+
+  final SmartCoupon coupon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: coupon.code));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code ${coupon.code} copied — apply at checkout'),
+            backgroundColor: const Color(0xFFB91C1C),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        showCouponPopup(context, coupon, 'apology');
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFB91C1C), Color(0xFFEF4444)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB91C1C).withValues(alpha: 0.25),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.favorite_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "We're sorry — here's a gift",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${coupon.discountPercent}% OFF your next order — code ${coupon.code}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
