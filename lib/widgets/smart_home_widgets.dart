@@ -808,7 +808,6 @@ class GrocerySmartSections extends ConsumerWidget {
   }
 }
 
-
 // ════════════════════════════════════════════════════════════════
 // Apology Coupon Banner — overrides every other home offer when
 // the user just had a bad experience (low review or cancellation).
