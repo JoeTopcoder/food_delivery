@@ -70,14 +70,47 @@ final userIntelligenceProvider =
       return ref.watch(recommendationServiceProvider).getProfile(userId);
     });
 
-// ── Active Coupons ─────────────────────────────────────────────
+// ── Active Coupons (real-time) ─────────────────────────────────
+//
+// Subscribes to `user_coupons` for the current user via Supabase realtime
+// so banners (apology, AI offers) update instantly when a coupon is issued
+// or marked is_used by the order trigger.
 
-final activeCouponsProvider = FutureProvider.autoDispose<List<SmartCoupon>>((
+final activeCouponsProvider = StreamProvider.autoDispose<List<SmartCoupon>>((
   ref,
-) async {
+) {
   final userId = ref.watch(currentUserIdProvider);
-  if (userId == null) return [];
-  return ref.watch(recommendationServiceProvider).getActiveCoupons(userId);
+  if (userId == null) return Stream.value(<SmartCoupon>[]);
+
+  final client = SupabaseConfig.client;
+  return client
+      .from('user_coupons')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', userId)
+      .order('created_at', ascending: false)
+      .map((rows) {
+        final now = DateTime.now().toUtc();
+        return rows
+            .where((r) {
+              if (r['is_used'] == true) return false;
+              final exp = r['expires_at'];
+              if (exp is String) {
+                final dt = DateTime.tryParse(exp);
+                if (dt != null && dt.toUtc().isBefore(now)) return false;
+              }
+              return true;
+            })
+            .map(
+              (r) => SmartCoupon(
+                id: r['id'] as String?,
+                code: r['code'] as String? ?? '',
+                discountPercent: (r['discount_percent'] as num?)?.toInt() ?? 0,
+                minOrder: (r['min_order'] as num?)?.toDouble() ?? 0,
+                reason: r['reason'] as String? ?? '',
+              ),
+            )
+            .toList();
+      });
 });
 
 // ── Real-Time Adaptation State ─────────────────────────────────
