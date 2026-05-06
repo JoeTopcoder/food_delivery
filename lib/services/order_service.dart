@@ -34,6 +34,7 @@ class OrderService {
     double? pickupFee,
     bool fromAd = false,
     String? adId,
+    String? promoCode,
   }) async {
     try {
       AppLogger.info('Creating order via Edge Function for user: $userId');
@@ -85,6 +86,9 @@ class OrderService {
       if (isPickup && pickupFee != null) body['pickup_fee'] = pickupFee;
       if (fromAd) body['from_ad'] = true;
       if (adId != null) body['ad_id'] = adId;
+      if (promoCode != null && promoCode.trim().isNotEmpty) {
+        body['promo_code'] = promoCode.trim().toUpperCase();
+      }
 
       // Supabase client throws FunctionException for non-2xx — catch JWT
       // errors, refresh the session, and retry once.

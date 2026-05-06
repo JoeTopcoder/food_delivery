@@ -1640,6 +1640,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         pickupFee: pickupFee,
         fromAd: isFromAd,
         adId: isFromAd ? activeAd.id : null,
+        promoCode: appliedPromo?.code,
       );
 
       // Clear active ad after order placed

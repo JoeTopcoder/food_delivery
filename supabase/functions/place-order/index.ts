@@ -93,6 +93,7 @@ Deno.serve(async (request) => {
   const pickupFee = body.pickup_fee as number | undefined;
   const fromAd = body.from_ad === true;
   const adId = body.ad_id as string | undefined;
+  const promoCode = body.promo_code as string | undefined;
 
   if (!userId || !restaurantId || !items?.length || !deliveryAddress) {
     return json({ error: "Missing required fields" }, 400);
@@ -178,6 +179,10 @@ Deno.serve(async (request) => {
     if (isPickup && pickupFee) orderData.pickup_fee = pickupFee;
     if (fromAd) orderData.from_ad = true;
     if (adId) orderData.ad_id = adId;
+    if (promoCode && promoCode.trim().length > 0) {
+      orderData.promo_code = promoCode.trim().toUpperCase();
+      if (discount > 0) orderData.discount_amount = discount;
+    }
 
     const { data: order, error: orderErr } = await admin
       .from("orders")
