@@ -13,7 +13,8 @@ class AdminBroadcastSheet extends ConsumerStatefulWidget {
   const AdminBroadcastSheet({super.key});
 
   @override
-  ConsumerState<AdminBroadcastSheet> createState() => _AdminBroadcastSheetState();
+  ConsumerState<AdminBroadcastSheet> createState() =>
+      _AdminBroadcastSheetState();
 }
 
 class _AdminBroadcastSheetState extends ConsumerState<AdminBroadcastSheet> {
@@ -60,8 +61,10 @@ class _AdminBroadcastSheetState extends ConsumerState<AdminBroadcastSheet> {
       final code = _promoCodeController.text.trim();
       if (code.isNotEmpty) body['promo_code'] = code;
 
-      final resp = await SupabaseConfig.client.functions
-          .invoke('admin-broadcast', body: body);
+      final resp = await SupabaseConfig.client.functions.invoke(
+        'admin-broadcast',
+        body: body,
+      );
       final data = resp.data is Map
           ? resp.data as Map<String, dynamic>
           : <String, dynamic>{};
@@ -173,8 +176,12 @@ class _AdminBroadcastSheetState extends ConsumerState<AdminBroadcastSheet> {
                     prefixIcon: Icon(Icons.group_rounded),
                   ),
                   items: _targets.entries
-                      .map((e) =>
-                          DropdownMenuItem(value: e.key, child: Text(e.value)))
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e.key,
+                          child: Text(e.value),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setState(() => _target = v ?? 'all'),
                 ),

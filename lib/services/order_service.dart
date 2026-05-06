@@ -414,6 +414,7 @@ class OrderService {
     try {
       AppLogger.info('Adding review for order: $orderId');
 
+      // 1) Mirror onto the order row (legacy/in-app display).
       await _supabaseClient
           .from(AppConstants.tableOrders)
           .update({
@@ -426,6 +427,36 @@ class OrderService {
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', orderId);
+
+      // 2) Canonical insert into `reviews` so analytics, restaurant
+      //    rating aggregates, and the apology-coupon brain trigger fire.
+      try {
+        final order = await _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('user_id, restaurant_id, driver_id')
+            .eq('id', orderId)
+            .maybeSingle();
+
+        if (order != null &&
+            order['user_id'] != null &&
+            order['restaurant_id'] != null) {
+          await _supabaseClient.from(AppConstants.tableReviews).upsert({
+            'order_id': orderId,
+            'user_id': order['user_id'],
+            'restaurant_id': order['restaurant_id'],
+            'driver_id': order['driver_id'],
+            'rating': rating,
+            if (foodRating != null) 'food_quality': foodRating,
+            if (deliveryRating != null) 'delivery_speed': deliveryRating,
+            'review_text': review,
+            'photo_url': photoUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'order_id');
+        }
+      } catch (e) {
+        // Non-fatal: order row already saved with the rating.
+        AppLogger.warning('Failed to mirror review into reviews table: $e');
+      }
 
       AppLogger.info('Review added successfully');
     } catch (e) {
