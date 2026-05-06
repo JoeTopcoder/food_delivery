@@ -818,12 +818,6 @@ class _ApologyCouponBanner extends ConsumerWidget {
 
   final SmartCoupon coupon;
 
-  Future<void> _markUsedAndRefresh(WidgetRef ref) async {
-    if (coupon.id == null) return;
-    await ref.read(recommendationServiceProvider).redeemCoupon(coupon.id!);
-    ref.invalidate(activeCouponsProvider);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
@@ -893,18 +887,10 @@ class _ApologyCouponBanner extends ConsumerWidget {
                 ],
               ),
             ),
-            // Dismiss button — marks coupon used so the banner clears even
-            // if the order trigger didn't fire (e.g. customer used the code
-            // outside checkout, or just wants to hide it).
-            InkWell(
-              onTap: () async {
-                await _markUsedAndRefresh(ref);
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.close_rounded, color: Colors.white, size: 18),
-              ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 14,
             ),
           ],
         ),
