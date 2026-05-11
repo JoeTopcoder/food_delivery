@@ -647,6 +647,12 @@ Deno.serve(async (request) => {
         return json({ error: err.message ?? "Verification charge failed" }, 400);
       }
 
+      // Retrieve payment method details for the saved card.
+      const paymentMethod = await stripeGet(`/payment_methods/${paymentMethodId}`);
+      const card = paymentMethod.card as Record<string, unknown> | undefined;
+      const returnedBrand = String(card?.brand ?? cardBrand).toLowerCase();
+      const returnedLast4 = String(card?.last4 ?? lastFour);
+
       // Record in card_verifications table
       await adminClient.from("card_verifications").insert({
         id: pi.id as string,
@@ -654,8 +660,8 @@ Deno.serve(async (request) => {
         amount: verifyAmount,
         transaction_id: pi.id as string,
         status: "completed",
-        card_last4: lastFour,
-        card_brand: cardBrand,
+        card_last4: returnedLast4,
+        card_brand: returnedBrand,
         cardholder_name: cardholderName,
         email: email,
         phone: phone,
@@ -665,6 +671,9 @@ Deno.serve(async (request) => {
         success: true,
         verificationId: pi.id,
         paymentMethodId,
+        cardBrand: returnedBrand,
+        lastFour: returnedLast4,
+        stripeCustomerId: customerId,
       });
     } catch (e) {
       return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
