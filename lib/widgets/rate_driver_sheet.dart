@@ -269,30 +269,17 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
         final email = authUser?.email ?? '';
         final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
-        final session = await paymentService.createStripeCheckout(
+        // Close the bottom sheet before presenting Stripe Payment Sheet
+        Navigator.of(context).pop();
+
+        final result = await paymentService.presentStripePaymentSheet(
           orderId: widget.order.id,
           amount: _tipAmount,
           customerEmail: email,
           customerName: name,
         );
 
-        if (!mounted) return;
-
-        // Close the bottom sheet before presenting Stripe Payment Sheet
-        Navigator.of(context).pop();
-
-        final paymentCompleted = await paymentService.presentStripePaymentSheet(
-          session: session,
-          customerEmail: email,
-          customerName: name,
-        );
-
-        if (paymentCompleted) {
-          // Confirm server-side
-          await paymentService.confirmStripePayment(
-            paymentIntentId: session.paymentIntentId,
-            orderId: widget.order.id,
-          );
+        if (result != null) {
           // Record tip in order after successful payment
           await orderService.tipDriver(
             orderId: widget.order.id,
@@ -301,7 +288,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
         }
 
         if (mounted) {
-          if (paymentCompleted) {
+          if (result != null) {
             AppSnackbar.success(
               context,
               'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent',

@@ -348,15 +348,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (!mounted) return;
 
       // 2. Present Stripe Payment Sheet
-      final paymentCompleted = await paymentService.presentStripePaymentSheet(
-        session: session,
+      final result = await paymentService.presentStripePaymentSheet(
+        orderId: topupId,
+        amount: amount,
         customerEmail: email,
         customerName: name,
       );
 
       if (!mounted) return;
 
-      if (!paymentCompleted) {
+      if (result == null) {
         AppSnackbar.warning(context, 'Wallet top-up cancelled');
         return;
       }
@@ -1090,7 +1091,9 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Enter the exact amount charged to verify:',
+                      'A small charge (under \$1) was sent to this card. '
+                      'Check your online banking for the exact amount, then '
+                      'enter it below to verify:',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

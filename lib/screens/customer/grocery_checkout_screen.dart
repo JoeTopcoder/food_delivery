@@ -18,7 +18,6 @@ import '../../providers/grocery_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/recommendation_provider.dart';
-import '../../services/payment_service.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -1243,31 +1242,22 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
 
       // ── Card payment (total across all orders) ──────────────────────
       if (_selectedPayment == 'card') {
-        StripePaymentSession stripeSession;
         try {
           final authUser = Supabase.instance.client.auth.currentUser;
           final email = authUser?.email ?? '';
           final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
-          stripeSession = await paymentService.createStripeCheckout(
-            orderId: orderIds.first,
-            amount: runningTotal,
-            customerEmail: email,
-            customerName: name,
-          );
-
-          if (!mounted) return;
-
           final paymentCompleted = await paymentService
               .presentStripePaymentSheet(
-                session: stripeSession,
+                orderId: orderIds.first,
+                amount: runningTotal,
                 customerEmail: email,
                 customerName: name,
               );
 
           if (!mounted) return;
 
-          if (!paymentCompleted) {
+          if (paymentCompleted == null) {
             for (final oid in orderIds) {
               await _deleteOrder(oid);
             }
@@ -1275,11 +1265,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
             return;
           }
 
-          // Confirm server-side
-          await paymentService.confirmStripePayment(
-            paymentIntentId: stripeSession.paymentIntentId,
-            orderId: orderIds.first,
-          );
+          // Payment already confirmed server-side by Stripe
         } catch (e) {
           for (final oid in orderIds) {
             await _deleteOrder(oid);

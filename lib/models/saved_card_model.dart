@@ -85,6 +85,17 @@ class SavedCard {
         return 'MC';
       case 'keycard':
         return 'KEYCARD';
+      case 'amex':
+      case 'american_express':
+        return 'AMEX';
+      case 'discover':
+        return 'DISCOVER';
+      case 'lunipay':
+      case '':
+      case 'card':
+      case 'unknown':
+        // Don't expose the processor name to the cardholder.
+        return 'CARD';
       default:
         return cardBrand.toUpperCase();
     }

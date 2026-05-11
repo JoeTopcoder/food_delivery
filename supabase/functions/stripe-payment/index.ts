@@ -1,6 +1,8 @@
 // Stripe Payment Edge Function
 // Creates PaymentIntents for orders, wallet top-ups, and card verification
 // SECURITY: Stripe secret key is stored as a Supabase secret, never exposed to client
+// Deploy with --no-verify-jwt so this function can decode legacy/RS256 JWTs itself.
+//   supabase functions deploy stripe-payment --no-verify-jwt --project-ref yharweliruemjexmuuxn
 
 // deno-lint-ignore-file
 declare const Deno: {
@@ -20,7 +22,11 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const STRIPE_SECRET_KEY =
+  Deno.env.get("STRIPE_SECRET_KEY") ||
+  Deno.env.get("STRIPE_SK") ||
+  Deno.env.get("STRIPE_API_KEY") ||
+  "";
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -119,7 +125,10 @@ Deno.serve(async (request) => {
 
   if (!STRIPE_SECRET_KEY) {
     return json(
-      { error: "Stripe is not configured. Set STRIPE_SECRET_KEY." },
+      {
+        error:
+          "Stripe is not configured. Set STRIPE_SECRET_KEY (or STRIPE_SK / STRIPE_API_KEY) with a valid Stripe secret key.",
+      },
       500
     );
   }

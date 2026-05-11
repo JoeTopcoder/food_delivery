@@ -1122,7 +1122,8 @@ class _QuickActionState extends State<_QuickAction> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        transform: Matrix4.identity()..translate(0.0, _hover ? -3.0 : 0.0),
+        transform: Matrix4.identity()
+          ..translateByDouble(0.0, _hover ? -3.0 : 0.0, 0.0, 1.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           boxShadow: [

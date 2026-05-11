@@ -141,7 +141,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final userId = ref.watch(currentUserIdProvider) ?? '';
     final role = ref.watch(currentUserProvider)?.role ?? 'user';
-    final isCustomer = role == 'customer' || role == 'user';
     final msgsAsync = ref.watch(chatMessagesProvider(widget.orderId));
 
     // Auto-scroll to bottom when new messages arrive

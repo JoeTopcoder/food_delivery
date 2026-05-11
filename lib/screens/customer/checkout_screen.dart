@@ -22,7 +22,6 @@ import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../providers/wallet_provider.dart';
 import 'order_success_screen.dart';
-import '../../utils/est_datetime.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
@@ -142,23 +141,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final restaurantId = cart.isNotEmpty
         ? cart.first.menuItem.restaurantId
         : null;
+
+    // Watch restaurant data - critical for checkout
     final restaurantAsync = restaurantId != null
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
+
+    // Show loading spinner while critical data loads
+    if (restaurantAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final restaurant = restaurantAsync.valueOrNull;
 
     final appliedPromo = ref.watch(appliedPromoProvider);
     final redeemPoints = currentUserId != null
         ? ref.watch(redeemPointsProvider)
         : 0;
+
+    // Watch loyalty data - non-critical, show loading state inline
     final loyaltyAsync = currentUserId != null
         ? ref.watch(loyaltyAccountProvider(currentUserId))
         : null;
+
     final selectedAddress = ref.watch(selectedAddressProvider);
+
+    // Watch addresses - non-critical, use valueOrNull for instant render
     final addressAsync = currentUserId != null
         ? ref.watch(userAddressesProvider(currentUserId))
         : null;
 
+    // Watch saved cards - non-critical, use valueOrNull for instant render
     final savedCardsAsync = currentUserId != null
         ? ref.watch(savedCardsProvider(currentUserId))
         : null;
@@ -536,10 +549,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       const SizedBox(height: 8),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
-                        label: 'Credit / Debit Card',
-                        subtitle: 'Visa, Mastercard, KeyCard accepted',
-                        selected: _selectedPayment == 'card',
-                        onTap: () => setState(() => _selectedPayment = 'card'),
+                        label: 'Pay with Stripe',
+                        subtitle: 'Visa, Mastercard, and more',
+                        selected: _selectedPayment == 'stripe',
+                        onTap: () =>
+                            setState(() => _selectedPayment = 'stripe'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -549,7 +563,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ],
                         ),
                       ),
-                      if (_selectedPayment == 'card') ...[
+                      if (_selectedPayment == 'stripe') ...[
                         const SizedBox(height: 12),
                         // ── Saved Cards (verified only) ──
                         if (savedCardsAsync != null)
@@ -672,159 +686,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               );
                             },
                           ),
-                        // CVC field when a saved card is selected
-                        if (_selectedSavedCard != null) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF111827), Color(0xFF1F2937)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF111827,
-                                  ).withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.lock_rounded,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'Paying with ${_selectedSavedCard!.displayBrand} •••• ${_selectedSavedCard!.lastFour}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  'Enter your CVC to confirm payment',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.6),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: 120,
-                                  child: TextField(
-                                    controller: _cvcCtrl,
-                                    keyboardType: TextInputType.number,
-                                    maxLength: 4,
-                                    obscureText: true,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 6,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: '•••',
-                                      hintStyle: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                        letterSpacing: 6,
-                                      ),
-                                      counterText: '',
-                                      filled: true,
-                                      fillColor: Colors.white.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 12,
-                                          ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.15,
-                                          ),
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                          color: AppTheme.primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF10B981,
-                                    ).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF10B981,
-                                      ).withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.shield_outlined,
-                                        color: const Color(0xFF10B981),
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Your CVC is never stored and is used only for this transaction',
-                                          style: TextStyle(
-                                            color: const Color(0xFF10B981),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        // (CVC entry removed — the user enters card details
+                        // on the secure Lunipay "Pay with Card" page after
+                        // tapping Pay Now.)
                       ],
                     ],
                   ),
@@ -1379,7 +1243,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                 )
                               : Text(
-                                  '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$${total.toStringAsFixed(2)}',
+                                  () {
+                                    final amt = total.toStringAsFixed(2);
+                                    if (_selectedPayment == 'card' &&
+                                        _selectedSavedCard != null) {
+                                      return 'Pay Now \u2014 \$$amt';
+                                    }
+                                    return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$$amt';
+                                  }(),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -1399,7 +1270,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _pickSchedule({Restaurant? restaurant}) async {
-    final now = EstDateTime.now();
+    final now = DateTime.now();
     final isClosed = restaurant != null && !restaurant.isCurrentlyOpen;
     final earliest = isClosed
         ? restaurant.nextSchedulableTime ?? now.add(const Duration(hours: 1))
@@ -1612,7 +1483,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       // Order must exist first so the edge function can validate the orderId.
       // Flow: create order (pending) → Stripe sheet → confirm → done.
       // On cancel/failure the pending order is deleted.
-      String? stripePaymentIntentId;
 
       // ── Create the order in the DB ────────────────────────────────────────
       final order = await orderService.createOrder(
@@ -1676,75 +1546,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
       }
 
-      // ── Card: present Stripe sheet using real order ID ────────────────────
-      if (_selectedPayment == 'card') {
-        final authUser = Supabase.instance.client.auth.currentUser;
-        final email = _selectedSavedCard?.email.isNotEmpty == true
-            ? _selectedSavedCard!.email
-            : (authUser?.email ?? _paymentEmailCtrl.text.trim());
-        final name = _selectedSavedCard?.cardholderName.isNotEmpty == true
-            ? _selectedSavedCard!.cardholderName
-            : (authUser?.userMetadata?['name'] as String? ?? 'Customer');
+      // ── Stripe: use Stripe Payment Sheet ──────────────────────────────────
+      if (_selectedPayment == 'stripe') {
+        try {
+          final authUser = Supabase.instance.client.auth.currentUser;
+          final email = authUser?.email ?? currentUser?.email ?? '';
+          final name = currentUser?.name ?? 'Customer';
+          // Initiate Stripe payment through the edge function
+          final result = await paymentService.presentStripePaymentSheet(
+            orderId: order.id,
+            amount: verifiedTotal,
+            customerEmail: email,
+            customerName: name,
+          );
 
-        final stripeSession = await paymentService.createStripeCheckout(
-          orderId: order.id,
-          amount: verifiedTotal,
-          customerEmail: email,
-          customerName: name,
-        );
+          if (!mounted) return;
 
-        if (!mounted) return;
-
-        final paymentCompleted = await paymentService
-            .presentStripePaymentSheet(
-              session: stripeSession,
-              customerEmail: email,
-              customerName: name,
-            )
-            .timeout(const Duration(seconds: 90), onTimeout: () => false);
-
-        if (!mounted) return;
-
-        if (!paymentCompleted) {
-          // User cancelled. Release loading state first, then perform reliable
-          // server-side cleanup so unpaid orders are not left in DB.
-          setState(() => _placingOrder = false);
-
-          final cleaned = await paymentService
-              .cleanupUnpaidOrder(order.id)
-              .timeout(const Duration(seconds: 10), onTimeout: () => false);
-          if (!cleaned) {
-            await _deleteOrder(order.id);
+          if (result == null || result['status'] != 'paid') {
+            // Check if payment was already processed via webhook
+            if (await _isOrderPaid(order.id)) {
+              // Payment succeeded, fall through
+            } else {
+              setState(() => _placingOrder = false);
+              final cleaned = await paymentService
+                  .cleanupUnpaidOrder(order.id)
+                  .timeout(const Duration(seconds: 10), onTimeout: () => false);
+              if (!cleaned) {
+                await _deleteOrder(order.id);
+              }
+              if (!mounted) return;
+              AppSnackbar.warning(context, 'Payment was cancelled');
+              return;
+            }
           }
 
-          AppSnackbar.error(
-            context,
-            'Payment was not completed. Please try again.',
-          );
-          return;
+          AppLogger.info('Order ${order.id} paid via Stripe');
+        } catch (e) {
+          if (!mounted) return;
+
+          // Check if order got paid despite the error
+          if (await _isOrderPaid(order.id)) {
+            AppLogger.info(
+              'Order ${order.id} confirmed paid after Stripe error',
+            );
+            // Fall through to success
+          } else {
+            setState(() => _placingOrder = false);
+            final cleaned = await paymentService
+                .cleanupUnpaidOrder(order.id)
+                .timeout(const Duration(seconds: 10), onTimeout: () => false);
+            if (!cleaned) {
+              await _deleteOrder(order.id);
+            }
+            AppSnackbar.error(
+              context,
+              'Stripe payment failed: ${friendlyError(e)}',
+            );
+            return;
+          }
         }
-
-        stripePaymentIntentId = stripeSession.paymentIntentId;
-
-        // Server-side confirmation — fire-and-forget so the UI is never stalled.
-        // The payment was already confirmed by the Stripe SDK; this is just a DB sync.
-        unawaited(
-          paymentService
-              .confirmStripePayment(
-                paymentIntentId: stripePaymentIntentId,
-                orderId: order.id,
-              )
-              .then((confirmed) {
-                if (!confirmed) {
-                  AppLogger.error(
-                    'Stripe server confirmation pending for PI $stripePaymentIntentId / order ${order.id}',
-                  );
-                }
-              })
-              .catchError((e) {
-                AppLogger.error('Stripe server confirmation error: $e');
-              }),
-        );
       }
 
       // ── Navigate to success immediately ─────────────────────────────────
@@ -1872,6 +1732,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } catch (_) {
       // Best-effort cleanup – don't block the user.
     }
+  }
+
+  /// Check whether an order has actually been paid (webhook may have flipped
+  /// the row to `completed` even if our WebView returned cancelled). Polls
+  /// up to [attempts] times with [interval] gaps to give the webhook /
+  /// response handler time to land.
+  Future<bool> _isOrderPaid(
+    String orderId, {
+    int attempts = 3,
+    Duration interval = const Duration(seconds: 1),
+  }) async {
+    final svc = ref.read(paymentServiceProvider);
+    for (var i = 0; i < attempts; i++) {
+      try {
+        final status = await svc.getOrderPaymentStatus(orderId);
+        if (status == AppConstants.paymentCompleted) return true;
+      } catch (_) {}
+      if (i < attempts - 1) await Future.delayed(interval);
+    }
+    return false;
   }
 }
 

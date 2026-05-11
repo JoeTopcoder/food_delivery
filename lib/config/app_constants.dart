@@ -13,25 +13,23 @@
     defaultValue: 'sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6',
   );
 
-  // Stripe Payment Configuration — loaded from app_config DB at startup
-  // Fallback can be overridden at build time: --dart-define=STRIPE_PK=pk_live_...
+  // Stripe Payment Configuration — Stripe is the ONLY payment method
   static String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PK',
     defaultValue:
         'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
   );
+  static const String stripeRestrictedKey = String.fromEnvironment(
+    'STRIPE_RK',
+    defaultValue:
+        'rk_test_51TMsI4IxFR3jJr2almj9Qkbmc9jxdJJ52wnMHe3zAYeoVal9QqCR2yPtfCSenJgPUeFK3zWFU9qSHr7IV1nfVjY100GKkOtn7q',
+  );
   static const String stripePaymentFunction = 'stripe-payment';
   static const String stripeMerchantId = 'merchant.com.sevendash.app';
 
-  // Legacy NCB configuration (kept for reference, no longer used in app)
-  static const String ncbApiKey = String.fromEnvironment(
-    'NCB_API_KEY',
-    defaultValue: 'test_ncb_api_key',
-  );
-  static const String ncbCallbackUrl =
-      '$supabaseUrl/functions/v1/ncb-payment-callback';
-  static const String ncbInitiatePaymentFunction = '/ncb-initiate-payment';
-  static const String ncbPaymentCallbackFunction = '/ncb-payment-callback';
+  // Stripe-only: Legacy Lunipay and WiPay configurations removed
+
+  // Stripe-only: Legacy NCB, WiPay, and Lunipay configurations removed
 
   static const String appBaseUrl = 'https://mealhubcayman.com';
   static const String privacyPolicyUrl = '$appBaseUrl/privacy-policy';
@@ -115,7 +113,7 @@
 
   // Currency (US Dollar)
   static const String currencySymbol = '\$';
-  static const String currencyCode = 'USD';
+  static const String currencyCode = 'JMD';
   static const String countryName = 'Cayman Islands';
 
   // ── Business Constants (defaults — overridden from app_config table) ──────
@@ -127,8 +125,7 @@
   static double defaultDeliveryFee = 5.0;
   static double pickupServiceFee = 2.0;
   static double driverFeePerDelivery = 5.0;
-  static double cardFeePercent = 2.5;
-  static double bankTransferFeePercent = 1.0;
+  static double cardFeePercent = 0;
   static double cashFeePercent = 0;
 
   // Delivery (distance-based, USD — $2.00–$2.50 per mile)

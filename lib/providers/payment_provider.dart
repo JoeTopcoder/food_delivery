@@ -127,8 +127,6 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
     switch (method) {
       case 'card':
         return PaymentMethod.card;
-      case 'bank_transfer':
-        return PaymentMethod.bankTransfer;
       case 'cash':
         return PaymentMethod.cash;
       default:

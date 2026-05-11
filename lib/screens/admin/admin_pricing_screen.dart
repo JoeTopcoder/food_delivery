@@ -25,14 +25,17 @@ const _deliveryConfigKeys = [
   'peak_hours_end_2',
 ];
 
-// ── Provider: fetch delivery-related rows from app_config ───────────────────
+// Tax keys are loaded alongside delivery keys but rendered in their own section.
+const _taxConfigKeys = ['tax_enabled', 'tax_rate'];
+
+// ── Provider: fetch delivery + tax rows from app_config ─────────────────────
 final _deliveryConfigProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final client = Supabase.instance.client;
       final res = await client
           .from('app_config')
           .select()
-          .inFilter('key', _deliveryConfigKeys)
+          .inFilter('key', [..._deliveryConfigKeys, ..._taxConfigKeys])
           .order('key');
       return List<Map<String, dynamic>>.from(res as List);
     });
@@ -48,6 +51,8 @@ class AdminPricingScreen extends ConsumerStatefulWidget {
 
 class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   bool _saving = false;
+  bool _taxEnabled = true;
+  final _taxRateCtrl = TextEditingController();
 
   // Friendly labels for config keys
   static const _labels = <String, String>{
@@ -113,17 +118,28 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     for (final c in _controllers.values) {
       c.dispose();
     }
+    _taxRateCtrl.dispose();
     super.dispose();
   }
 
+  bool _taxInitialized = false;
   void _initControllers(List<Map<String, dynamic>> configs) {
     for (final row in configs) {
       final key = row['key'] as String;
-      _controllers.putIfAbsent(
-        key,
-        () => TextEditingController(text: row['value']?.toString() ?? ''),
-      );
+      final raw = row['value']?.toString() ?? '';
+      if (key == 'tax_enabled') {
+        if (!_taxInitialized)
+          _taxEnabled = raw == '1' || raw.toLowerCase() == 'true';
+        continue;
+      }
+      if (key == 'tax_rate') {
+        if (!_taxInitialized && _taxRateCtrl.text.isEmpty)
+          _taxRateCtrl.text = raw;
+        continue;
+      }
+      _controllers.putIfAbsent(key, () => TextEditingController(text: raw));
     }
+    _taxInitialized = true;
     // Ensure all keys exist even if missing from DB
     for (final key in _deliveryConfigKeys) {
       _controllers.putIfAbsent(key, () => TextEditingController(text: ''));
@@ -147,6 +163,25 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('key', key);
+      }
+
+      // Tax settings
+      await client
+          .from('app_config')
+          .update({
+            'value': _taxEnabled ? '1' : '0',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('key', 'tax_enabled');
+      final rateText = _taxRateCtrl.text.trim();
+      if (rateText.isNotEmpty) {
+        await client
+            .from('app_config')
+            .update({
+              'value': rateText,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('key', 'tax_rate');
       }
 
       // Update in-memory constants immediately
@@ -320,6 +355,9 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
                 // ── Config fields ───────────────────────────────────────
                 ..._deliveryConfigKeys.map((key) => _configField(context, key)),
 
+                const SizedBox(height: 12),
+                _taxSection(context),
+
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,
@@ -391,6 +429,74 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
               color: Colors.green.shade700,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _taxSection(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long_outlined, color: cs.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Tax',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SwitchListTile.adaptive(
+            value: _taxEnabled,
+            onChanged: (v) => setState(() => _taxEnabled = v),
+            title: const Text('Charge tax on customer orders'),
+            subtitle: Text(
+              _taxEnabled
+                  ? 'Tax is added to the order subtotal'
+                  : 'No tax is added to customer bills',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_taxEnabled) ...[
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: _taxRateCtrl,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Tax Rate',
+                helperText: 'Decimal — e.g. 0.10 = 10%, 0.15 = 15%',
+                prefixIcon: const Icon(Icons.percent),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+              ),
+              validator: (v) {
+                if (!_taxEnabled) return null;
+                final t = v?.trim() ?? '';
+                if (t.isEmpty) return null;
+                final n = double.tryParse(t);
+                if (n == null) return 'Enter a valid number';
+                if (n < 0 || n > 1) return 'Must be between 0.0 and 1.0';
+                return null;
+              },
+            ),
+          ],
         ],
       ),
     );

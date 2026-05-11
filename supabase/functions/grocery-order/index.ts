@@ -140,7 +140,7 @@ Deno.serve(async (request) => {
     }
 
     // ── 3. Fetch config ─────────────────────────────────────────────────
-    const [taxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
+    const [taxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2, taxEnabled] =
       await Promise.all([
         getConfig("tax_rate", 0.10),
         getConfig("delivery_base_fee", 50.0),
@@ -154,6 +154,7 @@ Deno.serve(async (request) => {
         getConfig("peak_hours_end", 14),
         getConfig("peak_hours_start_2", 18),
         getConfig("peak_hours_end_2", 21),
+        getConfig("tax_enabled", 1),
       ]);
 
     // Check if current hour is within a peak window
@@ -238,7 +239,8 @@ Deno.serve(async (request) => {
     }
 
     // ── 7. Calculate totals ─────────────────────────────────────────────
-    const tax = Math.round(subtotal * taxRate * 100) / 100;
+    const taxOn = taxEnabled >= 1;
+    const tax = taxOn ? Math.round(subtotal * taxRate * 100) / 100 : 0;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
