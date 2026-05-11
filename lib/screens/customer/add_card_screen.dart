@@ -142,7 +142,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                     child: Text(
                       'Card details are entered securely via Stripe. '
                       'Your card is tokenized for secure future payments. '
-                      'No verification charge will be made.',
+                      'A small verification charge will be made and refunded after verification.',
                       style: TextStyle(fontSize: 12, color: hintColor),
                     ),
                   ),
@@ -154,6 +154,25 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         ),
       ),
     );
+  }
+
+  String _detectCardBrand(String cardNumber) {
+    final digits = cardNumber.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('4')) {
+      return 'visa';
+    }
+    if (RegExp(r'^(5[1-5]|2(2[2-9]|[3-6]\d|7[0-1]|720))').hasMatch(digits)) {
+      return 'mastercard';
+    }
+    if (digits.startsWith('34') || digits.startsWith('37')) {
+      return 'american_express';
+    }
+    if (digits.startsWith('6') ||
+        digits.startsWith('6011') ||
+        digits.startsWith('65')) {
+      return 'discover';
+    }
+    return 'card';
   }
 
   Widget _buildCardPreview(bool isDark) {
@@ -266,7 +285,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
     );
   }
 
-  // ── Stripe "save card" flow ───────────────────────────
+  // ── Stripe "save card" + verification flow ───────────────────────────
   Future<void> _addCardWithStripe() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -277,23 +296,37 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       final authUser = Supabase.instance.client.auth.currentUser;
       final email = authUser?.email ?? '';
       final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
+      final cardholderName =
+          ('${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'
+              .trim()
+              .isNotEmpty
+          ? '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim()
+          : name);
+      final phone = authUser?.phone ?? '';
 
       if (!mounted) return;
 
-      // Create Stripe SetupIntent for saving card
       final paymentService = ref.read(paymentServiceProvider);
-      final setupIntent = await paymentService.createSetupIntent(
+      final verificationSetup = await paymentService.createVerificationCharge(
         customerEmail: email,
+        customerName: name,
+        cardholderName: cardholderName.isNotEmpty ? cardholderName : null,
+        phone: phone.isNotEmpty ? phone : null,
       );
 
       if (!mounted) return;
 
-      // Present Stripe setup sheet
       final clientSecret =
-          setupIntent['clientSecret'] as String? ??
-          setupIntent['client_secret'] as String?;
-      if (clientSecret == null || clientSecret.isEmpty) {
-        throw Exception('Unable to obtain Stripe setup client secret.');
+          verificationSetup['clientSecret'] as String? ??
+          verificationSetup['client_secret'] as String?;
+      final setupIntentId =
+          verificationSetup['setupIntentId'] as String? ??
+          verificationSetup['setup_intent_id'] as String?;
+
+      if (clientSecret == null ||
+          clientSecret.isEmpty ||
+          setupIntentId == null) {
+        throw Exception('Unable to start card verification flow.');
       }
 
       final success = await paymentService.presentSetupSheet(
@@ -305,15 +338,69 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       if (!mounted) return;
 
       if (!success) {
-        AppSnackbar.warning(context, 'Card setup was cancelled');
+        AppSnackbar.warning(context, 'Card verification was cancelled');
         return;
       }
 
-      // Card was successfully added
+      final verificationResult = await paymentService
+          .completeVerificationCharge(
+            setupIntentId: setupIntentId,
+            cardholderName: cardholderName.isNotEmpty ? cardholderName : null,
+            email: email.isNotEmpty ? email : null,
+            phone: phone.isNotEmpty ? phone : null,
+          );
+
+      if (!mounted) return;
+
+      final verificationId =
+          verificationResult['verificationId'] as String? ??
+          verificationResult['verification_id'] as String?;
+      final paymentMethodId =
+          verificationResult['paymentMethodId'] as String? ??
+          verificationResult['payment_method_id'] as String?;
+      final cardBrand =
+          verificationResult['cardBrand'] as String? ??
+          verificationResult['card_brand'] as String? ??
+          _detectCardBrand(_cardNumberCtrl.text);
+      final lastFour =
+          verificationResult['lastFour'] as String? ??
+          verificationResult['last_four'] as String? ??
+          _cardNumberCtrl.text
+              .replaceAll(RegExp(r'\D'), '')
+              .padRight(4, '*')
+              .substring(0, 4);
+      final customerId =
+          verificationResult['stripeCustomerId'] as String? ??
+          verificationResult['customerId'] as String?;
+
+      if (verificationId == null || verificationId.isEmpty) {
+        throw Exception('Unable to verify card setup.');
+      }
+
+      final expiresAt = DateTime.now().toUtc().add(const Duration(minutes: 30));
+      final savedCard = await paymentService.savePendingCard(
+        userId: userId,
+        cardBrand: cardBrand,
+        lastFour: lastFour,
+        cardholderName: cardholderName.isNotEmpty ? cardholderName : 'Unknown',
+        email: email,
+        phone: phone,
+        verificationId: verificationId,
+        expiresAt: expiresAt,
+        stripePaymentMethodId: paymentMethodId,
+        stripeCustomerId: customerId,
+      );
+
+      if (!mounted) return;
+
+      if (savedCard == null) {
+        throw Exception('Failed to save pending card data.');
+      }
+
       ref.invalidate(savedCardsProvider(userId));
       AppSnackbar.success(
         context,
-        'Card added successfully! Your card is now saved for future purchases.',
+        'Card added. Enter the small verification amount in your wallet to complete setup.',
       );
       Navigator.of(context).pop(true);
     } catch (e) {

@@ -364,6 +364,132 @@ class PaymentService {
     }
   }
 
+  /// Create a card verification setup flow and return the Stripe SetupIntent info.
+  Future<Map<String, dynamic>> createVerificationCharge({
+    required String customerEmail,
+    required String customerName,
+    String? cardBrand,
+    String? lastFour,
+    String? cardholderName,
+    String? phone,
+  }) async {
+    try {
+      final response = await _invokeStripeFunction(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'create_verification_charge',
+          'email': customerEmail,
+          'name': customerName,
+          if (cardBrand != null) 'card_brand': cardBrand,
+          if (lastFour != null) 'last_four': lastFour,
+          if (cardholderName != null) 'cardholder_name': cardholderName,
+          if (phone != null) 'phone': phone,
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected verification setup response.');
+      }
+
+      if (data['error'] != null) {
+        final errMsg = data['error'].toString();
+        if (errMsg.contains('Unauthorized') || errMsg.contains('401')) {
+          AppLogger.info(
+            'Auth error on verification setup, retrying with fresh token...',
+          );
+          await _supabaseClient.auth.refreshSession();
+          final retryResponse = await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {
+              'action': 'create_verification_charge',
+              'email': customerEmail,
+              'name': customerName,
+              if (cardBrand != null) 'card_brand': cardBrand,
+              if (lastFour != null) 'last_four': lastFour,
+              if (cardholderName != null) 'cardholder_name': cardholderName,
+              if (phone != null) 'phone': phone,
+            },
+            headers: await _buildFunctionHeaders(),
+          );
+          final retryData = retryResponse.data;
+          if (retryData is Map<String, dynamic> && retryData['error'] == null) {
+            return retryData;
+          }
+        }
+        throw Exception(_stripeErrorMessage(data['error']));
+      }
+
+      return data;
+    } catch (e) {
+      AppLogger.error('Verification setup creation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Complete the verification flow and charge the saved card.
+  Future<Map<String, dynamic>> completeVerificationCharge({
+    required String setupIntentId,
+    String? cardBrand,
+    String? lastFour,
+    String? cardholderName,
+    String? email,
+    String? phone,
+  }) async {
+    try {
+      final response = await _invokeStripeFunction(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'complete_verification_charge',
+          'setup_intent_id': setupIntentId,
+          if (cardBrand != null) 'card_brand': cardBrand,
+          if (lastFour != null) 'last_four': lastFour,
+          if (cardholderName != null) 'cardholder_name': cardholderName,
+          if (email != null) 'email': email,
+          if (phone != null) 'phone': phone,
+        },
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected verification completion response.');
+      }
+
+      if (data['error'] != null) {
+        final errMsg = data['error'].toString();
+        if (errMsg.contains('Unauthorized') || errMsg.contains('401')) {
+          AppLogger.info(
+            'Auth error on verification completion, retrying with fresh token...',
+          );
+          await _supabaseClient.auth.refreshSession();
+          final retryResponse = await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {
+              'action': 'complete_verification_charge',
+              'setup_intent_id': setupIntentId,
+              if (cardBrand != null) 'card_brand': cardBrand,
+              if (lastFour != null) 'last_four': lastFour,
+              if (cardholderName != null) 'cardholder_name': cardholderName,
+              if (email != null) 'email': email,
+              if (phone != null) 'phone': phone,
+            },
+            headers: await _buildFunctionHeaders(),
+          );
+          final retryData = retryResponse.data;
+          if (retryData is Map<String, dynamic> && retryData['error'] == null) {
+            return retryData;
+          }
+        }
+        throw Exception(_stripeErrorMessage(data['error']));
+      }
+
+      return data;
+    } catch (e) {
+      AppLogger.error('Verification completion error: $e');
+      rethrow;
+    }
+  }
+
   /// Present the Stripe Payment Sheet in setup mode to save a card
   Future<bool> presentSetupSheet({
     required String clientSecret,
@@ -778,6 +904,8 @@ class PaymentService {
     required String phone,
     required String verificationId,
     required DateTime expiresAt,
+    String? stripePaymentMethodId,
+    String? stripeCustomerId,
   }) async {
     try {
       final count = await _supabaseClient
@@ -801,6 +929,10 @@ class PaymentService {
             'verification_id': verificationId,
             'verification_expires_at': expiresAt.toUtc().toIso8601String(),
             'verification_attempts': 0,
+            if (stripePaymentMethodId != null)
+              'stripe_payment_method_id': stripePaymentMethodId,
+            if (stripeCustomerId != null)
+              'stripe_customer_id': stripeCustomerId,
           })
           .select()
           .single();
