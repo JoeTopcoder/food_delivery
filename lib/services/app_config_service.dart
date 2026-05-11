@@ -86,11 +86,6 @@ class AppConfigService {
       'card_fee_percent',
       AppConstants.cardFeePercent,
     );
-    AppConstants.bankTransferFeePercent = _double(
-      c,
-      'bank_transfer_fee_percent',
-      AppConstants.bankTransferFeePercent,
-    );
     AppConstants.cashFeePercent = _double(
       c,
       'cash_fee_percent',
@@ -351,6 +346,9 @@ class AppConfigService {
         AppConstants.stripePublishableKey = v;
       }
     }
+
+    // Lunipay (deprecated - Stripe only)
+    // Legacy Lunipay config removed
 
     // Subscription (MealHub+)
     AppConstants.subscriptionBasicPrice = _double(

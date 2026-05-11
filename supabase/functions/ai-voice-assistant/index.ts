@@ -1712,7 +1712,7 @@ function buildSystemPrompt(
     trial_period:            'The user is asking about a free trial. New subscribers get a free trial period (typically 7-14 days). After the trial, billing starts automatically unless they cancel before the trial ends. Check the trial end date in Settings > Subscription.',
     payment_reminder:        'The user is asking about an upcoming payment or reminder. Subscription payments are charged automatically on the renewal date. They can see the next billing date in Settings > Subscription. Order payments are charged at the time of checkout.',
     failed_charge_notify:    'The user received a notification about a failed charge. This usually happens when a saved card is expired or has insufficient funds. Direct them to Settings > Payment Methods to update their card, then retry the payment or allow the subscription to auto-retry.',
-    wallet_topup:            'The user wants to add funds to their wallet. Go to Settings > Wallet > Add Funds. They can top up by card or bank transfer. Added funds are available instantly.',
+    wallet_topup:            'The user wants to add funds to their wallet. Go to Settings > Wallet > Add Funds. They can top up by card. Added funds are available instantly.',
     wallet_balance:          'The user wants to check their wallet balance. Direct them to Settings > Wallet to see the available balance. If BILLING HISTORY is available in context, mention whether recent orders used the wallet.',
     payment_authorization:   'The user is asking about a temporary hold or pre-authorization. When an order is placed, a temporary authorization hold is placed on the card to verify funds. The actual charge posts once the order is confirmed. Holds that do not convert to a charge are released within 3-5 business days.',
     chargeback:              'The user wants to file a chargeback. Advise them to first contact in-app support so the team can resolve it quickly without a formal bank dispute. If they proceed with a chargeback through their bank, the case will be reviewed. Direct them to Help > Contact Support.',
@@ -1907,7 +1907,7 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 - Accepted methods: Credit/Debit card (Visa, Mastercard, Amex), in-app Wallet, Cash on Delivery (select restaurants).
 - Apple Pay and Google Pay are supported where available.
 - Cards are stored securely (PCI-DSS compliant). You can save multiple cards.
-- In-app Wallet: top up via card or bank transfer. Balance is used before card if selected.
+- In-app Wallet: top up via card. Balance is used before card if selected.
 - Wallet top-ups are instant. Minimum top-up is $5.
 - Payment is charged when the restaurant confirms the order (not at time of placement).
 - A temporary authorization hold is placed on your card at order time; it converts to a charge on confirmation.

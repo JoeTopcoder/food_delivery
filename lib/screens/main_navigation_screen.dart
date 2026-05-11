@@ -41,6 +41,14 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final userId = ref.watch(currentUserIdProvider);
 
+    // Keep the customer-orders realtime channel alive for the whole app
+    // session (not only when the Orders tab is mounted) so newly placed /
+    // cancelled orders show up instantly anywhere — Orders tab, AI FAB
+    // active-order context, etc.
+    if (userId != null) {
+      ref.watch(customerOrderRealtimeProvider(userId));
+    }
+
     // Find active orders to pass as context to the AI
     final ordersAsync = userId != null
         ? ref.watch(userOrdersProvider(userId))
@@ -238,7 +246,9 @@ class OrdersScreen extends ConsumerWidget {
 
     final ordersAsync = ref.watch(userOrdersProvider(currentUserId));
 
-    // Activate real-time subscription so the list updates instantly on cancel/status changes
+    // Realtime subscription is activated app-wide in MainNavigationScreen
+    // so updates flow even when the user isn't on this tab. Watching here
+    // again is redundant but safe (same provider instance).
     ref.watch(customerOrderRealtimeProvider(currentUserId));
 
     return Scaffold(
@@ -247,109 +257,134 @@ class OrdersScreen extends ConsumerWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      body: ordersAsync.when(
-        data: (orders) {
-          if (orders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(userOrdersProvider(currentUserId));
+          await ref.read(userOrdersProvider(currentUserId).future);
+        },
+        child: ordersAsync.when(
+          data: (orders) {
+            if (orders.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No orders yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 64,
+                            color: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No orders yet',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Your order history will appear here',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your order history will appear here',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
+                ],
+              );
+            }
+
+            final activeOrders = orders
+                .where((o) => !['delivered', 'cancelled'].contains(o.status))
+                .toList();
+            final pastOrders = orders
+                .where((o) => ['delivered', 'cancelled'].contains(o.status))
+                .toList();
+
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (activeOrders.isNotEmpty) ...[
+                    const Text(
+                      'Active Orders',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...activeOrders.map(
+                      (order) => _OrderCard(
+                        orderId: '#${order.id.substring(0, 8)}',
+                        status: order.status.replaceAll('_', ' '),
+                        date: DateFormat(
+                          'MMM d, h:mm a',
+                        ).format(order.orderedAt),
+                        total:
+                            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                        itemCount: order.items.length,
+                        statusColor: _getStatusColor(order.status),
+                        orderedAt: order.orderedAt,
+                        estimatedPrepMinutes: order.estimatedPrepMinutes,
+                        isActive: true,
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/order-tracking',
+                            arguments: order.id,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (pastOrders.isNotEmpty) ...[
+                    const Text(
+                      'Past Orders',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...pastOrders.map(
+                      (order) => _OrderCard(
+                        orderId: '#${order.id.substring(0, 8)}',
+                        status: order.status.replaceAll('_', ' '),
+                        date: DateFormat(
+                          'MMM d, h:mm a',
+                        ).format(order.orderedAt),
+                        total:
+                            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                        itemCount: order.items.length,
+                        statusColor: _getStatusColor(order.status),
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/order-tracking',
+                            arguments: order.id,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
-          }
-
-          final activeOrders = orders
-              .where((o) => !['delivered', 'cancelled'].contains(o.status))
-              .toList();
-          final pastOrders = orders
-              .where((o) => ['delivered', 'cancelled'].contains(o.status))
-              .toList();
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (activeOrders.isNotEmpty) ...[
-                  const Text(
-                    'Active Orders',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...activeOrders.map(
-                    (order) => _OrderCard(
-                      orderId: '#${order.id.substring(0, 8)}',
-                      status: order.status.replaceAll('_', ' '),
-                      date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total:
-                          '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
-                      itemCount: order.items.length,
-                      statusColor: _getStatusColor(order.status),
-                      orderedAt: order.orderedAt,
-                      estimatedPrepMinutes: order.estimatedPrepMinutes,
-                      isActive: true,
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/order-tracking',
-                          arguments: order.id,
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                if (pastOrders.isNotEmpty) ...[
-                  const Text(
-                    'Past Orders',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...pastOrders.map(
-                    (order) => _OrderCard(
-                      orderId: '#${order.id.substring(0, 8)}',
-                      status: order.status.replaceAll('_', ' '),
-                      date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                      total:
-                          '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
-                      itemCount: order.items.length,
-                      statusColor: _getStatusColor(order.status),
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/order-tracking',
-                          arguments: order.id,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text(friendlyError(err))),
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text(friendlyError(err))),
+        ),
       ),
     );
   }

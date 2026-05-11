@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -130,6 +131,31 @@ void main() async {
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
   );
   runApp(const ProviderScope(child: MyApp()));
+}
+
+/// Global scroll behavior: smooth iOS-style bouncing physics on every platform,
+/// plus full pointer support (touch, mouse, trackpad, stylus) so wheel and
+/// drag-to-scroll feel buttery across the whole app.
+class SmoothScrollBehavior extends MaterialScrollBehavior {
+  const SmoothScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+    PointerDeviceKind.unknown,
+  };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    // BouncingScrollPhysics gives a smoother, more natural feel than the
+    // default Android clamping physics. AlwaysScrollable lets RefreshIndicator
+    // and pull-to-refresh keep working even on short content.
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
 }
 
 class MyApp extends ConsumerStatefulWidget {
@@ -267,6 +293,7 @@ class _MyAppState extends ConsumerState<MyApp> {
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        scrollBehavior: const SmoothScrollBehavior(),
         home: const AppLaunchSplash(),
         onGenerateRoute: (settings) {
           switch (settings.name) {

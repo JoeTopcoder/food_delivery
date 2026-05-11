@@ -89,7 +89,6 @@ Deno.serve(async (request) => {
       loyaltyPointValue,
       loyaltyMaxRedemptionPct,
       cardFeePct,
-      bankFeePct,
       cashFeePct,
       defaultCommissionRate,
       subscriptionMinCart,
@@ -98,6 +97,7 @@ Deno.serve(async (request) => {
       peakEnd,
       peakStart2,
       peakEnd2,
+      taxEnabled,
     ] = await Promise.all([
       getConfig("tax_rate", 0.10),
       getConfig("default_delivery_fee", 50.0),
@@ -109,7 +109,6 @@ Deno.serve(async (request) => {
       getConfig("loyalty_point_value", 0.10),
       getConfig("loyalty_max_redemption_percent", 0.20),
       getConfig("card_fee_percent", 2.5),
-      getConfig("bank_transfer_fee_percent", 1.0),
       getConfig("cash_fee_percent", 0),
       getConfig("default_commission_rate", 0.15),
       getConfig("subscription_min_cart", 15.0),
@@ -118,6 +117,7 @@ Deno.serve(async (request) => {
       getConfig("peak_hours_end", 14),
       getConfig("peak_hours_start_2", 18),
       getConfig("peak_hours_end_2", 21),
+      getConfig("tax_enabled", 1),
     ]);
 
     // Check if current hour is within a peak window
@@ -258,7 +258,9 @@ Deno.serve(async (request) => {
     }
 
     // ── 5. Tax ─────────────────────────────────────────────────────────────
-    const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
+    const taxOn = taxEnabled >= 1;
+    const effectiveTaxRate = taxOn ? taxRate : 0;
+    const taxAmount = taxOn ? Math.round(subtotal * taxRate * 100) / 100 : 0;
 
     // ── 6. Promo code validation ───────────────────────────────────────────
     let promoDiscount = 0;
@@ -321,9 +323,7 @@ Deno.serve(async (request) => {
     }
 
     // ── 8. Payment processing fee ──────────────────────────────────────────
-    const feePct = paymentMethod === "card" ? cardFeePct
-      : paymentMethod === "bank_transfer" ? bankFeePct
-      : cashFeePct;
+    const feePct = paymentMethod === "card" ? cardFeePct : cashFeePct;
     
     const orderBeforeFees = subtotal - promoDiscount - loyaltyDiscount + deliveryFee + taxAmount;
     const paymentFee = Math.round(orderBeforeFees * feePct / 100 * 100) / 100;
@@ -344,7 +344,7 @@ Deno.serve(async (request) => {
       breakdown: {
         items: verifiedItems,
         subtotal,
-        tax_rate: taxRate,
+        tax_rate: effectiveTaxRate,
         tax_amount: taxAmount,
         delivery_fee: deliveryFee,
         delivery_distance_km: deliveryDistanceKm,

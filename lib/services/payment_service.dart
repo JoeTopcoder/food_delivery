@@ -7,7 +7,7 @@ import '../models/saved_card_model.dart';
 import '../utils/app_logger.dart';
 
 /// Payment method enum
-enum PaymentMethod { card, bankTransfer, cash }
+enum PaymentMethod { card, cash }
 
 /// Result from creating a Stripe PaymentIntent via the edge function
 class StripePaymentSession {
@@ -27,23 +27,6 @@ class StripePaymentSession {
     required this.currency,
     this.customerId,
     this.ephemeralKey,
-  });
-}
-
-/// Legacy NCB session kept for backward compat references (unused in new flow)
-class NcbPaymentSession {
-  final String orderId;
-  final String transactionId;
-  final String paymentUrl;
-  final String callbackUrl;
-  final double? verificationAmount;
-
-  const NcbPaymentSession({
-    required this.orderId,
-    required this.transactionId,
-    required this.paymentUrl,
-    required this.callbackUrl,
-    this.verificationAmount,
   });
 }
 
@@ -88,7 +71,51 @@ class PaymentService {
   PaymentService({required SupabaseClient supabaseClient})
     : _supabaseClient = supabaseClient;
 
-  bool get isNcbConfigured => AppConstants.ncbApiKey.isNotEmpty;
+  Future<Map<String, String>> _buildFunctionHeaders() async {
+    try {
+      await _supabaseClient.auth.refreshSession();
+    } catch (_) {
+      // Ignore refresh errors; use existing session if available.
+    }
+
+    final session = _supabaseClient.auth.currentSession;
+    if (session?.accessToken != null && session!.accessToken.isNotEmpty) {
+      return {'Authorization': 'Bearer ${session.accessToken}'};
+    }
+    return <String, String>{};
+  }
+
+  Future<FunctionResponse> _invokeStripeFunction(
+    String functionName, {
+    required Map<String, dynamic> body,
+    int retryCount = 1,
+  }) async {
+    var attempt = 0;
+    while (true) {
+      try {
+        return await _supabaseClient.functions.invoke(
+          functionName,
+          body: body,
+          headers: await _buildFunctionHeaders(),
+        );
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        if (attempt < retryCount &&
+            (fe.status == 401 ||
+                fe.status == 403 ||
+                raw.contains('LEGACY_JWT') ||
+                raw.contains('JWT') ||
+                raw.contains('Unauthorized'))) {
+          attempt++;
+          try {
+            await _supabaseClient.auth.refreshSession();
+          } catch (_) {}
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
 
   /// Create a Stripe PaymentIntent via the edge function and present
   /// the Stripe Payment Sheet to the user.
@@ -104,29 +131,31 @@ class PaymentService {
     String type = 'order',
   }) async {
     try {
-      late FunctionResponse response;
-      try {
-        response = await _supabaseClient.functions.invoke(
-          AppConstants.stripePaymentFunction,
-          body: {
-            'action': 'create_payment_intent',
-            'orderId': orderId,
-            'amount': amount,
-            'email': customerEmail,
-            'name': customerName,
-            'type': type,
-            'currency': AppConstants.currencyCode.toLowerCase(),
-          },
-        );
-      } on FunctionException catch (fe) {
-        final raw = fe.details?.toString() ?? '';
-        if (fe.status == 401 ||
-            fe.status == 403 ||
-            raw.contains('LEGACY_JWT') ||
-            raw.contains('ES256') ||
-            raw.contains('JWT')) {
+      final response = await _invokeStripeFunction(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'create_payment_intent',
+          'orderId': orderId,
+          'amount': amount,
+          'email': customerEmail,
+          'name': customerName,
+          'type': type,
+          'currency': AppConstants.currencyCode.toLowerCase(),
+        },
+      );
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected Stripe session response.');
+      }
+      if (data['error'] != null) {
+        // Retry once with fresh token if auth error
+        final errMsg = data['error'].toString();
+        if (errMsg.contains('Unauthorized') || errMsg.contains('401')) {
+          AppLogger.info(
+            'Auth error on payment intent, retrying with fresh token...',
+          );
           await _supabaseClient.auth.refreshSession();
-          response = await _supabaseClient.functions.invoke(
+          final retryResponse = await _supabaseClient.functions.invoke(
             AppConstants.stripePaymentFunction,
             body: {
               'action': 'create_payment_intent',
@@ -137,24 +166,32 @@ class PaymentService {
               'type': type,
               'currency': AppConstants.currencyCode.toLowerCase(),
             },
+            headers: await _buildFunctionHeaders(),
           );
-        } else {
-          rethrow;
+          final retryData = retryResponse.data;
+          if (retryData is Map<String, dynamic> && retryData['error'] == null) {
+            final clientSecret = retryData['clientSecret'] as String?;
+            final paymentIntentId = retryData['paymentIntentId'] as String?;
+            if (clientSecret != null && paymentIntentId != null) {
+              return StripePaymentSession(
+                orderId: orderId,
+                paymentIntentId: paymentIntentId,
+                clientSecret: clientSecret,
+                amount: amount,
+                currency: (retryData['currency'] as String?) ?? 'usd',
+                customerId: retryData['customerId'] as String?,
+                ephemeralKey: retryData['ephemeralKey'] as String?,
+              );
+            }
+          }
         }
+        throw Exception(_stripeErrorMessage(data['error']));
       }
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected Stripe session response.');
-      }
-
       final clientSecret = data['clientSecret'] as String?;
       final paymentIntentId = data['paymentIntentId'] as String?;
-
       if (clientSecret == null || paymentIntentId == null) {
-        throw Exception(data['error'] ?? 'Stripe session is incomplete.');
+        throw Exception('Stripe session is incomplete.');
       }
-
       return StripePaymentSession(
         orderId: orderId,
         paymentIntentId: paymentIntentId,
@@ -170,15 +207,37 @@ class PaymentService {
     }
   }
 
-  /// Present the Stripe Payment Sheet and wait for the user to complete payment.
-  /// Returns true if payment succeeded, false otherwise.
-  Future<bool> presentStripePaymentSheet({
-    required StripePaymentSession session,
-    required String customerEmail,
-    required String customerName,
+  String _stripeErrorMessage(dynamic error) {
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('api key'))
+      return 'Invalid Stripe API key. Contact support.';
+    if (msg.contains('card was declined')) return 'Your card was declined.';
+    if (msg.contains('expired card')) return 'Your card is expired.';
+    if (msg.contains('authentication'))
+      return 'Authentication failed. Try another card.';
+    if (msg.contains('network')) return 'Network error. Please try again.';
+    if (msg.contains('paymentintent'))
+      return 'Payment could not be created. Try again.';
+    return 'Payment failed: $error';
+  }
+
+  /// Create a Stripe PaymentIntent and present the Payment Sheet in one go.
+  /// This is the primary method for all Stripe card payments.
+  /// Returns a map with 'status' = 'paid' if successful, null on cancellation.
+  Future<Map<String, dynamic>?> presentStripePaymentSheet({
+    required String orderId,
+    required double amount,
+    String? customerEmail,
+    String? customerName,
   }) async {
     try {
-      // Ensure Stripe native SDK is initialized
+      final session = await createStripeCheckout(
+        orderId: orderId,
+        amount: amount,
+        customerEmail: customerEmail ?? '',
+        customerName: customerName ?? '',
+        type: 'order',
+      );
       if (Stripe.publishableKey.isEmpty) {
         final key = AppConstants.stripePublishableKey;
         if (key.isNotEmpty) {
@@ -187,8 +246,6 @@ class PaymentService {
           await Stripe.instance.applySettings();
         }
       }
-
-      // Initialize the Payment Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: session.clientSecret,
@@ -200,24 +257,23 @@ class PaymentService {
             email: customerEmail,
             name: customerName,
           ),
+          applePay: const PaymentSheetApplePay(merchantCountryCode: 'US'),
+          googlePay: const PaymentSheetGooglePay(merchantCountryCode: 'US'),
+          allowsDelayedPaymentMethods: true,
         ),
       );
-
-      // Present the Payment Sheet
       await Stripe.instance.presentPaymentSheet();
-
-      // If we reach here, payment was successful
-      return true;
+      return {'status': 'paid', 'orderId': orderId};
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {
         AppLogger.info('Stripe payment cancelled by user');
-        return false;
+        return null;
       }
       AppLogger.error('Stripe payment error: ${e.error.localizedMessage}');
-      rethrow;
+      throw Exception(_stripeErrorMessage(e.error.localizedMessage));
     } catch (e) {
       AppLogger.error('Stripe payment sheet error: $e');
-      rethrow;
+      throw Exception(_stripeErrorMessage(e));
     }
   }
 
@@ -228,7 +284,7 @@ class PaymentService {
     String type = 'order',
   }) async {
     try {
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         AppConstants.stripePaymentFunction,
         body: {
           'action': 'confirm_payment',
@@ -251,7 +307,7 @@ class PaymentService {
   /// never leave orphan pending orders in the database.
   Future<bool> cleanupUnpaidOrder(String orderId) async {
     try {
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         AppConstants.stripePaymentFunction,
         body: {'action': 'cleanup_unpaid_order', 'orderId': orderId},
       );
@@ -270,7 +326,7 @@ class PaymentService {
     required String customerEmail,
   }) async {
     try {
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         AppConstants.stripePaymentFunction,
         body: {'action': 'create_setup_intent', 'email': customerEmail},
       );
@@ -281,7 +337,24 @@ class PaymentService {
       }
 
       if (data['error'] != null) {
-        throw Exception(data['error']);
+        // Retry once with fresh token if auth error
+        final errMsg = data['error'].toString();
+        if (errMsg.contains('Unauthorized') || errMsg.contains('401')) {
+          AppLogger.info(
+            'Auth error on setup intent, retrying with fresh token...',
+          );
+          await _supabaseClient.auth.refreshSession();
+          final retryResponse = await _supabaseClient.functions.invoke(
+            AppConstants.stripePaymentFunction,
+            body: {'action': 'create_setup_intent', 'email': customerEmail},
+            headers: await _buildFunctionHeaders(),
+          );
+          final retryData = retryResponse.data;
+          if (retryData is Map<String, dynamic> && retryData['error'] == null) {
+            return retryData;
+          }
+        }
+        throw Exception(_stripeErrorMessage(data['error']));
       }
 
       return data;
@@ -298,6 +371,15 @@ class PaymentService {
     required String customerEmail,
   }) async {
     try {
+      if (Stripe.publishableKey.isEmpty) {
+        final key = AppConstants.stripePublishableKey;
+        if (key.isNotEmpty) {
+          Stripe.publishableKey = key;
+          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+          await Stripe.instance.applySettings();
+        }
+      }
+
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           setupIntentClientSecret: clientSecret,
@@ -318,37 +400,6 @@ class PaymentService {
       }
       rethrow;
     }
-  }
-
-  /// Legacy: Create NCB card checkout (kept for any residual reference)
-  Future<NcbPaymentSession> createCardCheckout({
-    required String orderId,
-    required double amount,
-    required String customerEmail,
-    required String customerPhone,
-    required String customerName,
-    String? billingAddress,
-    String? type,
-    String? savedCardId,
-    String? cvv,
-  }) async {
-    throw Exception(
-      'NCB payments have been replaced by Stripe. Use createStripeCheckout() instead.',
-    );
-  }
-
-  /// Legacy: Create card verification checkout (no longer needed with Stripe)
-  Future<NcbPaymentSession> createCardVerificationCheckout({
-    required String customerEmail,
-    required String customerPhone,
-    required String customerName,
-    String? cardNumber,
-    String? cardExpiry,
-    String? cardCvv,
-  }) async {
-    throw Exception(
-      'Card verification is no longer needed with Stripe. Use createSetupIntent() instead.',
-    );
   }
 
   Future<String> waitForOrderPaymentStatus(
@@ -410,13 +461,6 @@ class PaymentService {
                 'Card payments use Stripe Payment Sheet. Use createStripeCheckout() flow instead.',
           );
 
-        case PaymentMethod.bankTransfer:
-          return await _processBankTransferPayment(
-            orderId: orderId,
-            amount: amount,
-            userEmail: userEmail,
-          );
-
         case PaymentMethod.cash:
           return await _processCashPayment(orderId: orderId, amount: amount);
       }
@@ -427,40 +471,6 @@ class PaymentService {
         amount: amount,
         paymentMethod: paymentMethod.toString(),
         errorMessage: 'Payment failed: $e',
-      );
-    }
-  }
-
-  /// Process bank transfer payment (stub for NCB)
-  Future<PaymentResponse> _processBankTransferPayment({
-    required String orderId,
-    required double amount,
-    required String userEmail,
-  }) async {
-    try {
-      AppLogger.info(
-        'Processing NCB bank transfer: $orderId - $amount to $userEmail',
-      );
-
-      // Simulate NCB bank transfer (replace with real API call)
-      final transactionId = 'NCB_BANK_${DateTime.now().millisecondsSinceEpoch}';
-
-      return PaymentResponse(
-        success: true,
-        transactionId: transactionId,
-        status: AppConstants.paymentCompleted,
-        amount: amount,
-        paymentMethod: 'bank_transfer',
-        timestamp: DateTime.now(),
-        metadata: {'email': userEmail, 'processor': 'ncb'},
-      );
-    } catch (e) {
-      AppLogger.error('NCB bank transfer error: $e');
-      return _createFailedResponse(
-        orderId: orderId,
-        amount: amount,
-        paymentMethod: 'bank_transfer',
-        errorMessage: 'NCB bank transfer failed: $e',
       );
     }
   }
@@ -505,7 +515,7 @@ class PaymentService {
   Future<String> verifyPaymentStatus(String transactionId) async {
     try {
       AppLogger.info('Verifying payment status: $transactionId');
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         'stripe-payment',
         body: {'action': 'verify', 'transaction_id': transactionId},
       );
@@ -527,7 +537,7 @@ class PaymentService {
       AppLogger.info(
         'Processing refund: $transactionId - ${AppConstants.currencySymbol}$amount',
       );
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         'stripe-payment',
         body: {
           'action': 'refund',
@@ -602,8 +612,6 @@ class PaymentService {
   }) {
     double feePercent = paymentMethod == PaymentMethod.card
         ? AppConstants.cardFeePercent
-        : paymentMethod == PaymentMethod.bankTransfer
-        ? AppConstants.bankTransferFeePercent
         : AppConstants.cashFeePercent;
 
     return (amount * feePercent) / 100;
@@ -615,7 +623,7 @@ class PaymentService {
   Future<List<SavedCard>> getSavedCards(String userId) async {
     try {
       // Try fetching live from Stripe
-      final response = await _supabaseClient.functions.invoke(
+      final response = await _invokeStripeFunction(
         AppConstants.stripePaymentFunction,
         body: {'action': 'list_payment_methods'},
       );
@@ -738,7 +746,7 @@ class PaymentService {
       // Detach from Stripe if we have a PM ID
       if (pmId != null && pmId.isNotEmpty) {
         try {
-          await _supabaseClient.functions.invoke(
+          await _invokeStripeFunction(
             AppConstants.stripePaymentFunction,
             body: {
               'action': 'detach_payment_method',
@@ -811,13 +819,15 @@ class PaymentService {
       final cardRow = await _supabaseClient
           .from('saved_cards')
           .select(
-            'verification_id, verification_attempts, verification_expires_at',
+            'user_id, card_brand, verification_id, verification_attempts, verification_expires_at',
           )
           .eq('id', cardId)
           .single();
 
       final verificationId = cardRow['verification_id'] as String?;
       if (verificationId == null) return false;
+      final ownerUserId = cardRow['user_id'] as String?;
+      final cardBrand = (cardRow['card_brand'] as String? ?? '').toLowerCase();
 
       // Check if expired
       final expiresAt = cardRow['verification_expires_at'] as String?;
@@ -844,16 +854,44 @@ class PaymentService {
       final attempts = currentAttempts + 1;
 
       // Check amount against card_verifications
-      final row = await _supabaseClient
+      var row = await _supabaseClient
           .from('card_verifications')
           .select('amount, status')
           .eq('id', verificationId)
           .maybeSingle();
 
-      if (row == null) return false;
-      final chargedAmount = (row['amount'] as num).toDouble();
-      final cvStatus = row['status'] as String?;
-      final matched = cvStatus == 'completed' && chargedAmount == enteredAmount;
+      // Lazy-backfill for Lunipay cards saved before complete_setup_session
+      // existed: if no row, try to create it from the Lunipay session.
+      // We treat any non-real-brand value (lunipay/card/empty) as a Lunipay
+      // card, since the verification_id IS the Lunipay session id for those.
+      final realBrands = {
+        'visa',
+        'mastercard',
+        'amex',
+        'american_express',
+        'discover',
+        'keycard',
+      };
+      final isLunipayCard = !realBrands.contains(cardBrand);
+      // Stripe-only: Legacy Lunipay setup session logic removed
+      if (row == null && isLunipayCard && ownerUserId != null) {
+        try {
+          row = await _supabaseClient
+              .from('card_verifications')
+              .select('amount, status')
+              .eq('id', verificationId)
+              .maybeSingle();
+        } catch (e) {
+          AppLogger.error('Card verification lookup error: $e');
+        }
+      }
+
+      bool matched = false;
+      if (row != null) {
+        final chargedAmount = (row['amount'] as num).toDouble();
+        final cvStatus = row['status'] as String?;
+        matched = cvStatus == 'completed' && chargedAmount == enteredAmount;
+      }
 
       if (matched) {
         // Verify the card
@@ -1026,6 +1064,7 @@ class PaymentService {
           'bankName': bankName,
           'description': description ?? 'Payout $payoutId',
         },
+        headers: await _buildFunctionHeaders(),
       );
 
       final data = response.data;
@@ -1045,4 +1084,10 @@ class PaymentService {
       rethrow;
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Stripe is the sole payment gateway — all card payments route through Stripe
+  // ─────────────────────────────────────────────────────────────────────────
+  // Legacy Lunipay and WiPay methods are deprecated and no longer used.
+  // Use presentStripePaymentSheet() for all card payments instead.
 }

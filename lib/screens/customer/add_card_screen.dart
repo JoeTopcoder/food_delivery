@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../config/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../utils/app_theme.dart';
-import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
 
@@ -19,20 +15,17 @@ class AddCardScreen extends ConsumerStatefulWidget {
 }
 
 class _AddCardScreenState extends ConsumerState<AddCardScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _cardNumberCtrl = TextEditingController();
   final _expiryCtrl = TextEditingController();
   final _cvvCtrl = TextEditingController();
-  String _selectedCurrency = 'USD';
   bool _isSaving = false;
 
   // Live preview state
   String _previewName = 'YOUR NAME';
   String _previewNumber = '**** **** **** ****';
   String _previewExpiry = 'MM/YY';
-  String _cardBrand = '';
 
   @override
   void initState() {
@@ -72,162 +65,12 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       }
 
       _previewExpiry = _expiryCtrl.text.isEmpty ? 'MM/YY' : _expiryCtrl.text;
-
-      // Detect card brand
-      if (digits.startsWith('4')) {
-        _cardBrand = 'visa';
-      } else if (digits.startsWith('5') || digits.startsWith('2')) {
-        _cardBrand = 'mastercard';
-      } else if (digits.startsWith('3')) {
-        _cardBrand = 'keycard';
-      } else {
-        _cardBrand = '';
-      }
     });
-  }
-
-  Future<void> _saveCard() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      final userId = ref.read(currentUserIdProvider);
-      if (userId == null) throw Exception('Not signed in');
-
-      final paymentService = ref.read(paymentServiceProvider);
-      final authUser = Supabase.instance.client.auth.currentUser;
-      final email = authUser?.email ?? '';
-      final firstName = _firstNameCtrl.text.trim();
-      final lastName = _lastNameCtrl.text.trim();
-      final fullName = '$firstName $lastName'.trim();
-      final digits = _cardNumberCtrl.text.replaceAll(RegExp(r'\D'), '');
-      final lastFour = digits.length >= 4
-          ? digits.substring(digits.length - 4)
-          : digits;
-
-      // Step 1: Create a SetupIntent (no amount shown to user)
-      final response = await Supabase.instance.client.functions.invoke(
-        AppConstants.stripePaymentFunction,
-        body: {
-          'action': 'create_verification_charge',
-          'email': email,
-          'name': fullName,
-          'card_brand': _cardBrand,
-          'last_four': lastFour,
-          'cardholder_name': fullName,
-        },
-      );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected response from server.');
-      }
-      if (data['error'] != null) {
-        throw Exception(data['error']);
-      }
-
-      final clientSecret = data['clientSecret'] as String?;
-      final setupIntentId = data['setupIntentId'] as String?;
-      final customerId = data['customerId'] as String?;
-      final ephemeralKey = data['ephemeralKey'] as String?;
-
-      if (clientSecret == null || setupIntentId == null) {
-        throw Exception('Failed to start card setup.');
-      }
-
-      if (!mounted) return;
-
-      // Step 2: Show Stripe PaymentSheet in setup mode (no amount visible)
-      if (Stripe.publishableKey.isEmpty) {
-        final key = AppConstants.stripePublishableKey;
-        if (key.isNotEmpty) {
-          Stripe.publishableKey = key;
-          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-          await Stripe.instance.applySettings();
-        }
-      }
-
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          setupIntentClientSecret: clientSecret,
-          customerId: customerId,
-          customerEphemeralKeySecret: ephemeralKey,
-          merchantDisplayName: AppConstants.appName,
-          style: ThemeMode.system,
-          billingDetails: BillingDetails(email: email, name: fullName),
-        ),
-      );
-
-      await Stripe.instance.presentPaymentSheet();
-
-      if (!mounted) return;
-
-      // Step 3: Card saved in Stripe — now charge it server-side (user doesn't see amount)
-      final chargeResp = await Supabase.instance.client.functions.invoke(
-        AppConstants.stripePaymentFunction,
-        body: {
-          'action': 'complete_verification_charge',
-          'setup_intent_id': setupIntentId,
-          'card_brand': _cardBrand,
-          'last_four': lastFour,
-          'cardholder_name': fullName,
-          'email': email,
-        },
-      );
-      final chargeData = chargeResp.data as Map<String, dynamic>?;
-      if (chargeData == null || chargeData['success'] != true) {
-        final errMsg = chargeData?['error'] ?? 'Verification charge failed.';
-        throw Exception(errMsg);
-      }
-
-      final verificationId = chargeData['verificationId'] as String;
-
-      // Step 4: Save card as 'pending' verification in DB
-      final expiresAt = DateTime.now().toUtc().add(const Duration(hours: 24));
-      await paymentService.savePendingCard(
-        userId: userId,
-        cardBrand: _cardBrand.isNotEmpty ? _cardBrand : 'unknown',
-        lastFour: lastFour,
-        cardholderName: fullName,
-        email: email,
-        phone: '',
-        verificationId: verificationId,
-        expiresAt: expiresAt,
-      );
-
-      if (!mounted) return;
-
-      ref.invalidate(savedCardsProvider(userId));
-      AppSnackbar.success(
-        context,
-        'A small charge was placed on your card. '
-        'Check your bank statement and enter the exact amount '
-        'in your Wallet to verify the card.',
-      );
-      Navigator.of(context).pop(true);
-    } on StripeException catch (e) {
-      if (e.error.code == FailureCode.Canceled) {
-        if (mounted) AppSnackbar.warning(context, 'Card setup was cancelled');
-      } else {
-        if (mounted) AppSnackbar.error(context, friendlyError(e));
-      }
-    } catch (e) {
-      AppLogger.error('Add card error: $e');
-      if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fieldBorder = isDark
-        ? const Color(0xFF374151)
-        : const Color(0xFF9CA3AF);
     final textColor = isDark ? Colors.white : Colors.black;
     final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
 
@@ -241,231 +84,73 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Icon(Icons.credit_card, color: hintColor, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Add Payment Method',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.credit_card, color: hintColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Add Payment Method',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
                         ),
-                        Text(
-                          'Securely add your credit or debit card',
-                          style: TextStyle(fontSize: 13, color: hintColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Card Preview
-              _buildCardPreview(isDark),
-              const SizedBox(height: 28),
-
-              // Card Information header
-              Text(
-                'Card Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // First Name / Last Name row
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      controller: _firstNameCtrl,
-                      hint: 'First Name',
-                      icon: Icons.person_outline,
-                      isDark: isDark,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      textCapitalization: TextCapitalization.words,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildField(
-                      controller: _lastNameCtrl,
-                      hint: 'Last Name',
-                      icon: Icons.person_outline,
-                      isDark: isDark,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      textCapitalization: TextCapitalization.words,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Card Number
-              _buildField(
-                controller: _cardNumberCtrl,
-                hint: 'Card Number',
-                icon: Icons.credit_card,
-                isDark: isDark,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(16),
-                  _CardNumberFormatter(),
-                ],
-                validator: (v) {
-                  final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-                  if (digits.length < 13) return 'Enter a valid card number';
-                  return null;
-                },
-                suffixIcon: _cardBrand.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Icon(
-                          Icons.account_balance_wallet_outlined,
-                          color: AppTheme.successColor,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 14),
-
-              // Expiry / CVV row
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      controller: _expiryCtrl,
-                      hint: 'Expiry Date',
-                      icon: Icons.calendar_today_outlined,
-                      isDark: isDark,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
-                        _ExpiryFormatter(),
-                      ],
-                      validator: (v) {
-                        if (v == null || v.length < 5) return 'MM/YY';
-                        final parts = v.split('/');
-                        final month = int.tryParse(parts[0]) ?? 0;
-                        if (month < 1 || month > 12) return 'Invalid';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildField(
-                      controller: _cvvCtrl,
-                      hint: 'CVV',
-                      icon: Icons.shield_outlined,
-                      isDark: isDark,
-                      keyboardType: TextInputType.number,
-                      obscureText: true,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
-                      ],
-                      validator: (v) {
-                        if (v == null || v.length < 3) return 'Invalid CVV';
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Currency selector
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: fieldBorder),
-                  color: isDark ? const Color(0xFF1F2937) : Colors.white,
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedCurrency,
-                    isExpanded: true,
-                    dropdownColor: isDark
-                        ? const Color(0xFF1F2937)
-                        : Colors.white,
-                    style: TextStyle(fontSize: 16, color: textColor),
-                    hint: Text(
-                      'Select Currency',
-                      style: TextStyle(color: hintColor),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'KYD',
-                        child: Text('KYD - Cayman Islands Dollar'),
                       ),
-                      DropdownMenuItem(
-                        value: 'USD',
-                        child: Text('USD - US Dollar'),
+                      Text(
+                        'Securely add your credit or debit card',
+                        style: TextStyle(fontSize: 13, color: hintColor),
                       ),
                     ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _selectedCurrency = v);
-                    },
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-              // Save Card button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _saveCard,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark
-                        ? Colors.white
-                        : const Color(0xFF1F2937),
-                    foregroundColor: isDark ? Colors.black : Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isSaving
-                      ? AppLoadingIndicator(
-                          fullScreen: false,
-                          color: isDark ? Colors.black : Colors.white,
-                        )
-                      : const Text(
-                          'Save Card',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
+            // Card Preview
+            _buildCardPreview(isDark),
+            const SizedBox(height: 16),
+
+            // ── Add card via Stripe ──────────────────────────
+            _StripeAddCardButton(
+              isLoading: _isSaving,
+              onTap: _addCardWithStripe,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1F2937)
+                    : const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_outline, size: 18, color: hintColor),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Card details are entered securely via Stripe. '
+                      'Your card is tokenized for secure future payments. '
+                      'No verification charge will be made.',
+                      style: TextStyle(fontSize: 12, color: hintColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
@@ -581,100 +266,152 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
     );
   }
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required bool isDark,
-    String? Function(String?)? validator,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    TextCapitalization textCapitalization = TextCapitalization.none,
-  }) {
-    final borderColor = isDark
-        ? const Color(0xFF374151)
-        : const Color(0xFF9CA3AF);
-    final textColor = isDark ? Colors.white : Colors.black;
-    final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+  // ── Stripe "save card" flow ───────────────────────────
+  Future<void> _addCardWithStripe() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId == null) throw Exception('Not signed in');
 
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      obscureText: obscureText,
-      textCapitalization: textCapitalization,
-      style: TextStyle(fontSize: 16, color: textColor),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: hintColor),
-        prefixIcon: Icon(icon, color: hintColor, size: 20),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: isDark ? const Color(0xFF1F2937) : Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.successColor, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.errorColor),
+      final authUser = Supabase.instance.client.auth.currentUser;
+      final email = authUser?.email ?? '';
+      final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
+
+      if (!mounted) return;
+
+      // Create Stripe SetupIntent for saving card
+      final paymentService = ref.read(paymentServiceProvider);
+      final setupIntent = await paymentService.createSetupIntent(
+        customerEmail: email,
+      );
+
+      if (!mounted) return;
+
+      // Present Stripe setup sheet
+      final clientSecret =
+          setupIntent['clientSecret'] as String? ??
+          setupIntent['client_secret'] as String?;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Unable to obtain Stripe setup client secret.');
+      }
+
+      final success = await paymentService.presentSetupSheet(
+        clientSecret: clientSecret,
+        customerName: name,
+        customerEmail: email,
+      );
+
+      if (!mounted) return;
+
+      if (!success) {
+        AppSnackbar.warning(context, 'Card setup was cancelled');
+        return;
+      }
+
+      // Card was successfully added
+      ref.invalidate(savedCardsProvider(userId));
+      AppSnackbar.success(
+        context,
+        'Card added successfully! Your card is now saved for future purchases.',
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      AppLogger.error('Stripe add card error: $e');
+      if (mounted) {
+        AppSnackbar.error(context, 'Add card failed: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+}
+
+/// Stripe "Save card" tappable button.
+class _StripeAddCardButton extends StatelessWidget {
+  const _StripeAddCardButton({required this.isLoading, required this.onTap});
+
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF635BFF), Color(0xFF4C47E5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF635BFF).withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.credit_card,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add card with Stripe',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Fast and secure card tokenization',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              if (isLoading)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-/// Formats card number input as "1234 5678 9012 3456"
-class _CardNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final buffer = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && i % 4 == 0) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-    final formatted = buffer.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
-
-/// Formats expiry input as "MM/YY"
-class _ExpiryFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    String formatted = digits;
-    if (digits.length >= 3) {
-      formatted = '${digits.substring(0, 2)}/${digits.substring(2)}';
-    }
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
