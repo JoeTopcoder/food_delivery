@@ -6,13 +6,14 @@ import 'package:intl/intl.dart';
 import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/payout_service.dart'
+import '../../services/payment/payout_service.dart'
     show
         StripePayoutService,
         StripePayoutException,
         PayoutRecord,
         DriverPayoutMethod;
 import '../../utils/friendly_error.dart';
+import '../../utils/safe_state_mixin.dart';
 import '../../config/app_constants.dart';
 import 'driver_kyc_screen.dart';
 import 'driver_payout_methods_screen.dart';
@@ -45,7 +46,8 @@ class DriverWalletScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverWalletScreen> createState() => _DriverWalletScreenState();
 }
 
-class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen> {
+class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
+    with SafeConsumerStateMixin<DriverWalletScreen> {
   bool _payingOut = false;
   bool _creatingAccount = false;
   String? _errorMessage;

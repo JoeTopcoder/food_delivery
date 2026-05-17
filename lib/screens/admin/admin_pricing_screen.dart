@@ -6,6 +6,18 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/feature_providers.dart';
 
+// ── Supported currencies ────────────────────────────────────────────────────
+const _currencies = [
+  {'code': 'USD', 'symbol': '\$', 'name': 'US Dollar'},
+  {'code': 'KYD', 'symbol': '\$', 'name': 'Cayman Islands Dollar'},
+  {'code': 'JMD', 'symbol': '\$', 'name': 'Jamaican Dollar'},
+  {'code': 'TTD', 'symbol': '\$', 'name': 'Trinidad & Tobago Dollar'},
+  {'code': 'BBD', 'symbol': '\$', 'name': 'Barbados Dollar'},
+  {'code': 'CAD', 'symbol': '\$', 'name': 'Canadian Dollar'},
+  {'code': 'GBP', 'symbol': '£', 'name': 'British Pound'},
+  {'code': 'EUR', 'symbol': '€', 'name': 'Euro'},
+];
+
 // ── Config keys managed by this screen ──────────────────────────────────────
 const _deliveryConfigKeys = [
   'delivery_base_fee',
@@ -28,14 +40,32 @@ const _deliveryConfigKeys = [
 // Tax keys are loaded alongside delivery keys but rendered in their own section.
 const _taxConfigKeys = ['tax_enabled', 'tax_rate'];
 
-// ── Provider: fetch delivery + tax rows from app_config ─────────────────────
+// Card verification charge range — shown to customers in the wallet add-card flow.
+const _cardVerificationConfigKeys = [
+  'card_verification_charge_min',
+  'card_verification_charge_max',
+];
+
+// Currency keys stored in app_config.
+const _currencyConfigKeys = [
+  'currency_code',
+  'currency_symbol',
+  'currency_name',
+];
+
+// ── Provider: fetch delivery + tax + card verification + currency rows ────────
 final _deliveryConfigProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final client = Supabase.instance.client;
       final res = await client
           .from('app_config')
           .select()
-          .inFilter('key', [..._deliveryConfigKeys, ..._taxConfigKeys])
+          .inFilter('key', [
+            ..._deliveryConfigKeys,
+            ..._taxConfigKeys,
+            ..._cardVerificationConfigKeys,
+            ..._currencyConfigKeys,
+          ])
           .order('key');
       return List<Map<String, dynamic>>.from(res as List);
     });
@@ -53,6 +83,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   bool _saving = false;
   bool _taxEnabled = true;
   final _taxRateCtrl = TextEditingController();
+  String _selectedCurrencyCode = AppConstants.currencyCode;
 
   // Friendly labels for config keys
   static const _labels = <String, String>{
@@ -123,6 +154,8 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   }
 
   bool _taxInitialized = false;
+  bool _currencyInitialized = false;
+
   void _initControllers(List<Map<String, dynamic>> configs) {
     for (final row in configs) {
       final key = row['key'] as String;
@@ -137,11 +170,19 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
           _taxRateCtrl.text = raw;
         continue;
       }
+      if (key == 'currency_code') {
+        if (!_currencyInitialized && raw.isNotEmpty) {
+          _selectedCurrencyCode = raw.toUpperCase();
+        }
+        continue;
+      }
+      if (key == 'currency_symbol' || key == 'currency_name') continue;
       _controllers.putIfAbsent(key, () => TextEditingController(text: raw));
     }
     _taxInitialized = true;
+    _currencyInitialized = true;
     // Ensure all keys exist even if missing from DB
-    for (final key in _deliveryConfigKeys) {
+    for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys]) {
       _controllers.putIfAbsent(key, () => TextEditingController(text: ''));
     }
   }
@@ -152,7 +193,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
 
     try {
       final client = Supabase.instance.client;
-      for (final key in _deliveryConfigKeys) {
+      for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys]) {
         final value = _controllers[key]?.text.trim() ?? '';
         if (value.isEmpty) continue;
         // Update existing row (all keys are pre-seeded via migrations)
@@ -182,6 +223,26 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('key', 'tax_rate');
+      }
+
+      // Currency settings
+      final selectedCurrency = _currencies.firstWhere(
+        (c) => c['code'] == _selectedCurrencyCode,
+        orElse: () => _currencies.first,
+      );
+      for (final entry in {
+        'currency_code': selectedCurrency['code']!,
+        'currency_symbol': selectedCurrency['symbol']!,
+        'currency_name': selectedCurrency['name']!,
+      }.entries) {
+        await client
+            .from('app_config')
+            .upsert({
+              'key': entry.key,
+              'value': entry.value,
+              'value_type': 'string',
+              'updated_at': DateTime.now().toIso8601String(),
+            }, onConflict: 'key');
       }
 
       // Update in-memory constants immediately
@@ -279,6 +340,23 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
       'peak_hours_end_2',
       AppConstants.peakHoursEnd2.toDouble(),
     ).toInt();
+    AppConstants.cardVerificationChargeMin = parseVal(
+      'card_verification_charge_min',
+      AppConstants.cardVerificationChargeMin,
+    );
+    AppConstants.cardVerificationChargeMax = parseVal(
+      'card_verification_charge_max',
+      AppConstants.cardVerificationChargeMax,
+    );
+
+    // Currency
+    final selectedCurrency = _currencies.firstWhere(
+      (c) => c['code'] == _selectedCurrencyCode,
+      orElse: () => _currencies.first,
+    );
+    AppConstants.currencyCode = selectedCurrency['code']!;
+    AppConstants.currencySymbol = selectedCurrency['symbol']!;
+    AppConstants.currencyName = selectedCurrency['name']!;
   }
 
   @override
@@ -357,6 +435,12 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
 
                 const SizedBox(height: 12),
                 _taxSection(context),
+
+                const SizedBox(height: 12),
+                _cardVerificationSection(context),
+
+                const SizedBox(height: 12),
+                _currencySection(context),
 
                 const SizedBox(height: 24),
                 FilledButton.icon(
@@ -497,6 +581,169 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
               },
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cardVerificationSection(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.credit_card_outlined, color: cs.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Card Verification Charge',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'The range shown to customers when they add a card to their wallet. '
+            'A micro-charge within this range is sent to verify ownership.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _controllers['card_verification_charge_min'],
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Min (\$)',
+                    prefixIcon: const Icon(Icons.arrow_downward_rounded),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    filled: true,
+                    fillColor: cs.surfaceContainerLowest,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.trim());
+                    if (n == null) return 'Invalid number';
+                    if (n < 0) return 'Must be ≥ 0';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _controllers['card_verification_charge_max'],
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Max (\$)',
+                    prefixIcon: const Icon(Icons.arrow_upward_rounded),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    filled: true,
+                    fillColor: cs.surfaceContainerLowest,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.trim());
+                    if (n == null) return 'Invalid number';
+                    if (n < 0) return 'Must be ≥ 0';
+                    final minText = _controllers['card_verification_charge_min']?.text.trim() ?? '';
+                    final minVal = double.tryParse(minText);
+                    if (minVal != null && n < minVal) return 'Max must be ≥ Min';
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _currencySection(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final selected = _currencies.firstWhere(
+      (c) => c['code'] == _selectedCurrencyCode,
+      orElse: () => _currencies.first,
+    );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.currency_exchange, color: cs.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Payment Currency',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Sets the currency used for Stripe payments. '
+            'Must be a currency supported by Stripe. '
+            'Changing this affects all new orders.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedCurrencyCode,
+            decoration: InputDecoration(
+              labelText: 'Currency',
+              prefixIcon: Text(
+                selected['symbol']!,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              filled: true,
+              fillColor: cs.surfaceContainerLowest,
+            ),
+            items: _currencies
+                .map(
+                  (c) => DropdownMenuItem<String>(
+                    value: c['code'],
+                    child: Text('${c['code']} — ${c['name']} (${c['symbol']})'),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _selectedCurrencyCode = v);
+            },
+          ),
+          if (_selectedCurrencyCode == 'JMD')
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'JMD amounts may fall below Stripe\'s \$0.50 USD minimum. '
+                      'Consider using USD for reliable Stripe payments.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

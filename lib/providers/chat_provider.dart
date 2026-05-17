@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_model.dart';
-import '../services/chat_service.dart';
+import '../services/social/chat_service.dart';
 
 final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService(Supabase.instance.client);

@@ -13,6 +13,7 @@ import '../../providers/chat_provider.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
+import '../../providers/driver_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -264,6 +265,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       ),
                     ),
 
+                  // Driver info card (shown once a driver is assigned)
+                  if (driverId != null &&
+                      driverId.isNotEmpty &&
+                      liveOrder.status != 'cancelled') ...[
+                    _DriverInfoCard(driverId: driverId),
+                    const SizedBox(height: 12),
+                  ],
+
                   // Timeline card
                   _TimelineCard(order: liveOrder, statusIndex: statusIndex),
                   const SizedBox(height: 12),
@@ -315,6 +324,134 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Driver Info Card ─────────────────────────────────────────────────────────
+
+class _DriverInfoCard extends ConsumerWidget {
+  final String driverId;
+  const _DriverInfoCard({required this.driverId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final infoAsync = ref.watch(driverPublicInfoProvider(driverId));
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          infoAsync.when(
+            data: (info) {
+              final imageUrl = info['profileImageUrl'];
+              return CircleAvatar(
+                radius: 24,
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+                backgroundImage:
+                    imageUrl != null ? NetworkImage(imageUrl) : null,
+                child: imageUrl == null
+                    ? Icon(
+                        Icons.person_rounded,
+                        color: AppTheme.primaryColor,
+                        size: 26,
+                      )
+                    : null,
+              );
+            },
+            loading: () => CircleAvatar(
+              radius: 24,
+              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
+              child: Icon(
+                Icons.person_rounded,
+                color: AppTheme.primaryColor,
+                size: 26,
+              ),
+            ),
+            error: (_, __) => CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.grey.withValues(alpha: 0.12),
+              child: const Icon(Icons.person_rounded, color: Colors.grey),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Driver',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                infoAsync.when(
+                  data: (info) => Text(
+                    info['name'] ?? 'Driver',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  loading: () => Container(
+                    height: 14,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  error: (_, __) => const Text('Driver'),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const Text(
+                  'On the way',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6366F1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -487,7 +624,8 @@ class _LiveMap extends StatelessWidget {
             options: MapOptions(initialCenter: driverPos, initialZoom: 14),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),

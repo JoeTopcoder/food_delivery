@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/wallet_model.dart';
-import '../services/wallet_service.dart';
+import '../services/payment/wallet_service.dart';
 import 'auth_provider.dart';
 
 final walletServiceProvider = Provider<WalletService>((ref) {

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import '../../utils/safe_state_mixin.dart';
 
 /// Result returned when a user picks a location on the map.
 class PickedLocation {
@@ -38,7 +39,8 @@ class MapLocationPickerScreen extends StatefulWidget {
       _MapLocationPickerScreenState();
 }
 
-class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
+class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
+    with SafeStateMixin<MapLocationPickerScreen> {
   final MapController _mapController = MapController();
 
   // Default to George Town, Grand Cayman
@@ -94,6 +96,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
       );
 
       final newPos = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
       setState(() {
         _selectedPosition = newPos;
         _locatingUser = false;
@@ -102,11 +105,12 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
       _mapController.move(newPos, 16);
       _reverseGeocode(newPos);
     } catch (_) {
-      setState(() => _locatingUser = false);
+      if (mounted) setState(() => _locatingUser = false);
     }
   }
 
   Future<void> _reverseGeocode(LatLng pos) async {
+    if (!mounted) return;
     setState(() => _loadingAddress = true);
     try {
       final url = Uri.parse(
@@ -117,6 +121,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
         url,
         headers: {'User-Agent': 'sevendash.app'},
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final displayName = data['display_name'] as String?;
@@ -125,12 +130,13 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
         }
       }
     } catch (_) {
+      if (!mounted) return;
       setState(
         () => _address =
             '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
       );
     } finally {
-      setState(() => _loadingAddress = false);
+      if (mounted) setState(() => _loadingAddress = false);
     }
   }
 
@@ -177,7 +183,8 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
             ],

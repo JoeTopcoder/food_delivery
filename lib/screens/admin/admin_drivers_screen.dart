@@ -24,7 +24,7 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -44,10 +44,12 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
     final allAsync = ref.watch(allDriversAdminProvider((0, 200)));
     final pendingAsync = ref.watch(pendingDriversProvider);
     final rejectedAsync = ref.watch(rejectedDriversProvider);
+    final verifyAsync = ref.watch(pendingVerificationDriversProvider);
 
     int allCount = allAsync.valueOrNull?.length ?? 0;
     int pendingCount = pendingAsync.valueOrNull?.length ?? 0;
     int rejectedCount = rejectedAsync.valueOrNull?.length ?? 0;
+    int verifyCount = verifyAsync.valueOrNull?.length ?? 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -77,6 +79,7 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
               rejectedCount,
               color: const Color(0xFFFEE2E2),
             ),
+            _countTab('Review', verifyCount, color: const Color(0xFFE0E7FF)),
           ],
         ),
       ),
@@ -114,6 +117,12 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
             ref: ref,
             emptyMessage: 'No rejected drivers',
             emptyIcon: Icons.cancel_outlined,
+          ),
+          _VerificationReviewList(
+            asyncValue: verifyAsync,
+            onRefresh: () async {
+              ref.invalidate(pendingVerificationDriversProvider);
+            },
           ),
         ],
       ),
@@ -1527,4 +1536,466 @@ class _CreateDriverDialogState extends State<_CreateDriverDialog> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
+}
+
+// ─── Verification Review Tab ──────────────────────────────────────────────────
+
+class _VerificationReviewList extends ConsumerWidget {
+  final AsyncValue<List<Map<String, dynamic>>> asyncValue;
+  final Future<void> Function() onRefresh;
+
+  const _VerificationReviewList({
+    required this.asyncValue,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      color: AppTheme.primaryColor,
+      child: asyncValue.when(
+        loading: () =>
+            const AppLoadingIndicator(message: 'Loading applications…'),
+        error: (e, _) =>
+            AppErrorState(message: friendlyError(e), onRetry: onRefresh),
+        data: (rows) {
+          if (rows.isEmpty) {
+            return const AppEmptyState(
+              icon: Icons.verified_user_outlined,
+              title: 'No applications pending review',
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            itemCount: rows.length,
+            itemBuilder: (context, i) =>
+                _VerificationCard(row: rows[i], onRefresh: onRefresh, ref: ref),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _VerificationCard extends StatefulWidget {
+  final Map<String, dynamic> row;
+  final Future<void> Function() onRefresh;
+  final WidgetRef ref;
+  const _VerificationCard({
+    required this.row,
+    required this.onRefresh,
+    required this.ref,
+  });
+
+  @override
+  State<_VerificationCard> createState() => _VerificationCardState();
+}
+
+class _VerificationCardState extends State<_VerificationCard> {
+  bool _loading = false;
+
+  String get _driverId => widget.row['id'] as String? ?? '';
+  String get _driverName {
+    final users = widget.row['users'] as Map<String, dynamic>?;
+    return users?['name'] as String? ?? 'Unknown Driver';
+  }
+
+  String get _driverEmail {
+    final users = widget.row['users'] as Map<String, dynamic>?;
+    return users?['email'] as String? ?? '';
+  }
+
+  String get _status =>
+      widget.row['driver_status'] as String? ?? 'pending_review';
+  String get _serviceType =>
+      widget.row['service_type'] as String? ?? 'food_delivery';
+  int get _step => (widget.row['onboarding_step'] as num?)?.toInt() ?? 0;
+  String? get _submittedAt => widget.row['submitted_at'] as String?;
+  bool get _foodApproved =>
+      widget.row['is_food_driver_approved'] as bool? ?? false;
+  bool get _rideApproved =>
+      widget.row['is_ride_driver_approved'] as bool? ?? false;
+
+  Future<void> _review({
+    required bool approved,
+    String? rejectionReason,
+    bool approveFoodDelivery = false,
+    bool approveRideSharing = false,
+  }) async {
+    setState(() => _loading = true);
+    try {
+      final response = await SupabaseConfig.client.functions.invoke(
+        'admin-review-driver',
+        body: {
+          'driver_id': _driverId,
+          'approved': approved,
+          if (rejectionReason != null) 'rejection_reason': rejectionReason,
+          'approve_food_delivery': approveFoodDelivery,
+          'approve_ride_sharing': approveRideSharing,
+        },
+      );
+      if (response.status != 200)
+        throw Exception('Review failed (${response.status})');
+      await widget.onRefresh();
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          approved ? '$_driverName approved!' : '$_driverName rejected.',
+        );
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showApproveDialog() {
+    bool foodEnabled =
+        _serviceType == 'food_delivery' || _serviceType == 'both';
+    bool rideEnabled = _serviceType == 'ride_sharing' || _serviceType == 'both';
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Approve Driver'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Approve $_driverName for:',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Food Delivery'),
+                value: foodEnabled,
+                onChanged: (v) => setS(() => foodEnabled = v ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Ride Sharing'),
+                value: rideEnabled,
+                onChanged: (v) => setS(() => rideEnabled = v ?? false),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _review(
+                  approved: true,
+                  approveFoodDelivery: foodEnabled,
+                  approveRideSharing: rideEnabled,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Approve'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRejectDialog() {
+    final reasonCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Reject Application'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Provide a reason for rejecting $_driverName:',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'e.g. Documents unclear, expired license, etc.',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonCtrl.text.trim();
+              Navigator.pop(context);
+              _review(
+                approved: false,
+                rejectionReason: reason.isEmpty ? null : reason,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final submittedDate = _submittedAt != null
+        ? DateTime.tryParse(_submittedAt!)
+        : null;
+    final dateStr = submittedDate != null
+        ? '${submittedDate.month.toString().padLeft(2, '0')}/${submittedDate.day.toString().padLeft(2, '0')}/${submittedDate.year}'
+        : 'Unknown date';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: const Color(
+                    0xFF6366F1,
+                  ).withValues(alpha: 0.12),
+                  child: Text(
+                    _driverName.isNotEmpty ? _driverName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Color(0xFF6366F1),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _driverName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        _driverEmail,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _StatusChip(status: _status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                _InfoChip(
+                  icon: Icons.swap_horiz,
+                  label: _serviceLabel(_serviceType),
+                ),
+                _InfoChip(icon: Icons.checklist, label: '$_step/8 steps'),
+                _InfoChip(
+                  icon: Icons.calendar_today,
+                  label: 'Submitted $dateStr',
+                ),
+                if (_foodApproved)
+                  _InfoChip(
+                    icon: Icons.fastfood,
+                    label: 'Food ✓',
+                    color: const Color(0xFF10B981),
+                  ),
+                if (_rideApproved)
+                  _InfoChip(
+                    icon: Icons.directions_car,
+                    label: 'Rides ✓',
+                    color: const Color(0xFF10B981),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _showRejectDialog,
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Reject'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _showApproveDialog,
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Approve'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _serviceLabel(String t) {
+    switch (t) {
+      case 'food_delivery':
+        return 'Food Delivery';
+      case 'ride_sharing':
+        return 'Ride Sharing';
+      case 'both':
+        return 'Food & Rides';
+      default:
+        return t;
+    }
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    String label;
+    switch (status) {
+      case 'pending_review':
+        color = Colors.orange;
+        label = 'Pending';
+        break;
+      case 'under_review':
+        color = Colors.blue;
+        label = 'Reviewing';
+        break;
+      case 'approved':
+        color = const Color(0xFF10B981);
+        label = 'Approved';
+        break;
+      case 'rejected':
+        color = Colors.redAccent;
+        label = 'Rejected';
+        break;
+      default:
+        color = Colors.grey;
+        label = status;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+  const _InfoChip({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(
+        icon,
+        size: 12,
+        color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    ],
+  );
 }

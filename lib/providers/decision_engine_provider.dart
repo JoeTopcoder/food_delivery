@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/decision_engine_service.dart';
+import '../services/ai/decision_engine_service.dart';
 
 // ── Service ────────────────────────────────────────────────────────────────
 

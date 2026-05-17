@@ -2,8 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/supabase_config.dart';
 import '../models/recommendation_model.dart';
 import '../models/user_intelligence_model.dart';
-import '../services/behavior_tracking_service.dart';
-import '../services/recommendation_service.dart';
+import '../services/ai/behavior_tracking_service.dart';
+import '../services/ai/recommendation_service.dart';
 import 'auth_provider.dart';
 
 // ── Service Providers ──────────────────────────────────────────

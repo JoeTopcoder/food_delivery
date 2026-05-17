@@ -1,4 +1,4 @@
-﻿// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../services/ai_voice_service.dart';
+import '../../services/ai/ai_voice_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';

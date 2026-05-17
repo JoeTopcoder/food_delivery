@@ -10,7 +10,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../services/delivery_fee_service.dart';
+import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
@@ -108,6 +108,85 @@ class AvailableOrdersScreen extends ConsumerWidget {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF22C55E),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // ── Service guard — food delivery must be enabled ───────────
+        final activeServices =
+            driver.activeServices ?? ['food_delivery'];
+        if (!activeServices.contains('food_delivery')) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0F1117),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF0F1117),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              title: Text(
+                context.l10n.availableOrders,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        size: 40,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Food Delivery Disabled',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Enable Food Delivery in Active Services on your dashboard to receive orders.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text(
+                          'Go to Dashboard',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -1047,7 +1126,8 @@ class _OrderMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'sevendash.app',
                 ),
                 MarkerLayer(markers: markers),
@@ -1109,7 +1189,8 @@ class _OrderMap extends StatelessWidget {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),

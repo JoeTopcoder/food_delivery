@@ -1,6 +1,6 @@
 // place-order — Server-authoritative order placement
-// Handles: order creation, order items + sides, receipt number, OTP, commission,
-// ad boost, notifications (restaurant + admin + drivers) — all in one round-trip.
+// Handles: order creation, order items + sides, receipt number, OTP, commission, ad boost.
+// Notifications are handled by DB triggers (migration 108) and are gated on payment_status.
 // Deploy: supabase functions deploy place-order
 
 // deno-lint-ignore-file
@@ -27,7 +27,6 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 
-// Haversine distance in km
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -99,6 +98,14 @@ Deno.serve(async (request) => {
     return json({ error: "Missing required fields" }, 400);
   }
 
+  // ── PAYMENT GATE: card orders start as 'draft' ─────────────────────────────
+  // 'stripe' = food checkout card payment
+  // 'card'   = grocery checkout card payment
+  // Both are gated: the order remains invisible to restaurant/drivers until
+  // stripe-webhook confirms payment and sets status = 'pending'.
+  const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
+  const initialStatus = isCardPayment ? "draft" : "pending";
+
   try {
     // ── 1. Fetch restaurant commission rate ─────────────────────────────
     const { data: restaurant, error: restErr } = await admin
@@ -114,7 +121,6 @@ Deno.serve(async (request) => {
     const defaultCommission = await getConfig("default_commission_rate", 0.15);
     let commissionRate = restaurant.commission_rate ?? defaultCommission;
 
-    // +5% commission boost for orders from ads
     if (fromAd) {
       commissionRate = commissionRate + 0.05;
     }
@@ -135,7 +141,7 @@ Deno.serve(async (request) => {
     const seq = (countData?.length ?? 0) + 1;
     const receiptNumber = `FD-${dateStr}-${String(seq).padStart(4, "0")}`;
 
-    // ── 3. Calculate distance from restaurant to delivery ────────────
+    // ── 3. Calculate distance ────────────────────────────────────────────
     let distanceKm: number | null = null;
     if (restaurant.latitude && restaurant.longitude && deliveryLatitude && deliveryLongitude) {
       distanceKm = round2(haversineKm(
@@ -144,7 +150,7 @@ Deno.serve(async (request) => {
       ));
     }
 
-    // ── 4. Insert order ────────────────────────────────────────────────
+    // ── 4. Insert order ──────────────────────────────────────────────────
     const orderData: Record<string, unknown> = {
       user_id: userId,
       restaurant_id: restaurantId,
@@ -152,7 +158,7 @@ Deno.serve(async (request) => {
       tax_amount: taxAmount,
       delivery_fee: deliveryFee,
       total_amount: totalAmount,
-      status: "pending",
+      status: initialStatus,        // 'draft' for card, 'pending' for cash/wallet
       delivery_address: deliveryAddress,
       delivery_latitude: deliveryLatitude,
       delivery_longitude: deliveryLongitude,
@@ -196,7 +202,7 @@ Deno.serve(async (request) => {
 
     const orderId = order.id as string;
 
-    // ── 4. Insert order items + sides in batch ─────────────────────────
+    // ── 5. Insert order items + sides ────────────────────────────────────
     for (const item of items) {
       const { data: insertedItem, error: itemErr } = await admin
         .from("order_items")
@@ -224,73 +230,21 @@ Deno.serve(async (request) => {
       }
     }
 
-    // ── 5. Fire-and-forget notifications ───────────────────────────────
-    // Restaurant notification
-    const shortId = orderId.substring(0, 8).toUpperCase();
-
-    // These run in parallel, non-blocking
-    const notifications = [];
-
-    // Notify restaurant
-    notifications.push(
-      admin.functions.invoke("send-fcm-notification", {
-        body: {
-          topic: `restaurant_${restaurantId}`,
-          title: "New Order Received! 🔔",
-          body: `Order #${shortId} has been placed at ${restaurant.name}`,
-          data: {
-            type: "new_restaurant_order",
-            order_id: orderId,
-            restaurant_id: restaurantId,
-          },
-        },
-      }).catch(() => {})
-    );
-
-    // Notify admins
-    notifications.push(
-      admin.functions.invoke("send-fcm-notification", {
-        body: {
-          topic: "admins",
-          title: "New Order 📋",
-          body: `Order #${shortId} — $${totalAmount.toFixed(2)} at ${restaurant.name}`,
-          data: {
-            type: "new_order",
-            order_id: orderId,
-            restaurant_id: restaurantId,
-          },
-        },
-      }).catch(() => {})
-    );
-
-    // For non-pickup orders, also notify available drivers
-    if (!isPickup) {
-      notifications.push(
-        admin.functions.invoke("send-fcm-notification", {
-          body: {
-            topic: "available_drivers",
-            title: "New Order Available! 🍔",
-            body: `Delivery order #${shortId} is waiting for pickup`,
-            data: {
-              type: "new_order",
-              order_id: orderId,
-            },
-          },
-        }).catch(() => {})
-      );
-    }
-
-    // Send receipt email to customer (fire-and-forget)
-    notifications.push(
+    // ── 6. Post-create side-effects ──────────────────────────────────────
+    // Restaurant / admin / driver FCM notifications are handled exclusively
+    // by DB triggers (migration 108) which gate on payment_status = 'completed'.
+    // We must NOT duplicate those calls here.
+    //
+    // Receipt email: send immediately only for cash/wallet orders because their
+    // payment is synchronous. Card orders get the receipt from stripe-webhook
+    // once payment_intent.succeeded fires.
+    if (!isCardPayment) {
       admin.functions.invoke("send-receipt-email", {
         body: { order_id: orderId },
-      }).catch(() => {})
-    );
+      }).catch(() => {});
+    }
 
-    // Don't await notifications — fire and forget
-    Promise.allSettled(notifications);
-
-    // ── 6. Return the created order ────────────────────────────────────
+    // ── 7. Return the created order ──────────────────────────────────────
     return json({
       success: true,
       order: {

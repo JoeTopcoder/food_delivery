@@ -5,14 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/order_model.dart';
-import '../services/restaurant_service.dart';
-import '../services/menu_service.dart';
-import '../services/menu_category_service.dart';
-import '../services/order_service.dart';
-import '../services/order_calculation_service.dart';
+import '../services/food/restaurant_service.dart';
+import '../services/food/menu_service.dart';
+import '../services/food/menu_category_service.dart';
+import '../services/food/order_service.dart';
+import '../services/food/order_calculation_service.dart';
 import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
 import '../utils/app_logger.dart';
+
+// Tracks the currently selected bottom-nav tab index so any screen can gate
+// behaviour (e.g. popup banners) on which tab is visible.
+final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 // Service Providers
 final restaurantServiceProvider = Provider<RestaurantService>((ref) {

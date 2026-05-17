@@ -401,3 +401,33 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ── Ride / driver edge functions ────────────────────────────────────────────
+# These functions decode the JWT manually, so Supabase infra must not
+# pre-validate it (avoids UNAUTHORIZED_LEGACY_JWT on older tokens).
+[functions.update-ride-status]
+verify_jwt = false
+
+[functions.create-ride-request]
+verify_jwt = false
+
+[functions.respond-to-ride-request]
+verify_jwt = false
+
+[functions.complete-ride]
+verify_jwt = false
+
+[functions.find-nearby-drivers]
+verify_jwt = false
+
+[functions.select-driver]
+verify_jwt = false
+
+[functions.calculate-ride-fare]
+verify_jwt = false
+
+[functions.activate-scheduled-ride]
+verify_jwt = false
+
+[functions.update-driver-location]
+verify_jwt = false

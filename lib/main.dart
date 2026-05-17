@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +52,7 @@ import 'screens/customer/order_history_screen.dart';
 import 'screens/customer/referral_screen.dart';
 import 'screens/customer/earnings_screen.dart';
 import 'screens/driver/driver_referral_screen.dart';
+import 'screens/driver/driver_application_status_screen.dart';
 import 'screens/restaurant/restaurant_referral_screen.dart';
 import 'screens/customer/favorites_screen.dart';
 import 'screens/customer/smart_search_screen.dart';
@@ -100,8 +103,23 @@ import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
 import 'screens/admin/admin_earnings_screen.dart';
 import 'screens/admin/admin_mealhub_screen.dart';
+import 'screens/admin/admin_shipping_companies_screen.dart';
+import 'screens/admin/admin_package_deliveries_screen.dart';
+import 'modules/rides/screens/admin/admin_rides_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
+// Rides module
+import 'modules/rides/screens/customer/ride_home_screen.dart';
+import 'modules/rides/screens/customer/ride_booking_screen.dart';
+import 'modules/rides/screens/customer/searching_driver_screen.dart';
+import 'modules/rides/screens/customer/active_ride_screen.dart';
+import 'modules/rides/screens/customer/ride_history_screen.dart';
+import 'modules/rides/screens/driver/driver_mode_screen.dart';
+import 'modules/rides/screens/driver/active_ride_driver_screen.dart';
+import 'modules/rides/screens/driver/driver_ride_requests_screen.dart';
+import 'modules/packages/screens/customer/shipping_company_screen.dart';
+import 'modules/packages/screens/driver/package_request_card.dart';
+import 'modules/packages/models/package_delivery_request.dart';
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
@@ -130,7 +148,49 @@ void main() async {
   AppLogger.info(
     '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
   );
-  runApp(const ProviderScope(child: MyApp()));
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    AppLogger.error('[Flutter] Uncaught: ${details.exception}\n${details.stack}');
+  };
+
+  // Replace the default red crash widget with a calm fallback so a broken
+  // subtree never produces a white or red screen in release builds.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    AppLogger.error('[ErrorWidget] ${details.exception}');
+    return Material(
+      color: Colors.white,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 52),
+              const SizedBox(height: 14),
+              const Text(
+                'Something went wrong',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Go back and try again.',
+                style: TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
+  runZonedGuarded(
+    () => runApp(const ProviderScope(child: MyApp())),
+    (error, stack) {
+      AppLogger.error('[Zone] Uncaught: $error\n$stack');
+    },
+  );
 }
 
 /// Global scroll behavior: smooth iOS-style bouncing physics on every platform,
@@ -165,13 +225,14 @@ class MyApp extends ConsumerStatefulWidget {
   ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends ConsumerState<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _startupHydrated = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _hydrateDeferredStartup();
@@ -254,6 +315,19 @@ class _MyAppState extends ConsumerState<MyApp> {
     }
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.resumed) {
+      _refreshSession();
+    }
+  }
+
   static Widget _getHomeForRole(String? role) {
     switch (role) {
       case 'customer':
@@ -308,7 +382,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/onboarding/customer':
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
-                  builder: (context) => _getHomeForRole(authState.user?.role),
+                  builder: (context) => RoleGuard(
+                    allowedRoles: const ['user', 'customer'],
+                    child: _getHomeForRole(authState.user?.role),
+                  ),
                 );
               }
               return MaterialPageRoute(
@@ -317,7 +394,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/onboarding/driver':
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
-                  builder: (context) => _getHomeForRole(authState.user?.role),
+                  builder: (context) => RoleGuard(
+                    allowedRoles: const ['driver'],
+                    child: _getHomeForRole(authState.user?.role),
+                  ),
                 );
               }
               return MaterialPageRoute(
@@ -326,7 +406,10 @@ class _MyAppState extends ConsumerState<MyApp> {
             case '/onboarding/restaurant':
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
-                  builder: (context) => _getHomeForRole(authState.user?.role),
+                  builder: (context) => RoleGuard(
+                    allowedRoles: const ['restaurant'],
+                    child: _getHomeForRole(authState.user?.role),
+                  ),
                 );
               }
               return MaterialPageRoute(
@@ -378,6 +461,13 @@ class _MyAppState extends ConsumerState<MyApp> {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['driver'],
                   child: DriverDashboardScreen(),
+                ),
+              );
+            case '/driver-application-status':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverApplicationStatusScreen(),
                 ),
               );
             case '/available-orders':
@@ -899,16 +989,160 @@ class _MyAppState extends ConsumerState<MyApp> {
                   child: AdminMealhubScreen(),
                 ),
               );
+            case '/admin-shipping-companies':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminShippingCompaniesScreen(),
+                ),
+              );
+            case '/admin-rides':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRidesScreen(initialTab: 0),
+                ),
+              );
+            case '/admin-rides/list':
+            case '/admin-rides/driver-approval':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRidesScreen(initialTab: 1),
+                ),
+              );
+            case '/admin-rides/pricing':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRidesScreen(initialTab: 2),
+                ),
+              );
+            case '/admin-packages':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPackageDeliveriesScreen(initialTab: 0),
+                ),
+              );
+            case '/admin-packages/deliveries':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPackageDeliveriesScreen(initialTab: 1),
+                ),
+              );
+            case '/admin-packages/records':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPackageDeliveriesScreen(initialTab: 2),
+                ),
+              );
             case '/settings':
               return MaterialPageRoute(
                 builder: (context) => const AppSettingsScreen(),
               );
+
+            // ── Rides – Customer ──────────────────────────────────────────
+            case '/ride-home':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: RideHomeScreen(),
+                ),
+              );
+            case '/rides/booking':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: RideBookingScreen(),
+                ),
+              );
+            case '/rides/searching':
+              final rideId = settings.arguments as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: SearchingDriverScreen(rideId: rideId),
+                ),
+              );
+            case '/rides/active':
+              final rideId = settings.arguments as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: ActiveRideScreen(rideId: rideId),
+                ),
+              );
+            case '/rides/history':
+              final customerId = settings.arguments as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: RideHistoryScreen(customerId: customerId),
+                ),
+              );
+
+            // ── Rides – Driver ────────────────────────────────────────────
+            case '/rides/driver/mode':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: DriverModeScreen(),
+                ),
+              );
+            case '/rides/driver/active':
+              final args = settings.arguments as Map<String, dynamic>?;
+              final rideId = args?['rideId'] as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['driver'],
+                  child: ActiveRideDriverScreen(
+                    rideId: rideId,
+                    pickupAddress: args?['pickupAddress'] as String?,
+                    destinationAddress: args?['destinationAddress'] as String?,
+                  ),
+                ),
+              );
+            case '/rides/driver/trips':
+              final tripArgs = settings.arguments as Map<String, dynamic>?;
+              final driverId = tripArgs?['driverId'] as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['driver'],
+                  child: DriverRideRequestsScreen(driverId: driverId),
+                ),
+              );
+
+            // ── Package Delivery ──────────────────────────────────────
+            case '/packages':
+              return MaterialPageRoute(
+                builder: (_) => const ShippingCompanyScreen(),
+              );
+            case '/packages/driver/request':
+              final req = settings.arguments as PackageDeliveryRequest;
+              return MaterialPageRoute(
+                builder: (ctx) => Scaffold(
+                  backgroundColor: Colors.black54,
+                  body: Center(
+                    child: PackageRequestCard(
+                      request: req,
+                      onDismiss: () => Navigator.pop(ctx),
+                    ),
+                  ),
+                ),
+              );
+
             default:
               return MaterialPageRoute(
-                builder: (context) => const MainNavigationScreen(),
+                builder: (context) => const AuthLaunchGateScreen(),
               );
           }
         },
+        onUnknownRoute: (settings) => MaterialPageRoute(
+          builder: (context) => const AuthLaunchGateScreen(),
+        ),
       ),
     );
   }

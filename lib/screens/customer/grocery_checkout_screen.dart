@@ -21,8 +21,10 @@ import '../../providers/recommendation_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/safe_state_mixin.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'order_success_screen.dart';
+import 'payment_screen.dart';
 
 class GroceryCheckoutScreen extends ConsumerStatefulWidget {
   const GroceryCheckoutScreen({super.key});
@@ -32,7 +34,8 @@ class GroceryCheckoutScreen extends ConsumerStatefulWidget {
       _GroceryCheckoutScreenState();
 }
 
-class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
+class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
+    with SafeConsumerStateMixin<GroceryCheckoutScreen> {
   final _promoCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _cvcCtrl = TextEditingController();
@@ -1122,7 +1125,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
 
     try {
       final groceryService = ref.read(groceryServiceProvider);
-      final paymentService = ref.read(paymentServiceProvider);
       final cart = ref.read(groceryCartProvider);
       final appliedPromo = ref.read(appliedPromoProvider);
       final redeemPts = ref.read(redeemPointsProvider);
@@ -1247,25 +1249,48 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
           final email = authUser?.email ?? '';
           final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
-          final paymentCompleted = await paymentService
-              .presentStripePaymentSheet(
+          final result = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentScreen(
                 orderId: orderIds.first,
                 amount: runningTotal,
+                currency: AppConstants.currencyCode,
                 customerEmail: email,
                 customerName: name,
-              );
+              ),
+            ),
+          );
 
           if (!mounted) return;
 
-          if (paymentCompleted == null) {
-            for (final oid in orderIds) {
-              await _deleteOrder(oid);
+          if (result == null || result['status'] != 'paid') {
+            // Give webhook a brief window in case it already confirmed.
+            if (await _isOrderPaid(orderIds.first)) {
+              // Webhook pre-confirmed — fall through to success.
+            } else {
+              // Genuine cancel or failure — delete the draft orders.
+              for (final oid in orderIds) {
+                await _deleteOrder(oid);
+              }
+              setState(() => _placingOrder = false);
+              if (mounted) {
+                AppSnackbar.warning(
+                  context,
+                  'Payment was cancelled. Your order was not placed.',
+                );
+              }
+              return;
             }
-            setState(() => _placingOrder = false);
-            return;
+          } else {
+            // Payment confirmed by Stripe. Poll until webhook activates the order.
+            final activated = await _waitForOrderActivation(orderIds.first);
+            if (!activated) {
+              // Webhook delayed — proceed; it will still complete in the background.
+            }
           }
 
-          // Payment already confirmed server-side by Stripe
+          // Payment confirmed server-side by Stripe
         } catch (e) {
           for (final oid in orderIds) {
             await _deleteOrder(oid);
@@ -1355,6 +1380,45 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen> {
       await client.from('payments').delete().eq('order_id', orderId);
       await client.from('orders').delete().eq('id', orderId);
     } catch (_) {}
+  }
+
+  /// Check payment_status on a single order row.
+  Future<bool> _isOrderPaid(String orderId) async {
+    try {
+      final row = await SupabaseConfig.client
+          .from('orders')
+          .select('payment_status')
+          .eq('id', orderId)
+          .maybeSingle();
+      return row?['payment_status'] == 'completed';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Poll until the webhook activates the order (status != 'draft' AND
+  /// payment_status = 'completed'), or timeout after 30 s.
+  Future<bool> _waitForOrderActivation(
+    String orderId, {
+    int attempts = 15,
+    Duration interval = const Duration(seconds: 2),
+  }) async {
+    for (var i = 0; i < attempts; i++) {
+      try {
+        final row = await SupabaseConfig.client
+            .from('orders')
+            .select('status, payment_status')
+            .eq('id', orderId)
+            .maybeSingle();
+        if (row != null &&
+            row['payment_status'] == 'completed' &&
+            row['status'] != 'draft') {
+          return true;
+        }
+      } catch (_) {}
+      if (i < attempts - 1) await Future.delayed(interval);
+    }
+    return false;
   }
 }
 

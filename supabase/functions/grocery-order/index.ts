@@ -245,6 +245,11 @@ Deno.serve(async (request) => {
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
     // ── 8. Create order ─────────────────────────────────────────────────
+    // PAYMENT GATE: card orders start as 'draft' so they are invisible to
+    // the restaurant until stripe-webhook confirms payment_status = 'completed'.
+    const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
+    const initialStatus = isCardPayment ? "draft" : "pending";
+
     // Generate GRO- receipt number
     const today = new Date().toISOString().split("T")[0];
     const { count: todayCount } = await admin
@@ -256,7 +261,7 @@ Deno.serve(async (request) => {
     const orderData: Record<string, unknown> = {
       user_id: userId,
       restaurant_id: storeId,
-      status: "pending",
+      status: initialStatus,      // 'draft' for card, 'pending' for cash/wallet
       subtotal,
       delivery_fee: deliveryFee,
       tax_amount: tax,
@@ -339,10 +344,13 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Send receipt email to customer (fire-and-forget)
-    admin.functions.invoke("send-receipt-email", {
-      body: { order_id: order.id },
-    }).catch(() => {});
+    // Receipt email: send immediately for cash/wallet; card orders get it
+    // from stripe-webhook after payment_intent.succeeded fires.
+    if (!isCardPayment) {
+      admin.functions.invoke("send-receipt-email", {
+        body: { order_id: order.id },
+      }).catch(() => {});
+    }
 
     return json({
       success: true,

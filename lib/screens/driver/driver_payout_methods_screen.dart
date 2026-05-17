@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import '../../services/payout_service.dart'
+import '../../services/payment/payout_service.dart'
     show StripePayoutService, DriverPayoutMethod;
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/safe_state_mixin.dart';
 import '../../config/app_constants.dart';
 
 final _methodsProvider = FutureProvider.autoDispose<List<DriverPayoutMethod>>((
@@ -21,7 +22,8 @@ class DriverPayoutMethodsScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverPayoutMethodsScreen> createState() => _State();
 }
 
-class _State extends ConsumerState<DriverPayoutMethodsScreen> {
+class _State extends ConsumerState<DriverPayoutMethodsScreen>
+    with SafeConsumerStateMixin<DriverPayoutMethodsScreen> {
   static const _bg = Color(0xFF0F1117);
   static const _cardBg = Color(0xFF1C1F2E);
   static const _green = Color(0xFF00C896);

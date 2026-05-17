@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/supabase_config.dart';
-import '../services/payout_service.dart';
+import '../services/payment/payout_service.dart';
 
 final payoutServiceProvider = Provider<PayoutService>((ref) {
   return PayoutService(SupabaseConfig.client);

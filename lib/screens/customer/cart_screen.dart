@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
@@ -6,7 +6,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
-import '../../services/delivery_fee_service.dart';
+import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 

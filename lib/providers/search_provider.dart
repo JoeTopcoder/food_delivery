@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/search_service.dart';
+import '../services/food/search_service.dart';
 import 'auth_provider.dart';
 
 final searchServiceProvider = Provider<SearchService>((ref) {

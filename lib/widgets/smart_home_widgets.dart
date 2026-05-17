@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/recommendation_model.dart';
+import '../../models/restaurant_model.dart';
 import '../../providers/recommendation_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/restaurant_card.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -663,6 +666,15 @@ class SmartHomeSections extends ConsumerWidget {
               accentColor: const Color(0xFF6366F1),
               recommendations: brain.forYou,
               onTap: onRestaurantTap,
+              onSeeAll: brain.forYou.isEmpty ? null : () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SmartSectionViewAllScreen(
+                    title: 'Made for You',
+                    recommendations: brain.forYou,
+                  ),
+                ),
+              ),
             ),
 
             // "Because you love [cuisine]" — behavior-based
@@ -673,6 +685,15 @@ class SmartHomeSections extends ConsumerWidget {
                 accentColor: const Color(0xFFE11D48),
                 recommendations: brain.becauseYouLove,
                 onTap: onRestaurantTap,
+                onSeeAll: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SmartSectionViewAllScreen(
+                      title: 'Because you love ${brain.topCuisine}',
+                      recommendations: brain.becauseYouLove,
+                    ),
+                  ),
+                ),
               ),
 
             // "Deals you'll like" — for deal-sensitive users
@@ -683,6 +704,15 @@ class SmartHomeSections extends ConsumerWidget {
                 accentColor: const Color(0xFF10B981),
                 recommendations: brain.dealsForYou,
                 onTap: onRestaurantTap,
+                onSeeAll: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SmartSectionViewAllScreen(
+                      title: 'Deals you\'ll like',
+                      recommendations: brain.dealsForYou,
+                    ),
+                  ),
+                ),
               ),
 
             // "Quick delivery" — for time-sensitive users
@@ -693,6 +723,15 @@ class SmartHomeSections extends ConsumerWidget {
                 accentColor: const Color(0xFFF59E0B),
                 recommendations: brain.quickDelivery,
                 onTap: onRestaurantTap,
+                onSeeAll: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SmartSectionViewAllScreen(
+                      title: 'Quick delivery',
+                      recommendations: brain.quickDelivery,
+                    ),
+                  ),
+                ),
               ),
           ],
         );
@@ -895,6 +934,84 @@ class _ApologyCouponBanner extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// SmartSectionViewAllScreen — full vertical list for a smart section
+// ════════════════════════════════════════════════════════════════
+
+class SmartSectionViewAllScreen extends ConsumerStatefulWidget {
+  final String title;
+  final List<SmartRecommendation> recommendations;
+
+  const SmartSectionViewAllScreen({
+    super.key,
+    required this.title,
+    required this.recommendations,
+  });
+
+  @override
+  ConsumerState<SmartSectionViewAllScreen> createState() =>
+      _SmartSectionViewAllScreenState();
+}
+
+class _SmartSectionViewAllScreenState
+    extends ConsumerState<SmartSectionViewAllScreen> {
+  List<Restaurant>? _restaurants;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final service = ref.read(restaurantServiceProvider);
+    final results = await Future.wait(
+      widget.recommendations.map((r) => service.getRestaurantById(r.restaurantId)),
+    );
+    if (mounted) {
+      setState(() {
+        _restaurants = results.whereType<Restaurant>().toList();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          widget.title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+        ),
+        elevation: 0,
+      ),
+      body: _restaurants == null
+          ? const Center(child: CircularProgressIndicator())
+          : _restaurants!.isEmpty
+              ? const Center(child: Text('Nothing to show right now.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                  itemCount: _restaurants!.length,
+                  itemBuilder: (context, i) {
+                    final r = _restaurants![i];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: RestaurantCard(
+                        restaurant: r,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/restaurant-detail',
+                          arguments: r,
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

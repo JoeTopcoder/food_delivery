@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_constants.dart';
 import '../../providers/user_provider.dart';
-import '../../services/menu_category_service.dart';
+import '../../services/food/menu_category_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -47,7 +47,7 @@ class MealsByCategoryScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async =>
-            ref.refresh(mealsByCategoryProvider(categoryName).future),
+            ref.invalidate(mealsByCategoryProvider(categoryName)),
         child: mealsAsync.when(
           loading: () => const AppLoadingIndicator(message: 'Finding meals…'),
           error: (e, _) => AppErrorState(

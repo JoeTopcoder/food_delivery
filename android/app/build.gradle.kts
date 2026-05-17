@@ -1,13 +1,12 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
-
-import java.util.Properties
-import java.io.FileInputStream
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -51,6 +50,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         release {
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
@@ -73,10 +76,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-    // Force a consistent version of androidx.core to fix AAPT resource conflicts
-    // between integration_test and other plugins in release builds.
     implementation("androidx.core:core:1.16.0")
     implementation("androidx.core:core-ktx:1.16.0")
-    // Required for Stripe Payment Sheet (needs MaterialComponents theme)
     implementation("com.google.android.material:material:1.12.0")
 }

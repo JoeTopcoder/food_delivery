@@ -31,6 +31,31 @@ class Driver {
   final String? stripeAccountStatus;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final List<String>? activeServices;
+
+  // ── Verification & onboarding ──────────────────────────────────────────────
+  final String driverStatus; // draft | pending_review | under_review | approved | rejected | suspended | expired_documents
+  final int onboardingStep;
+  final String serviceType; // food_delivery | ride_sharing | both
+  final String? fullName;
+  final String? phoneNumber;
+  final String? profilePhotoUrl;
+  final DateTime? dateOfBirth;
+  final String? homeAddress;
+  final DateTime? submittedAt;
+  final DateTime? approvedAt;
+  final String? reviewedBy;
+  final DateTime? reviewedAt;
+  final String? rejectionReason;
+
+  // ── Per-service approval flags ─────────────────────────────────────────────
+  final bool isFoodDriverApproved;
+  final bool isRideDriverApproved;
+
+  // ── Live availability per service ─────────────────────────────────────────
+  final bool isAvailableForFood;
+  final bool isAvailableForRides;
+  final bool isOnline;
 
   Driver({
     required this.id,
@@ -60,10 +85,35 @@ class Driver {
     this.stripeAccountStatus,
     required this.createdAt,
     this.updatedAt,
+    this.activeServices,
+    this.driverStatus = 'draft',
+    this.onboardingStep = 0,
+    this.serviceType = 'food_delivery',
+    this.fullName,
+    this.phoneNumber,
+    this.profilePhotoUrl,
+    this.dateOfBirth,
+    this.homeAddress,
+    this.submittedAt,
+    this.approvedAt,
+    this.reviewedBy,
+    this.reviewedAt,
+    this.rejectionReason,
+    this.isFoodDriverApproved = false,
+    this.isRideDriverApproved = false,
+    this.isAvailableForFood = false,
+    this.isAvailableForRides = false,
+    this.isOnline = false,
   });
 
   factory Driver.fromJson(Map<String, dynamic> json) => _$DriverFromJson(json);
   Map<String, dynamic> toJson() => _$DriverToJson(this);
+
+  bool get isApproved => driverStatus == 'approved';
+  bool get isPendingReview => driverStatus == 'pending_review' || driverStatus == 'under_review';
+  bool get isRejected => driverStatus == 'rejected';
+  bool get isDraft => driverStatus == 'draft';
+  bool get canGoOnline => isApproved && (isFoodDriverApproved || isRideDriverApproved);
 
   Driver copyWith({
     String? id,
@@ -93,6 +143,25 @@ class Driver {
     String? stripeAccountStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<String>? activeServices,
+    String? driverStatus,
+    int? onboardingStep,
+    String? serviceType,
+    String? fullName,
+    String? phoneNumber,
+    String? profilePhotoUrl,
+    DateTime? dateOfBirth,
+    String? homeAddress,
+    DateTime? submittedAt,
+    DateTime? approvedAt,
+    String? reviewedBy,
+    DateTime? reviewedAt,
+    String? rejectionReason,
+    bool? isFoodDriverApproved,
+    bool? isRideDriverApproved,
+    bool? isAvailableForFood,
+    bool? isAvailableForRides,
+    bool? isOnline,
   }) {
     return Driver(
       id: id ?? this.id,
@@ -122,6 +191,25 @@ class Driver {
       stripeAccountStatus: stripeAccountStatus ?? this.stripeAccountStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      activeServices: activeServices ?? this.activeServices,
+      driverStatus: driverStatus ?? this.driverStatus,
+      onboardingStep: onboardingStep ?? this.onboardingStep,
+      serviceType: serviceType ?? this.serviceType,
+      fullName: fullName ?? this.fullName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      homeAddress: homeAddress ?? this.homeAddress,
+      submittedAt: submittedAt ?? this.submittedAt,
+      approvedAt: approvedAt ?? this.approvedAt,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      isFoodDriverApproved: isFoodDriverApproved ?? this.isFoodDriverApproved,
+      isRideDriverApproved: isRideDriverApproved ?? this.isRideDriverApproved,
+      isAvailableForFood: isAvailableForFood ?? this.isAvailableForFood,
+      isAvailableForRides: isAvailableForRides ?? this.isAvailableForRides,
+      isOnline: isOnline ?? this.isOnline,
     );
   }
 }

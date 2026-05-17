@@ -194,7 +194,7 @@ Deno.serve(async (request) => {
       );
     }
 
-    const isNonOrder = txnType === "wallet_topup";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
 
     // For standard orders, validate the order exists and belongs to user
     if (!isNonOrder) {
@@ -238,6 +238,8 @@ Deno.serve(async (request) => {
         description:
           txnType === "wallet_topup"
             ? `Wallet top-up ${orderId}`
+            : txnType === "ride"
+            ? `Ride payment ${orderId}`
             : `Order payment ${orderId}`,
       };
 
@@ -677,6 +679,174 @@ Deno.serve(async (request) => {
       });
     } catch (e) {
       return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
+    }
+  }
+
+  // ── Prepare Saved Card Payment (create PI, let Flutter confirm with CVC) ──
+  // Used when we need CVC re-collection (e.g. wallet top-up with saved card).
+
+  if (action === "prepare_saved_card_payment") {
+    const orderId = String(body.orderId ?? "").trim();
+    const amount = Number(body.amount ?? 0);
+    const paymentMethodId = String(body.paymentMethodId ?? "").trim();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
+    const txnType = String(body.type ?? "order").trim();
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
+
+    if (!orderId || amount <= 0 || !paymentMethodId) {
+      return json({ error: "Missing required fields (orderId, amount, paymentMethodId)." }, 400);
+    }
+
+    if (!isNonOrder) {
+      const { data: order, error: orderError } = await adminClient
+        .from("orders")
+        .select("id, user_id, total_amount, payment_status")
+        .eq("id", orderId)
+        .single();
+      if (orderError || !order) return json({ error: "Order not found." }, 404);
+      if (order.user_id !== userData.user.id) return json({ error: "Order does not belong to you." }, 403);
+      if (order.payment_status === "completed") return json({ error: "Order is already paid." }, 400);
+    }
+
+    try {
+      const email = userData.user.email ?? "";
+      const name = (userData.user.user_metadata?.name as string) ?? email;
+      const customerId = await getOrCreateStripeCustomer(adminClient, userData.user.id, email, name);
+      const amountInCents = Math.round(amount * 100);
+      const description = txnType === "wallet_topup"
+        ? `Wallet top-up ${orderId}`
+        : txnType === "ride"
+        ? `Ride payment ${orderId}`
+        : `Order payment ${orderId}`;
+
+      // Create PI with payment method attached but NOT confirmed —
+      // Flutter SDK will confirm it client-side so CVC can be collected.
+      const pi = await stripeRequest("/payment_intents", {
+        amount: String(amountInCents),
+        currency,
+        customer: customerId,
+        payment_method: paymentMethodId,
+        "payment_method_types[]": "card",
+        "metadata[order_id]": orderId,
+        "metadata[user_id]": userData.user.id,
+        "metadata[type]": txnType,
+        receipt_email: email,
+        description,
+      });
+
+      if (pi.error) {
+        const err = pi.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Failed to create payment intent." }, 400);
+      }
+
+      return json({
+        clientSecret: pi.client_secret,
+        paymentIntentId: pi.id,
+        customerId,
+        amount,
+        currency,
+      });
+    } catch (e) {
+      return json({ error: `Payment intent error: ${(e as Error).message}` }, 500);
+    }
+  }
+
+  // ── Charge Saved Card Off-Session (order or wallet top-up with saved PM) ──
+
+  if (action === "charge_saved_card") {
+    const orderId = String(body.orderId ?? "").trim();
+    const amount = Number(body.amount ?? 0);
+    const paymentMethodId = String(body.paymentMethodId ?? "").trim();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
+    const txnType = String(body.type ?? "order").trim();
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
+
+    if (!orderId || amount <= 0 || !paymentMethodId) {
+      return json({ error: "Missing required fields (orderId, amount, paymentMethodId)." }, 400);
+    }
+
+    // For real orders: validate the order exists and belongs to this user
+    if (!isNonOrder) {
+      const { data: order, error: orderError } = await adminClient
+        .from("orders")
+        .select("id, user_id, total_amount, payment_status")
+        .eq("id", orderId)
+        .single();
+
+      if (orderError || !order) {
+        return json({ error: "Order not found." }, 404);
+      }
+      if (order.user_id !== userData.user.id) {
+        return json({ error: "Order does not belong to you." }, 403);
+      }
+      if (order.payment_status === "completed") {
+        return json({ error: "Order is already paid." }, 400);
+      }
+    }
+
+    try {
+      // Get or create Stripe customer for this user
+      const email = userData.user.email ?? "";
+      const name = (userData.user.user_metadata?.name as string) ?? email;
+      const customerId = await getOrCreateStripeCustomer(
+        adminClient, userData.user.id, email, name
+      );
+
+      const amountInCents = Math.round(amount * 100);
+      const description = txnType === "wallet_topup"
+        ? `Wallet top-up ${orderId}`
+        : txnType === "ride"
+        ? `Ride payment ${orderId}`
+        : `Order payment ${orderId}`;
+
+      // Create and immediately confirm the PaymentIntent off-session
+      const pi = await stripeRequest("/payment_intents", {
+        amount: String(amountInCents),
+        currency,
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: "true",
+        confirm: "true",
+        "metadata[order_id]": orderId,
+        "metadata[user_id]": userData.user.id,
+        "metadata[type]": txnType,
+        receipt_email: email,
+        description,
+      });
+
+      if (pi.error) {
+        const err = pi.error as Record<string, unknown>;
+        return json({ error: err.message ?? "Charge failed." }, 400);
+      }
+
+      const piStatus = pi.status as string;
+      const succeeded = piStatus === "succeeded" || piStatus === "requires_capture";
+
+      // Only update orders / payments tables for real order payments
+      if (succeeded && !isNonOrder) {
+        await adminClient.from("payments").upsert(
+          {
+            order_id: orderId,
+            user_id: userData.user.id,
+            amount: amount,
+            currency: currency.toUpperCase(),
+            method: "card",
+            status: "completed",
+            transaction_id: pi.id as string,
+            gateway: "stripe",
+          },
+          { onConflict: "order_id" }
+        );
+
+        await adminClient
+          .from("orders")
+          .update({ payment_status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
+
+      return json({ success: succeeded, paymentIntentId: pi.id, status: piStatus });
+    } catch (e) {
+      return json({ error: `Charge error: ${(e as Error).message}` }, 500);
     }
   }
 

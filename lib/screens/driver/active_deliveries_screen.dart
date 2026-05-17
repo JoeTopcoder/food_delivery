@@ -10,7 +10,7 @@ import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
-import '../../services/delivery_fee_service.dart';
+import '../../services/driver/delivery_fee_service.dart';
 import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
@@ -986,7 +986,8 @@ class _DeliveryMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'sevendash.app',
                 ),
                 MarkerLayer(markers: markers),
@@ -1048,7 +1049,8 @@ class _DeliveryMap extends StatelessWidget {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
               MarkerLayer(markers: markers),

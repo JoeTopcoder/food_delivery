@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/referral_service.dart';
-import '../services/favorites_service.dart';
+import '../services/social/referral_service.dart';
+import '../services/food/favorites_service.dart';
 
 // ==================== REFERRAL PROVIDERS ====================
 
