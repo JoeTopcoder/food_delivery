@@ -6,6 +6,7 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import '../../models/subscription_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
+import '../../providers/payment_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -51,6 +52,32 @@ class _DeliverySubscriptionTabState
     extends ConsumerState<_DeliverySubscriptionTab> {
   bool _subscribing = false;
 
+  /// Inits and presents the Stripe payment sheet.
+  /// Returns true if payment completed, false if user cancelled.
+  /// Rethrows on any other Stripe error.
+  Future<bool> _showPaymentSheet({
+    required String clientSecret,
+    String? customerId,
+    String? ephemeralKey,
+  }) async {
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        customerId: customerId,
+        customerEphemeralKeySecret: ephemeralKey,
+        merchantDisplayName: AppConstants.appName,
+        style: ThemeMode.system,
+      ),
+    );
+    try {
+      await Stripe.instance.presentPaymentSheet();
+      return true;
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) return false;
+      rethrow;
+    }
+  }
+
   Future<void> _subscribe(String planType) async {
     if (_subscribing) return;
     setState(() => _subscribing = true);
@@ -66,26 +93,17 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
-      final customerId = result['customer_id'] as String?;
-      final ephemeralKey = result['ephemeral_key'] as String?;
-
-      // Present Stripe Payment Sheet
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          customerId: customerId,
-          customerEphemeralKeySecret: ephemeralKey,
-          merchantDisplayName: AppConstants.appName,
-          style: ThemeMode.system,
-        ),
+      final paid = await _showPaymentSheet(
+        clientSecret: clientSecret,
+        customerId: result['customer_id'] as String?,
+        ephemeralKey: result['ephemeral_key'] as String?,
       );
-      await Stripe.instance.presentPaymentSheet();
+      if (!paid) return;
 
       // Payment succeeded — activate the subscription immediately
       final subId = result['subscription_id'] as String?;
       bool activated = false;
       if (subId != null) {
-        // Try activation up to 3 times in case of transient errors
         for (int i = 0; i < 3 && !activated; i++) {
           activated = await service.activateDeliverySubscription(subId);
           if (!activated && i < 2) {
@@ -107,17 +125,10 @@ class _DeliverySubscriptionTabState
           );
         }
       }
-    } on StripeException catch (e) {
-      if (e.error.code != FailureCode.Canceled && mounted) {
-        AppSnackbar.error(
-          context,
-          e.error.localizedMessage ?? 'Payment failed',
-        );
-      }
     } catch (e) {
       AppLogger.error('Subscription error: $e');
       if (mounted) {
-        AppSnackbar.error(context, 'Subscription failed: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _subscribing = false);
@@ -193,19 +204,12 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
-      final customerId = result['customer_id'] as String?;
-      final ephemeralKey = result['ephemeral_key'] as String?;
-
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          customerId: customerId,
-          customerEphemeralKeySecret: ephemeralKey,
-          merchantDisplayName: AppConstants.appName,
-          style: ThemeMode.system,
-        ),
+      final paid = await _showPaymentSheet(
+        clientSecret: clientSecret,
+        customerId: result['customer_id'] as String?,
+        ephemeralKey: result['ephemeral_key'] as String?,
       );
-      await Stripe.instance.presentPaymentSheet();
+      if (!paid) return;
 
       // Payment succeeded — activate immediately
       final subId = result['subscription_id'] as String?;
@@ -232,17 +236,10 @@ class _DeliverySubscriptionTabState
           );
         }
       }
-    } on StripeException catch (e) {
-      if (e.error.code != FailureCode.Canceled && mounted) {
-        AppSnackbar.error(
-          context,
-          e.error.localizedMessage ?? 'Payment failed',
-        );
-      }
     } catch (e) {
       AppLogger.error('Plan change error: $e');
       if (mounted) {
-        AppSnackbar.error(context, 'Plan change failed: $e');
+        AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _subscribing = false);
