@@ -288,6 +288,22 @@ class SubscriptionService {
     }
   }
 
+  /// Delete a pending subscription row (e.g. user cancelled payment sheet).
+  /// Fire-and-forget — errors are swallowed.
+  Future<void> deletePendingSubscription(String subscriptionId) async {
+    try {
+      await _client.functions.invoke(
+        'create-subscription',
+        body: {
+          'action': 'delete_pending',
+          'subscription_id': subscriptionId,
+        },
+      );
+    } catch (e) {
+      AppLogger.error('Error deleting pending subscription: $e');
+    }
+  }
+
   /// Activate a pending subscription after successful payment.
   Future<bool> activateDeliverySubscription(String subscriptionId) async {
     try {

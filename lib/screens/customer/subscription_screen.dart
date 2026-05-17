@@ -93,15 +93,21 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
+      final subId = result['subscription_id'] as String?;
+
       final paid = await _showPaymentSheet(
         clientSecret: clientSecret,
         customerId: result['customer_id'] as String?,
         ephemeralKey: result['ephemeral_key'] as String?,
       );
-      if (!paid) return;
+      if (!paid) {
+        // Remove the pending DB row so the "activating" banner never appears
+        // after a cancelled payment. Fire-and-forget; non-critical.
+        if (subId != null) service.deletePendingSubscription(subId).ignore();
+        return;
+      }
 
       // Payment succeeded — activate the subscription immediately
-      final subId = result['subscription_id'] as String?;
       bool activated = false;
       if (subId != null) {
         for (int i = 0; i < 3 && !activated; i++) {

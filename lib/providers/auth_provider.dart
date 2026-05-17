@@ -40,10 +40,18 @@ final currentSupabaseUserProvider = StreamProvider<User?>((ref) {
   });
 });
 
+// Session-scoped user profile override — updated by profile-screen edits
+// without touching authNotifierProvider (which triggers routing side-effects).
+// Automatically ignored when the logged-in user changes (different ID).
+final userSessionOverrideProvider = StateProvider<User?>((ref) => null);
+
 // Current User Provider (for easy access)
 final currentUserProvider = Provider<User?>((ref) {
-  final authState = ref.watch(authNotifierProvider);
-  return authState.user;
+  final authUser = ref.watch(authNotifierProvider).user;
+  final override = ref.watch(userSessionOverrideProvider);
+  // Only apply override if it belongs to the current user's session
+  if (override != null && override.id == authUser?.id) return override;
+  return authUser;
 });
 
 // Current User ID Provider — reactive to auth state changes
