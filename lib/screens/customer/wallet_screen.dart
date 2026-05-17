@@ -415,8 +415,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: session.clientSecret,
         data: PaymentMethodParams.cardFromMethodId(
-          paymentMethodId: card.stripePaymentMethodId!,
-          cvc: cvv,
+          paymentMethodData: PaymentMethodDataCardFromMethod(
+            paymentMethodId: card.stripePaymentMethodId!,
+            cvc: cvv,
+          ),
         ),
       );
     } on StripeException catch (e) {
