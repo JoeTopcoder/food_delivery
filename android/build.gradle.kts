@@ -17,10 +17,11 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    // Force all plugins to compile with Java 17 (fixes "source value 8 is obsolete" warnings)
+    // Force all plugins to compile with Java 17 and suppress obsolete-options warnings
     tasks.withType<JavaCompile>().configureEach {
         sourceCompatibility = JavaVersion.VERSION_17.toString()
         targetCompatibility = JavaVersion.VERSION_17.toString()
+        options.compilerArgs.addAll(listOf("-Xlint:-options", "-Xlint:-deprecation"))
     }
     // AGP 8.1+ requires an explicit 'namespace' in every Android library module.
     // Many older Flutter plugins don't specify one; infer it from their AndroidManifest.xml

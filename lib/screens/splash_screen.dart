@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';
 import '../screens/restaurant/restaurant_dashboard_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../widgets/role_guard.dart';
 
 /// Role-specific splash screen with animated branding.
 /// Shows a beautiful animated intro before navigating to the role's home.
@@ -533,16 +535,17 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   }
 
   Future<void> _initialize() async {
-    // Keep a short branded splash, but don't hold the app for several seconds.
+    // Minimum branded splash; FCM init runs in parallel and doesn't block nav.
     await Future.wait([
-      Future.delayed(const Duration(milliseconds: 1200)),
+      Future.delayed(const Duration(milliseconds: 600)),
       _doPermissionsAndAuth(),
     ]);
   }
 
   Future<void> _doPermissionsAndAuth() async {
-    // Notifications — only requests if not yet determined (guard is inside initialize())
-    await NotificationService().initialize();
+    // FCM registration can take several seconds on slow devices — fire and forget
+    // so it never blocks navigation. The service sets itself up in the background.
+    unawaited(NotificationService().initialize());
 
     // Location — request once if not yet granted
     final locPerm = await Geolocator.checkPermission();
@@ -560,16 +563,28 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
       switch (role) {
         case 'customer':
         case 'user':
-          destination = const MainNavigationScreen();
+          destination = const RoleGuard(
+            allowedRoles: ['user', 'customer'],
+            child: MainNavigationScreen(),
+          );
           break;
         case 'driver':
-          destination = const DriverDashboardScreen();
+          destination = const RoleGuard(
+            allowedRoles: ['driver'],
+            child: DriverDashboardScreen(),
+          );
           break;
         case 'restaurant':
-          destination = const RestaurantDashboardScreen();
+          destination = const RoleGuard(
+            allowedRoles: ['restaurant'],
+            child: RestaurantDashboardScreen(),
+          );
           break;
         case 'admin':
-          destination = const AdminDashboardScreen();
+          destination = const RoleGuard(
+            allowedRoles: ['admin'],
+            child: AdminDashboardScreen(),
+          );
           break;
         default:
           // Unknown role — sign out to prevent wrong screen

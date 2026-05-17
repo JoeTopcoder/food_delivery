@@ -69,8 +69,8 @@ Deno.serve(async (request) => {
     const { error: updateErr } = await admin
       .from("drivers")
       .update({
-        current_latitude: latitude,
-        current_longitude: longitude,
+        current_lat: latitude,
+        current_lng: longitude,
         updated_at: now,
       })
       .eq("id", driverId);

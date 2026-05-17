@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/analytics_service.dart';
+import '../services/social/analytics_service.dart';
 
 // ── Service provider ───────────────────────────────────────────────────────
 

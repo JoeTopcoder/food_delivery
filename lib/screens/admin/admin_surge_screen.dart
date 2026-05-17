@@ -133,7 +133,8 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
         options: MapOptions(initialCenter: center, initialZoom: zoom),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'sevendash.app',
           ),
           CircleLayer(
@@ -480,7 +481,8 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
               // Delivery region circles (green, behind surge)

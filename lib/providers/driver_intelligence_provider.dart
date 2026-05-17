@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../models/driver_intelligence_models.dart';
-import '../services/driver_intelligence_service.dart';
+import '../services/driver/driver_intelligence_service.dart';
 
 // ── Service singleton ────────────────────────────────────────────────
 final driverIntelligenceServiceProvider = Provider<DriverIntelligenceService>((

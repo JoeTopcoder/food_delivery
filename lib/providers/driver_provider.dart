@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
-import '../services/driver_service.dart';
+import '../services/driver/driver_service.dart';
 import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
 import '../config/app_constants.dart';
@@ -18,6 +18,22 @@ final driverProfileProvider = FutureProvider.family
     .autoDispose<Driver?, String>((ref, userId) async {
       final driverService = ref.watch(driverServiceProvider);
       return driverService.getDriverByUserId(userId);
+    });
+
+/// Fetches a driver's public display info (name, photo) by drivers.id.
+/// Used on the customer order tracking screen to show who is delivering.
+final driverPublicInfoProvider = FutureProvider.autoDispose
+    .family<Map<String, String?>, String>((ref, driverId) async {
+      final response = await SupabaseConfig.client
+          .from('drivers')
+          .select('users!inner(name, profile_image_url)')
+          .eq('id', driverId)
+          .single();
+      final user = response['users'] as Map<String, dynamic>? ?? {};
+      return {
+        'name': user['name'] as String?,
+        'profileImageUrl': user['profile_image_url'] as String?,
+      };
     });
 
 // Available Orders Provider (takes driverId + driver location for 2km proximity filter)
@@ -176,6 +192,25 @@ final driverAvailabilityProvider =
         driverId,
         initialState: initialAvailable,
       );
+    });
+
+// ── Verification document providers ───────────────────────────────────────────
+
+final driverVerificationDocsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, String>((ref, driverId) async {
+      final driverService = ref.watch(driverServiceProvider);
+      return driverService.getVerificationDocuments(driverId);
+    });
+
+// Fetches drivers pending admin review (driver_status IN pending_review, under_review)
+final pendingVerificationDriversProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final response = await SupabaseConfig.client
+          .from('drivers')
+          .select('*, users!inner(name, email)')
+          .inFilter('driver_status', ['pending_review', 'under_review'])
+          .order('submitted_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response as List);
     });
 
 /// Watches the orders table via Supabase Realtime for new available orders.

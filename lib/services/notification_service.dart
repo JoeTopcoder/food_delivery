@@ -96,6 +96,8 @@ class NotificationService {
   static VoidCallback? onNewOrderReceived;
   static VoidCallback? onNewOrderForRestaurant;
   static VoidCallback? onNewOrderForAdmin;
+  static VoidCallback? onNewPackageReceived;
+  static VoidCallback? onNewRideReceived;
 
   /// Callback fired for order lifecycle notifications (order placed, preparing,
   /// rider assigned, delivered, etc.) — used by the notifications screen to
@@ -526,6 +528,20 @@ class NotificationService {
         );
         if (navigate) {
           navigatorKey?.currentState?.pushNamed('/notifications');
+        }
+        break;
+      case 'new_package':
+        AppLogger.info('New package delivery notification: $title');
+        onNewPackageReceived?.call();
+        if (navigate) {
+          navigatorKey?.currentState?.pushNamed('/driver/packages');
+        }
+        break;
+      case 'new_ride':
+        AppLogger.info('New ride request notification: $title');
+        onNewRideReceived?.call();
+        if (navigate) {
+          navigatorKey?.currentState?.pushNamed('/rides/driver/mode');
         }
         break;
       case 'delivery_update':

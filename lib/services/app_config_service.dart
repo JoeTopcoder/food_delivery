@@ -91,6 +91,58 @@ class AppConfigService {
       'cash_fee_percent',
       AppConstants.cashFeePercent,
     );
+    AppConstants.cardVerificationChargeMin = _double(
+      c,
+      'card_verification_charge_min',
+      AppConstants.cardVerificationChargeMin,
+    );
+    AppConstants.cardVerificationChargeMax = _double(
+      c,
+      'card_verification_charge_max',
+      AppConstants.cardVerificationChargeMax,
+    );
+
+    // Ride promotional banners
+    AppConstants.ridePromoFirstRideEnabled = _bool(
+      c,
+      'ride_promo_first_ride_enabled',
+      AppConstants.ridePromoFirstRideEnabled,
+    );
+    AppConstants.ridePromoFirstRideTitle = _str(
+      c,
+      'ride_promo_first_ride_title',
+      AppConstants.ridePromoFirstRideTitle,
+    );
+    AppConstants.ridePromoFirstRideSubtitle = _str(
+      c,
+      'ride_promo_first_ride_subtitle',
+      AppConstants.ridePromoFirstRideSubtitle,
+    );
+    AppConstants.ridePromoFirstRideCode = _str(
+      c,
+      'ride_promo_first_ride_code',
+      AppConstants.ridePromoFirstRideCode,
+    );
+    AppConstants.ridePromoFirstRideCta = _str(
+      c,
+      'ride_promo_first_ride_cta',
+      AppConstants.ridePromoFirstRideCta,
+    );
+    AppConstants.ridePromoReturningTitle = _str(
+      c,
+      'ride_promo_returning_title',
+      AppConstants.ridePromoReturningTitle,
+    );
+    AppConstants.ridePromoReturningSubtitle = _str(
+      c,
+      'ride_promo_returning_subtitle',
+      AppConstants.ridePromoReturningSubtitle,
+    );
+    AppConstants.ridePromoReturningCta = _str(
+      c,
+      'ride_promo_returning_cta',
+      AppConstants.ridePromoReturningCta,
+    );
 
     // Delivery ($2–$2.50/mile pricing)
     AppConstants.deliveryBaseFee = _double(
@@ -339,6 +391,11 @@ class AppConfigService {
       EarningConfig.restaurantRefCommissionDiscount,
     );
 
+    // Currency
+    AppConstants.currencyCode = _str(c, 'currency_code', AppConstants.currencyCode);
+    AppConstants.currencySymbol = _str(c, 'currency_symbol', AppConstants.currencySymbol);
+    AppConstants.currencyName = _str(c, 'currency_name', AppConstants.currencyName);
+
     // Stripe
     if (c.containsKey('stripe_publishable_key')) {
       final v = c['stripe_publishable_key'];
@@ -416,6 +473,19 @@ class AppConfigService {
   int _int(Map<String, dynamic> c, String key, int fallback) {
     final v = c[key];
     if (v is num) return v.toInt();
+    return fallback;
+  }
+
+  bool _bool(Map<String, dynamic> c, String key, bool fallback) {
+    final v = c[key];
+    if (v is bool) return v;
+    if (v is String) return v == 'true' || v == '1';
+    return fallback;
+  }
+
+  String _str(Map<String, dynamic> c, String key, String fallback) {
+    final v = c[key];
+    if (v is String && v.isNotEmpty) return v;
     return fallback;
   }
 }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/payout_service.dart' show StripePayoutService;
+import '../../services/payment/payout_service.dart' show StripePayoutService;
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/safe_state_mixin.dart';
 
 class DriverKycScreen extends ConsumerStatefulWidget {
   const DriverKycScreen({super.key});
@@ -12,7 +13,8 @@ class DriverKycScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverKycScreen> createState() => _DriverKycScreenState();
 }
 
-class _DriverKycScreenState extends ConsumerState<DriverKycScreen> {
+class _DriverKycScreenState extends ConsumerState<DriverKycScreen>
+    with SafeConsumerStateMixin<DriverKycScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();

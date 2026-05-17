@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/app_constants.dart';
-import '../services/delivery_fee_service.dart';
+import '../services/driver/delivery_fee_service.dart';
 
 /// A compact card that shows how the delivery fee was calculated.
 ///

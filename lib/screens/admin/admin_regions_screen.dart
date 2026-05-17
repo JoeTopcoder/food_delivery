@@ -59,7 +59,8 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
         options: MapOptions(initialCenter: center, initialZoom: 10),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'sevendash.app',
           ),
           PolygonLayer(
@@ -461,7 +462,8 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
               if (hasPolygon)

@@ -100,7 +100,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final NotificationService _notificationService = NotificationService();
   StreamSubscription? _authStateSub;
 
-  AuthNotifier(this._authService, this._userService) : super(AuthState()) {
+  AuthNotifier(this._authService, this._userService) : super(AuthState(isLoading: true)) {
     _initializeAuth();
     _listenToAuthChanges();
   }
@@ -154,6 +154,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         supabaseUser.id,
         fallbackEmail: supabaseUser.email,
       );
+    } else {
+      // No active session — mark loading done so the gate shows auth screens.
+      state = state.copyWith(isLoading: false);
     }
   }
 
@@ -162,6 +165,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final session = event.session;
 
       if (session == null) {
+        // Guard against spurious null events during token refresh on resume.
+        // Supabase can emit a null session event mid-refresh; if the SDK still
+        // has a valid currentSession, treat this as a transient race and ignore.
+        final currentSession = SupabaseConfig.client.auth.currentSession;
+        if (currentSession != null) {
+          AppLogger.info('[Auth] Null event but currentSession exists — ignoring stale event');
+          return;
+        }
         final previousUser = state.user;
         if (previousUser != null) {
           _unsubscribeFromAllTopics(previousUser);

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/saved_card_model.dart';
@@ -324,67 +325,156 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
+  /// Shows a payment method picker then charges the chosen method.
   Future<void> _deposit(double amount) async {
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      AppSnackbar.warning(context, 'Enter a valid amount');
+      return;
+    }
+
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+
+    final cardsAsync = ref.read(savedCardsProvider(userId));
+    final verifiedCards = cardsAsync.valueOrNull
+            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
+            .toList() ??
+        [];
+
+    if (!mounted) return;
+
+    // Step 1: pick payment method
+    final choice = await showModalBottomSheet<_TopUpChoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TopUpPickerSheet(
+        amount: amount,
+        verifiedCards: verifiedCards,
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+
+    // Step 2: if saved card, collect CVV before charging
+    String? cvv;
+    if (choice.savedCard != null) {
+      cvv = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _CvvSheet(card: choice.savedCard!, amount: amount),
+      );
+      if (cvv == null || !mounted) return;
+    }
+
+    // Step 3: process payment
     setState(() => _isDepositing = true);
     try {
-      // 1. Create a Stripe PaymentIntent for the wallet top-up
-      final paymentService = ref.read(paymentServiceProvider);
-      final authUser = Supabase.instance.client.auth.currentUser;
-      final email = authUser?.email ?? '';
-      final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
-
-      // Use a unique wallet-topup ID
-      final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
-
-      final session = await paymentService.createStripeCheckout(
-        orderId: topupId,
-        amount: amount,
-        customerEmail: email,
-        customerName: name,
-        type: 'wallet_topup',
-      );
-
-      if (!mounted) return;
-
-      // 2. Present Stripe Payment Sheet
-      final result = await paymentService.presentStripePaymentSheet(
-        orderId: topupId,
-        amount: amount,
-        customerEmail: email,
-        customerName: name,
-      );
-
-      if (!mounted) return;
-
-      if (result == null) {
-        AppSnackbar.warning(context, 'Wallet top-up cancelled');
-        return;
-      }
-
-      // Confirm payment server-side
-      await paymentService.confirmStripePayment(
-        paymentIntentId: session.paymentIntentId,
-        orderId: topupId,
-        type: 'wallet_topup',
-      );
-
-      // 3. Card payment succeeded — credit the wallet
-      await ref.read(walletNotifierProvider.notifier).deposit(amount);
-      ref.invalidate(walletTransactionsProvider);
-      if (mounted) {
-        AppSnackbar.success(
-          context,
-          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
-        );
-        _amountCtrl.clear();
-      }
-    } catch (e) {
-      if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
+      if (choice.savedCard != null) {
+        await _depositWithSavedCard(amount, choice.savedCard!, cvv!);
+      } else {
+        await _depositWithNewCard(amount);
       }
     } finally {
       if (mounted) setState(() => _isDepositing = false);
+    }
+  }
+
+  /// Create a PaymentIntent server-side, then confirm client-side with CVC.
+  Future<void> _depositWithSavedCard(
+    double amount,
+    SavedCard card,
+    String cvv,
+  ) async {
+    final paymentService = ref.read(paymentServiceProvider);
+    final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Create unconfirmed PaymentIntent on the server
+    final session = await paymentService.prepareSavedCardPayment(
+      orderId: topupId,
+      amount: amount,
+      paymentMethodId: card.stripePaymentMethodId!,
+      type: 'wallet_topup',
+    );
+
+    if (!mounted) return;
+
+    // Ensure Stripe is initialised
+    if (Stripe.publishableKey.isEmpty) {
+      final key = AppConstants.stripePublishableKey;
+      if (key.isNotEmpty) {
+        Stripe.publishableKey = key;
+        Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+        await Stripe.instance.applySettings();
+      }
+    }
+
+    // Confirm client-side — Stripe validates the CVC without storing it
+    try {
+      await Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: session.clientSecret,
+        data: PaymentMethodParams.cardFromMethodId(
+          paymentMethodId: card.stripePaymentMethodId!,
+          cvc: cvv,
+        ),
+      );
+    } on StripeException catch (e) {
+      if (!mounted) return;
+      if (e.error.code == FailureCode.Canceled) {
+        AppSnackbar.warning(context, 'Payment cancelled');
+      } else {
+        AppSnackbar.error(
+          context,
+          e.error.localizedMessage ?? 'Payment failed. Please try again.',
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    await ref.read(walletNotifierProvider.notifier).deposit(amount);
+    ref.invalidate(walletTransactionsProvider);
+    if (mounted) {
+      AppSnackbar.success(
+        context,
+        '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added via ${card.displayBrand} ••••${card.lastFour}',
+      );
+      _amountCtrl.clear();
+    }
+  }
+
+  /// Open the Stripe payment sheet for a one-off new card charge.
+  Future<void> _depositWithNewCard(double amount) async {
+    final paymentService = ref.read(paymentServiceProvider);
+    final authUser = Supabase.instance.client.auth.currentUser;
+    final email = authUser?.email ?? '';
+    final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
+    final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
+
+    final result = await paymentService.presentStripePaymentSheet(
+      orderId: topupId,
+      amount: amount,
+      customerEmail: email,
+      customerName: name,
+      type: 'wallet_topup',
+    );
+
+    if (!mounted) return;
+    if (result == null) {
+      AppSnackbar.warning(context, 'Top-up cancelled');
+      return;
+    }
+
+    await ref.read(walletNotifierProvider.notifier).deposit(amount);
+    ref.invalidate(walletTransactionsProvider);
+    if (mounted) {
+      AppSnackbar.success(
+        context,
+        '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
+      );
+      _amountCtrl.clear();
     }
   }
 
@@ -773,6 +863,401 @@ class _SavedCardTile extends StatefulWidget {
   State<_SavedCardTile> createState() => _SavedCardTileState();
 }
 
+// ── CVV collection sheet ──────────────────────────────────────────────────
+
+class _CvvSheet extends StatefulWidget {
+  final SavedCard card;
+  final double amount;
+  const _CvvSheet({required this.card, required this.amount});
+
+  @override
+  State<_CvvSheet> createState() => _CvvSheetState();
+}
+
+class _CvvSheetState extends State<_CvvSheet> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  bool get _isAmex {
+    final b = widget.card.cardBrand.toLowerCase();
+    return b.contains('amex') || b.contains('american');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final maxLen = _isAmex ? 4 : 3;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2937) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 8,
+        left: 16,
+        right: 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(
+            'Enter CVV',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${widget.card.displayBrand}  ••••  ${widget.card.lastFour}',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            obscureText: true,
+            maxLength: maxLen,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: _isAmex ? '4-digit security code' : '3-digit CVV',
+              hintText: _isAmex ? '••••' : '•••',
+              prefixIcon: const Icon(Icons.lock_outline, size: 20),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              counterText: '',
+            ),
+            onSubmitted: (val) {
+              if (val.length == maxLen) Navigator.of(context).pop(val);
+            },
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _ctrl,
+              builder: (_, val, __) => ElevatedButton(
+                onPressed: val.text.length == maxLen
+                    ? () => Navigator.of(context).pop(_ctrl.text)
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Pay  ${AppConstants.currencySymbol}${widget.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Top-up payment picker ─────────────────────────────────────────────────
+
+class _TopUpChoice {
+  final SavedCard? savedCard;
+  const _TopUpChoice({this.savedCard});
+  const _TopUpChoice.newCard() : savedCard = null;
+}
+
+class _TopUpPickerSheet extends StatelessWidget {
+  final double amount;
+  final List<SavedCard> verifiedCards;
+
+  const _TopUpPickerSheet({
+    required this.amount,
+    required this.verifiedCards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1F2937) : Colors.white;
+    final divider = isDark ? const Color(0xFF374151) : Colors.grey.shade200;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 8,
+        left: 16,
+        right: 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(
+            'Add ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Choose a payment method',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Saved verified cards
+          if (verifiedCards.isNotEmpty) ...[
+            Text(
+              'Saved Cards',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...verifiedCards.map((card) => _CardOption(
+                  card: card,
+                  isDark: isDark,
+                  onTap: () => Navigator.of(context)
+                      .pop(_TopUpChoice(savedCard: card)),
+                )),
+            Divider(color: divider, height: 24),
+          ],
+
+          // New card option
+          InkWell(
+            onTap: () =>
+                Navigator.of(context).pop(const _TopUpChoice.newCard()),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF374151) : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: divider),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.add_card,
+                      color: AppTheme.primaryColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pay with new card',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'One-time charge via Stripe',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardOption extends StatelessWidget {
+  final SavedCard card;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _CardOption({
+    required this.card,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  Color get _brandColor {
+    switch (card.cardBrand.toLowerCase()) {
+      case 'visa':
+        return const Color(0xFF1A1F71);
+      case 'mastercard':
+        return const Color(0xFFEB001B);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF374151) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: card.isDefault
+                ? AppTheme.primaryColor.withValues(alpha: 0.5)
+                : isDark
+                    ? const Color(0xFF4B5563)
+                    : Colors.grey.shade200,
+            width: card.isDefault ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _brandColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.credit_card, color: _brandColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${card.displayBrand}  •••• ${card.lastFour}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      if (card.isDefault) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'DEFAULT',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (card.cardholderName.isNotEmpty)
+                    Text(
+                      card.cardholderName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Saved card tile (for the My Cards section) ───────────────────────────────
+
 class _SavedCardTileState extends State<_SavedCardTile> {
   final _amountCtrl = TextEditingController();
   bool _isVerifying = false;
@@ -1091,7 +1576,7 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'A small charge (under \$1) was sent to this card. '
+                      'A small charge (between \$${AppConstants.cardVerificationChargeMin.toStringAsFixed(0)} and \$${AppConstants.cardVerificationChargeMax.toStringAsFixed(0)}) was sent to this card. '
                       'Check your online banking for the exact amount, then '
                       'enter it below to verify:',
                       style: TextStyle(

@@ -23,14 +23,16 @@ import '../../utils/context_extensions.dart';
 import '../../providers/wallet_provider.dart';
 import 'order_success_screen.dart';
 import '../../utils/friendly_error.dart';
+import '../../utils/safe_state_mixin.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
-import '../../services/delivery_fee_service.dart';
+import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/decision_engine_provider.dart';
 import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
+import 'payment_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -39,7 +41,8 @@ class CheckoutScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
+    with SafeConsumerStateMixin<CheckoutScreen> {
   final _promoCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _cardholderCtrl = TextEditingController();
@@ -1245,8 +1248,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               : Text(
                                   () {
                                     final amt = total.toStringAsFixed(2);
-                                    if (_selectedPayment == 'card' &&
-                                        _selectedSavedCard != null) {
+                                    // All card (Stripe) paths are Pay Now \u2014
+                                    // order only activates after payment confirmed.
+                                    if (_selectedPayment == 'stripe') {
                                       return 'Pay Now \u2014 \$$amt';
                                     }
                                     return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$$amt';
@@ -1546,64 +1550,110 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
       }
 
-      // ── Stripe: use Stripe Payment Sheet ──────────────────────────────────
+      // ── Stripe: saved card (off-session) or payment sheet ─────────────────
       if (_selectedPayment == 'stripe') {
-        try {
-          final authUser = Supabase.instance.client.auth.currentUser;
-          final email = authUser?.email ?? currentUser?.email ?? '';
-          final name = currentUser?.name ?? 'Customer';
-          // Initiate Stripe payment through the edge function
-          final result = await paymentService.presentStripePaymentSheet(
-            orderId: order.id,
-            amount: verifiedTotal,
-            customerEmail: email,
-            customerName: name,
+        final authUser = Supabase.instance.client.auth.currentUser;
+        final email = authUser?.email ?? currentUser?.email ?? '';
+        final name = currentUser?.name ?? 'Customer';
+
+        final savedCard = _selectedSavedCard;
+        final pmId = savedCard?.stripePaymentMethodId;
+
+        if (savedCard != null && pmId != null && pmId.isNotEmpty) {
+          // ── Off-session charge using a saved verified card (same server-side
+          //    approach as the card verification charge — no Stripe UI needed) ──
+          try {
+            final ok = await paymentService.chargeWithSavedCard(
+              orderId: order.id,
+              amount: verifiedTotal,
+              paymentMethodId: pmId,
+            );
+            if (!mounted) return;
+            if (!ok) {
+              setState(() => _placingOrder = false);
+              final cleaned = await paymentService
+                  .cleanupUnpaidOrder(order.id)
+                  .timeout(const Duration(seconds: 10), onTimeout: () => false);
+              if (!cleaned) await _deleteOrder(order.id);
+              if (!mounted) return;
+              AppSnackbar.error(
+                context,
+                'Card payment failed. Please try again.',
+              );
+              return;
+            }
+            AppLogger.info('Order ${order.id} charged via saved card $pmId');
+          } catch (e) {
+            if (!mounted) return;
+            setState(() => _placingOrder = false);
+            final cleaned = await paymentService
+                .cleanupUnpaidOrder(order.id)
+                .timeout(const Duration(seconds: 10), onTimeout: () => false);
+            if (!cleaned) await _deleteOrder(order.id);
+            AppSnackbar.error(
+              context,
+              'Card payment failed: ${friendlyError(e)}',
+            );
+            return;
+          }
+        } else {
+          // ── No saved card — open branded custom PaymentScreen ───────────────
+          final restaurantObj2 = ref
+              .read(restaurantByIdProvider(restaurantId))
+              .valueOrNull;
+          final result = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentScreen(
+                orderId: order.id,
+                amount: verifiedTotal,
+                currency: AppConstants.currencyCode,
+                customerEmail: email,
+                customerName: name,
+                restaurantName: restaurantObj2?.name,
+                itemCount: cart.length,
+              ),
+            ),
           );
 
           if (!mounted) return;
 
           if (result == null || result['status'] != 'paid') {
-            // Check if payment was already processed via webhook
+            // PaymentScreen returned null/non-paid.  Give the webhook a brief
+            // window in case it already confirmed (e.g. payment succeeded but
+            // the sheet auto-dismissed before our handler ran).
             if (await _isOrderPaid(order.id)) {
-              // Payment succeeded, fall through
+              // Webhook already confirmed payment — fall through to success.
+              AppLogger.info('Order ${order.id}: webhook pre-confirmed, continuing');
             } else {
+              // Genuine cancel or failure.  Delete the draft order so it never
+              // lingers in the system, then tell the user.
               setState(() => _placingOrder = false);
               final cleaned = await paymentService
                   .cleanupUnpaidOrder(order.id)
                   .timeout(const Duration(seconds: 10), onTimeout: () => false);
-              if (!cleaned) {
-                await _deleteOrder(order.id);
-              }
+              if (!cleaned) await _deleteOrder(order.id);
               if (!mounted) return;
-              AppSnackbar.warning(context, 'Payment was cancelled');
+              AppSnackbar.warning(
+                context,
+                'Payment was cancelled. Your order was not placed.',
+              );
               return;
             }
-          }
-
-          AppLogger.info('Order ${order.id} paid via Stripe');
-        } catch (e) {
-          if (!mounted) return;
-
-          // Check if order got paid despite the error
-          if (await _isOrderPaid(order.id)) {
-            AppLogger.info(
-              'Order ${order.id} confirmed paid after Stripe error',
-            );
-            // Fall through to success
           } else {
-            setState(() => _placingOrder = false);
-            final cleaned = await paymentService
-                .cleanupUnpaidOrder(order.id)
-                .timeout(const Duration(seconds: 10), onTimeout: () => false);
-            if (!cleaned) {
-              await _deleteOrder(order.id);
+            // PaymentSheet reported success.  The order is still in 'draft'
+            // until stripe-webhook fires and sets status = 'pending'.
+            // Poll for up to 30 s (15 × 2 s); proceed regardless so the user
+            // is not stuck if the webhook is delayed — it will still complete.
+            final activated = await _waitForOrderActivation(order.id);
+            if (!activated) {
+              AppLogger.info(
+                'Order ${order.id}: payment received, webhook pending — proceeding',
+              );
             }
-            AppSnackbar.error(
-              context,
-              'Stripe payment failed: ${friendlyError(e)}',
-            );
-            return;
           }
+
+          AppLogger.info('Order ${order.id} paid via custom payment screen');
         }
       }
 
@@ -1748,6 +1798,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       try {
         final status = await svc.getOrderPaymentStatus(orderId);
         if (status == AppConstants.paymentCompleted) return true;
+      } catch (_) {}
+      if (i < attempts - 1) await Future.delayed(interval);
+    }
+    return false;
+  }
+
+  /// After the Stripe PaymentSheet reports success, wait for the webhook to
+  /// activate the order (status = 'pending', payment_status = 'completed').
+  /// Returns true as soon as the order is active, or false after [attempts]
+  /// × [interval] if the webhook is delayed (caller handles the timeout case).
+  Future<bool> _waitForOrderActivation(
+    String orderId, {
+    int attempts = 15,
+    Duration interval = const Duration(seconds: 2),
+  }) async {
+    for (var i = 0; i < attempts; i++) {
+      try {
+        final row = await SupabaseConfig.client
+            .from('orders')
+            .select('status, payment_status')
+            .eq('id', orderId)
+            .maybeSingle();
+        if (row != null &&
+            row['payment_status'] == 'completed' &&
+            row['status'] != 'draft') {
+          return true;
+        }
       } catch (_) {}
       if (i < attempts - 1) await Future.delayed(interval);
     }

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/supabase_config.dart';
 import '../models/saved_card_model.dart';
-import '../services/payment_service.dart';
+import '../services/payment/payment_service.dart';
 
 /// Payment processing state
 class PaymentState {

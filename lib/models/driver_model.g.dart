@@ -36,6 +36,35 @@ Driver _$DriverFromJson(Map<String, dynamic> json) => Driver(
   updatedAt: json['updated_at'] == null
       ? null
       : DateTime.parse(json['updated_at'] as String),
+  activeServices: (json['active_services'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
+  driverStatus: json['driver_status'] as String? ?? 'draft',
+  onboardingStep: (json['onboarding_step'] as num?)?.toInt() ?? 0,
+  serviceType: json['service_type'] as String? ?? 'food_delivery',
+  fullName: json['full_name'] as String?,
+  phoneNumber: json['phone_number'] as String?,
+  profilePhotoUrl: json['profile_photo_url'] as String?,
+  dateOfBirth: json['date_of_birth'] == null
+      ? null
+      : DateTime.parse(json['date_of_birth'] as String),
+  homeAddress: json['home_address'] as String?,
+  submittedAt: json['submitted_at'] == null
+      ? null
+      : DateTime.parse(json['submitted_at'] as String),
+  approvedAt: json['approved_at'] == null
+      ? null
+      : DateTime.parse(json['approved_at'] as String),
+  reviewedBy: json['reviewed_by'] as String?,
+  reviewedAt: json['reviewed_at'] == null
+      ? null
+      : DateTime.parse(json['reviewed_at'] as String),
+  rejectionReason: json['rejection_reason'] as String?,
+  isFoodDriverApproved: json['is_food_driver_approved'] as bool? ?? false,
+  isRideDriverApproved: json['is_ride_driver_approved'] as bool? ?? false,
+  isAvailableForFood: json['is_available_for_food'] as bool? ?? false,
+  isAvailableForRides: json['is_available_for_rides'] as bool? ?? false,
+  isOnline: json['is_online'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$DriverToJson(Driver instance) => <String, dynamic>{
@@ -66,4 +95,23 @@ Map<String, dynamic> _$DriverToJson(Driver instance) => <String, dynamic>{
   'stripe_account_status': instance.stripeAccountStatus,
   'created_at': instance.createdAt.toIso8601String(),
   'updated_at': instance.updatedAt?.toIso8601String(),
+  'active_services': instance.activeServices,
+  'driver_status': instance.driverStatus,
+  'onboarding_step': instance.onboardingStep,
+  'service_type': instance.serviceType,
+  'full_name': instance.fullName,
+  'phone_number': instance.phoneNumber,
+  'profile_photo_url': instance.profilePhotoUrl,
+  'date_of_birth': instance.dateOfBirth?.toIso8601String(),
+  'home_address': instance.homeAddress,
+  'submitted_at': instance.submittedAt?.toIso8601String(),
+  'approved_at': instance.approvedAt?.toIso8601String(),
+  'reviewed_by': instance.reviewedBy,
+  'reviewed_at': instance.reviewedAt?.toIso8601String(),
+  'rejection_reason': instance.rejectionReason,
+  'is_food_driver_approved': instance.isFoodDriverApproved,
+  'is_ride_driver_approved': instance.isRideDriverApproved,
+  'is_available_for_food': instance.isAvailableForFood,
+  'is_available_for_rides': instance.isAvailableForRides,
+  'is_online': instance.isOnline,
 };

@@ -11,6 +11,8 @@ import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../features/auth/services/delayed_stripe_connect_service.dart';
 import 'restaurant_offer_screen.dart';
+import 'restaurant_onboarding_screen.dart';
+import '../../models/restaurant_model.dart';
 
 class RestaurantDashboardScreen extends ConsumerStatefulWidget {
   const RestaurantDashboardScreen({super.key});
@@ -204,6 +206,19 @@ class _RestaurantDashboardScreenState
       data: (restaurant) {
         if (restaurant == null) {
           return _buildSetupRestaurant(currentUserId);
+        }
+
+        // Redirect to verification wizard if the restaurant hasn't been approved yet.
+        final needsVerification = restaurant.status == 'draft' ||
+            restaurant.status == 'rejected';
+        if (needsVerification) {
+          return _buildVerificationGate(restaurant);
+        }
+
+        // Show a read-only status screen while under review.
+        if (restaurant.status == 'pending_review' ||
+            restaurant.status == 'under_review') {
+          return _buildPendingReview(restaurant);
         }
 
         // Defer realtime subscription and orders fetch until after first paint.
@@ -845,6 +860,153 @@ class _RestaurantDashboardScreenState
     );
   }
 
+  Widget _buildVerificationGate(Restaurant restaurant) {
+    final isRejected = restaurant.status == 'rejected';
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F1117),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  color: (isRejected ? Colors.red : AppTheme.primaryColor)
+                      .withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isRejected ? Icons.cancel_rounded : Icons.storefront_rounded,
+                  color: isRejected ? Colors.red : AppTheme.primaryColor,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isRejected ? 'Application Rejected' : 'Complete Your Profile',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isRejected
+                    ? 'Your application was rejected. Please update your documents and resubmit.'
+                    : 'Set up your restaurant profile and upload the required documents to get approved.',
+                style: const TextStyle(color: Colors.white54, fontSize: 14, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RestaurantVerificationScreen(restaurant: restaurant),
+                    ),
+                  ).then((_) {
+                    final uid = ref.read(currentUserIdProvider);
+                    if (uid != null) ref.invalidate(restaurantByOwnerProvider(uid));
+                  }),
+                  icon: const Icon(Icons.edit_rounded, size: 20),
+                  label: Text(
+                    isRejected ? 'Update & Resubmit' : 'Start Verification',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isRejected ? Colors.red : AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout_rounded, size: 16, color: Colors.white38),
+                label: const Text('Sign Out', style: TextStyle(color: Colors.white38)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingReview(Restaurant restaurant) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F1117),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.hourglass_top_rounded,
+                    color: Color(0xFFF59E0B), size: 40),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Application Under Review',
+                style: TextStyle(
+                  color: Colors.white, fontSize: 24,
+                  fontWeight: FontWeight.w800, letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Our team is reviewing your restaurant application. '
+                'This typically takes 24–48 hours. We\'ll notify you once approved.',
+                style: TextStyle(color: Colors.white54, fontSize: 14, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1F2E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  children: [
+                    _ReviewItem(icon: Icons.store_rounded, label: 'Restaurant Name', value: restaurant.name),
+                    const SizedBox(height: 10),
+                    _ReviewItem(icon: Icons.category_rounded, label: 'Cuisine', value: restaurant.cuisineType ?? '—'),
+                    const SizedBox(height: 10),
+                    _ReviewItem(icon: Icons.place_rounded, label: 'Address', value: restaurant.address ?? '—'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              TextButton.icon(
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout_rounded, size: 16, color: Colors.white38),
+                label: const Text('Sign Out', style: TextStyle(color: Colors.white38)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSetupRestaurant(String ownerId) {
     return Scaffold(
       body: SafeArea(
@@ -1304,6 +1466,31 @@ class _RecentOrderTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ReviewItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _ReviewItem({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white38, size: 18),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+            Text(value, style: const TextStyle(
+                color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ],
     );
   }
 }

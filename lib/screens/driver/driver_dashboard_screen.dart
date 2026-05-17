@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
@@ -10,6 +11,8 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
 import '../shared/ai_voice_screen.dart';
+import '../../modules/packages/screens/driver/driver_packages_screen.dart';
+import 'driver_verification_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -25,6 +28,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _creatingProfile = false;
   late AnimationController _pulseController;
   Driver? _lastDriver;
+  final Set<String> _togglingServices = {};
+  bool _serviceTopicsInitialized = false;
+
+  static const Map<String, String> _serviceTopics = {
+    'food_delivery': 'food_delivery_orders',
+    'package_delivery': 'package_delivery_orders',
+    'ride_sharing': 'ride_sharing_requests',
+  };
 
   @override
   void initState() {
@@ -34,17 +45,141 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    // Wire callback so push/realtime notifications refresh available orders
     NotificationService.onNewOrderReceived = () {
       ref.invalidate(availableOrdersProvider);
     };
+    NotificationService.onNewPackageReceived = null;
+    NotificationService.onNewRideReceived = null;
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     NotificationService.onNewOrderReceived = null;
+    NotificationService.onNewPackageReceived = null;
+    NotificationService.onNewRideReceived = null;
     super.dispose();
+  }
+
+  Future<void> _syncFcmTopics(List<String> activeServices) async {
+    final ns = NotificationService();
+    for (final entry in _serviceTopics.entries) {
+      if (activeServices.contains(entry.key)) {
+        await ns.subscribeToTopic(entry.value);
+      } else {
+        await ns.unsubscribeFromTopic(entry.value);
+      }
+    }
+  }
+
+  Future<void> _toggleService(
+    Driver driver,
+    String currentUserId,
+    String service,
+    bool enable,
+  ) async {
+    final services = List<String>.from(
+      driver.activeServices ?? ['food_delivery'],
+    );
+    if (enable) {
+      if (!services.contains(service)) services.add(service);
+    } else {
+      services.remove(service);
+    }
+    // Guard: driver must be online to enable any service
+    if (enable && !driver.isAvailable) {
+      if (mounted) {
+        showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1B24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Color(0xFF2A2D3E)),
+            ),
+            icon: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.power_settings_new_rounded,
+                color: Colors.orange,
+                size: 28,
+              ),
+            ),
+            title: const Text(
+              'You\'re Offline',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            content: const Text(
+              'Go online first before enabling any services. Toggle the Online / Offline switch on your dashboard.',
+              style: TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 14,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'Got it',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _togglingServices.add(service));
+    try {
+      await ref
+          .read(driverServiceProvider)
+          .updateDriverActiveServices(driver.id, services);
+      // Refresh driver profile immediately after DB write — don't wait on FCM
+      ref.invalidate(driverProfileProvider(currentUserId));
+      // FCM subscription is best-effort; fire and forget so it can't block the UI
+      final ns = NotificationService();
+      final topic = _serviceTopics[service]!;
+      if (enable) {
+        unawaited(ns.subscribeToTopic(topic));
+      } else {
+        unawaited(ns.unsubscribeFromTopic(topic));
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _togglingServices.remove(service));
+    }
+  }
+
+  bool _canDoRides(Driver driver) {
+    final t = (driver.vehicleType ?? '').toLowerCase().trim();
+    return t != 'bicycle' && t != 'bike' && t != 'motorcycle' && t != 'scooter';
   }
 
   String _completionRate(Driver driver) {
@@ -62,16 +197,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       await svc.createDriverProfile(userId: userId);
       ref.invalidate(driverProfileProvider(userId));
     } catch (e) {
-      if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
-      }
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _creatingProfile = false);
     }
   }
 
-  /// Formats peak hour windows from DB-sourced AppConstants.
-  /// e.g. "Peak hours: 11 am–2 pm & 6–9 pm"
   String _formatPeakHours() {
     String fmt(int h) {
       if (h == 0) return '12 am';
@@ -88,7 +219,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Keep realtime subscription alive while dashboard is visible
     ref.watch(newOrderRealtimeProvider);
 
     final authState = ref.watch(authNotifierProvider);
@@ -113,7 +243,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
 
-    // Use cached driver to avoid full-screen spinner on realtime refresh
     final driver = driverProfileAsync?.valueOrNull ?? _lastDriver;
     if (driverProfileAsync?.hasValue == true &&
         driverProfileAsync?.valueOrNull != null) {
@@ -141,9 +270,430 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
 
+    // ── Verification gate ─────────────────────────────────────────────────────
+    // Drivers who are not yet approved are shown a status screen instead of
+    // the full dashboard. Existing drivers without driver_status set ('draft')
+    // keep normal access so live production drivers are not disrupted.
+    if (driver.driverStatus != 'approved' && driver.driverStatus != 'draft') {
+      return _buildVerificationGate(driver);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: _buildDashboard(driver, authState, currentUserId),
+    );
+  }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  Widget _buildVerificationGate(Driver driver) {
+    final status = driver.driverStatus;
+    late final IconData icon;
+    late final Color color;
+    late final String title;
+    late final String message;
+    late final String buttonLabel;
+    late final VoidCallback onButton;
+
+    switch (status) {
+      case 'pending_review':
+      case 'under_review':
+        icon = Icons.hourglass_top_rounded;
+        color = Colors.orangeAccent;
+        title = 'Application Under Review';
+        message = 'Your application has been submitted and is being reviewed by our team. This typically takes 1–3 business days. You will be notified once approved.';
+        buttonLabel = 'View Application Status';
+        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+      case 'rejected':
+        icon = Icons.cancel_outlined;
+        color = Colors.redAccent;
+        title = 'Application Rejected';
+        message = driver.rejectionReason?.isNotEmpty == true
+            ? 'Your application was rejected: ${driver.rejectionReason}'
+            : 'Your application was not approved. Please re-upload your documents and resubmit.';
+        buttonLabel = 'Re-upload Documents';
+        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+      case 'suspended':
+        icon = Icons.block_rounded;
+        color = Colors.red;
+        title = 'Account Suspended';
+        message = 'Your driver account has been suspended. Please contact support for assistance.';
+        buttonLabel = 'Contact Support';
+        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+      case 'expired_documents':
+        icon = Icons.warning_amber_rounded;
+        color = Colors.amber;
+        title = 'Documents Expired';
+        message = 'One or more of your verification documents have expired. Please re-upload valid documents to continue driving.';
+        buttonLabel = 'Update Documents';
+        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+      default:
+        icon = Icons.edit_document;
+        color = Colors.white54;
+        title = 'Complete Verification';
+        message = 'Complete your driver verification to start accepting deliveries on our platform.';
+        buttonLabel = 'Start Verification';
+        onButton = () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DriverVerificationScreen(driver: driver)),
+        );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F1117),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 48),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, height: 1.6),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: onButton,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () async {
+                  final userId = ref.read(currentUserIdProvider);
+                  if (userId != null) ref.invalidate(driverProfileProvider(userId));
+                },
+                child: const Text('Refresh Status', style: TextStyle(color: Color(0xFF9CA3AF))),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHero(
+    Driver driver,
+    dynamic authState,
+    String currentUserId,
+    bool isOnline,
+    double balance,
+  ) {
+    return Container(
+      decoration: const BoxDecoration(color: Color(0xFF0A0B10)),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // ── Top bar ────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: isOnline
+                          ? const LinearGradient(
+                              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                            )
+                          : null,
+                      color: isOnline ? null : const Color(0xFF2A2D3E),
+                    ),
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: const Color(0xFF1A1D2E),
+                      backgroundImage: authState.user?.profileImageUrl != null
+                          ? NetworkImage(authState.user!.profileImageUrl!)
+                          : null,
+                      child: authState.user?.profileImageUrl == null
+                          ? const Icon(
+                              Icons.person,
+                              color: Colors.white54,
+                              size: 22,
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _greeting(),
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          authState.user?.name?.split(' ').first ?? 'Driver',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _GlassIconButton(
+                    icon: Icons.smart_toy_outlined,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AiVoiceScreen(role: 'driver'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _GlassIconButton(
+                    icon: Icons.tune_rounded,
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/driver-profile'),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Hero card ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF12131C),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOnline
+                        ? const Color(0xFF22C55E).withValues(alpha: 0.35)
+                        : const Color(0xFF1E1F2A),
+                  ),
+                  boxShadow: isOnline
+                      ? [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF22C55E,
+                            ).withValues(alpha: 0.07),
+                            blurRadius: 24,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  children: [
+                    // Balance + online pill
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Wallet Balance',
+                                style: TextStyle(
+                                  color: Color(0xFF6B7280),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${AppConstants.currencySymbol}${balance.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _togglingAvailability
+                            ? const SizedBox(
+                                width: 80,
+                                height: 36,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF22C55E),
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () async {
+                                  setState(() => _togglingAvailability = true);
+                                  try {
+                                    await ref
+                                        .read(driverServiceProvider)
+                                        .updateDriverAvailability(
+                                          driver.id,
+                                          !isOnline,
+                                        );
+                                    ref.invalidate(
+                                      driverProfileProvider(currentUserId),
+                                    );
+                                  } catch (e) {
+                                    if (mounted) {
+                                      AppSnackbar.error(
+                                        context,
+                                        friendlyError(e),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(
+                                        () => _togglingAvailability = false,
+                                      );
+                                    }
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isOnline
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF1A1B24),
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: isOnline
+                                          ? const Color(0xFF22C55E)
+                                          : const Color(0xFF2A2D3E),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      AnimatedBuilder(
+                                        animation: _pulseController,
+                                        builder: (_, __) => Container(
+                                          width: 7,
+                                          height: 7,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isOnline
+                                                ? Colors.white.withValues(
+                                                    alpha:
+                                                        0.6 +
+                                                        _pulseController.value *
+                                                            0.4,
+                                                  )
+                                                : const Color(0xFF4B5563),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isOnline ? 'Online' : 'Offline',
+                                        style: TextStyle(
+                                          color: isOnline
+                                              ? Colors.white
+                                              : const Color(0xFF6B7280),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+                    const Divider(height: 1, color: Color(0xFF1E1F2A)),
+                    const SizedBox(height: 16),
+
+                    // Mini stats row
+                    Row(
+                      children: [
+                        _MiniStat(
+                          label: 'Trips',
+                          value: '${driver.completedDeliveries ?? 0}',
+                          color: const Color(0xFF22C55E),
+                        ),
+                        const _VertDivider(),
+                        _MiniStat(
+                          label: 'Rating',
+                          value: driver.rating != null && driver.rating! > 0
+                              ? driver.rating!.toStringAsFixed(1)
+                              : '—',
+                          color: const Color(0xFFFBBF24),
+                        ),
+                        const _VertDivider(),
+                        _MiniStat(
+                          label: 'Success',
+                          value: _completionRate(driver),
+                          color: const Color(0xFF8B5CF6),
+                        ),
+                        const _VertDivider(),
+                        _MiniStat(
+                          label: 'Status',
+                          value: driver.isVerified == true
+                              ? 'Verified'
+                              : 'Pending',
+                          color: driver.isVerified == true
+                              ? const Color(0xFF14B8A6)
+                              : const Color(0xFF6B7280),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -152,385 +702,105 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     dynamic authState,
     String currentUserId,
   ) {
-    // Keep realtime subscription alive so Balance / stats update live
     ref.watch(driverEarningsRealtimeProvider(driver.id));
 
+    if (!_serviceTopicsInitialized) {
+      _serviceTopicsInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _syncFcmTopics(driver.activeServices ?? ['food_delivery']),
+      );
+    }
+
     final isOnline = driver.isAvailable;
-    final screenWidth = MediaQuery.of(context).size.width;
+    final activeServices = driver.activeServices ?? ['food_delivery'];
+    final balance = ((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0))
+        .clamp(0.0, double.infinity);
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        // ── Hero Header ──────────────────────────────────────────────
+        // ── HERO ────────────────────────────────────────────────────
         SliverToBoxAdapter(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1A1D2E), Color(0xFF0F1117)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  children: [
-                    // Top bar: avatar + greeting + settings
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: isOnline
-                                ? LinearGradient(
-                                    colors: [
-                                      AppTheme.primaryColor,
-                                      Color(0xFFFF9A5C),
-                                    ],
-                                  )
-                                : null,
-                            color: isOnline ? null : const Color(0xFF2A2D3E),
-                          ),
-                          child: CircleAvatar(
-                            radius: 24,
-                            backgroundColor: const Color(0xFF1A1D2E),
-                            backgroundImage:
-                                authState.user?.profileImageUrl != null
-                                ? NetworkImage(authState.user!.profileImageUrl!)
-                                : null,
-                            child: authState.user?.profileImageUrl == null
-                                ? const Icon(
-                                    Icons.person,
-                                    color: Colors.white60,
-                                    size: 26,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Hey, ${authState.user?.name?.split(' ').first ?? 'Driver'}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isOnline
-                                          ? const Color(0xFF22C55E)
-                                          : const Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    isOnline ? 'Online' : 'Offline',
-                                    style: TextStyle(
-                                      color: isOnline
-                                          ? const Color(0xFF22C55E)
-                                          : const Color(0xFF6B7280),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  if (driver.vehicleType != null) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      width: 3,
-                                      height: 3,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFF4B5563),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      driver.vehicleType!.toUpperCase(),
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        _GlassIconButton(
-                          icon: Icons.smart_toy_outlined,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const AiVoiceScreen(role: 'driver'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _GlassIconButton(
-                          icon: Icons.settings_rounded,
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/driver-profile'),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── Online Toggle Card ──────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: isOnline
-                            ? LinearGradient(
-                                colors: [
-                                  AppTheme.primaryColor,
-                                  Color(0xFFFF8F5E),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: isOnline ? null : const Color(0xFF1E2030),
-                        borderRadius: BorderRadius.circular(20),
-                        border: isOnline
-                            ? null
-                            : Border.all(color: const Color(0xFF2A2D3E)),
-                      ),
-                      child: Row(
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              return Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isOnline
-                                      ? Colors.white.withValues(
-                                          alpha:
-                                              0.15 +
-                                              _pulseController.value * 0.1,
-                                        )
-                                      : const Color(0xFF2A2D3E),
-                                ),
-                                child: Icon(
-                                  isOnline
-                                      ? Icons.electric_bolt_rounded
-                                      : Icons.power_settings_new_rounded,
-                                  color: isOnline
-                                      ? Colors.white
-                                      : const Color(0xFF6B7280),
-                                  size: 22,
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isOnline
-                                      ? 'You\'re Live!'
-                                      : 'You\'re Offline',
-                                  style: TextStyle(
-                                    color: isOnline
-                                        ? Colors.white
-                                        : const Color(0xFF9CA3AF),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 17,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isOnline
-                                      ? 'Receiving new delivery requests'
-                                      : 'Go live to start earning',
-                                  style: TextStyle(
-                                    color: isOnline
-                                        ? Colors.white.withValues(alpha: 0.8)
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          _togglingAvailability
-                              ? SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: CircularProgressIndicator(
-                                    color: isOnline
-                                        ? Colors.white
-                                        : AppTheme.primaryColor,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : GestureDetector(
-                                  onTap: () async {
-                                    setState(
-                                      () => _togglingAvailability = true,
-                                    );
-                                    try {
-                                      await ref
-                                          .read(driverServiceProvider)
-                                          .updateDriverAvailability(
-                                            driver.id,
-                                            !isOnline,
-                                          );
-                                      ref.invalidate(
-                                        driverProfileProvider(currentUserId),
-                                      );
-                                    } catch (e) {
-                                      if (mounted) {
-                                        AppSnackbar.error(
-                                          context,
-                                          friendlyError(e),
-                                        );
-                                      }
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () => _togglingAvailability = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: Container(
-                                    width: 56,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(15),
-                                      color: isOnline
-                                          ? Colors.white.withValues(alpha: 0.3)
-                                          : const Color(0xFF2A2D3E),
-                                      border: Border.all(
-                                        color: isOnline
-                                            ? Colors.white.withValues(
-                                                alpha: 0.5,
-                                              )
-                                            : const Color(0xFF3A3D4E),
-                                      ),
-                                    ),
-                                    child: AnimatedAlign(
-                                      duration: const Duration(
-                                        milliseconds: 250,
-                                      ),
-                                      curve: Curves.easeOutBack,
-                                      alignment: isOnline
-                                          ? Alignment.centerRight
-                                          : Alignment.centerLeft,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(3),
-                                        child: Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isOnline
-                                                ? Colors.white
-                                                : const Color(0xFF4B5563),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          child: _buildHero(
+            driver,
+            authState,
+            currentUserId,
+            isOnline,
+            balance,
           ),
         ),
 
-        // ── Stats Grid ───────────────────────────────────────────────
+        // ── ACTIVE SERVICES ─────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const _SectionLabel('Active Services'),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    _MetricTile(
-                      icon: Icons.check_circle_rounded,
-                      label: 'Deliveries',
-                      value: '${driver.completedDeliveries ?? 0}',
-                      color: const Color(0xFF22C55E),
+                    Expanded(
+                      child: _ServiceCard(
+                        icon: Icons.restaurant_rounded,
+                        label: 'Food',
+                        color: const Color(0xFFF97316),
+                        isEnabled: activeServices.contains('food_delivery'),
+                        isLoading: _togglingServices.contains('food_delivery'),
+                        locked:
+                            !isOnline &&
+                            !activeServices.contains('food_delivery'),
+                        onToggle: (v) => _toggleService(
+                          driver,
+                          currentUserId,
+                          'food_delivery',
+                          v,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 10),
-                    _MetricTile(
-                      icon: Icons.star_rounded,
-                      label: 'Rating',
-                      value: driver.rating != null && driver.rating! > 0
-                          ? driver.rating!.toStringAsFixed(1)
-                          : '—',
-                      color: const Color(0xFFFBBF24),
+                    Expanded(
+                      child: _ServiceCard(
+                        icon: Icons.inventory_2_rounded,
+                        label: 'Packages',
+                        color: const Color(0xFF7C3AED),
+                        isEnabled: activeServices.contains('package_delivery'),
+                        isLoading: _togglingServices.contains(
+                          'package_delivery',
+                        ),
+                        locked:
+                            !isOnline &&
+                            !activeServices.contains('package_delivery'),
+                        onToggle: (v) => _toggleService(
+                          driver,
+                          currentUserId,
+                          'package_delivery',
+                          v,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    _MetricTile(
-                      icon: Icons.payments_rounded,
-                      label: 'Balance',
-                      value:
-                          '${AppConstants.currencySymbol}${((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0)).clamp(0.0, double.infinity).toStringAsFixed(2)}',
-                      color: const Color(0xFF3B82F6),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _MetricTile(
-                      icon: Icons.verified_rounded,
-                      label: 'Status',
-                      value: driver.isVerified == true ? 'Verified' : 'Pending',
-                      color: driver.isVerified == true
-                          ? const Color(0xFF14B8A6)
-                          : const Color(0xFF6B7280),
-                    ),
-                    const SizedBox(width: 10),
-                    _MetricTile(
-                      icon: Icons.trending_up_rounded,
-                      label: 'Success',
-                      value: _completionRate(driver),
-                      color: const Color(0xFF8B5CF6),
-                    ),
-                    const SizedBox(width: 10),
-                    _MetricTile(
-                      icon: Icons.cancel_rounded,
-                      label: 'Cancelled',
-                      value: '${driver.cancelledDeliveries ?? 0}',
-                      color: const Color(0xFFEF4444),
-                    ),
+                    if (_canDoRides(driver)) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ServiceCard(
+                          icon: Icons.directions_car_rounded,
+                          label: 'Rides',
+                          color: const Color(0xFF22C55E),
+                          isEnabled: activeServices.contains('ride_sharing'),
+                          isLoading: _togglingServices.contains('ride_sharing'),
+                          locked:
+                              !isOnline &&
+                              !activeServices.contains('ride_sharing'),
+                          onToggle: (v) => _toggleService(
+                            driver,
+                            currentUserId,
+                            'ride_sharing',
+                            v,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -538,47 +808,48 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
-        // ── Driver Tier Badge ────────────────────────────────────────
+        // ── TIER BADGE ───────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Consumer(
               builder: (context, ref, _) {
-                final statsAsync = ref.watch(driverStatsProvider(driver.id));
-                final stats = statsAsync.valueOrNull;
+                final stats = ref
+                    .watch(driverStatsProvider(driver.id))
+                    .valueOrNull;
                 if (stats == null) return const SizedBox.shrink();
-                final Color tierColor;
+                final Color c;
                 switch (stats.tier) {
                   case 'elite':
-                    tierColor = const Color(0xFFE879F9);
+                    c = const Color(0xFFE879F9);
                     break;
                   case 'gold':
-                    tierColor = const Color(0xFFFBBF24);
+                    c = const Color(0xFFFBBF24);
                     break;
                   case 'silver':
-                    tierColor = const Color(0xFF94A3B8);
+                    c = const Color(0xFF94A3B8);
                     break;
                   default:
-                    tierColor = const Color(0xFFD97706);
+                    c = const Color(0xFFD97706);
                 }
                 return GestureDetector(
                   onTap: () =>
                       Navigator.of(context).pushNamed('/driver-performance'),
                   child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: tierColor.withValues(alpha: 0.08),
+                      color: c.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: tierColor.withValues(alpha: 0.3),
-                      ),
+                      border: Border.all(color: c.withValues(alpha: 0.22)),
                     ),
                     child: Row(
                       children: [
                         Text(
                           stats.tierEmoji,
-                          style: const TextStyle(fontSize: 24),
+                          style: const TextStyle(fontSize: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -588,26 +859,23 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                               Text(
                                 '${stats.tierLabel} Driver',
                                 style: TextStyle(
-                                  color: tierColor,
+                                  color: c,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                 ),
                               ),
                               Text(
-                                'Score: ${stats.score.toStringAsFixed(0)}/100  •  ${stats.bonusMultiplier > 1 ? '+${((stats.bonusMultiplier - 1) * 100).toStringAsFixed(0)}% bonus' : 'No bonus yet'}',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 12,
+                                'Score ${stats.score.toStringAsFixed(0)}/100'
+                                '${stats.bonusMultiplier > 1 ? "  ·  +${((stats.bonusMultiplier - 1) * 100).toStringAsFixed(0)}% bonus" : ""}',
+                                style: const TextStyle(
+                                  color: Color(0xFF6B7280),
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: tierColor,
-                          size: 16,
-                        ),
+                        Icon(Icons.chevron_right_rounded, color: c, size: 18),
                       ],
                     ),
                   ),
@@ -617,225 +885,171 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
-        // ── Quick Actions ────────────────────────────────────────────
+        // ── QUICK ACTIONS ────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            child: const _SectionLabel('Quick Actions'),
           ),
         ),
-
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverGrid(
             delegate: SliverChildListDelegate([
-              _ActionTile(
+              _ActionCard(
                 icon: Icons.search_rounded,
                 label: 'Find Orders',
-                subtitle: 'Browse available',
-                iconBg: AppTheme.primaryColor,
+                color: AppTheme.primaryColor,
                 onTap: () =>
                     Navigator.of(context).pushNamed('/available-orders'),
               ),
-              _ActionTile(
+              _ActionCard(
                 icon: Icons.local_shipping_rounded,
-                label: 'My Deliveries',
-                subtitle: 'Active orders',
-                iconBg: const Color(0xFF14B8A6),
+                label: 'Active',
+                color: const Color(0xFF14B8A6),
                 onTap: () =>
                     Navigator.of(context).pushNamed('/active-deliveries'),
               ),
-              _ActionTile(
+              _ActionCard(
                 icon: Icons.history_rounded,
                 label: 'History',
-                subtitle: 'Past deliveries',
-                iconBg: const Color(0xFF3B82F6),
+                color: const Color(0xFF3B82F6),
                 onTap: () =>
                     Navigator.of(context).pushNamed('/delivery-history'),
               ),
-              _ActionTile(
+              _ActionCard(
                 icon: Icons.account_balance_wallet_rounded,
-                label: 'My Wallet',
-                subtitle: 'Cash out now',
-                iconBg: const Color(0xFF10B981),
+                label: 'Wallet',
+                color: const Color(0xFF10B981),
                 onTap: () => Navigator.of(context).pushNamed('/driver-wallet'),
               ),
-              _ActionTile(
-                icon: Icons.person_rounded,
-                label: 'My Profile',
-                subtitle: 'Vehicle & docs',
-                iconBg: const Color(0xFF8B5CF6),
-                onTap: () => Navigator.of(context).pushNamed('/driver-profile'),
+              if (_canDoRides(driver))
+                _ActionCard(
+                  icon: Icons.directions_car_rounded,
+                  label: 'Rides',
+                  color: const Color(0xFF22C55E),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/rides/driver/mode'),
+                ),
+              _ActionCard(
+                icon: Icons.inventory_2_rounded,
+                label: 'Packages',
+                color: const Color(0xFF7C3AED),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DriverPackagesScreen(),
+                  ),
+                ),
               ),
             ]),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: screenWidth > 400 ? 1.3 : 1.15,
+              childAspectRatio: 0.95,
             ),
           ),
         ),
 
-        // ── Earnings Banner ──────────────────────────────────────────
+        // ── EXPLORE ──────────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.payments_rounded,
-              title: 'My Earnings',
-              subtitle: 'Track income, tips & payouts',
-              gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
-              onTap: () =>
-                  Navigator.of(context).pushNamed('/driver-earnings-advanced'),
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+            child: const _SectionLabel('Explore'),
           ),
         ),
-
-        // ── Wallet Banner ────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.bolt_rounded,
-              title: 'Instant Wallet',
-              subtitle: 'View balance and cash out in minutes',
-              gradient: const [Color(0xFF10B981), Color(0xFF059669)],
-              onTap: () => Navigator.of(context).pushNamed('/driver-wallet'),
-            ),
-          ),
-        ),
-
-        // ── Performance Banner ───────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.insights_rounded,
-              title: 'Performance & Tier',
-              subtitle: 'Score, tier progress & smart tips',
-              gradient: const [Color(0xFF22C55E), Color(0xFF16A34A)],
-              onTap: () =>
-                  Navigator.of(context).pushNamed('/driver-performance'),
-            ),
-          ),
-        ),
-
-        // ── Heatmap Banner ───────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.map_rounded,
-              title: 'Demand Heatmap',
-              subtitle: 'Find surge zones & earn more',
-              gradient: const [Color(0xFFEF4444), Color(0xFFDC2626)],
-              onTap: () => Navigator.of(context).pushNamed('/driver-heatmap'),
-            ),
-          ),
-        ),
-
-        // ── Leaderboard Banner ───────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.emoji_events_rounded,
-              title: 'Leaderboard',
-              subtitle: 'See your ranking among drivers',
-              gradient: const [Color(0xFF6366F1), Color(0xFF4F46E5)],
-              onTap: () =>
-                  Navigator.of(context).pushNamed('/driver-leaderboard'),
-            ),
-          ),
-        ),
-
-        // ── Refer & Earn Banner ──────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: _PromoBanner(
-              icon: Icons.card_giftcard_rounded,
-              title: 'Refer a Driver',
-              subtitle: 'Earn a bonus for every driver you refer',
-              gradient: const [Color(0xFF10B981), Color(0xFF059669)],
-              onTap: () => Navigator.of(context).pushNamed('/driver-referral'),
-            ),
-          ),
-        ),
-
-        // ── Tip of the Day ───────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E2030),
+                color: const Color(0xFF12131C),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF1E1F2A)),
+              ),
+              child: Column(
+                children: [
+                  _MenuRow(
+                    icon: Icons.payments_rounded,
+                    iconColor: const Color(0xFFF59E0B),
+                    title: 'Earnings & Analytics',
+                    subtitle: 'Income, tips & payouts',
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed('/driver-earnings-advanced'),
+                    divider: true,
+                  ),
+                  _MenuRow(
+                    icon: Icons.map_rounded,
+                    iconColor: const Color(0xFFEF4444),
+                    title: 'Demand Heatmap',
+                    subtitle: 'Find surge zones nearby',
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/driver-heatmap'),
+                    divider: true,
+                  ),
+                  _MenuRow(
+                    icon: Icons.insights_rounded,
+                    iconColor: const Color(0xFF22C55E),
+                    title: 'Performance & Tier',
+                    subtitle: 'Score, tier & smart tips',
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/driver-performance'),
+                    divider: true,
+                  ),
+                  _MenuRow(
+                    icon: Icons.emoji_events_rounded,
+                    iconColor: const Color(0xFF6366F1),
+                    title: 'Leaderboard',
+                    subtitle: 'Your ranking among drivers',
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/driver-leaderboard'),
+                    divider: true,
+                  ),
+                  _MenuRow(
+                    icon: Icons.card_giftcard_rounded,
+                    iconColor: const Color(0xFF10B981),
+                    title: 'Refer a Driver',
+                    subtitle: 'Earn a bonus for every referral',
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/driver-referral'),
+                    divider: false,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // ── PEAK HOURS TIP ───────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.18),
                 ),
               ),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.lightbulb_rounded,
-                      color: AppTheme.primaryColor,
-                      size: 20,
-                    ),
+                  Icon(
+                    Icons.lightbulb_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 15,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _formatPeakHours(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Stay online during peak hours for more orders.',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '${_formatPeakHours()} — Stay online for more orders.',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -844,7 +1058,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
@@ -955,29 +1169,48 @@ class _GlassIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 42,
-        height: 42,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2030),
+          color: const Color(0xFF1A1B24),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFF2A2D3E)),
         ),
-        child: Icon(icon, color: const Color(0xFF9CA3AF), size: 20),
+        child: Icon(icon, color: const Color(0xFF9CA3AF), size: 19),
       ),
     );
   }
 }
 
-// ── Metric Tile ──────────────────────────────────────────────────────────────
+// ── Section Label ────────────────────────────────────────────────────────────
 
-class _MetricTile extends StatelessWidget {
-  final IconData icon;
+class _SectionLabel extends StatelessWidget {
+  final String text;
+
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
+    );
+  }
+}
+
+// ── Mini Stat ────────────────────────────────────────────────────────────────
+
+class _MiniStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
 
-  const _MetricTile({
-    required this.icon,
+  const _MiniStat({
     required this.label,
     required this.value,
     required this.color,
@@ -986,41 +1219,152 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Vertical Divider ─────────────────────────────────────────────────────────
+
+class _VertDivider extends StatelessWidget {
+  const _VertDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 32, color: const Color(0xFF1E1F2A));
+  }
+}
+
+// ── Service Card ─────────────────────────────────────────────────────────────
+
+class _ServiceCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isEnabled;
+  final bool isLoading;
+  final bool locked;
+  final ValueChanged<bool> onToggle;
+
+  const _ServiceCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isEnabled,
+    required this.isLoading,
+    required this.onToggle,
+    this.locked = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : () => onToggle(!isEnabled),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2030),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF2A2D3E)),
+          color: isEnabled
+              ? color.withValues(alpha: 0.08)
+              : const Color(0xFF12131C),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isEnabled
+                ? color.withValues(alpha: 0.35)
+                : const Color(0xFF1E1F2A),
+          ),
         ),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: isEnabled
+                    ? color.withValues(alpha: 0.15)
+                    : const Color(0xFF1A1B24),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: color, size: 18),
+              child: isLoading
+                  ? Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: color,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    )
+                  : locked
+                  ? const Icon(
+                      Icons.lock_rounded,
+                      color: Color(0xFF4B5563),
+                      size: 16,
+                    )
+                  : Icon(
+                      icon,
+                      color: isEnabled ? color : const Color(0xFF4B5563),
+                      size: 18,
+                    ),
             ),
             const SizedBox(height: 8),
             Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
               label,
               style: TextStyle(
-                fontSize: 10,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+                color: locked
+                    ? const Color(0xFF4B5563)
+                    : isEnabled
+                    ? Colors.white
+                    : const Color(0xFF6B7280),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            // Mini toggle pill
+            Container(
+              width: 28,
+              height: 14,
+              decoration: BoxDecoration(
+                color: isEnabled ? color : const Color(0xFF2A2D3E),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                alignment: isEnabled
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -1030,69 +1374,58 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-// ── Action Tile ──────────────────────────────────────────────────────────────
+// ── Action Card ──────────────────────────────────────────────────────────────
 
-class _ActionTile extends StatelessWidget {
+class _ActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String subtitle;
-  final Color iconBg;
+  final Color color;
   final VoidCallback onTap;
 
-  const _ActionTile({
+  const _ActionCard({
     required this.icon,
     required this.label,
-    required this.subtitle,
-    required this.iconBg,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF1E2030),
-      borderRadius: BorderRadius.circular(18),
+      color: const Color(0xFF12131C),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF2A2D3E)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF1E1F2A)),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: iconBg.withValues(alpha: 0.15),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: iconBg, size: 22),
+                child: Icon(icon, color: color, size: 20),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1102,82 +1435,89 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-// ── Promo Banner ─────────────────────────────────────────────────────────────
+// ── Menu Row ─────────────────────────────────────────────────────────────────
 
-class _PromoBanner extends StatelessWidget {
+class _MenuRow extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String title;
   final String subtitle;
-  final List<Color> gradient;
   final VoidCallback onTap;
+  final bool divider;
 
-  const _PromoBanner({
+  const _MenuRow({
     required this.icon,
+    required this.iconColor,
     required this.title,
     required this.subtitle,
-    required this.gradient,
     required this.onTap,
+    required this.divider,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: gradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 12,
-                      ),
+                    child: Icon(icon, color: iconColor, size: 18),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF4B5563),
+                    size: 18,
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Colors.white70,
-                size: 16,
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+        if (divider)
+          const Divider(
+            height: 1,
+            indent: 68,
+            endIndent: 16,
+            color: Color(0xFF1E1F2A),
+          ),
+      ],
     );
   }
 }

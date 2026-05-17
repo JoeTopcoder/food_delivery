@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../config/app_constants.dart';
 import '../../providers/payout_provider.dart';
-import '../../services/payout_service.dart';
+import '../../services/payment/payout_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'payout_success_screen.dart';

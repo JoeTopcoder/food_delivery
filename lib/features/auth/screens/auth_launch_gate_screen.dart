@@ -6,6 +6,7 @@ import '../../../screens/main_navigation_screen.dart';
 import '../../../screens/driver/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/restaurant_dashboard_screen.dart';
 import '../../../screens/admin/admin_dashboard_screen.dart';
+import '../../../widgets/role_guard.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 import 'role_selection_screen.dart';
@@ -47,17 +48,36 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
 
+    if (auth.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (auth.isAuthenticated) {
       final role = auth.user?.role;
       switch (role) {
         case 'customer':
-          return const MainNavigationScreen();
+        case 'user':
+          return const RoleGuard(
+            allowedRoles: ['user', 'customer'],
+            child: MainNavigationScreen(),
+          );
         case 'driver':
-          return const DriverDashboardScreen();
+          return const RoleGuard(
+            allowedRoles: ['driver'],
+            child: DriverDashboardScreen(),
+          );
         case 'restaurant':
-          return const RestaurantDashboardScreen();
+          return const RoleGuard(
+            allowedRoles: ['restaurant'],
+            child: RestaurantDashboardScreen(),
+          );
         case 'admin':
-          return const AdminDashboardScreen();
+          return const RoleGuard(
+            allowedRoles: ['admin'],
+            child: AdminDashboardScreen(),
+          );
         default:
           // Unknown / null role — sign out immediately and return to role
           // selection so an unrecognised role can NEVER silently see any

@@ -7,7 +7,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/payout_provider.dart';
 import '../../providers/restaurant_provider.dart';
 import '../../utils/friendly_error.dart';
-import '../../services/payout_service.dart';
+import '../../services/payment/payout_service.dart';
 import '../../utils/app_theme.dart';
 import 'bank_info_screen.dart';
 import '../../utils/app_feedback_widgets.dart';

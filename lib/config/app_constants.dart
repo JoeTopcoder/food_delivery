@@ -111,9 +111,10 @@
   // Pagination
   static int pageSize = 20;
 
-  // Currency (US Dollar)
-  static const String currencySymbol = '\$';
-  static const String currencyCode = 'JMD';
+  // Currency — overridden from app_config table at startup
+  static String currencySymbol = '\$';
+  static String currencyCode = 'USD';
+  static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
 
   // ── Business Constants (defaults — overridden from app_config table) ──────
@@ -127,6 +128,19 @@
   static double driverFeePerDelivery = 5.0;
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;
+  static double cardVerificationChargeMin = 0;
+  static double cardVerificationChargeMax = 3;
+
+  // Ride promotional banners
+  static bool ridePromoFirstRideEnabled = true;
+  static String ridePromoFirstRideTitle = 'First ride free!';
+  static String ridePromoFirstRideSubtitle = 'Use code FIRSTRIDE at checkout';
+  static String ridePromoFirstRideCode = 'FIRSTRIDE';
+  static String ridePromoFirstRideCta = 'Book now';
+  static String ridePromoReturningTitle = 'Ready for your next ride?';
+  static String ridePromoReturningSubtitle =
+      'Fast, reliable rides at your fingertips';
+  static String ridePromoReturningCta = 'Book a ride';
 
   // Delivery (distance-based, USD — $2.00–$2.50 per mile)
   static double deliveryBaseFee = 3.0; // base fee for first baseMiles

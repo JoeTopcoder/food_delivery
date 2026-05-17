@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,6 @@ import '../providers/auth_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/context_extensions.dart';
 import '../utils/friendly_error.dart';
-import '../widgets/restaurant_card.dart';
 import '../widgets/order_countdown_timer.dart';
 import '../widgets/ai_fab.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -32,13 +30,43 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   static const List<Widget> _screens = [
     CustomerHomeScreen(),
     GroceryScreen(),
-    SearchScreen(),
     OrdersScreen(),
     CustomerProfileScreen(),
   ];
 
+  static String _dashboardRouteForRole(String role) {
+    switch (role) {
+      case 'driver':
+        return '/driver-dashboard';
+      case 'restaurant':
+        return '/restaurant-dashboard';
+      case 'admin':
+        return '/admin-dashboard';
+      default:
+        return '/role-selection';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+
+    // Only customers (role 'user' or 'customer') belong here.
+    // Any other authenticated role is redirected to their own dashboard.
+    if (authState.isAuthenticated) {
+      final role = authState.user?.role;
+      if (role != null && role != 'user' && role != 'customer') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            _dashboardRouteForRole(role),
+            (_) => false,
+          );
+        });
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+    }
+
     final userId = ref.watch(currentUserIdProvider);
 
     // Keep the customer-orders realtime channel alive for the whole app
@@ -78,6 +106,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          ref.read(currentTabIndexProvider.notifier).state = index;
           setState(() {
             _loadedTabs.add(index);
             _selectedIndex = index;
@@ -99,11 +128,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             label: context.l10n.grocery,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.search_outlined),
-            activeIcon: const Icon(Icons.search),
-            label: context.l10n.search,
-          ),
-          BottomNavigationBarItem(
             icon: const Icon(Icons.receipt_outlined),
             activeIcon: const Icon(Icons.receipt),
             label: context.l10n.orders,
@@ -112,113 +136,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             icon: const Icon(Icons.account_circle_outlined),
             activeIcon: const Icon(Icons.account_circle),
             label: context.l10n.profile,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
-
-  @override
-  ConsumerState<SearchScreen> createState() => _SearchScreenState();
-}
-
-class _SearchScreenState extends ConsumerState<SearchScreen> {
-  String _query = '';
-  Timer? _debounce;
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _query = value);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final resultsAsync = _query.isEmpty
-        ? ref.watch(allRestaurantsProvider)
-        : ref.watch(restaurantSearchProvider(_query));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.search),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search restaurants or food...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: context.isDark
-                    ? context.colors.surfaceContainerHighest
-                    : Colors.grey[100],
-              ),
-            ),
-          ),
-          Expanded(
-            child: resultsAsync.when(
-              data: (restaurants) {
-                if (restaurants.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _query.isEmpty
-                              ? 'No restaurants available'
-                              : 'No results for "$_query"',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: restaurants.length,
-                  itemBuilder: (context, index) {
-                    return RestaurantCard(
-                      restaurant: restaurants[index],
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/restaurant-detail',
-                          arguments: restaurants[index],
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text(friendlyError(err))),
-            ),
           ),
         ],
       ),

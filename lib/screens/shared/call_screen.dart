@@ -1,11 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat_model.dart';
 import '../../providers/chat_provider.dart';
-import '../../services/agora_service.dart';
+import '../../services/social/agora_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';

@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/ai_voice_service.dart';
-import '../services/speech_service.dart';
+import '../services/ai/ai_voice_service.dart';
+import '../services/ai/speech_service.dart';
 import '../utils/friendly_error.dart';
 
 // ── Service providers ─────────────────────────────────────────────────────────
