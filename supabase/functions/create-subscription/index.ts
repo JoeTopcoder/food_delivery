@@ -246,6 +246,8 @@ Deno.serve(async (request) => {
         plan_type: planType,
         status: "pending",
         stripe_customer_id: stripeCustomerId,
+        // Store PI ID so activate can verify payment before marking active
+        stripe_subscription_id: pi.id as string,
         current_period_end: periodEnd.toISOString(),
         deliveries_remaining: parseInt(deliveries),
         deliveries_used: 0,
@@ -368,7 +370,7 @@ Deno.serve(async (request) => {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // ACTION: activate — mark a pending subscription as active after payment
+  // ACTION: activate — verify payment then mark subscription active
   // ════════════════════════════════════════════════════════════════════════════
   if (action === "activate") {
     const subscriptionId = String(body.subscription_id ?? "").trim();
@@ -378,7 +380,7 @@ Deno.serve(async (request) => {
 
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("id, user_id, status, stripe_subscription_id, stripe_customer_id")
+      .select("id, user_id, status, stripe_subscription_id, stripe_customer_id, plan_type")
       .eq("id", subscriptionId)
       .single();
 
@@ -386,40 +388,85 @@ Deno.serve(async (request) => {
       return json({ error: "Subscription not found" }, 404);
     }
 
+    // stripe_subscription_id stores the PaymentIntent ID (pi_xxx) for PI-based
+    // subscriptions. Verify it's succeeded before activating.
+    const storedId = sub.stripe_subscription_id as string | null;
+    if (storedId?.startsWith("pi_")) {
+      const pi = await stripeGet(`/payment_intents/${storedId}`);
+      if ((pi.status as string) !== "succeeded") {
+        return json(
+          { error: "Payment has not been completed. Please complete payment to activate your subscription." },
+          402
+        );
+      }
+
+      const piMeta = (pi.metadata ?? {}) as Record<string, string>;
+      const piAction = piMeta.action ?? "";
+
+      if (piAction === "change_plan") {
+        // Plan-change payment confirmed — update plan details now.
+        const newPlan = piMeta.plan_type ?? sub.plan_type;
+        const newDeliveries = parseInt(piMeta.new_deliveries ?? "0");
+        const svcDiscount = parseFloat(piMeta.service_fee_discount ?? "0.5");
+
+        await admin
+          .from("user_subscriptions")
+          .update({
+            plan_type: newPlan,
+            status: "active",
+            deliveries_remaining: newDeliveries,
+            deliveries_used: 0,
+            service_fee_discount: svcDiscount,
+            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            auto_renew: true,
+            stripe_subscription_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", subscriptionId);
+
+        return json({ success: true, message: "Plan changed successfully" });
+      }
+    }
+
+    // Normal subscribe activation (or already active)
     if (sub.status === "active") {
       return json({ success: true, message: "Already active" });
     }
 
-    // After Payment Sheet success, the PI is confirmed.
-    // Just mark DB active — Stripe webhook will reconcile status.
-    let periodEnd: Date | null = null;
-    if (sub.stripe_subscription_id) {
-      const stripeSub = await stripeGet(
-        `/subscriptions/${sub.stripe_subscription_id}`
-      );
-      const endTs = stripeSub.current_period_end as number | undefined;
-      if (endTs && endTs > 0) {
-        periodEnd = new Date(endTs * 1000);
-      }
-    }
-
-    // Default to 30 days from now if Stripe didn't provide a period end
-    if (!periodEnd) {
-      periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
-
-    // Update DB to active with correct period end
     await admin
       .from("user_subscriptions")
       .update({
         status: "active",
         auto_renew: true,
-        current_period_end: periodEnd.toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        stripe_subscription_id: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscriptionId);
 
     return json({ success: true, message: "Subscription activated" });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ACTION: delete_pending — remove a pending subscription (cancelled payment)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === "delete_pending") {
+    const subscriptionId = String(body.subscription_id ?? "").trim();
+    if (subscriptionId) {
+      await admin
+        .from("user_subscriptions")
+        .delete()
+        .eq("id", subscriptionId)
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+    } else {
+      await admin
+        .from("user_subscriptions")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+    }
+    return json({ success: true });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -497,7 +544,9 @@ Deno.serve(async (request) => {
       customerId = cust.id as string;
     }
 
-    // Create a PaymentIntent directly — no subscription/invoice chain
+    // Create a PaymentIntent — embed all plan-change details in metadata so
+    // activate() can apply them after verifying payment, without touching the
+    // DB before the user actually pays.
     const pi = await stripePost("/payment_intents", {
       amount: String(newPriceInCents),
       currency: "usd",
@@ -507,6 +556,8 @@ Deno.serve(async (request) => {
       "metadata[plan_type]": newPlan,
       "metadata[action]": "change_plan",
       "metadata[subscription_id]": subscriptionId,
+      "metadata[new_deliveries]": newDeliveries,
+      "metadata[service_fee_discount]": serviceFeeDiscount,
     });
 
     if (pi.error) {
@@ -521,18 +572,13 @@ Deno.serve(async (request) => {
 
     const ephemeralKey = await stripeEphemeralKey(customerId);
 
-    // Pre-update DB with pending status — will be set to active after payment
+    // Only store the PI ID on the subscription — do NOT change status or plan_type
+    // until payment is confirmed in the activate action.
     await admin
       .from("user_subscriptions")
       .update({
-        plan_type: newPlan,
-        status: "pending",
         stripe_customer_id: customerId,
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        deliveries_remaining: parseInt(newDeliveries),
-        deliveries_used: 0,
-        service_fee_discount: parseFloat(serviceFeeDiscount),
-        auto_renew: true,
+        stripe_subscription_id: pi.id as string,
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscriptionId);

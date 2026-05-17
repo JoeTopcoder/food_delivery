@@ -301,11 +301,13 @@ class _CustomerProfileScreenState
           .getPublicUrl(fileName);
 
       final userService = ref.read(userServiceProvider);
-      await userService.updateUserProfile(
+      final updatedUser = await userService.updateUserProfile(
         userId: userId,
         profileImageUrl: publicUrl,
       );
-      ref.invalidate(currentUserProvider);
+      if (updatedUser != null) {
+        ref.read(userSessionOverrideProvider.notifier).state = updatedUser;
+      }
 
       if (context.mounted) AppSnackbar.success(context, 'Profile photo updated!');
     } catch (e) {
@@ -350,12 +352,13 @@ class _CustomerProfileScreenState
               final phone = ctrl.text.trim();
               if (phone.isEmpty) return;
               try {
-                await ref
-                    .read(authNotifierProvider.notifier)
-                    .updateUserProfile(
-                      userId: currentUser!.id,
-                      phone: phone,
-                    );
+                final updated = await ref.read(userServiceProvider).updateUserProfile(
+                  userId: currentUser!.id,
+                  phone: phone,
+                );
+                if (updated != null) {
+                  ref.read(userSessionOverrideProvider.notifier).state = updated;
+                }
                 if (ctx.mounted)     Navigator.pop(ctx);
                 if (context.mounted) AppSnackbar.success(context, 'Phone updated');
               } catch (e) {
