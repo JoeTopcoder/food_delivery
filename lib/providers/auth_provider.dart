@@ -476,7 +476,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     double? longitude,
     String? profileImageUrl,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    // Do NOT set isLoading: true here — the auth gate screen watches
+    // authNotifierProvider and treats isLoading:true as "still loading",
+    // which resets the navigation stack to the home screen.
     try {
       final updatedUser = await _userService.updateUserProfile(
         userId: userId,
@@ -488,10 +490,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         profileImageUrl: profileImageUrl,
       );
 
-      state = state.copyWith(isLoading: false, user: updatedUser);
+      state = state.copyWith(user: updatedUser);
     } catch (e) {
       AppLogger.error('Update profile error: $e');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(error: e.toString());
       rethrow;
     }
   }
