@@ -348,19 +348,19 @@ class _CustomerProfileScreenState
           FilledButton(
             onPressed: () async {
               final phone = ctrl.text.trim();
-              if (phone.isNotEmpty) {
-                try {
-                  await ref.read(userServiceProvider).updateUserProfile(
-                    userId: currentUser!.id,
-                    phone: phone,
-                  );
-                  ref.invalidate(currentUserProvider);
-                  if (ctx.mounted)     Navigator.pop(ctx);
-                  if (context.mounted) AppSnackbar.success(context, 'Phone updated');
-                } catch (e) {
-                  if (ctx.mounted)     Navigator.pop(ctx);
-                  if (context.mounted) AppSnackbar.error(context, friendlyError(e));
-                }
+              if (phone.isEmpty) return;
+              try {
+                await ref
+                    .read(authNotifierProvider.notifier)
+                    .updateUserProfile(
+                      userId: currentUser!.id,
+                      phone: phone,
+                    );
+                if (ctx.mounted)     Navigator.pop(ctx);
+                if (context.mounted) AppSnackbar.success(context, 'Phone updated');
+              } catch (e) {
+                if (ctx.mounted)     Navigator.pop(ctx);
+                if (context.mounted) AppSnackbar.error(context, friendlyError(e));
               }
             },
             style: FilledButton.styleFrom(backgroundColor: _kNavy),
