@@ -125,72 +125,71 @@ import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
 import 'providers/feature_providers.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  runZonedGuarded(() async {
+    // ensureInitialized must be called inside the same zone as runApp.
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Keep only the minimum boot dependencies on the critical path.
-  await Future.wait([
-    Firebase.initializeApp(),
-    SupabaseConfig.initialize(),
-    CacheService.init(),
-  ]);
+    // Keep only the minimum boot dependencies on the critical path.
+    await Future.wait([
+      Firebase.initializeApp(),
+      SupabaseConfig.initialize(),
+      CacheService.init(),
+    ]);
 
-  // Initialize Stripe (non-blocking — don't await applySettings)
-  final stripeKey = AppConstants.stripePublishableKey;
-  if (stripeKey.isNotEmpty) {
-    Stripe.publishableKey = stripeKey;
-    Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-    // applySettings runs lazily; no need to block startup
-    Stripe.instance.applySettings().catchError((_) {});
-  }
-  AppLogger.info(
-    '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
-  );
+    // Initialize Stripe (non-blocking — don't await applySettings)
+    final stripeKey = AppConstants.stripePublishableKey;
+    if (stripeKey.isNotEmpty) {
+      Stripe.publishableKey = stripeKey;
+      Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+      Stripe.instance.applySettings().catchError((_) {});
+    }
+    AppLogger.info(
+      '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
+    );
 
-  FlutterError.onError = (FlutterErrorDetails details) {
-    AppLogger.error('[Flutter] Uncaught: ${details.exception}\n${details.stack}');
-  };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      AppLogger.error('[Flutter] Uncaught: ${details.exception}\n${details.stack}');
+    };
 
-  // Replace the default red crash widget with a calm fallback so a broken
-  // subtree never produces a white or red screen in release builds.
-  ErrorWidget.builder = (FlutterErrorDetails details) {
-    AppLogger.error('[ErrorWidget] ${details.exception}');
-    return Material(
-      color: Colors.white,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 52),
-              const SizedBox(height: 14),
-              const Text(
-                'Something went wrong',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Go back and try again.',
-                style: TextStyle(color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ],
+    // Replace the default red crash widget with a calm fallback so a broken
+    // subtree never produces a white or red screen in release builds.
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      AppLogger.error('[ErrorWidget] ${details.exception}');
+      return Material(
+        color: Colors.white,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 52),
+                const SizedBox(height: 14),
+                const Text(
+                  'Something went wrong',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Go back and try again.',
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  };
+      );
+    };
 
-  runZonedGuarded(
-    () => runApp(const ProviderScope(child: MyApp())),
-    (error, stack) {
-      AppLogger.error('[Zone] Uncaught: $error\n$stack');
-    },
-  );
+    runApp(const ProviderScope(child: MyApp()));
+  }, (error, stack) {
+    AppLogger.error('[Zone] Uncaught: $error\n$stack');
+  });
 }
 
 /// Global scroll behavior: smooth iOS-style bouncing physics on every platform,
