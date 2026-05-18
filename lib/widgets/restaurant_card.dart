@@ -46,7 +46,6 @@ class RestaurantCard extends StatelessWidget {
                           width: double.infinity,
                           fit: BoxFit.cover,
                           memCacheWidth: 800,
-                          placeholder: (_, __) => const _PlaceholderImage(),
                           errorWidget: (_, _, _) => const _PlaceholderImage(),
                         )
                       : const _PlaceholderImage(),
