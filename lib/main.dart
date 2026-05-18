@@ -324,6 +324,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
     if (lifecycle == AppLifecycleState.resumed) {
       _refreshSession();
+      // Ensure Flutter redraws after the surface is restored on Android.
+      WidgetsBinding.instance.scheduleFrame();
     }
   }
 
