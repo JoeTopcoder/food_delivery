@@ -63,6 +63,22 @@ class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
     return wallet;
   }
 
+  Future<Wallet> transfer({
+    required String recipientWalletId,
+    required double amount,
+    String? note,
+  }) async {
+    if (_userId == null) throw Exception('Not logged in');
+    final wallet = await _service.transferFunds(
+      senderUserId: _userId,
+      recipientWalletId: recipientWalletId,
+      amount: amount,
+      note: note,
+    );
+    state = AsyncValue.data(wallet);
+    return wallet;
+  }
+
   Future<Map<String, dynamic>> cancelOrder(
     String orderId, {
     String? refundMethod,

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,8 +24,6 @@ class WalletScreen extends ConsumerStatefulWidget {
 }
 
 class _WalletScreenState extends ConsumerState<WalletScreen> {
-  final _amountCtrl = TextEditingController();
-  final _presetAmounts = [500, 1000, 2000, 5000];
   bool _isDepositing = false;
   StreamSubscription? _cardsSub;
 
@@ -38,29 +36,111 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   void _listenForCardChanges() {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
-
     _cardsSub = Supabase.instance.client
         .from('saved_cards')
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .listen((_) {
-          if (mounted) {
-            ref.invalidate(savedCardsProvider(userId));
-          }
+          if (mounted) ref.invalidate(savedCardsProvider(userId));
         });
   }
 
   @override
   void dispose() {
     _cardsSub?.cancel();
-    _amountCtrl.dispose();
     super.dispose();
   }
 
+  String _walletDisplayId() {
+    final user = ref.read(currentUserProvider);
+    final refCode = user?.referralCode;
+    if (refCode != null && refCode.isNotEmpty) return refCode.toUpperCase();
+    final uid = ref.read(currentUserIdProvider) ?? '';
+    return uid.replaceAll('-', '').substring(0, 6).toUpperCase();
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+
+  Future<void> _topUp() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+
+    final cardsAsync = ref.read(savedCardsProvider(userId));
+    final verifiedCards = cardsAsync.valueOrNull
+            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
+            .toList() ??
+        [];
+
+    if (!mounted) return;
+
+    final result = await Navigator.of(context).push<_TopUpResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _TopUpPage(
+          walletDisplayId: _walletDisplayId(),
+          verifiedCards: verifiedCards,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    setState(() => _isDepositing = true);
+    try {
+      if (result.savedCard != null) {
+        final cvv = await showModalBottomSheet<String>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) =>
+              _CvvSheet(card: result.savedCard!, amount: result.amount),
+        );
+        if (cvv == null || !mounted) return;
+        await _depositWithSavedCard(result.amount, result.savedCard!, cvv);
+      } else {
+        await _depositWithNewCard(result.amount);
+      }
+    } finally {
+      if (mounted) setState(() => _isDepositing = false);
+    }
+  }
+
+  Future<void> _sendMoney() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final wallet = ref.read(walletNotifierProvider).valueOrNull;
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SendMoneySheet(
+        senderUserId: userId,
+        currentBalance: wallet?.balance ?? 0,
+        ref: ref,
+        onSuccess: () {
+          ref.read(walletNotifierProvider.notifier).refresh();
+          ref.invalidate(walletTransactionsProvider);
+        },
+      ),
+    );
+  }
+
+  void _showHistory() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _TransactionHistorySheet(ref: ref),
+    );
+  }
+
+  // ── Add / Manage cards ────────────────────────────────────────────────────
+
   Future<void> _addNewCard() async {
-    final result = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => const AddCardScreen()));
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AddCardScreen()),
+    );
     if (result == true && mounted) {
       final userId = ref.read(currentUserIdProvider);
       if (userId != null) ref.invalidate(savedCardsProvider(userId));
@@ -75,22 +155,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Remove Card'),
         content: Text(
-          'Remove ${card.displayBrand} ending in ${card.lastFour}?',
-        ),
+            'Remove ${card.displayBrand} ending in ${card.lastFour}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
-          ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child:
+                  const Text('Remove', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
     if (confirm != true || !mounted) return;
-
     final svc = ref.read(paymentServiceProvider);
     await svc.deleteSavedCard(card.id);
     final userId = ref.read(currentUserIdProvider);
@@ -105,34 +182,24 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     ref.invalidate(savedCardsProvider(userId));
   }
 
-  /// Inline verify — called from the amount field inside _SavedCardTile.
-  /// Returns true if the amount matched.
   Future<bool> _verifyCardInline(String cardId, double amount) async {
     final svc = ref.read(paymentServiceProvider);
     final userId = ref.read(currentUserIdProvider);
-
     final matched = await svc.verifyPendingCard(cardId, amount);
     if (userId != null) ref.invalidate(savedCardsProvider(userId));
-
     if (!mounted) return matched;
-
     if (matched) {
       AppSnackbar.success(
-        context,
-        'Card verified successfully! Charge will be reversed.',
-      );
+          context, 'Card verified successfully! Charge will be reversed.');
     } else {
-      final updatedCards = userId != null
-          ? await svc.getSavedCards(userId)
-          : <SavedCard>[];
-      final updatedCard = updatedCards.where((c) => c.id == cardId).firstOrNull;
-
+      final updatedCards =
+          userId != null ? await svc.getSavedCards(userId) : <SavedCard>[];
+      final updatedCard =
+          updatedCards.where((c) => c.id == cardId).firstOrNull;
       if (updatedCard != null && updatedCard.isFailed) {
         if (!mounted) return false;
-        AppSnackbar.error(
-          context,
-          'Verification failed — too many wrong attempts. Please try adding the card again.',
-        );
+        AppSnackbar.error(context,
+            'Verification failed — too many wrong attempts. Please try adding the card again.');
       } else {
         if (!mounted) return false;
         final attemptsLeft = 3 - (updatedCard?.verificationAttempts ?? 1);
@@ -145,262 +212,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     return matched;
   }
 
-  Widget _buildCardsSection(bool isDark) {
-    final userId = ref.watch(currentUserIdProvider);
-    if (userId == null) return const SizedBox.shrink();
-
-    final cardsAsync = ref.watch(savedCardsProvider(userId));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'My Cards',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            TextButton.icon(
-              onPressed: _addNewCard,
-              icon: const Icon(Icons.add_card, size: 18),
-              label: const Text('Add Card'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        cardsAsync.when(
-          data: (cards) {
-            if (cards.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1F2937) : Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF374151)
-                        : Colors.grey.shade200,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.credit_card_off_outlined,
-                      size: 40,
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'No cards added yet',
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _addNewCard,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Your First Card'),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final pendingCards = cards
-                .where((c) => c.isPending && !c.isExpired)
-                .toList();
-            final expiredCards = cards
-                .where((c) => c.isPending && c.isExpired)
-                .toList();
-            final failedCards = cards.where((c) => c.isFailed).toList();
-            final verifiedCards = cards.where((c) => c.isVerified).toList();
-
-            // Auto-expire any pending cards that are past their window
-            if (expiredCards.isNotEmpty) {
-              Future.microtask(() {
-                for (final ec in expiredCards) {
-                  ref.read(paymentServiceProvider).verifyPendingCard(ec.id, -1);
-                }
-              });
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pending verification cards
-                if (pendingCards.isNotEmpty) ...[
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: Colors.orange,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Check your bank statement for the charge amount, '
-                            'then tap Verify.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? Colors.orange.shade200
-                                  : Colors.orange.shade900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...pendingCards.map(
-                    (card) => _SavedCardTile(
-                      key: ValueKey(
-                        '${card.id}_${card.status}_${card.verificationAttempts}',
-                      ),
-                      card: card,
-                      isDark: isDark,
-                      onSetDefault: () {},
-                      onDelete: () => _deleteCard(card),
-                      onVerifyAmount: (cardId, amount) =>
-                          _verifyCardInline(cardId, amount),
-                    ),
-                  ),
-                ],
-                // Failed cards
-                ...failedCards.map(
-                  (card) => _SavedCardTile(
-                    key: ValueKey('${card.id}_${card.status}'),
-                    card: card,
-                    isDark: isDark,
-                    onSetDefault: () {},
-                    onDelete: () => _deleteCard(card),
-                  ),
-                ),
-                // Verified cards
-                ...verifiedCards.map(
-                  (card) => _SavedCardTile(
-                    key: ValueKey('${card.id}_${card.status}'),
-                    card: card,
-                    isDark: isDark,
-                    onSetDefault: () => _setDefaultCard(card),
-                    onDelete: () => _deleteCard(card),
-                  ),
-                ),
-              ],
-            );
-          },
-          loading: () => const SizedBox(
-            height: 60,
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-          error: (e, _) => Text(
-            friendlyError(e),
-            style: TextStyle(
-              color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Shows a payment method picker then charges the chosen method.
-  Future<void> _deposit(double amount) async {
-    if (amount <= 0) {
-      AppSnackbar.warning(context, 'Enter a valid amount');
-      return;
-    }
-
-    final userId = ref.read(currentUserIdProvider);
-    if (userId == null) return;
-
-    final cardsAsync = ref.read(savedCardsProvider(userId));
-    final verifiedCards = cardsAsync.valueOrNull
-            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
-            .toList() ??
-        [];
-
-    if (!mounted) return;
-
-    // Step 1: pick payment method
-    final choice = await showModalBottomSheet<_TopUpChoice>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _TopUpPickerSheet(
-        amount: amount,
-        verifiedCards: verifiedCards,
-      ),
-    );
-
-    if (choice == null || !mounted) return;
-
-    // Step 2: if saved card, collect CVV before charging
-    String? cvv;
-    if (choice.savedCard != null) {
-      cvv = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => _CvvSheet(card: choice.savedCard!, amount: amount),
-      );
-      if (cvv == null || !mounted) return;
-    }
-
-    // Step 3: process payment
-    setState(() => _isDepositing = true);
-    try {
-      if (choice.savedCard != null) {
-        await _depositWithSavedCard(amount, choice.savedCard!, cvv!);
-      } else {
-        await _depositWithNewCard(amount);
-      }
-    } finally {
-      if (mounted) setState(() => _isDepositing = false);
-    }
-  }
-
-  /// Create a PaymentIntent server-side, then confirm client-side with CVC.
   Future<void> _depositWithSavedCard(
-    double amount,
-    SavedCard card,
-    String cvv,
-  ) async {
+      double amount, SavedCard card, String cvv) async {
     final paymentService = ref.read(paymentServiceProvider);
     final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
-
-    // Create unconfirmed PaymentIntent on the server
     final session = await paymentService.prepareSavedCardPayment(
       orderId: topupId,
       amount: amount,
       paymentMethodId: card.stripePaymentMethodId!,
       type: 'wallet_topup',
     );
-
     if (!mounted) return;
-
-    // Ensure Stripe is initialised
     if (Stripe.publishableKey.isEmpty) {
       final key = AppConstants.stripePublishableKey;
       if (key.isNotEmpty) {
@@ -409,8 +231,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         await Stripe.instance.applySettings();
       }
     }
-
-    // Confirm client-side — Stripe validates the CVC without storing it
     try {
       await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: session.clientSecret,
@@ -426,16 +246,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (e.error.code == FailureCode.Canceled) {
         AppSnackbar.warning(context, 'Payment cancelled');
       } else {
-        AppSnackbar.error(
-          context,
-          e.error.localizedMessage ?? 'Payment failed. Please try again.',
-        );
+        AppSnackbar.error(context,
+            e.error.localizedMessage ?? 'Payment failed. Please try again.');
       }
       return;
     }
-
     if (!mounted) return;
-
     await ref.read(walletNotifierProvider.notifier).deposit(amount);
     ref.invalidate(walletTransactionsProvider);
     if (mounted) {
@@ -443,18 +259,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         context,
         '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added via ${card.displayBrand} ••••${card.lastFour}',
       );
-      _amountCtrl.clear();
     }
   }
 
-  /// Open the Stripe payment sheet for a one-off new card charge.
   Future<void> _depositWithNewCard(double amount) async {
     final paymentService = ref.read(paymentServiceProvider);
     final authUser = Supabase.instance.client.auth.currentUser;
     final email = authUser?.email ?? '';
-    final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
+    final name =
+        authUser?.userMetadata?['name'] as String? ?? 'Customer';
     final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
-
     final result = await paymentService.presentStripePaymentSheet(
       orderId: topupId,
       amount: amount,
@@ -462,13 +276,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       customerName: name,
       type: 'wallet_topup',
     );
-
     if (!mounted) return;
     if (result == null) {
       AppSnackbar.warning(context, 'Top-up cancelled');
       return;
     }
-
     await ref.read(walletNotifierProvider.notifier).deposit(amount);
     ref.invalidate(walletTransactionsProvider);
     if (mounted) {
@@ -476,22 +288,202 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         context,
         '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
       );
-      _amountCtrl.clear();
     }
   }
+
+  // ── Saved cards section ───────────────────────────────────────────────────
+
+  Widget _buildCardsSection(bool isDark) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId == null) return const SizedBox.shrink();
+    final cardsAsync = ref.watch(savedCardsProvider(userId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.credit_card_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white70 : Colors.black87),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Saved Cards',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: _addNewCard,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Card'),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                side: BorderSide(color: Colors.grey.shade400),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        cardsAsync.when(
+          loading: () => const SizedBox(
+            height: 60,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          error: (e, _) => Text(friendlyError(e),
+              style: TextStyle(color: AppTheme.errorColor)),
+          data: (cards) {
+            if (cards.isEmpty) {
+              return _EmptyCardsPlaceholder(onAdd: _addNewCard, isDark: isDark);
+            }
+
+            final pendingCards =
+                cards.where((c) => c.isPending && !c.isExpired).toList();
+            final expiredCards =
+                cards.where((c) => c.isPending && c.isExpired).toList();
+            final failedCards = cards.where((c) => c.isFailed).toList();
+            final verifiedCards = cards.where((c) => c.isVerified).toList();
+
+            if (expiredCards.isNotEmpty) {
+              Future.microtask(() {
+                for (final ec in expiredCards) {
+                  ref.read(paymentServiceProvider).verifyPendingCard(ec.id, -1);
+                }
+              });
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pending verification notice
+                if (pendingCards.isNotEmpty) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: Colors.orange, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Check your bank statement for the charge amount, then tap Verify.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.orange.shade200
+                                  : Colors.orange.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Card type label (only if there are verified/pending cards)
+                if (verifiedCards.isNotEmpty || pendingCards.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Credit/Debit Card',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+
+                ...pendingCards.map((card) => _SavedCardTile(
+                      key: ValueKey(
+                          '${card.id}_${card.status}_${card.verificationAttempts}'),
+                      card: card,
+                      isDark: isDark,
+                      onSetDefault: () {},
+                      onDelete: () => _deleteCard(card),
+                      onVerifyAmount: (cardId, amount) =>
+                          _verifyCardInline(cardId, amount),
+                    )),
+                ...failedCards.map((card) => _SavedCardTile(
+                      key: ValueKey('${card.id}_${card.status}'),
+                      card: card,
+                      isDark: isDark,
+                      onSetDefault: () {},
+                      onDelete: () => _deleteCard(card),
+                    )),
+                ...verifiedCards.map((card) => _SavedCardTile(
+                      key: ValueKey('${card.id}_${card.status}'),
+                      card: card,
+                      isDark: isDark,
+                      onSetDefault: () => _setDefaultCard(card),
+                      onDelete: () => _deleteCard(card),
+                    )),
+
+                const SizedBox(height: 12),
+
+                // "Add New Card +" bottom button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _addNewCard,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text(
+                      'Add New Card +',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final walletAsync = ref.watch(walletNotifierProvider);
-    final txAsync = ref.watch(walletTransactionsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'My Wallet',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Payment & Wallet',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -500,170 +492,30 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         },
         child: ListView(
           physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          padding: const EdgeInsets.all(16),
+              parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            // ── Balance Card ──────────────────────────────────
+            // Wallet card
             walletAsync.when(
-              data: (wallet) => _BalanceCard(wallet: wallet),
+              data: (wallet) => _WalletCard(
+                wallet: wallet,
+                walletDisplayId: _walletDisplayId(),
+                isDepositing: _isDepositing,
+                onTopUp: _topUp,
+                onSendMoney: _sendMoney,
+                onHistory: _showHistory,
+              ),
               loading: () => const SizedBox(
-                height: 180,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, _) => Text(
-                friendlyError(e),
-                style: TextStyle(
-                  color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
-                ),
-              ),
+                  height: 220,
+                  child: Center(child: CircularProgressIndicator())),
+              error: (e, _) => Text(friendlyError(e),
+                  style: TextStyle(color: AppTheme.errorColor)),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // ── Add Funds ─────────────────────────────────────
-            Text(
-              'Add Funds',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _presetAmounts
-                  .map(
-                    (a) => ActionChip(
-                      label: Text(
-                        '\$$a',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      backgroundColor: isDark
-                          ? const Color(0xFF374151)
-                          : Colors.grey.shade100,
-                      onPressed: () => _deposit(a.toDouble()),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _amountCtrl,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 16,
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                    ],
-                    decoration: InputDecoration(
-                      prefixText: '\$ ',
-                      prefixStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      hintText: 'Custom amount',
-                      hintStyle: TextStyle(
-                        color: isDark
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isDepositing
-                      ? null
-                      : () {
-                          final amt = double.tryParse(_amountCtrl.text) ?? 0;
-                          _deposit(amt);
-                        },
-                  child: _isDepositing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Add'),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── My Cards ──────────────────────────────────────
+            // Saved cards
             _buildCardsSection(isDark),
-
-            const SizedBox(height: 24),
-
-            // ── Transaction History ───────────────────────────
-            Text(
-              'Transaction History',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            txAsync.when(
-              data: (txns) {
-                if (txns.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No transactions yet',
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return Column(
-                  children: txns.map((tx) => _TransactionTile(tx: tx)).toList(),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text(
-                friendlyError(e),
-                style: TextStyle(
-                  color: isDark ? Colors.red.shade300 : AppTheme.errorColor,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -671,9 +523,24 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 }
 
-class _BalanceCard extends StatelessWidget {
+// ─── Wallet card ──────────────────────────────────────────────────────────────
+
+class _WalletCard extends StatelessWidget {
   final Wallet? wallet;
-  const _BalanceCard({this.wallet});
+  final String walletDisplayId;
+  final bool isDepositing;
+  final VoidCallback onTopUp;
+  final VoidCallback onSendMoney;
+  final VoidCallback onHistory;
+
+  const _WalletCard({
+    required this.wallet,
+    required this.walletDisplayId,
+    required this.isDepositing,
+    required this.onTopUp,
+    required this.onSendMoney,
+    required this.onHistory,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -682,10 +549,10 @@ class _BalanceCard extends StatelessWidget {
     final total = balance + cashback;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.primaryColor, Color(0xFFFF8C5A)],
+          colors: [AppTheme.primaryColor, const Color(0xFFFF8C5A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -701,38 +568,122 @@ class _BalanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             children: [
-              const Icon(
-                Icons.account_balance_wallet_outlined,
-                color: Colors.white70,
-                size: 20,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    color: Colors.white, size: 20),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Available Balance',
+              const SizedBox(width: 10),
+              const Text(
+                '7Krave Wallet',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onHistory,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5B03C),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bar_chart_rounded,
+                          color: Colors.white, size: 16),
+                      SizedBox(width: 4),
+                      Text('History',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          )),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 18),
+
           Text(
-            '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
+            'My Balance',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 13,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'JMD',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+          Text(
+            'Wallet ID: $walletDisplayId',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Action buttons
           Row(
             children: [
-              _BalanceChip(label: 'Main', amount: balance),
+              Expanded(
+                child: _WalletActionButton(
+                  icon: Icons.add_circle_outline_rounded,
+                  label: isDepositing ? 'Processing…' : 'Top-up',
+                  onTap: isDepositing ? null : onTopUp,
+                ),
+              ),
               const SizedBox(width: 12),
-              _BalanceChip(label: 'Cashback', amount: cashback),
+              Expanded(
+                child: _WalletActionButton(
+                  icon: Icons.send_rounded,
+                  label: 'Send Money',
+                  onTap: onSendMoney,
+                ),
+              ),
             ],
           ),
         ],
@@ -741,30 +692,176 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _BalanceChip extends StatelessWidget {
+class _WalletActionButton extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final double amount;
-  const _BalanceChip({required this.label, required this.amount});
+  final VoidCallback? onTap;
+
+  const _WalletActionButton({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$label: \$${amount.toStringAsFixed(2)}',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: onTap == null
+              ? const Color(0xFFF5B03C).withValues(alpha: 0.5)
+              : const Color(0xFFF5B03C),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ─── Empty cards placeholder ──────────────────────────────────────────────────
+
+class _EmptyCardsPlaceholder extends StatelessWidget {
+  final VoidCallback onAdd;
+  final bool isDark;
+  const _EmptyCardsPlaceholder({required this.onAdd, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2937) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF374151) : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.credit_card_off_outlined,
+              size: 40,
+              color:
+                  isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+          const SizedBox(height: 8),
+          Text('No cards added yet',
+              style: TextStyle(
+                color:
+                    isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              )),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add Your First Card'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Card brand logo ──────────────────────────────────────────────────────────
+
+class _CardBrandLogo extends StatelessWidget {
+  final String brand;
+  const _CardBrandLogo({required this.brand});
+
+  @override
+  Widget build(BuildContext context) {
+    final lower = brand.toLowerCase();
+    if (lower.contains('master')) {
+      return SizedBox(
+        width: 48,
+        height: 36,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 4,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEB001B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF79E1B).withValues(alpha: 0.9),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (lower.contains('visa')) {
+      return Container(
+        width: 48,
+        height: 36,
+        alignment: Alignment.center,
+        child: const Text(
+          'VISA',
+          style: TextStyle(
+            color: Color(0xFF1A1F71),
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
+        ),
+      );
+    }
+    if (lower.contains('amex') || lower.contains('american')) {
+      return Container(
+        width: 48,
+        height: 36,
+        alignment: Alignment.center,
+        child: const Text(
+          'AMEX',
+          style: TextStyle(
+            color: Color(0xFF007BC1),
+            fontWeight: FontWeight.w900,
+            fontSize: 11,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: 48,
+      height: 36,
+      alignment: Alignment.center,
+      child: const Icon(Icons.credit_card, size: 26, color: Colors.grey),
+    );
+  }
+}
+
+// ─── Transaction tile ─────────────────────────────────────────────────────────
 
 class _TransactionTile extends StatelessWidget {
   final WalletTransaction tx;
@@ -780,6 +877,8 @@ class _TransactionTile extends StatelessWidget {
       'refund' => (Icons.replay, const Color(0xFF3B82F6)),
       'penalty' => (Icons.warning_amber_rounded, AppTheme.errorColor),
       'tip_received' => (Icons.favorite, AppTheme.successColor),
+      'transfer_sent' => (Icons.send_rounded, AppTheme.primaryColor),
+      'transfer_received' => (Icons.call_received_rounded, AppTheme.successColor),
       _ => (Icons.receipt, Colors.grey),
     };
 
@@ -825,7 +924,8 @@ class _TransactionTile extends StatelessWidget {
                   DateFormat.yMMMd().add_jm().format(tx.createdAt),
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? Colors.grey.shade400 : AppTheme.textLight,
+                    color:
+                        isDark ? Colors.grey.shade400 : AppTheme.textLight,
                   ),
                 ),
               ],
@@ -836,7 +936,9 @@ class _TransactionTile extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 15,
-              color: tx.isCredit ? AppTheme.successColor : AppTheme.errorColor,
+              color: tx.isCredit
+                  ? AppTheme.successColor
+                  : AppTheme.errorColor,
             ),
           ),
         ],
@@ -844,6 +946,8 @@ class _TransactionTile extends StatelessWidget {
     );
   }
 }
+
+// ─── Saved card tile ──────────────────────────────────────────────────────────
 
 class _SavedCardTile extends StatefulWidget {
   final SavedCard card;
@@ -865,7 +969,327 @@ class _SavedCardTile extends StatefulWidget {
   State<_SavedCardTile> createState() => _SavedCardTileState();
 }
 
-// ── CVV collection sheet ──────────────────────────────────────────────────
+class _SavedCardTileState extends State<_SavedCardTile> {
+  final _amountCtrl = TextEditingController();
+  bool _isVerifying = false;
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  SavedCard get card => widget.card;
+  bool get isDark => widget.isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = card.isPending;
+    final isFailed = card.isFailed;
+
+    return Opacity(
+      opacity: isFailed ? 0.5 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1F2937) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isPending
+                ? Colors.orange.withValues(alpha: 0.6)
+                : isFailed
+                    ? Colors.red.withValues(alpha: 0.4)
+                    : card.isDefault
+                        ? AppTheme.primaryColor.withValues(alpha: 0.5)
+                        : isDark
+                            ? const Color(0xFF374151)
+                            : Colors.grey.shade200,
+            width: (isPending || card.isDefault) ? 1.5 : 0.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Brand logo
+                Container(
+                  width: 56,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  alignment: Alignment.center,
+                  child: _CardBrandLogo(brand: card.cardBrand),
+                ),
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Cardholder name + badges
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              card.cardholderName.isNotEmpty
+                                  ? card.cardholderName
+                                  : card.displayBrand,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (card.isDefault && card.isVerified) ...[
+                            const SizedBox(width: 6),
+                            _StatusBadge(
+                                label: 'DEFAULT',
+                                color: AppTheme.primaryColor),
+                          ],
+                          if (isPending) ...[
+                            const SizedBox(width: 6),
+                            _StatusBadge(
+                                label: 'PENDING', color: Colors.orange),
+                          ],
+                          if (isFailed) ...[
+                            const SizedBox(width: 6),
+                            _StatusBadge(label: 'FAILED', color: Colors.red),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      // Masked number
+                      Text(
+                        'xxxx xxxx xxxx ${card.lastFour}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      if (isPending && card.timeRemaining != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${card.timeRemaining!.inMinutes} min to verify',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.orange.shade700),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Menu or delete
+                if (isPending && widget.onVerifyAmount != null)
+                  IconButton(
+                    onPressed: widget.onDelete,
+                    icon: Icon(Icons.delete_outline,
+                        color: Colors.red.shade400, size: 20),
+                    tooltip: 'Remove card',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                else if (!isPending)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_horiz_rounded,
+                        color: isDark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                        size: 22),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) {
+                      if (value == 'default') widget.onSetDefault();
+                      if (value == 'delete') widget.onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      if (!card.isDefault && card.isVerified)
+                        const PopupMenuItem(
+                          value: 'default',
+                          child: Row(
+                            children: [
+                              Icon(Icons.star_outline, size: 18),
+                              SizedBox(width: 8),
+                              Text('Set as default'),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Remove',
+                                style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+
+            // Pending card verification inline section
+            if (isPending && widget.onVerifyAmount != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.orange.withValues(alpha: 0.08)
+                      : Colors.orange.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'A small charge (between \$${AppConstants.cardVerificationChargeMin.toStringAsFixed(0)} and \$${AppConstants.cardVerificationChargeMax.toStringAsFixed(0)}) was sent. '
+                      'Check your banking app, then enter the exact amount below:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.orange.shade200
+                            : Colors.orange.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: TextField(
+                              controller: _amountCtrl,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[\d.]')),
+                              ],
+                              decoration: InputDecoration(
+                                prefixText: '\$ ',
+                                hintText: 'e.g. 3.00',
+                                filled: true,
+                                fillColor: isDark
+                                    ? const Color(0xFF1F2937)
+                                    : Colors.white,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(8)),
+                                isDense: true,
+                              ),
+                              enabled: !_isVerifying,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton.icon(
+                            onPressed: _isVerifying
+                                ? null
+                                : () async {
+                                    final amount = double.tryParse(
+                                        _amountCtrl.text.trim());
+                                    if (amount == null || amount <= 0) {
+                                      AppSnackbar.warning(context,
+                                          'Please enter a valid amount.');
+                                      return;
+                                    }
+                                    setState(
+                                        () => _isVerifying = true);
+                                    final matched =
+                                        await widget.onVerifyAmount!(
+                                            card.id, amount);
+                                    if (mounted) {
+                                      setState(
+                                          () => _isVerifying = false);
+                                      if (matched) _amountCtrl.clear();
+                                    }
+                                  },
+                            icon: _isVerifying
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white),
+                                  )
+                                : const Icon(Icons.check_circle, size: 18),
+                            label: const Text('Verify',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.successColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _StatusBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── CVV sheet (unchanged) ────────────────────────────────────────────────────
 
 class _CvvSheet extends StatefulWidget {
   final SavedCard card;
@@ -921,21 +1345,18 @@ class _CvvSheetState extends State<_CvvSheet> {
               ),
             ),
           ),
-          Text(
-            'Enter CVV',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
+          Text('Enter CVV',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 4),
           Text(
             '${widget.card.displayBrand}  ••••  ${widget.card.lastFour}',
             style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-            ),
+                fontSize: 13,
+                color:
+                    isDark ? Colors.grey.shade400 : Colors.grey.shade600),
           ),
           const SizedBox(height: 20),
           TextField(
@@ -950,8 +1371,7 @@ class _CvvSheetState extends State<_CvvSheet> {
               hintText: _isAmex ? '••••' : '•••',
               prefixIcon: const Icon(Icons.lock_outline, size: 20),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+                  borderRadius: BorderRadius.circular(12)),
               counterText: '',
             ),
             onSubmitted: (val) {
@@ -970,15 +1390,12 @@ class _CvvSheetState extends State<_CvvSheet> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
                   'Pay  ${AppConstants.currencySymbol}${widget.amount.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -989,28 +1406,323 @@ class _CvvSheetState extends State<_CvvSheet> {
   }
 }
 
-// ── Top-up payment picker ─────────────────────────────────────────────────
+// ─── Top-up page (new route) ──────────────────────────────────────────────────
 
-class _TopUpChoice {
+class _TopUpResult {
+  final double amount;
   final SavedCard? savedCard;
-  const _TopUpChoice({this.savedCard});
-  const _TopUpChoice.newCard() : savedCard = null;
+  const _TopUpResult({required this.amount, this.savedCard});
 }
 
-class _TopUpPickerSheet extends StatelessWidget {
-  final double amount;
+class _TopUpPage extends StatefulWidget {
+  final String walletDisplayId;
   final List<SavedCard> verifiedCards;
+  const _TopUpPage(
+      {required this.walletDisplayId, required this.verifiedCards});
 
-  const _TopUpPickerSheet({
-    required this.amount,
-    required this.verifiedCards,
+  @override
+  State<_TopUpPage> createState() => _TopUpPageState();
+}
+
+class _TopUpPageState extends State<_TopUpPage> {
+  final _amountCtrl = TextEditingController();
+  SavedCard? _selectedCard;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.verifiedCards.isNotEmpty) {
+      _selectedCard = widget.verifiedCards.firstWhere(
+        (c) => c.isDefault,
+        orElse: () => widget.verifiedCards.first,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Top-up',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Wallet ID
+          Text('Your 7Krave Wallet ID',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF1F2937)
+                  : const Color(0xFFECF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(widget.walletDisplayId,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface)),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Amount
+          Text('Amount',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF1F2937)
+                  : const Color(0xFFECF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _amountCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+              ],
+              style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Enter amount',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Card selector
+          if (widget.verifiedCards.isNotEmpty) ...[
+            Text('Select Credit / Debit Card',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.verifiedCards.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, i) {
+                  final card = widget.verifiedCards[i];
+                  final selected = _selectedCard?.id == card.id;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCard = card),
+                    child: Container(
+                      width: 160,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                            : isDark
+                                ? const Color(0xFF1F2937)
+                                : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected
+                              ? AppTheme.primaryColor
+                              : isDark
+                                  ? const Color(0xFF374151)
+                                  : Colors.grey.shade200,
+                          width: selected ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _CardBrandLogo(brand: card.cardBrand),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(card.displayBrand,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface)),
+                                Text('••••${card.lastFour}',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade500)),
+                              ],
+                            ),
+                          ),
+                          if (selected)
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check,
+                                  color: Colors.white, size: 14),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          Text(
+            '*This money can only be spent on 7Krave.\n'
+            '*You can send 7Krave wallet money to other 7Krave wallets.',
+            style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.primaryColor,
+                height: 1.6),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Add Money button
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _amountCtrl,
+            builder: (_, val, __) {
+              final amount = double.tryParse(val.text) ?? 0;
+              final enabled = amount > 0;
+              return ElevatedButton(
+                onPressed: enabled
+                    ? () => Navigator.of(context).pop(
+                          _TopUpResult(
+                            amount: amount,
+                            savedCard: _selectedCard,
+                          ),
+                        )
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: enabled
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade300,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Add Money',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Send Money sheet ─────────────────────────────────────────────────────────
+
+class _SendMoneySheet extends StatefulWidget {
+  final String senderUserId;
+  final double currentBalance;
+  final WidgetRef ref;
+  final VoidCallback onSuccess;
+
+  const _SendMoneySheet({
+    required this.senderUserId,
+    required this.currentBalance,
+    required this.ref,
+    required this.onSuccess,
   });
+
+  @override
+  State<_SendMoneySheet> createState() => _SendMoneySheetState();
+}
+
+class _SendMoneySheetState extends State<_SendMoneySheet> {
+  final _recipientCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _recipientCtrl.dispose();
+    _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final recipientId = _recipientCtrl.text.trim();
+    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+    final note = _noteCtrl.text.trim();
+
+    if (recipientId.isEmpty) {
+      AppSnackbar.error(context, 'Enter the recipient\'s wallet ID');
+      return;
+    }
+    if (amount <= 0) {
+      AppSnackbar.error(context, 'Enter a valid amount');
+      return;
+    }
+    if (amount > widget.currentBalance) {
+      AppSnackbar.error(context, 'Insufficient wallet balance');
+      return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      await widget.ref.read(walletNotifierProvider.notifier).transfer(
+            recipientWalletId: recipientId,
+            amount: amount,
+            note: note.isEmpty ? null : note,
+          );
+      widget.ref.invalidate(walletTransactionsProvider);
+      widget.onSuccess();
+      if (mounted) {
+        Navigator.of(context).pop();
+        AppSnackbar.success(
+          context,
+          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} sent!',
+        );
+      }
+    } catch (e) {
+      setState(() => _sending = false);
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF1F2937) : Colors.white;
-    final divider = isDark ? const Color(0xFF374151) : Colors.grey.shade200;
 
     return Container(
       decoration: BoxDecoration(
@@ -1020,121 +1732,177 @@ class _TopUpPickerSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         top: 8,
-        left: 16,
-        right: 16,
+        left: 20,
+        right: 20,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Drag handle
           Center(
             child: Container(
               width: 40,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          Text(
-            'Add ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
+
+          // Current balance display
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primaryColor, const Color(0xFFFF8C5A)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Text('My Current Balance',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13)),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppConstants.currencySymbol}${widget.currentBalance.toStringAsFixed(2)}JMD',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Choose a payment method',
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+
+          const SizedBox(height: 20),
+
+          // Wallet ID field
+          Text('7Krave Wallet ID',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF111827)
+                  : const Color(0xFFECF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _recipientCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'Enter 7Krave Wallet ID',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+              ),
             ),
           ),
+
           const SizedBox(height: 16),
 
-          // Saved verified cards
-          if (verifiedCards.isNotEmpty) ...[
-            Text(
-              'Saved Cards',
+          // Amount field
+          Text('Amount (JMD)',
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF111827)
+                  : const Color(0xFFECF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _amountCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+              ],
+              decoration: InputDecoration(
+                hintText: 'Enter amount',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
               ),
             ),
-            const SizedBox(height: 8),
-            ...verifiedCards.map((card) => _CardOption(
-                  card: card,
-                  isDark: isDark,
-                  onTap: () => Navigator.of(context)
-                      .pop(_TopUpChoice(savedCard: card)),
-                )),
-            Divider(color: divider, height: 24),
-          ],
+          ),
 
-          // New card option
-          InkWell(
-            onTap: () =>
-                Navigator.of(context).pop(const _TopUpChoice.newCard()),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF374151) : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: divider),
+          const SizedBox(height: 16),
+
+          // Note field
+          Text('Note',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface)),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF111827)
+                  : const Color(0xFFECF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _noteCtrl,
+              decoration: InputDecoration(
+                hintText: 'Add special Note',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                prefixIcon: Icon(Icons.note_alt_outlined,
+                    color: AppTheme.primaryColor, size: 20),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.add_card,
-                      color: AppTheme.primaryColor,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pay with new card',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        Text(
-                          'One-time charge via Stripe',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
-                  ),
-                ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          Text(
+            '*This money can only be spent on 7Krave',
+            style: TextStyle(
+                fontSize: 12, color: AppTheme.primaryColor),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Send Money button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _sending ? null : _send,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF22C55E),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
+              child: _sending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Send Money',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],
@@ -1143,548 +1911,75 @@ class _TopUpPickerSheet extends StatelessWidget {
   }
 }
 
-class _CardOption extends StatelessWidget {
-  final SavedCard card;
-  final bool isDark;
-  final VoidCallback onTap;
+// ─── Transaction history sheet ────────────────────────────────────────────────
 
-  const _CardOption({
-    required this.card,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  Color get _brandColor {
-    switch (card.cardBrand.toLowerCase()) {
-      case 'visa':
-        return const Color(0xFF1A1F71);
-      case 'mastercard':
-        return const Color(0xFFEB001B);
-      default:
-        return Colors.grey;
-    }
-  }
+class _TransactionHistorySheet extends StatelessWidget {
+  final WidgetRef ref;
+  const _TransactionHistorySheet({required this.ref});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF374151) : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: card.isDefault
-                ? AppTheme.primaryColor.withValues(alpha: 0.5)
-                : isDark
-                    ? const Color(0xFF4B5563)
-                    : Colors.grey.shade200,
-            width: card.isDefault ? 1.5 : 0.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _brandColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.credit_card, color: _brandColor, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '${card.displayBrand}  •••• ${card.lastFour}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      if (card.isDefault) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'DEFAULT',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (card.cardholderName.isNotEmpty)
-                    Text(
-                      card.cardholderName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final txAsync = ref.watch(walletTransactionsProvider);
 
-// ── Saved card tile (for the My Cards section) ───────────────────────────────
-
-class _SavedCardTileState extends State<_SavedCardTile> {
-  final _amountCtrl = TextEditingController();
-  bool _isVerifying = false;
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    super.dispose();
-  }
-
-  SavedCard get card => widget.card;
-  bool get isDark => widget.isDark;
-
-  IconData _brandIcon() {
-    switch (card.cardBrand.toLowerCase()) {
-      case 'visa':
-        return Icons.credit_card;
-      case 'mastercard':
-        return Icons.credit_card;
-      case 'keycard':
-        return Icons.credit_card;
-      default:
-        return Icons.credit_card;
-    }
-  }
-
-  Color _brandColor() {
-    switch (card.cardBrand.toLowerCase()) {
-      case 'visa':
-        return const Color(0xFF1A1F71);
-      case 'mastercard':
-        return const Color(0xFFEB001B);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isPending = card.isPending;
-    final isFailed = card.isFailed;
-    final dimmed = isFailed;
-
-    return Opacity(
-      opacity: dimmed ? 0.5 : 1.0,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1F2937) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isPending
-                ? Colors.orange.withValues(alpha: 0.6)
-                : isFailed
-                ? Colors.red.withValues(alpha: 0.4)
-                : card.isDefault
-                ? AppTheme.primaryColor.withValues(alpha: 0.5)
-                : isDark
-                ? const Color(0xFF374151)
-                : Colors.grey.shade200,
-            width: (isPending || card.isDefault) ? 1.5 : 0.5,
-          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _brandColor().withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(_brandIcon(), color: _brandColor(), size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '${card.displayBrand}  •••• ${card.lastFour}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (card.isDefault && card.isVerified)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'DEFAULT',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryColor,
-                                ),
-                              ),
-                            ),
-                          if (isPending)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'PENDING',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                            ),
-                          if (isFailed)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'FAILED',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.red.shade700,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (card.cardholderName.isNotEmpty)
-                        Text(
-                          card.cardholderName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : AppTheme.textLight,
-                          ),
-                        ),
-                      if (isPending) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Text(
-                              'CVC: ***',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            if (card.timeRemaining != null)
-                              Text(
-                                '${card.timeRemaining!.inMinutes} min left',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.orange.shade700,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: card.status == 'verified'
-                                    ? Colors.green.withValues(alpha: 0.12)
-                                    : card.status == 'failed'
-                                    ? Colors.red.withValues(alpha: 0.12)
-                                    : Colors.orange.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Status: ${card.status.toUpperCase()}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: card.status == 'verified'
-                                      ? Colors.green.shade700
-                                      : card.status == 'failed'
-                                      ? Colors.red.shade700
-                                      : Colors.orange.shade700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: card.verificationAttempts >= 3
-                                    ? Colors.red.withValues(alpha: 0.12)
-                                    : Colors.blue.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Attempts: ${card.verificationAttempts}/3',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: card.verificationAttempts >= 3
-                                      ? Colors.red.shade700
-                                      : Colors.blue.shade700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (isPending && widget.onVerifyAmount != null)
-                  IconButton(
-                    onPressed: widget.onDelete,
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: Colors.red.shade400,
-                      size: 20,
-                    ),
-                    tooltip: 'Remove card',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  )
-                else if (!isPending)
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                      size: 20,
-                    ),
-                    onSelected: (value) {
-                      if (value == 'default') widget.onSetDefault();
-                      if (value == 'delete') widget.onDelete();
-                    },
-                    itemBuilder: (_) => [
-                      if (!card.isDefault && card.isVerified)
-                        const PopupMenuItem(
-                          value: 'default',
-                          child: Row(
-                            children: [
-                              Icon(Icons.star_outline, size: 18),
-                              SizedBox(width: 8),
-                              Text('Set as default'),
-                            ],
-                          ),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                              color: Colors.red,
-                            ),
-                            SizedBox(width: 8),
-                            Text('Remove', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            // Inline verification amount field for pending cards
-            if (isPending && widget.onVerifyAmount != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.orange.withValues(alpha: 0.08)
-                      : Colors.orange.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'A small charge (between \$${AppConstants.cardVerificationChargeMin.toStringAsFixed(0)} and \$${AppConstants.cardVerificationChargeMax.toStringAsFixed(0)}) was sent to this card. '
-                      'Check your online banking for the exact amount, then '
-                      'enter it below to verify:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? Colors.orange.shade200
-                            : Colors.orange.shade800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 44,
-                            child: TextField(
-                              controller: _amountCtrl,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[\d.]'),
-                                ),
-                              ],
-                              decoration: InputDecoration(
-                                prefixText: '\$ ',
-                                hintText: 'e.g. 3.00',
-                                filled: true,
-                                fillColor: isDark
-                                    ? const Color(0xFF1F2937)
-                                    : Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                isDense: true,
-                              ),
-                              enabled: !_isVerifying,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          height: 44,
-                          child: ElevatedButton.icon(
-                            onPressed: _isVerifying
-                                ? null
-                                : () async {
-                                    final amount = double.tryParse(
-                                      _amountCtrl.text.trim(),
-                                    );
-                                    if (amount == null || amount <= 0) {
-                                      AppSnackbar.warning(
-                                        context,
-                                        'Please enter a valid amount.',
-                                      );
-                                      return;
-                                    }
-                                    setState(() => _isVerifying = true);
-                                    final matched = await widget
-                                        .onVerifyAmount!(card.id, amount);
-                                    if (mounted) {
-                                      setState(() => _isVerifying = false);
-                                      if (matched) {
-                                        _amountCtrl.clear();
-                                      }
-                                    }
-                                  },
-                            icon: _isVerifying
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.check_circle, size: 18),
-                            label: const Text(
-                              'Verify',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.successColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Text('Transaction History',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color:
+                              Theme.of(context).colorScheme.onSurface)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: txAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text(friendlyError(e))),
+                data: (txns) => txns.isEmpty
+                    ? const Center(child: Text('No transactions yet'))
+                    : ListView.builder(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: txns.length,
+                        itemBuilder: (_, i) =>
+                            _TransactionTile(tx: txns[i]),
+                      ),
+              ),
+            ),
           ],
         ),
       ),
