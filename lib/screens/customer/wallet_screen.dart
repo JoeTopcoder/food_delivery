@@ -582,7 +582,7 @@ class _WalletCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                '7Krave Wallet',
+                '7Dash Wallet',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -1458,7 +1458,7 @@ class _TopUpPageState extends State<_TopUpPage> {
         padding: const EdgeInsets.all(20),
         children: [
           // Wallet ID
-          Text('Your 7Krave Wallet ID',
+          Text('Your 7Dash Wallet ID',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1600,8 +1600,8 @@ class _TopUpPageState extends State<_TopUpPage> {
           ],
 
           Text(
-            '*This money can only be spent on 7Krave.\n'
-            '*You can send 7Krave wallet money to other 7Krave wallets.',
+            '*This money can only be spent on 7Dash.\n'
+            '*You can send 7Dash wallet money to other 7Dash wallets.',
             style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.primaryColor,
@@ -1786,7 +1786,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
           const SizedBox(height: 20),
 
           // Wallet ID field
-          Text('7Krave Wallet ID',
+          Text('7Dash Wallet ID',
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface)),
@@ -1802,7 +1802,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
               controller: _recipientCtrl,
               textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(
-                hintText: 'Enter 7Krave Wallet ID',
+                hintText: 'Enter 7Dash Wallet ID',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -1874,7 +1874,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
           const SizedBox(height: 12),
           Text(
-            '*This money can only be spent on 7Krave',
+            '*This money can only be spent on 7Dash',
             style: TextStyle(
                 fontSize: 12, color: AppTheme.primaryColor),
           ),
