@@ -132,4 +132,31 @@ class WalletService {
       rethrow;
     }
   }
+
+  /// Transfer funds to another wallet by wallet display ID (referral_code or
+  /// first-6-chars of UUID). Returns updated sender wallet.
+  Future<Wallet> transferFunds({
+    required String senderUserId,
+    required String recipientWalletId,
+    required double amount,
+    String? note,
+  }) async {
+    try {
+      final result = await _client.rpc('wallet_transfer', params: {
+        'p_sender_id': senderUserId,
+        'p_recipient_wallet_id': recipientWalletId,
+        'p_amount': amount,
+        'p_note': note,
+      });
+      final data = result as Map<String, dynamic>;
+      return Wallet(
+        userId: senderUserId,
+        balance: (data['balance'] as num).toDouble(),
+        cashbackBalance: (data['cashback_balance'] as num).toDouble(),
+      );
+    } catch (e) {
+      AppLogger.error('Error transferring wallet funds: $e');
+      rethrow;
+    }
+  }
 }
