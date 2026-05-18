@@ -1400,9 +1400,26 @@ class _DynamicBannerCarouselState
     extends ConsumerState<_DynamicBannerCarousel> {
   final PageController _pageCtrl = PageController(viewportFraction: 1.0);
   int _currentPage = 0;
+  int _bannerCount = 0;
+  Timer? _autoScrollTimer;
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    if (_bannerCount <= 1) return;
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_pageCtrl.hasClients) return;
+      final next = (_currentPage + 1) % _bannerCount;
+      _pageCtrl.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   @override
   void dispose() {
+    _autoScrollTimer?.cancel();
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -1416,6 +1433,13 @@ class _DynamicBannerCarouselState
       error: (_, _) => const SizedBox.shrink(),
       data: (banners) {
         if (banners.isEmpty) return const SizedBox.shrink();
+
+        // Start/restart timer whenever banner list changes
+        if (banners.length != _bannerCount) {
+          _bannerCount = banners.length;
+          WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll());
+        }
+
         return Column(
           children: [
             SizedBox(
