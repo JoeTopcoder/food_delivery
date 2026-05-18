@@ -401,6 +401,17 @@ class _DeliverySubscriptionTabState
                               ],
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Dismiss',
+                            onPressed: () async {
+                              final service = ref.read(subscriptionServiceProvider);
+                              await service.deletePendingSubscription(activeSub.id);
+                              ref.invalidate(activeSubscriptionProvider);
+                              if (!context.mounted) return;
+                              AppSnackbar.success(context, 'Cleared. You can now subscribe.');
+                            },
+                          ),
                         ],
                       ),
                     ),
