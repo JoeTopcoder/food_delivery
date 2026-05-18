@@ -1403,9 +1403,11 @@ class _DynamicBannerCarouselState
   int _bannerCount = 0;
   Timer? _autoScrollTimer;
 
-  void _startAutoScroll() {
+  void _startAutoScroll(int count) {
     _autoScrollTimer?.cancel();
-    if (_bannerCount <= 1) return;
+    _autoScrollTimer = null;
+    _bannerCount = count;
+    if (count <= 1) return;
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_pageCtrl.hasClients) return;
       final next = (_currentPage + 1) % _bannerCount;
@@ -1428,16 +1430,30 @@ class _DynamicBannerCarouselState
   Widget build(BuildContext context) {
     final bannersAsync = ref.watch(activeBannersProvider);
 
+    // ref.listen fires on every provider transition (loading→data, data→data).
+    // This is the correct Riverpod hook for triggering side effects.
+    ref.listen<AsyncValue<List<app.Banner>>>(activeBannersProvider, (_, next) {
+      next.whenData((banners) {
+        if (banners.length != _bannerCount || _autoScrollTimer == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _startAutoScroll(banners.length);
+          });
+        }
+      });
+    });
+
     return bannersAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
       data: (banners) {
         if (banners.isEmpty) return const SizedBox.shrink();
 
-        // Start/restart timer whenever banner list changes
-        if (banners.length != _bannerCount) {
-          _bannerCount = banners.length;
-          WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoScroll());
+        // ref.listen doesn't fire for the value already available on first
+        // build, so kick off the timer here if it hasn't started yet.
+        if (_autoScrollTimer == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _startAutoScroll(banners.length);
+          });
         }
 
         return Column(
