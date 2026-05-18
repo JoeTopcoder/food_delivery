@@ -152,7 +152,7 @@ class _CouponPopupContent extends StatelessWidget {
                 // Gradient header
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [primaryColor, secondaryColor],
@@ -165,30 +165,29 @@ class _CouponPopupContent extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      // Confetti / celebration icon
                       Text(
                         isWelcome ? '\u{1F389}' : '\u{1F381}',
-                        style: const TextStyle(fontSize: 44),
+                        style: const TextStyle(fontSize: 30),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       Text(
                         '${coupon.discountPercent}% OFF',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 36,
+                          fontSize: 26,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
+                          letterSpacing: 1.0,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Text(
                           coupon.reason,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.92),
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -198,29 +197,28 @@ class _CouponPopupContent extends StatelessWidget {
                 ),
                 // Code section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
                   child: Column(
                     children: [
                       Text(
                         'Your promo code',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      // Dashed code box
+                      const SizedBox(height: 8),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: primaryColor.withValues(alpha: 0.3),
                             width: 1.5,
                             strokeAlign: BorderSide.strokeAlignInside,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           color: primaryColor.withValues(alpha: 0.05),
                         ),
                         child: Center(
@@ -228,27 +226,27 @@ class _CouponPopupContent extends StatelessWidget {
                             coupon.code,
                             style: TextStyle(
                               color: primaryColor,
-                              fontSize: 22,
+                              fontSize: 18,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 3,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       if (coupon.minOrder > 0)
                         Text(
                           'Min. order: \$${coupon.minOrder.toStringAsFixed(0)}',
                           style: TextStyle(
                             color: Colors.grey.shade700,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       Text(
                         'Expires in ${coupon.expiresInHours ~/ 24} days',
                         style: TextStyle(
                           color: Colors.grey.shade700,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -256,7 +254,7 @@ class _CouponPopupContent extends StatelessWidget {
                 ),
                 // Copy + Close buttons
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
                   child: Column(
                     children: [
                       SizedBox(
@@ -266,7 +264,6 @@ class _CouponPopupContent extends StatelessWidget {
                             Clipboard.setData(ClipboardData(text: coupon.code));
                             HapticFeedback.mediumImpact();
                             Navigator.of(context).pop();
-                            // Show snackbar after dialog is dismissed
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               final messenger = ScaffoldMessenger.maybeOf(
                                 context,
@@ -279,29 +276,30 @@ class _CouponPopupContent extends StatelessWidget {
                               );
                             });
                           },
-                          icon: const Icon(Icons.copy_rounded, size: 18),
+                          icon: const Icon(Icons.copy_rounded, size: 16),
                           label: const Text('Copy Code & Start Ordering'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             textStyle: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                              fontSize: 13,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 4),
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
                           'Maybe later',
                           style: TextStyle(
                             color: Colors.grey.shade700,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
