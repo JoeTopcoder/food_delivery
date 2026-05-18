@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../utils/app_theme.dart';
@@ -49,6 +51,13 @@ class _AdminAdsScreenState extends ConsumerState<AdminAdsScreen> {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded),
+            tooltip: 'AI Ad Generator',
+            onPressed: _showAiGeneratorDialog,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateAdDialog,
@@ -81,6 +90,36 @@ class _AdminAdsScreenState extends ConsumerState<AdminAdsScreen> {
                 itemBuilder: (context, index) =>
                     _AdCard(ad: _ads[index], onChanged: _loadAds, ref: ref),
               ),
+      ),
+    );
+  }
+
+  void _showAiGeneratorDialog() async {
+    List<Restaurant> restaurants = [];
+    try {
+      restaurants = await ref
+          .read(adminServiceProvider)
+          .getAllRestaurants(offset: 0, limit: 500);
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+      return;
+    }
+
+    if (!mounted) return;
+    if (restaurants.isEmpty) {
+      AppSnackbar.error(context, 'No restaurants found');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => _AiAdGeneratorDialog(
+        restaurants: restaurants,
+        ref: ref,
+        onCreated: () {
+          ref.invalidate(activeAdsProvider);
+          _loadAds();
+        },
       ),
     );
   }
@@ -587,6 +626,362 @@ class _InfoChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── AI Ad Generator Dialog ──────────────────────────────────────────────────
+
+class _AiAdGeneratorDialog extends StatefulWidget {
+  final List<Restaurant> restaurants;
+  final WidgetRef ref;
+  final VoidCallback onCreated;
+
+  const _AiAdGeneratorDialog({
+    required this.restaurants,
+    required this.ref,
+    required this.onCreated,
+  });
+
+  @override
+  State<_AiAdGeneratorDialog> createState() => _AiAdGeneratorDialogState();
+}
+
+class _AiAdGeneratorDialogState extends State<_AiAdGeneratorDialog> {
+  final _briefCtrl = TextEditingController();
+  final _imageCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _ctaCtrl = TextEditingController();
+
+  Restaurant? _selectedRestaurant;
+  bool _generating = false;
+  bool _publishing = false;
+  bool _hasPreview = false;
+
+  @override
+  void dispose() {
+    _briefCtrl.dispose();
+    _imageCtrl.dispose();
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _ctaCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    if (_selectedRestaurant == null) {
+      AppSnackbar.error(context, 'Please select a restaurant');
+      return;
+    }
+    if (_briefCtrl.text.trim().isEmpty) {
+      AppSnackbar.error(context, 'Please describe the ad you want');
+      return;
+    }
+
+    setState(() => _generating = true);
+    try {
+      final res = await SupabaseConfig.client.functions.invoke(
+        'generate-ad',
+        body: {
+          'restaurant_name': _selectedRestaurant!.name,
+          'brief': _briefCtrl.text.trim(),
+        },
+      );
+
+      final data = res.data is String
+          ? jsonDecode(res.data as String) as Map<String, dynamic>
+          : res.data as Map<String, dynamic>;
+
+      if (data['error'] != null) {
+        throw Exception(data['error']);
+      }
+
+      setState(() {
+        _titleCtrl.text = (data['title'] ?? '').toString();
+        _descCtrl.text = (data['description'] ?? '').toString();
+        _ctaCtrl.text = (data['cta_text'] ?? 'Order Now').toString();
+        _hasPreview = true;
+        _generating = false;
+      });
+    } catch (e) {
+      setState(() => _generating = false);
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
+  Future<void> _publish() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      AppSnackbar.error(context, 'Title cannot be empty');
+      return;
+    }
+
+    setState(() => _publishing = true);
+    try {
+      await widget.ref.read(adminServiceProvider).createRestaurantAd(
+            restaurantId: _selectedRestaurant!.id,
+            title: _titleCtrl.text.trim(),
+            description: _descCtrl.text.trim().isEmpty
+                ? null
+                : _descCtrl.text.trim(),
+            imageUrl: _imageCtrl.text.trim().isEmpty
+                ? null
+                : _imageCtrl.text.trim(),
+          );
+      widget.onCreated();
+      if (mounted) {
+        Navigator.of(context).pop();
+        AppSnackbar.success(context, 'Ad published to customers!');
+      }
+    } catch (e) {
+      setState(() => _publishing = false);
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF7C3AED), Color(0xFFEC4899)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded,
+                color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          const Text('AI Ad Generator', style: TextStyle(fontSize: 17)),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+
+              // Restaurant dropdown
+              DropdownButtonFormField<Restaurant>(
+                initialValue: _selectedRestaurant,
+                decoration: InputDecoration(
+                  labelText: 'Restaurant *',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                isExpanded: true,
+                items: widget.restaurants.map((r) {
+                  return DropdownMenuItem(
+                    value: r,
+                    child: Text(r.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 14)),
+                  );
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedRestaurant = val),
+              ),
+              const SizedBox(height: 12),
+
+              // Brief
+              TextField(
+                controller: _briefCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Describe the ad *',
+                  hintText:
+                      'e.g. 20% off burgers this weekend, use code BURGER20',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.newline,
+              ),
+              const SizedBox(height: 12),
+
+              // Image URL (optional)
+              TextField(
+                controller: _imageCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Image URL (optional)',
+                  hintText: 'https://...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Generate button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: (_generating || _publishing) ? null : _generate,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    backgroundColor: const Color(0xFF7C3AED),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        const Color(0xFF7C3AED).withValues(alpha: 0.5),
+                  ),
+                  icon: _generating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.auto_awesome_rounded, size: 18),
+                  label: Text(
+                    _generating ? 'Generating...' : 'Generate with AI',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+
+              // Preview section
+              if (_hasPreview) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                const Text(
+                  'Preview — edit if needed',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Generated title (editable)
+                TextField(
+                  controller: _titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Generated description (editable)
+                TextField(
+                  controller: _descCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 10),
+
+                // CTA text (editable)
+                TextField(
+                  controller: _ctaCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Button label',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Publish button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (_generating || _publishing) ? null : _publish,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          const Color(0xFF10B981).withValues(alpha: 0.5),
+                    ),
+                    icon: _publishing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.rocket_launch_rounded, size: 18),
+                    label: Text(
+                      _publishing
+                          ? 'Publishing...'
+                          : 'Publish Ad to Customers',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: (_generating || _publishing)
+              ? null
+              : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }
