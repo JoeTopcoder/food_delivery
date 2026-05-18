@@ -139,8 +139,6 @@ class _MealCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: item.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, _) =>
-                            Container(color: Colors.grey.shade100),
                         errorWidget: (_, _, _) => Container(
                           color: Colors.grey.shade100,
                           child: const Icon(Icons.fastfood, color: Colors.grey),

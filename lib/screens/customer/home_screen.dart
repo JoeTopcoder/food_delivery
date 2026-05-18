@@ -1283,7 +1283,6 @@ class _CompactRestaurantCard extends StatelessWidget {
                       width: 180,
                       fit: BoxFit.cover,
                       memCacheWidth: 360,
-                      placeholder: (_, __) => _placeholder(),
                       errorWidget: (_, _, _) => _placeholder(),
                     )
                   : _placeholder(),

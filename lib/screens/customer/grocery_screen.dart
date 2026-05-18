@@ -421,7 +421,6 @@ class _SearchProductCard extends ConsumerWidget {
                             imageUrl: product.imageUrl!,
                             fit: BoxFit.cover,
                             memCacheWidth: 400,
-                            placeholder: (_, __) => _placeholder(),
                             errorWidget: (_, _, _) => _placeholder(),
                           )
                         : _placeholder(),

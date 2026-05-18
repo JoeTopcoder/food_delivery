@@ -96,7 +96,6 @@ class _GroceryStoreDetailScreenState
                     imageUrl: widget.store.imageUrl!,
                     fit: BoxFit.cover,
                     memCacheWidth: 800,
-                    placeholder: (_, __) => _storePlaceholder(),
                     errorWidget: (_, _, _) => _storePlaceholder(),
                   )
                 : _storePlaceholder(),
@@ -339,7 +338,6 @@ class _ProductCard extends ConsumerWidget {
                           imageUrl: product.imageUrl!,
                           fit: BoxFit.cover,
                           memCacheWidth: 400,
-                          placeholder: (_, __) => _productPlaceholder(),
                           errorWidget: (_, _, _) => _productPlaceholder(),
                         )
                       : _productPlaceholder(),
