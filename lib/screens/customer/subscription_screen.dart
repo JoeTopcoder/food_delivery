@@ -6,7 +6,6 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import '../../models/subscription_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
-import '../../providers/payment_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -50,7 +49,8 @@ class _DeliverySubscriptionTab extends ConsumerStatefulWidget {
 
 class _DeliverySubscriptionTabState
     extends ConsumerState<_DeliverySubscriptionTab> {
-  bool _subscribing = false;
+  // null = idle; 'basic'/'pro' = that plan subscribing; 'change' = switching plans
+  String? _subscribingPlan;
 
   /// Inits and presents the Stripe payment sheet.
   /// Returns true if payment completed, false if user cancelled.
@@ -79,8 +79,8 @@ class _DeliverySubscriptionTabState
   }
 
   Future<void> _subscribe(String planType) async {
-    if (_subscribing) return;
-    setState(() => _subscribing = true);
+    if (_subscribingPlan != null) return;
+    setState(() => _subscribingPlan = planType);
 
     try {
       final service = ref.read(subscriptionServiceProvider);
@@ -137,7 +137,7 @@ class _DeliverySubscriptionTabState
         AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
-      if (mounted) setState(() => _subscribing = false);
+      if (mounted) setState(() => _subscribingPlan = null);
     }
   }
 
@@ -194,8 +194,8 @@ class _DeliverySubscriptionTabState
   }
 
   Future<void> _changePlan(String subscriptionId, String newPlan) async {
-    if (_subscribing) return;
-    setState(() => _subscribing = true);
+    if (_subscribingPlan != null) return;
+    setState(() => _subscribingPlan = 'change');
 
     try {
       final service = ref.read(subscriptionServiceProvider);
@@ -248,7 +248,7 @@ class _DeliverySubscriptionTabState
         AppSnackbar.error(context, friendlyError(e));
       }
     } finally {
-      if (mounted) setState(() => _subscribing = false);
+      if (mounted) setState(() => _subscribingPlan = null);
     }
   }
 
@@ -316,7 +316,7 @@ class _DeliverySubscriptionTabState
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: _subscribing
+                      onPressed: _subscribingPlan != null
                           ? null
                           : () => _changePlan(
                               activeSub.id,
@@ -324,7 +324,7 @@ class _DeliverySubscriptionTabState
                             ),
                       icon: const Icon(Icons.swap_horiz),
                       label: Text(
-                        _subscribing
+                        _subscribingPlan == 'change'
                             ? 'Switching...'
                             : 'Switch to MealHub ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
                       ),
@@ -437,8 +437,8 @@ class _DeliverySubscriptionTabState
                     'Priority support',
                   ],
                   color: const Color(0xFF2196F3),
-                  subscribing: _subscribing,
-                  onSubscribe: () => _subscribe('basic'),
+                  subscribing: _subscribingPlan == 'basic',
+                  onSubscribe: _subscribingPlan != null ? null : () => _subscribe('basic'),
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
@@ -453,8 +453,8 @@ class _DeliverySubscriptionTabState
                   ],
                   color: const Color(0xFF6C63FF),
                   recommended: true,
-                  subscribing: _subscribing,
-                  onSubscribe: () => _subscribe('pro'),
+                  subscribing: _subscribingPlan == 'pro',
+                  onSubscribe: _subscribingPlan != null ? null : () => _subscribe('pro'),
                 ),
               ],
 
@@ -665,7 +665,7 @@ class _PlanOptionCard extends StatelessWidget {
   final Color color;
   final bool recommended;
   final bool subscribing;
-  final VoidCallback onSubscribe;
+  final VoidCallback? onSubscribe;
 
   const _PlanOptionCard({
     required this.title,
@@ -675,7 +675,7 @@ class _PlanOptionCard extends StatelessWidget {
     required this.color,
     this.recommended = false,
     required this.subscribing,
-    required this.onSubscribe,
+    this.onSubscribe,
   });
 
   @override
