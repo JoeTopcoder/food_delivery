@@ -375,24 +375,58 @@ class GroceryService {
   }) async {
     try {
       AppLogger.info('Placing grocery order via edge function');
-      final response = await _client.functions.invoke(
-        'grocery-order',
-        body: {
-          'store_id': storeId,
-          'user_id': userId,
-          'items': items,
-          'is_pickup': isPickup,
-          'payment_method': paymentMethod,
-          if (deliveryAddress != null) 'delivery_address': deliveryAddress,
-          if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
-          if (deliveryLongitude != null)
-            'delivery_longitude': deliveryLongitude,
-          'driver_tip': driverTip,
-          if (specialInstructions != null)
-            'special_instructions': specialInstructions,
-          if (promoCode != null) 'promo_code': promoCode,
-        },
-      );
+
+      final invokeBody = {
+        'store_id': storeId,
+        'user_id': userId,
+        'items': items,
+        'is_pickup': isPickup,
+        'payment_method': paymentMethod,
+        if (deliveryAddress != null) 'delivery_address': deliveryAddress,
+        if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
+        if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
+        'driver_tip': driverTip,
+        if (specialInstructions != null) 'special_instructions': specialInstructions,
+        if (promoCode != null) 'promo_code': promoCode,
+      };
+
+      // Build a fresh Authorization header to avoid UNAUTHORIZED_LEGACY_JWT.
+      // Uses the token from the refresh response directly — more reliable than
+      // reading currentSession which may still hold the old legacy token.
+      Future<Map<String, String>> freshHeader() async {
+        String? token;
+        try {
+          final res = await _client.auth.refreshSession();
+          token = res.session?.accessToken;
+        } catch (_) {}
+        token ??= _client.auth.currentSession?.accessToken;
+        return (token != null && token.isNotEmpty)
+            ? {'Authorization': 'Bearer $token'}
+            : {};
+      }
+
+      FunctionResponse response;
+      try {
+        response = await _client.functions.invoke('grocery-order',
+            body: invokeBody, headers: await freshHeader());
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        final isJwtError = fe.status == 401 ||
+            fe.status == 403 ||
+            raw.contains('LEGACY_JWT') ||
+            raw.contains('ES256') ||
+            raw.contains('JWT');
+        if (isJwtError) {
+          try {
+            response = await _client.functions.invoke('grocery-order',
+                body: invokeBody, headers: await freshHeader());
+          } on FunctionException catch (_) {
+            throw Exception('Something went wrong. Please try again.');
+          }
+        } else {
+          rethrow;
+        }
+      }
 
       final body = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>

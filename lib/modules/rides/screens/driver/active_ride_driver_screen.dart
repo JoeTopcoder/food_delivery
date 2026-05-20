@@ -10,8 +10,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/providers/auth_provider.dart';
+import 'package:food_driver/providers/chat_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
+import 'package:food_driver/utils/app_feedback_widgets.dart';
+import 'package:food_driver/utils/friendly_error.dart';
 
 import 'ride_complete_screen.dart';
 
@@ -103,6 +106,10 @@ class _ActiveRideDriverScreenState
   bool _waitingForCustomer = false;
   ProviderSubscription<AsyncValue<RideRequest>>? _rideStatusSub;
 
+  // Customer info for calling
+  String? _customerUserId;
+  String _customerName = 'Passenger';
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +119,7 @@ class _ActiveRideDriverScreenState
       _loadRideData();
       _resolveDriverId();
       _startLocationUpdates();
+      _fetchCustomerInfo();
     });
   }
 
@@ -345,6 +353,60 @@ class _ActiveRideDriverScreenState
       if (!mounted) return;
       _driverId = response?['id'] as String?;
     } catch (_) {}
+  }
+
+  Future<void> _fetchCustomerInfo() async {
+    try {
+      final row = await SupabaseConfig.client
+          .from('ride_requests')
+          .select('customer_id')
+          .eq('id', widget.rideId)
+          .maybeSingle();
+      if (!mounted || row == null) return;
+      final customerId = row['customer_id'] as String?;
+      if (customerId == null) return;
+      final userRow = await SupabaseConfig.client
+          .from('users')
+          .select('name')
+          .eq('id', customerId)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _customerUserId = customerId;
+        _customerName =
+            (userRow?['name'] as String?)?.trim().isNotEmpty == true
+                ? userRow!['name'] as String
+                : 'Passenger';
+      });
+    } catch (_) {}
+  }
+
+  void _openChat() {
+    Navigator.pushNamed(context, '/chat', arguments: {
+      'rideId': widget.rideId,
+      'otherPartyName': _customerName,
+      'receiverId': _customerUserId,
+    });
+  }
+
+  Future<void> _callCustomer() async {
+    if (_customerUserId == null || _customerUserId!.isEmpty) {
+      AppSnackbar.warning(context, 'Passenger info not loaded yet — try again.');
+      return;
+    }
+    try {
+      final call = await ref
+          .read(chatServiceProvider)
+          .initiateCall(orderId: widget.rideId, receiverId: _customerUserId!);
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/call', arguments: {
+        'call': call,
+        'isCaller': true,
+        'otherPartyName': _customerName,
+      });
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
   }
 
   void _startLocationUpdates() {
@@ -583,9 +645,9 @@ class _ActiveRideDriverScreenState
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'The customer will be notified',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 ...reasons.map((r) => GestureDetector(
@@ -602,7 +664,7 @@ class _ActiveRideDriverScreenState
                                 border: Border.all(
                                   color: selected == r
                                       ? const Color(0xFFF59E0B)
-                                      : Colors.grey,
+                                      : Theme.of(ctx).colorScheme.onSurfaceVariant,
                                   width: 2,
                                 ),
                               ),
@@ -635,7 +697,7 @@ class _ActiveRideDriverScreenState
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Describe the reason…',
-                      hintStyle: const TextStyle(color: Colors.grey),
+                      hintStyle: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                       filled: true,
                       fillColor: Colors.white10,
                       border: OutlineInputBorder(
@@ -941,7 +1003,7 @@ class _ActiveRideDriverScreenState
         child: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surfaceContainerLowest,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -950,7 +1012,7 @@ class _ActiveRideDriverScreenState
               ),
             ],
           ),
-          child: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
+          child: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface, size: 20),
         ),
       ),
       title: _phase == DriverRidePhase.inRide
@@ -995,7 +1057,7 @@ class _ActiveRideDriverScreenState
           : Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -1006,8 +1068,8 @@ class _ActiveRideDriverScreenState
               ),
               child: Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.black,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1015,8 +1077,8 @@ class _ActiveRideDriverScreenState
             ),
       centerTitle: true,
       actions: [
-        _MapIconButton(icon: Icons.phone_outlined, onTap: () {}),
-        _MapIconButton(icon: Icons.chat_bubble_outline, onTap: () {}),
+        _MapIconButton(icon: Icons.phone_outlined, onTap: _callCustomer),
+        _MapIconButton(icon: Icons.chat_bubble_outline, onTap: _openChat),
         const SizedBox(width: 4),
       ],
     );
@@ -1115,10 +1177,10 @@ class _ActiveRideDriverScreenState
 
   Widget _buildBottomCard() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: const [
           BoxShadow(
             color: Color(0x26000000),
             blurRadius: 20,
@@ -1142,7 +1204,7 @@ class _ActiveRideDriverScreenState
           Text(
             'PICKUP',
             style: TextStyle(
-              color: Colors.grey[500],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w600,
@@ -1151,8 +1213,8 @@ class _ActiveRideDriverScreenState
           const SizedBox(height: 4),
           Text(
             widget.pickupAddress ?? 'Pickup Location',
-            style: const TextStyle(
-              color: Colors.black,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -1222,8 +1284,8 @@ class _ActiveRideDriverScreenState
         const SizedBox(height: 4),
         Text(
           widget.pickupAddress ?? 'Pickup Location',
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -1264,9 +1326,9 @@ class _ActiveRideDriverScreenState
               ),
             ),
             const SizedBox(width: 8),
-            _CircleIconButton(icon: Icons.phone_outlined, onTap: () {}),
+            _CircleIconButton(icon: Icons.phone_outlined, onTap: _callCustomer),
             const SizedBox(width: 8),
-            _CircleIconButton(icon: Icons.chat_bubble_outline, onTap: () {}),
+            _CircleIconButton(icon: Icons.chat_bubble_outline, onTap: _openChat),
           ],
         ),
       ],
@@ -1418,7 +1480,7 @@ class _ActiveRideDriverScreenState
         Text(
           'DESTINATION',
           style: TextStyle(
-            color: Colors.grey[500],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 11,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
@@ -1427,8 +1489,8 @@ class _ActiveRideDriverScreenState
         const SizedBox(height: 4),
         Text(
           widget.destinationAddress ?? 'Destination',
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -1516,19 +1578,19 @@ class _ActiveRideDriverScreenState
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                   ],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   decoration: InputDecoration(
                     counterText: '',
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     contentPadding: EdgeInsets.zero,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -1540,7 +1602,7 @@ class _ActiveRideDriverScreenState
                       borderSide: BorderSide(
                         color: _pinControllers[i].text.isNotEmpty
                             ? const Color(0xFF2563EB)
-                            : Colors.grey[300]!,
+                            : Theme.of(context).colorScheme.outlineVariant,
                       ),
                     ),
                   ),
@@ -1716,7 +1778,7 @@ class _MapIconButton extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
@@ -1725,7 +1787,7 @@ class _MapIconButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, color: Colors.black87, size: 18),
+        child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 18),
       ),
     );
   }
@@ -1745,10 +1807,10 @@ class _CircleIconButton extends StatelessWidget {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.black87, size: 20),
+        child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 20),
       ),
     );
   }

@@ -18,7 +18,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  late final RealtimeChannel _channel;
+  RealtimeChannel? _channel;
   bool _loading = true;
 
   @override
@@ -130,7 +130,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   @override
   void dispose() {
-    Supabase.instance.client.removeChannel(_channel);
+    if (_channel != null) Supabase.instance.client.removeChannel(_channel!);
     // Remove the foreground callback so it doesn't fire after this screen is gone
     NotificationService.onOrderNotificationReceived = null;
     super.dispose();

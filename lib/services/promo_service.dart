@@ -10,10 +10,23 @@ class PromoService {
 
   Future<PromoCode?> validateCode(String code, double subtotal) async {
     try {
-      final res = await _client.functions.invoke(
-        'validate-promo',
-        body: {'code': code.trim().toUpperCase(), 'subtotal': subtotal},
-      );
+      // Proactively refresh JWT to avoid UNAUTHORIZED_LEGACY_JWT errors.
+      try { await _client.auth.refreshSession(); } catch (_) {}
+
+      final invokeBody = {'code': code.trim().toUpperCase(), 'subtotal': subtotal};
+      FunctionResponse res;
+      try {
+        res = await _client.functions.invoke('validate-promo', body: invokeBody);
+      } on FunctionException catch (fe) {
+        final raw = fe.details?.toString() ?? '';
+        if (fe.status == 401 || fe.status == 403 ||
+            raw.contains('LEGACY_JWT') || raw.contains('JWT')) {
+          await _client.auth.refreshSession();
+          res = await _client.functions.invoke('validate-promo', body: invokeBody);
+        } else {
+          rethrow;
+        }
+      }
       if (res.status >= 400) {
         AppLogger.error('validate-promo HTTP ${res.status}: ${res.data}');
         return null;

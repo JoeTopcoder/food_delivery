@@ -72,15 +72,15 @@ class PaymentService {
     : _supabaseClient = supabaseClient;
 
   Future<Map<String, String>> _buildFunctionHeaders() async {
+    String? token;
     try {
-      await _supabaseClient.auth.refreshSession();
-    } catch (_) {
-      // Ignore refresh errors; use existing session if available.
-    }
-
-    final session = _supabaseClient.auth.currentSession;
-    if (session?.accessToken != null && session!.accessToken.isNotEmpty) {
-      return {'Authorization': 'Bearer ${session.accessToken}'};
+      final res = await _supabaseClient.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    // Fall back to whatever is already in memory if refresh failed.
+    token ??= _supabaseClient.auth.currentSession?.accessToken;
+    if (token != null && token.isNotEmpty) {
+      return {'Authorization': 'Bearer $token'};
     }
     return <String, String>{};
   }
@@ -1166,7 +1166,8 @@ class PaymentService {
       if (row != null) {
         final chargedAmount = (row['amount'] as num).toDouble();
         final cvStatus = row['status'] as String?;
-        matched = cvStatus == 'completed' && chargedAmount == enteredAmount;
+        matched = cvStatus == 'completed' &&
+            (chargedAmount - enteredAmount).abs() < 0.01;
       }
 
       if (matched) {

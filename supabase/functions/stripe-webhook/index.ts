@@ -164,14 +164,15 @@ async function onSucceeded(
     );
 
     // ── Activate the order ────────────────────────────────────────────────
-    // Setting status = 'pending' AND payment_status = 'completed' in the
+    // Setting status = 'preparing' AND payment_status = 'completed' in the
     // same UPDATE satisfies the DB constraint (check_card_payment_gate).
+    // Auto-approve: orders skip the pending restaurant-approval step.
     // The DB triggers then fire restaurant/admin/driver FCM notifications.
     await db
       .from("orders")
       .update({
         payment_status: "completed",
-        status: "pending",              // activates the order
+        status: "preparing",            // auto-approved — restaurant starts preparing immediately
         checkout_status: "payment_success",
         payment_intent_id: piId,
         finalized_at: now,

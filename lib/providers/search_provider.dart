@@ -8,9 +8,9 @@ final searchServiceProvider = Provider<SearchService>((ref) {
   return SearchService(Supabase.instance.client);
 });
 
-final searchCuisineProvider = StateProvider<String?>((ref) => null);
-final searchMaxPriceProvider = StateProvider<double?>((ref) => null);
-final searchMinRatingProvider = StateProvider<double?>((ref) => null);
+final searchCuisineProvider = StateProvider.autoDispose<String?>((ref) => null);
+final searchMaxPriceProvider = StateProvider.autoDispose<double?>((ref) => null);
+final searchMinRatingProvider = StateProvider.autoDispose<double?>((ref) => null);
 
 /// Debounced search query notifier — emits a new value only after 400 ms of
 /// inactivity, preventing a DB call on every keystroke.
@@ -34,7 +34,7 @@ class DebouncedSearchNotifier extends StateNotifier<String> {
 }
 
 final searchQueryProvider =
-    StateNotifierProvider<DebouncedSearchNotifier, String>(
+    StateNotifierProvider.autoDispose<DebouncedSearchNotifier, String>(
       (ref) => DebouncedSearchNotifier(),
     );
 
@@ -45,7 +45,7 @@ extension SearchQueryExt on DebouncedSearchNotifier {
 }
 
 /// Menu item search results (reactive to query/filters)
-final menuSearchResultsProvider = FutureProvider<List<MenuSearchResult>>((
+final menuSearchResultsProvider = FutureProvider.autoDispose<List<MenuSearchResult>>((
   ref,
 ) async {
   final query = ref.watch(searchQueryProvider);
@@ -70,7 +70,7 @@ final menuSearchResultsProvider = FutureProvider<List<MenuSearchResult>>((
 });
 
 /// Personalized recommendations
-final recommendationsProvider = FutureProvider<List<RecommendationResult>>((
+final recommendationsProvider = FutureProvider.autoDispose<List<RecommendationResult>>((
   ref,
 ) async {
   final userId = ref.watch(currentUserIdProvider);

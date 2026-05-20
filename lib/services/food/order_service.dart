@@ -12,6 +12,22 @@ class OrderService {
 
   OrderService(this._supabaseClient);
 
+  /// Refreshes the session and returns an explicit Authorization header with
+  /// the fresh access token.  Passing this header directly to functions.invoke
+  /// avoids UNAUTHORIZED_LEGACY_JWT errors caused by stale in-memory tokens.
+  Future<Map<String, String>> _freshAuthHeader() async {
+    String? token;
+    try {
+      final res = await _supabaseClient.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    // Fall back to whatever is in memory if the refresh failed.
+    token ??= _supabaseClient.auth.currentSession?.accessToken;
+    return (token != null && token.isNotEmpty)
+        ? {'Authorization': 'Bearer $token'}
+        : {};
+  }
+
   // Create order via Edge Function (single round-trip)
   Future<Order?> createOrder({
     required String userId,
@@ -38,28 +54,37 @@ class OrderService {
   }) async {
     try {
       AppLogger.info('Creating order via Edge Function for user: $userId');
+      AppLogger.info(
+        'Order params: restaurantId=$restaurantId, items=${items.length}, subtotal=$subtotal, deliveryFee=$deliveryFee, totalAmount=$totalAmount, isPickup=$isPickup, paymentMethod=$paymentMethod',
+      );
 
-      final itemsPayload = items
-          .map(
-            (item) => <String, dynamic>{
-              'menu_item_id': item.menuItemId,
-              'item_name': item.itemName,
-              'price': item.price,
-              'quantity': item.quantity,
-              'subtotal': item.subtotal,
-              if (item.notes != null) 'notes': item.notes,
-              if (item.sides != null && item.sides!.isNotEmpty)
-                'sides': item.sides!
-                    .map(
-                      (s) => {
-                        'side_name': s.sideName,
-                        'side_price': s.sidePrice,
-                      },
-                    )
-                    .toList(),
-            },
-          )
-          .toList();
+      final itemsPayload = items.map((item) {
+        // Calculate subtotal: price per unit * quantity + sides total
+        final sidesTotal =
+            item.sides?.fold<double>(
+              0.0,
+              (sum, side) => sum + side.sidePrice,
+            ) ??
+            0.0;
+        final itemSubtotal = (item.price + sidesTotal) * item.quantity;
+
+        return <String, dynamic>{
+          'menu_item_id': item.menuItemId,
+          'item_name': item.itemName,
+          'price': item.price,
+          'quantity': item.quantity,
+          'subtotal': itemSubtotal,
+          if (item.notes != null) 'notes': item.notes,
+          if (item.sides != null && item.sides!.isNotEmpty)
+            'sides': item.sides!
+                .map(
+                  (s) => {'side_name': s.sideName, 'side_price': s.sidePrice},
+                )
+                .toList(),
+        };
+      }).toList();
+
+      AppLogger.info('Items payload: $itemsPayload');
 
       final body = <String, dynamic>{
         'user_id': userId,
@@ -90,27 +115,51 @@ class OrderService {
         body['promo_code'] = promoCode.trim().toUpperCase();
       }
 
-      // Supabase client throws FunctionException for non-2xx — catch JWT
-      // errors, refresh the session, and retry once.
+      AppLogger.info('Sending request to place-order: ${body.keys.join(", ")}');
+
+      // Proactively refresh the JWT before invoking the edge function.
+      // Build a fresh Authorization header (refreshes session + reads new token).
+      // Explicitly passing the header avoids UNAUTHORIZED_LEGACY_JWT from a
+      // stale in-memory token even when the refresh token is valid.
+      final authHeader = await _freshAuthHeader();
+
       late FunctionResponse response;
       try {
         response = await _supabaseClient.functions.invoke(
           'place-order',
           body: body,
+          headers: authHeader,
         );
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
-        if (fe.status == 401 ||
+        AppLogger.error(
+          'place-order FunctionException: status=${fe.status}, reason=${fe.reasonPhrase}, details=$raw',
+        );
+        final isJwtError =
+            fe.status == 401 ||
             fe.status == 403 ||
             raw.contains('LEGACY_JWT') ||
             raw.contains('ES256') ||
-            raw.contains('JWT')) {
-          await _supabaseClient.auth.refreshSession();
-          response = await _supabaseClient.functions.invoke(
-            'place-order',
-            body: body,
-          );
+            raw.contains('JWT');
+        if (isJwtError) {
+          AppLogger.info('Detected JWT error, retrying with fresh header...');
+          // Build a second fresh header and retry once.
+          final retryHeader = await _freshAuthHeader();
+          try {
+            response = await _supabaseClient.functions.invoke(
+              'place-order',
+              body: body,
+              headers: retryHeader,
+            );
+            AppLogger.info('Retry succeeded');
+          } on FunctionException catch (fe2) {
+            AppLogger.error(
+              'Retry also failed: status=${fe2.status}, reason=${fe2.reasonPhrase}, details=${fe2.details}',
+            );
+            throw Exception('Something went wrong. Please try again.');
+          }
         } else {
+          AppLogger.error('Not a JWT error, rethrowing: $fe');
           rethrow;
         }
       }
@@ -123,6 +172,9 @@ class OrderService {
             errorData['error'] as String? ??
             'Failed to place order (${response.status})';
         final details = errorData['details'] as String?;
+        AppLogger.error(
+          'place-order failed (${response.status}): $errMsg${details != null ? ' — $details' : ''} | Response: ${response.data}',
+        );
         throw Exception(details != null ? '$errMsg — $details' : errMsg);
       }
 
@@ -131,13 +183,21 @@ class OrderService {
           : response.data as Map<String, dynamic>;
 
       if (data['success'] != true) {
+        AppLogger.error(
+          'place-order returned success=false: ${data['error'] ?? 'unknown error'} | Full response: $data',
+        );
         throw Exception(data['error'] ?? 'Order placement failed');
       }
 
       final orderId = data['order']?['id'] as String?;
       if (orderId == null) {
+        AppLogger.error('place-order did not return order ID: $data');
         throw Exception('No order ID returned from edge function');
       }
+
+      AppLogger.info(
+        'Order $orderId created successfully, fetching full details...',
+      );
 
       // Fetch complete order with items for the Flutter model
       final completeOrder = await getOrderById(orderId);
@@ -601,48 +661,37 @@ class OrderService {
     }
   }
 
-  // Get restaurant's orders
+  // Get restaurant's orders — single nested query, no N+1
   Future<List<Order>> getRestaurantOrders(String restaurantId) async {
     try {
       AppLogger.info('Fetching orders for restaurant: $restaurantId');
 
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select()
+          .select(
+            '*, ${AppConstants.tableOrderItems}(*, ${AppConstants.tableOrderItemSides}(*))',
+          )
           .eq('restaurant_id', restaurantId)
           .order('ordered_at', ascending: false);
 
-      final orders = <Order>[];
-      for (var orderData in response as List) {
-        final itemsResponse = await _supabaseClient
-            .from(AppConstants.tableOrderItems)
-            .select()
-            .eq('order_id', orderData['id']);
-
-        final items = <OrderItem>[];
-        for (final itemJson in (itemsResponse as List)) {
-          final sidesResponse = await _supabaseClient
-              .from(AppConstants.tableOrderItemSides)
-              .select()
-              .eq('order_item_id', itemJson['id']);
-          final sides = (sidesResponse as List)
-              .map((s) => OrderItemSide.fromJson(s))
-              .toList();
-          items.add(
-            OrderItem.fromJson({
-              ...itemJson,
-              'sides': sides.map((s) => s.toJson()).toList(),
-            }),
-          );
-        }
-
-        orders.add(
-          Order.fromJson({
-            ...orderData,
-            'items': items.map((item) => item.toJson()).toList(),
-          }),
-        );
-      }
+      final orders = (response as List).map((orderData) {
+        final rawItems =
+            (orderData[AppConstants.tableOrderItems] as List? ?? []);
+        final items = rawItems.map((itemJson) {
+          final sides =
+              (itemJson[AppConstants.tableOrderItemSides] as List? ?? [])
+                  .map((s) => OrderItemSide.fromJson(s as Map<String, dynamic>))
+                  .toList();
+          return OrderItem.fromJson({
+            ...itemJson as Map<String, dynamic>,
+            'sides': sides.map((s) => s.toJson()).toList(),
+          });
+        }).toList();
+        return Order.fromJson({
+          ...orderData as Map<String, dynamic>,
+          'items': items.map((item) => item.toJson()).toList(),
+        });
+      }).toList();
 
       AppLogger.info('Fetched ${orders.length} restaurant orders');
       return orders;

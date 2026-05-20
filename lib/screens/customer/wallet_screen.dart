@@ -56,7 +56,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final refCode = user?.referralCode;
     if (refCode != null && refCode.isNotEmpty) return refCode.toUpperCase();
     final uid = ref.read(currentUserIdProvider) ?? '';
-    return uid.replaceAll('-', '').substring(0, 6).toUpperCase();
+    final clean = uid.replaceAll('-', '');
+    return clean.substring(0, clean.length.clamp(0, 6)).toUpperCase();
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -65,12 +66,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
 
-    final cardsAsync = ref.read(savedCardsProvider(userId));
-    final verifiedCards = cardsAsync.valueOrNull
-            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
-            .toList() ??
-        [];
-
     if (!mounted) return;
 
     final result = await Navigator.of(context).push<_TopUpResult>(
@@ -78,7 +73,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         fullscreenDialog: true,
         builder: (_) => _TopUpPage(
           walletDisplayId: _walletDisplayId(),
-          verifiedCards: verifiedCards,
+          userId: userId,
         ),
       ),
     );
@@ -252,13 +247,22 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       return;
     }
     if (!mounted) return;
-    await ref.read(walletNotifierProvider.notifier).deposit(amount);
-    ref.invalidate(walletTransactionsProvider);
-    if (mounted) {
-      AppSnackbar.success(
-        context,
-        '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added via ${card.displayBrand} ••••${card.lastFour}',
-      );
+    try {
+      await ref.read(walletNotifierProvider.notifier).deposit(amount);
+      ref.invalidate(walletTransactionsProvider);
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added via ${card.displayBrand} ••••${card.lastFour}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(
+          context,
+          'Payment charged but wallet update failed. Contact support with ref: wallet-topup',
+        );
+      }
     }
   }
 
@@ -281,13 +285,22 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       AppSnackbar.warning(context, 'Top-up cancelled');
       return;
     }
-    await ref.read(walletNotifierProvider.notifier).deposit(amount);
-    ref.invalidate(walletTransactionsProvider);
-    if (mounted) {
-      AppSnackbar.success(
-        context,
-        '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
-      );
+    try {
+      await ref.read(walletNotifierProvider.notifier).deposit(amount);
+      ref.invalidate(walletTransactionsProvider);
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(
+          context,
+          'Payment charged but wallet update failed. Contact support with ref: wallet-topup',
+        );
+      }
     }
   }
 
@@ -1414,29 +1427,48 @@ class _TopUpResult {
   const _TopUpResult({required this.amount, this.savedCard});
 }
 
-class _TopUpPage extends StatefulWidget {
+class _TopUpPage extends ConsumerStatefulWidget {
   final String walletDisplayId;
-  final List<SavedCard> verifiedCards;
-  const _TopUpPage(
-      {required this.walletDisplayId, required this.verifiedCards});
+  final String userId;
+  const _TopUpPage({required this.walletDisplayId, required this.userId});
 
   @override
-  State<_TopUpPage> createState() => _TopUpPageState();
+  ConsumerState<_TopUpPage> createState() => _TopUpPageState();
 }
 
-class _TopUpPageState extends State<_TopUpPage> {
+class _TopUpPageState extends ConsumerState<_TopUpPage> {
   final _amountCtrl = TextEditingController();
   SavedCard? _selectedCard;
 
   @override
   void initState() {
     super.initState();
-    if (widget.verifiedCards.isNotEmpty) {
-      _selectedCard = widget.verifiedCards.firstWhere(
-        (c) => c.isDefault,
-        orElse: () => widget.verifiedCards.first,
-      );
+    // Read the initial provider value synchronously on first frame.
+    // ref.listen only fires on *changes*, so if the provider is already cached
+    // the listener never triggers and _selectedCard stays null.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncSelectedCard(ref.read(savedCardsProvider(widget.userId)));
+    });
+  }
+
+  void _syncSelectedCard(AsyncValue<List<SavedCard>> cardsAsync) {
+    final cards = cardsAsync.valueOrNull
+            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
+            .toList() ??
+        [];
+    if (cards.isEmpty) {
+      if (_selectedCard != null) setState(() => _selectedCard = null);
+      return;
     }
+    // Keep current selection if it's still in the list
+    if (_selectedCard != null && cards.any((c) => c.id == _selectedCard!.id)) {
+      return;
+    }
+    setState(() => _selectedCard = cards.firstWhere(
+          (c) => c.isDefault,
+          orElse: () => cards.first,
+        ));
   }
 
   @override
@@ -1445,9 +1477,28 @@ class _TopUpPageState extends State<_TopUpPage> {
     super.dispose();
   }
 
+  Future<void> _addNewCard() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AddCardScreen()),
+    );
+    if (result == true && mounted) {
+      ref.invalidate(savedCardsProvider(widget.userId));
+      setState(() => _selectedCard = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardsAsync = ref.watch(savedCardsProvider(widget.userId));
+    final verifiedCards = cardsAsync.valueOrNull
+            ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
+            .toList() ??
+        [];
+
+    // Keep selection in sync whenever the provider emits a new value
+    ref.listen<AsyncValue<List<SavedCard>>>(
+        savedCardsProvider(widget.userId), (_, next) => _syncSelectedCard(next));
 
     return Scaffold(
       appBar: AppBar(
@@ -1517,87 +1568,151 @@ class _TopUpPageState extends State<_TopUpPage> {
 
           const SizedBox(height: 24),
 
-          // Card selector
-          if (widget.verifiedCards.isNotEmpty) ...[
-            Text('Select Credit / Debit Card',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 90,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: widget.verifiedCards.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, i) {
-                  final card = widget.verifiedCards[i];
-                  final selected = _selectedCard?.id == card.id;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedCard = card),
-                    child: Container(
-                      width: 160,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppTheme.primaryColor.withValues(alpha: 0.08)
-                            : isDark
-                                ? const Color(0xFF1F2937)
-                                : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected
-                              ? AppTheme.primaryColor
-                              : isDark
-                                  ? const Color(0xFF374151)
-                                  : Colors.grey.shade200,
-                          width: selected ? 2 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _CardBrandLogo(brand: card.cardBrand),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(card.displayBrand,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface)),
-                                Text('••••${card.lastFour}',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade500)),
-                              ],
-                            ),
-                          ),
-                          if (selected)
-                            Container(
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.check,
-                                  color: Colors.white, size: 14),
-                            ),
-                        ],
+          // Card selector section
+          Row(
+            children: [
+              Text('Select Credit / Debit Card',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface)),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _addNewCard,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Card',
+                    style: TextStyle(fontSize: 13)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          cardsAsync.when(
+            loading: () => const SizedBox(
+              height: 60,
+              child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            error: (e, _) => const SizedBox.shrink(),
+            data: (_) {
+              if (verifiedCards.isEmpty) {
+                return GestureDetector(
+                  onTap: _addNewCard,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1F2937)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF374151)
+                            : Colors.grey.shade200,
+                        style: BorderStyle.solid,
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_card_rounded,
+                            color: AppTheme.primaryColor, size: 22),
+                        const SizedBox(width: 10),
+                        Text('Add New Card',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            )),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return SizedBox(
+                height: 90,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: verifiedCards.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, i) {
+                    final card = verifiedCards[i];
+                    final selected = _selectedCard?.id == card.id;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedCard = card),
+                      child: Container(
+                        width: 160,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppTheme.primaryColor
+                                  .withValues(alpha: 0.08)
+                              : isDark
+                                  ? const Color(0xFF1F2937)
+                                  : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selected
+                                ? AppTheme.primaryColor
+                                : isDark
+                                    ? const Color(0xFF374151)
+                                    : Colors.grey.shade200,
+                            width: selected ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _CardBrandLogo(brand: card.cardBrand),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
+                                  Text(card.displayBrand,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface)),
+                                  Text('••••${card.lastFour}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500)),
+                                ],
+                              ),
+                            ),
+                            if (selected)
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.check,
+                                    color: Colors.white, size: 14),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
 
           Text(
             '*This money can only be spent on 7Dash.\n'
@@ -1618,12 +1733,19 @@ class _TopUpPageState extends State<_TopUpPage> {
               final enabled = amount > 0;
               return ElevatedButton(
                 onPressed: enabled
-                    ? () => Navigator.of(context).pop(
-                          _TopUpResult(
-                            amount: amount,
-                            savedCard: _selectedCard,
-                          ),
-                        )
+                    ? () {
+                        // Defensive: if _selectedCard is still null but there are
+                        // verified cards (e.g. listener never fired), pick the default.
+                        final card = _selectedCard ??
+                            (verifiedCards.isNotEmpty
+                                ? verifiedCards.firstWhere(
+                                    (c) => c.isDefault,
+                                    orElse: () => verifiedCards.first,
+                                  )
+                                : null);
+                        Navigator.of(context).pop(
+                            _TopUpResult(amount: amount, savedCard: card));
+                      }
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: enabled

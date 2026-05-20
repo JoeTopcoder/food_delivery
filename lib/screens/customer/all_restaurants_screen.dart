@@ -99,12 +99,12 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppTheme.primaryColor
-                          : Colors.grey.shade50,
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isSelected
                             ? AppTheme.primaryColor
-                            : Colors.grey.shade200,
+                            : Theme.of(context).colorScheme.outlineVariant,
                       ),
                     ),
                     child: Row(

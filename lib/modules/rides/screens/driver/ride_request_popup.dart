@@ -229,7 +229,7 @@ class _RideRequestPopupState extends State<RideRequestPopup>
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -281,7 +281,7 @@ class _RideRequestPopupState extends State<RideRequestPopup>
                 ),
                 Text(
                   'Estimated Fare',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                 ),
               ],
             ),
@@ -478,7 +478,7 @@ class _LocationRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11),
               ),
               const SizedBox(height: 2),
               Text(
@@ -512,9 +512,9 @@ class _InfoChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.grey[500], size: 16),
+        Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16),
         const SizedBox(width: 4),
-        Text(value, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+        Text(value, style: TextStyle(color: Theme.of(context).colorScheme.outlineVariant, fontSize: 13)),
       ],
     );
   }

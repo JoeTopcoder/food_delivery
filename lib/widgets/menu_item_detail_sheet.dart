@@ -141,9 +141,9 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -154,7 +154,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: Theme.of(context).colorScheme.outlineVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -165,40 +165,30 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Item image
-                  if (item.imageUrl != null && item.imageUrl!.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      child: Image.network(
-                        item.imageUrl!,
+                  // Item image — use same fallback URL as MenuItemCard
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    child: Image.network(
+                      item.imageUrl?.isNotEmpty == true
+                          ? item.imageUrl!
+                          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500',
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
                         height: 220,
                         width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          height: 220,
-                          width: double.infinity,
-                          color: Colors.grey[100],
-                          child: Icon(
-                            Icons.fastfood_rounded,
-                            size: 64,
-                            color: Colors.grey[300],
-                          ),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.fastfood_rounded,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
-                    )
-                  else
-                    Container(
-                      height: 180,
-                      width: double.infinity,
-                      color: Colors.grey[100],
-                      child: Icon(
-                        Icons.fastfood_rounded,
-                        size: 64,
-                        color: Colors.grey[300],
-                      ),
                     ),
+                  ),
 
                   // Name + description
                   Padding(
@@ -208,7 +198,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -219,7 +209,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         item.description!,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           height: 1.4,
                         ),
                       ),
@@ -235,7 +225,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                             '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey[700],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               decoration: TextDecoration.lineThrough,
                             ),
                           ),
@@ -305,23 +295,23 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.edit_note_rounded,
                               size: 20,
-                              color: Colors.grey[700],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Add special cooking instructions',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[700],
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -337,16 +327,16 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'e.g. No onions, extra sauce...',
-                          hintStyle: TextStyle(color: Colors.grey[700]),
+                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           filled: true,
-                          fillColor: Colors.grey[50],
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.grey.shade200),
+                            borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.grey.shade200),
+                            borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -368,8 +358,8 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
           // Bottom bar: quantity + Add Item button
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
             ),
             padding: EdgeInsets.fromLTRB(
               16,
@@ -408,7 +398,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                             size: 20,
                             color: _quantity > 1
                                 ? AppTheme.primaryColor
-                                : Colors.grey[300],
+                                : Theme.of(context).colorScheme.outlineVariant,
                           ),
                         ),
                       ),
@@ -419,7 +409,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -466,9 +456,9 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
-                      disabledBackgroundColor: Colors.grey[300],
+                      disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
                       foregroundColor: Colors.white,
-                      disabledForegroundColor: Colors.grey[700],
+                      disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -557,7 +547,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -610,7 +600,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -621,7 +611,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

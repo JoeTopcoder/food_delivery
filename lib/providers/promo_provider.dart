@@ -8,7 +8,7 @@ final promoServiceProvider = Provider<PromoService>((ref) {
 });
 
 /// All promo codes (admin)
-final allPromosProvider = FutureProvider<List<PromoCode>>((ref) {
+final allPromosProvider = FutureProvider.autoDispose<List<PromoCode>>((ref) {
   return ref.watch(promoServiceProvider).listAll();
 });
 

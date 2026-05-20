@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -136,13 +135,22 @@ class _MealCard extends StatelessWidget {
                 width: 92,
                 height: 92,
                 child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: item.imageUrl!,
+                    ? Image.network(
+                        item.imageUrl!,
                         fit: BoxFit.cover,
-                        errorWidget: (_, _, _) => Container(
+                        errorBuilder: (_, __, ___) => Container(
                           color: Colors.grey.shade100,
                           child: const Icon(Icons.fastfood, color: Colors.grey),
                         ),
+                        loadingBuilder: (_, child, progress) => progress == null
+                            ? child
+                            : Container(
+                                color: Colors.grey.shade100,
+                                child: const Icon(
+                                  Icons.fastfood,
+                                  color: Colors.grey,
+                                ),
+                              ),
                       )
                     : Container(
                         color: Colors.grey.shade100,
@@ -163,7 +171,7 @@ class _MealCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (meal.restaurantName != null) ...[

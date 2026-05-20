@@ -14,6 +14,13 @@ final chatMessagesProvider = StreamProvider.family<List<ChatMessage>, String>((
   return ref.watch(chatServiceProvider).watchMessages(orderId);
 });
 
+final rideMessagesProvider = StreamProvider.family<List<ChatMessage>, String>((
+  ref,
+  rideId,
+) {
+  return ref.watch(chatServiceProvider).watchRideMessages(rideId);
+});
+
 // Conversation for a specific order
 final conversationForOrderProvider =
     FutureProvider.family<Conversation?, String>((ref, orderId) {

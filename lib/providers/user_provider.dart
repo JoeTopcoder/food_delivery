@@ -615,7 +615,7 @@ final restaurantByOwnerProvider = FutureProvider.family
 
       // Real-time: refresh when any restaurant owned by this user changes
       final channel = Supabase.instance.client.realtime.channel(
-        'rest_owner_${ownerId}_${DateTime.now().microsecondsSinceEpoch}',
+        'rest_owner_$ownerId',
       );
       channel
           .onPostgresChanges(

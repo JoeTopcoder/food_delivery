@@ -963,6 +963,7 @@ class DriverService {
             'driver_status': 'pending_review',
             'submitted_at': now,
             'rejection_reason': null,
+            'onboarding_step': 8,
             'updated_at': now,
           })
           .eq('id', driverId)

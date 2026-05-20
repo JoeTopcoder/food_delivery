@@ -156,8 +156,9 @@ Deno.serve(async (req: Request) => {
       is_food_driver_approved: approveFoodDelivery,
       is_ride_driver_approved: approveRideSharing,
     });
-  } catch (err) {
-    console.error("[admin-review-driver]", err);
-    return json({ error: "Internal server error" }, 500);
+  } catch (err: unknown) {
+    const msg = (err as { message?: string })?.message ?? String(err);
+    console.error("[admin-review-driver]", msg, err);
+    return json({ error: msg }, 500);
   }
 });

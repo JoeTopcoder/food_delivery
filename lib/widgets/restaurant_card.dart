@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -23,9 +22,12 @@ class RestaurantCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,13 +42,14 @@ class RestaurantCard extends StatelessWidget {
                   child:
                       restaurant.imageUrl != null &&
                           restaurant.imageUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: restaurant.imageUrl!,
+                      ? Image.network(
+                          restaurant.imageUrl!,
                           height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          memCacheWidth: 800,
-                          errorWidget: (_, _, _) => const _PlaceholderImage(),
+                          errorBuilder: (_, __, ___) => const _PlaceholderImage(),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : const _PlaceholderImage(),
                         )
                       : const _PlaceholderImage(),
                 ),
@@ -74,10 +77,10 @@ class RestaurantCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Text(
                           '${restaurant.rating ?? '-'}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
-                            color: AppTheme.textPrimary,
+                            color: Colors.black87,
                           ),
                         ),
                       ],
@@ -125,7 +128,7 @@ class RestaurantCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
-                            color: AppTheme.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -158,7 +161,7 @@ class RestaurantCard extends StatelessWidget {
                     restaurant.cuisineType ?? 'Multi-cuisine',
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),

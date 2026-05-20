@@ -62,6 +62,33 @@ class DeliveryRegionService {
 
   // ── Geo check ─────────────────────────────────────────────────────────
 
+  /// Returns the tax settings for a delivery location.
+  /// Finds the first active region that contains [lat]/[lng] and returns
+  /// its [taxEnabled] and effective [taxRate].
+  /// Falls back to (taxEnabled: false, taxRate: 0) when outside all regions.
+  Future<({bool taxEnabled, double taxRate})> getTaxForLocation(
+    double lat,
+    double lng, {
+    double globalTaxRate = 0.0,
+  }) async {
+    final regions = await getActive();
+    for (final region in regions) {
+      final inside = region.hasPolygon
+          ? _pointInPolygon(lat, lng, region.polygon!)
+          : _haversineKm(lat, lng, region.latitude, region.longitude) <=
+              region.radiusKm;
+      if (inside) {
+        return (
+          taxEnabled: region.taxEnabled,
+          taxRate: region.taxEnabled
+              ? (region.taxRate ?? globalTaxRate)
+              : 0.0,
+        );
+      }
+    }
+    return (taxEnabled: false, taxRate: 0.0);
+  }
+
   /// Returns `true` when [lat]/[lng] falls inside **at least one** active
   /// region.  If there are no active regions at all, delivery is allowed
   /// everywhere (fail-open so existing setups keep working).

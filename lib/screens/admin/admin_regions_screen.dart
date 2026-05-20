@@ -196,6 +196,60 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              // ── Tax settings ──────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: region.taxEnabled
+                      ? const Color(0xFFFEF3C7)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: region.taxEnabled
+                        ? const Color(0xFFF59E0B)
+                        : Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 15,
+                      color: region.taxEnabled
+                          ? const Color(0xFFF59E0B)
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        region.taxEnabled
+                            ? 'Tax: ${((region.taxRate ?? 0) * 100).toStringAsFixed(1)}%'
+                            : 'No tax in this zone',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: region.taxEnabled
+                              ? const Color(0xFFB45309)
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _editTax(region),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Edit tax', style: TextStyle(fontSize: 11)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -271,6 +325,87 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
       if (_selectedRegionId == region.id)
         setState(() => _selectedRegionId = null);
       ref.invalidate(allRegionsProvider);
+    }
+  }
+
+  Future<void> _editTax(DeliveryRegion region) async {
+    bool taxEnabled = region.taxEnabled;
+    final rateCtrl = TextEditingController(
+      text: region.taxRate != null
+          ? (region.taxRate! * 100).toStringAsFixed(1)
+          : '',
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text('Tax — ${region.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Apply tax in this zone'),
+                value: taxEnabled,
+                activeThumbColor: const Color(0xFFF59E0B),
+                onChanged: (v) => setDlg(() => taxEnabled = v),
+              ),
+              if (taxEnabled) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: rateCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Tax rate (%)',
+                    hintText: 'e.g. 10',
+                    suffixText: '%',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Leave blank to use the global tax rate from App Config.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final rateText = rateCtrl.text.trim();
+    final parsedPct = double.tryParse(rateText);
+    final taxRate = (taxEnabled && parsedPct != null) ? parsedPct / 100 : null;
+
+    final service = ref.read(deliveryRegionServiceProvider);
+    await service.update(region.id, {
+      'tax_enabled': taxEnabled,
+      'tax_rate': taxRate,
+    });
+    ref.invalidate(allRegionsProvider);
+
+    if (mounted) {
+      AppSnackbar.success(
+        context,
+        taxEnabled
+            ? 'Tax set to ${rateText.isNotEmpty ? '$rateText%' : 'global rate'} for ${region.name}'
+            : 'Tax disabled for ${region.name}',
+      );
     }
   }
 

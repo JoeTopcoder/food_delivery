@@ -330,27 +330,33 @@ class _DriverList extends StatelessWidget {
                       // Stats row
                       Row(
                         children: [
-                          _DriverStat(
-                            icon: Icons.star_rounded,
-                            color: const Color(0xFFF59E0B),
-                            value: driver.rating?.toStringAsFixed(1) ?? '0.0',
-                            label: 'Rating',
+                          Expanded(
+                            child: _DriverStat(
+                              icon: Icons.star_rounded,
+                              color: const Color(0xFFF59E0B),
+                              value: driver.rating?.toStringAsFixed(1) ?? '0.0',
+                              label: 'Rating',
+                            ),
                           ),
-                          const SizedBox(width: 16),
-                          _DriverStat(
-                            icon: Icons.check_circle_rounded,
-                            color: const Color(0xFF10B981),
-                            value: '${driver.completedDeliveries ?? 0}',
-                            label: 'Deliveries',
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _DriverStat(
+                              icon: Icons.check_circle_rounded,
+                              color: const Color(0xFF10B981),
+                              value: '${driver.completedDeliveries ?? 0}',
+                              label: 'Deliveries',
+                            ),
                           ),
-                          const SizedBox(width: 16),
-                          _DriverStat(
-                            icon: Icons.badge_rounded,
-                            color: const Color(0xFF6366F1),
-                            value: driver.licenseNumber?.isNotEmpty == true
-                                ? driver.licenseNumber!
-                                : 'N/A',
-                            label: 'License',
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _DriverStat(
+                              icon: Icons.badge_rounded,
+                              color: const Color(0xFF6366F1),
+                              value: driver.licenseNumber?.isNotEmpty == true
+                                  ? driver.licenseNumber!
+                                  : 'N/A',
+                              label: 'License',
+                            ),
                           ),
                         ],
                       ),
@@ -1117,25 +1123,29 @@ class _DriverStat extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -1625,7 +1635,19 @@ class _VerificationCardState extends State<_VerificationCard> {
   }) async {
     setState(() => _loading = true);
     try {
-      final response = await SupabaseConfig.client.functions.invoke(
+      await SupabaseConfig.client.rpc(
+        'admin_review_driver_application',
+        params: {
+          'p_driver_id': _driverId,
+          'p_approved': approved,
+          'p_approve_food_delivery': approveFoodDelivery,
+          'p_approve_ride_sharing': approveRideSharing,
+          if (rejectionReason != null && rejectionReason.isNotEmpty)
+            'p_rejection_reason': rejectionReason,
+        },
+      );
+      // Fire-and-forget FCM notification via edge function (non-critical)
+      SupabaseConfig.client.functions.invoke(
         'admin-review-driver',
         body: {
           'driver_id': _driverId,
@@ -1633,10 +1655,9 @@ class _VerificationCardState extends State<_VerificationCard> {
           if (rejectionReason != null) 'rejection_reason': rejectionReason,
           'approve_food_delivery': approveFoodDelivery,
           'approve_ride_sharing': approveRideSharing,
+          'notify_only': true,
         },
-      );
-      if (response.status != 200)
-        throw Exception('Review failed (${response.status})');
+      ).ignore();
       await widget.onRefresh();
       if (mounted) {
         AppSnackbar.success(
@@ -1709,6 +1730,19 @@ class _VerificationCardState extends State<_VerificationCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDocumentsSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DriverDocumentsSheet(
+        driverId: _driverId,
+        driverName: _driverName,
+        driverRow: widget.row,
       ),
     );
   }
@@ -1862,7 +1896,23 @@ class _VerificationCardState extends State<_VerificationCard> {
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showDocumentsSheet,
+                icon: const Icon(Icons.folder_open_rounded, size: 16),
+                label: const Text('View Documents'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6366F1),
+                  side: const BorderSide(color: Color(0xFF6366F1)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             if (_loading)
               const Center(
                 child: SizedBox(
@@ -1998,4 +2048,493 @@ class _InfoChip extends StatelessWidget {
       ),
     ],
   );
+}
+
+// ─── Driver Documents Sheet ───────────────────────────────────────────────────
+
+class _DriverDocumentsSheet extends StatefulWidget {
+  final String driverId;
+  final String driverName;
+  final Map<String, dynamic> driverRow;
+
+  const _DriverDocumentsSheet({
+    required this.driverId,
+    required this.driverName,
+    required this.driverRow,
+  });
+
+  @override
+  State<_DriverDocumentsSheet> createState() => _DriverDocumentsSheetState();
+}
+
+class _DriverDocumentsSheetState extends State<_DriverDocumentsSheet> {
+  bool _loading = true;
+  String? _error;
+
+  Map<String, dynamic>? _identity;
+  Map<String, dynamic>? _license;
+  Map<String, dynamic>? _vehicle;
+  Map<String, dynamic>? _insurance;
+
+  // Resolved (possibly signed) image URLs
+  final Map<String, String?> _resolvedUrls = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final results = await Future.wait([
+        SupabaseConfig.client
+            .from('driver_identity_documents')
+            .select()
+            .eq('driver_id', widget.driverId)
+            .maybeSingle(),
+        SupabaseConfig.client
+            .from('driver_licenses')
+            .select()
+            .eq('driver_id', widget.driverId)
+            .maybeSingle(),
+        SupabaseConfig.client
+            .from('driver_vehicles')
+            .select()
+            .eq('driver_id', widget.driverId)
+            .maybeSingle(),
+        SupabaseConfig.client
+            .from('driver_insurance')
+            .select()
+            .eq('driver_id', widget.driverId)
+            .maybeSingle(),
+      ]);
+
+      _identity = results[0];
+      _license = results[1];
+      _vehicle = results[2];
+      _insurance = results[3];
+
+      // Resolve signed URLs for private-bucket document images
+      final privatePaths = <String, String?>{
+        'id_front': _identity?['front_photo_url'] as String?,
+        'id_back': _identity?['back_photo_url'] as String?,
+        'lic_front': _license?['front_photo_url'] as String?,
+        'lic_back': _license?['back_photo_url'] as String?,
+        'vehicle_reg': _vehicle?['registration_photo_url'] as String?,
+        'insurance_doc': _insurance?['document_photo_url'] as String?,
+      };
+
+      for (final entry in privatePaths.entries) {
+        _resolvedUrls[entry.key] = await _resolveUrl(entry.value);
+      }
+
+      // Profile photo is in the public bucket — use as-is
+      _resolvedUrls['profile'] =
+          widget.driverRow['profile_photo_url'] as String?;
+
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  Future<String?> _resolveUrl(String? rawUrl) async {
+    if (rawUrl == null || rawUrl.isEmpty) return null;
+    // driver-documents is a PRIVATE bucket. getPublicUrl() was used during
+    // upload which stores URLs like /object/public/driver-documents/... but
+    // those 403 because the bucket isn't public. Always generate a signed URL.
+    for (final prefix in [
+      '/object/public/driver-documents/',
+      '/object/driver-documents/',
+      '/object/sign/driver-documents/',
+    ]) {
+      final idx = rawUrl.indexOf(prefix);
+      if (idx != -1) {
+        var path = rawUrl.substring(idx + prefix.length);
+        final qIdx = path.indexOf('?');
+        if (qIdx != -1) path = path.substring(0, qIdx);
+        try {
+          return await SupabaseConfig.client.storage
+              .from('driver-documents')
+              .createSignedUrl(path, 3600);
+        } catch (_) {
+          return null; // will show error tile in UI
+        }
+      }
+    }
+    // Profile photos or other public-bucket URLs — use as-is
+    return rawUrl;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      maxChildSize: 0.96,
+      minChildSize: 0.5,
+      expand: false,
+      builder: (ctx, sc) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.folder_open_rounded, color: Color(0xFF6366F1)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${widget.driverName} — Documents',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Body
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'Failed to load documents:\n$_error',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        )
+                      : ListView(
+                          controller: sc,
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                          children: [
+                            _docSection('Personal Info', Icons.person_rounded, [
+                              _docRow('Full Name',
+                                  widget.driverRow['full_name'] ?? '—'),
+                              _docRow('Phone',
+                                  widget.driverRow['phone_number'] ?? '—'),
+                              _docRow('Date of Birth',
+                                  widget.driverRow['date_of_birth'] ?? '—'),
+                              _docRow('Home Address',
+                                  widget.driverRow['home_address'] ?? '—'),
+                              _docRow('Service Type',
+                                  widget.driverRow['service_type'] ?? '—'),
+                              if (_resolvedUrls['profile'] != null)
+                                _photoRow('Profile Photo',
+                                    _resolvedUrls['profile']!),
+                            ]),
+                            const SizedBox(height: 14),
+                            _docSection(
+                                'Identity Document',
+                                Icons.badge_rounded,
+                                _identity == null
+                                    ? [_docRow('Status', 'Not submitted')]
+                                    : [
+                                        _docRow(
+                                            'Type',
+                                            (_identity!['document_type']
+                                                        as String? ??
+                                                    '')
+                                                .replaceAll('_', ' ')
+                                                .toUpperCase()),
+                                        _docRow('Number',
+                                            _identity!['document_number'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Expires',
+                                            _identity!['expiry_date'] ?? '—'),
+                                        _docRow(
+                                            'Status',
+                                            _identity![
+                                                    'verification_status'] ??
+                                                '—'),
+                                        if (_resolvedUrls['id_front'] != null)
+                                          _photoRow('Front Photo',
+                                              _resolvedUrls['id_front']!),
+                                        if (_resolvedUrls['id_back'] != null)
+                                          _photoRow('Back Photo',
+                                              _resolvedUrls['id_back']!),
+                                      ]),
+                            const SizedBox(height: 14),
+                            _docSection(
+                                'Driver License',
+                                Icons.credit_card_rounded,
+                                _license == null
+                                    ? [_docRow('Status', 'Not submitted')]
+                                    : [
+                                        _docRow(
+                                            'License #',
+                                            _license!['license_number'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Class',
+                                            _license!['license_class'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Issued',
+                                            _license!['issue_date'] ?? '—'),
+                                        _docRow(
+                                            'Expires',
+                                            _license!['expiry_date'] ?? '—'),
+                                        _docRow(
+                                            'Status',
+                                            _license![
+                                                    'verification_status'] ??
+                                                '—'),
+                                        if (_resolvedUrls['lic_front'] != null)
+                                          _photoRow('Front Photo',
+                                              _resolvedUrls['lic_front']!),
+                                        if (_resolvedUrls['lic_back'] != null)
+                                          _photoRow('Back Photo',
+                                              _resolvedUrls['lic_back']!),
+                                      ]),
+                            const SizedBox(height: 14),
+                            _docSection(
+                                'Vehicle',
+                                Icons.directions_car_rounded,
+                                _vehicle == null
+                                    ? [_docRow('Status', 'Not submitted')]
+                                    : [
+                                        _docRow(
+                                            'Make',
+                                            _vehicle!['make'] ?? '—'),
+                                        _docRow(
+                                            'Model',
+                                            _vehicle!['model'] ?? '—'),
+                                        _docRow('Year',
+                                            '${_vehicle!['year'] ?? '—'}'),
+                                        _docRow(
+                                            'Color',
+                                            _vehicle!['color'] ?? '—'),
+                                        _docRow(
+                                            'Plate',
+                                            _vehicle!['license_plate'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Status',
+                                            _vehicle![
+                                                    'verification_status'] ??
+                                                '—'),
+                                        if (_resolvedUrls['vehicle_reg'] !=
+                                            null)
+                                          _photoRow('Registration',
+                                              _resolvedUrls['vehicle_reg']!),
+                                      ]),
+                            const SizedBox(height: 14),
+                            _docSection(
+                                'Insurance',
+                                Icons.shield_rounded,
+                                _insurance == null
+                                    ? [_docRow('Status', 'Not submitted')]
+                                    : [
+                                        _docRow(
+                                            'Provider',
+                                            _insurance![
+                                                    'insurance_provider'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Policy #',
+                                            _insurance!['policy_number'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Coverage',
+                                            _insurance!['coverage_type'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Expires',
+                                            _insurance!['expiry_date'] ??
+                                                '—'),
+                                        _docRow(
+                                            'Status',
+                                            _insurance![
+                                                    'verification_status'] ??
+                                                '—'),
+                                        if (_resolvedUrls['insurance_doc'] !=
+                                            null)
+                                          _photoRow('Document',
+                                              _resolvedUrls['insurance_doc']!),
+                                      ]),
+                          ],
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _docSection(String title, IconData icon, List<Widget> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 15, color: const Color(0xFF6366F1)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                title,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF374151),
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: List.generate(rows.length, (i) {
+              return Column(
+                children: [
+                  rows[i],
+                  if (i < rows.length - 1)
+                    const Divider(height: 1, indent: 16),
+                ],
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _docRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _photoRow(String label, String url) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              url,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Unable to load image',
+                    style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                  ),
+                ),
+              ),
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!
+                          : null,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => launchUrl(Uri.parse(url),
+                  mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: const Text('Open full size', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF6366F1),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

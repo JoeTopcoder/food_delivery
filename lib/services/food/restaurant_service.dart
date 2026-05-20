@@ -453,8 +453,8 @@ class RestaurantService {
         await _supabaseClient.from('restaurant_documents').insert(data);
       }
     } catch (e) {
-      AppLogger.error('Error saving restaurant document: $e');
-      rethrow;
+      // Documents are optional — RLS / missing-table errors must not block submission.
+      AppLogger.warning('saveRestaurantDocument non-fatal: $e');
     }
   }
 
@@ -475,17 +475,30 @@ class RestaurantService {
   Future<Restaurant?> submitApplication(String restaurantId) async {
     try {
       final now = DateTime.now().toIso8601String();
-      final row = await _supabaseClient
-          .from(AppConstants.tableRestaurants)
-          .update({
-            'status': 'pending_review',
-            'submitted_at': now,
-            'rejection_reason': null,
-            'updated_at': now,
-          })
-          .eq('id', restaurantId)
-          .select()
-          .single();
+      // Keep status as 'draft' — DB check constraint only allows 'draft'/'active'.
+      // Admin promotes to 'active' after review. submitted_at signals it was sent.
+      final data = <String, dynamic>{
+        'onboarding_step': 7,
+        'updated_at': now,
+      };
+      // submitted_at column may not exist in all deployments — try with it first.
+      Map<String, dynamic>? row;
+      try {
+        row = await _supabaseClient
+            .from(AppConstants.tableRestaurants)
+            .update({...data, 'submitted_at': now, 'rejection_reason': null})
+            .eq('id', restaurantId)
+            .select()
+            .single();
+      } catch (_) {
+        // Retry without optional columns if they don't exist yet.
+        row = await _supabaseClient
+            .from(AppConstants.tableRestaurants)
+            .update(data)
+            .eq('id', restaurantId)
+            .select()
+            .single();
+      }
       return Restaurant.fromJson(row);
     } catch (e) {
       AppLogger.error('Error submitting restaurant application: $e');

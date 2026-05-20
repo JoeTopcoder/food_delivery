@@ -101,9 +101,9 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -155,7 +155,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            Text(_loadError ?? '', style: const TextStyle(color: Colors.grey)),
+            Text(_loadError ?? '', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
@@ -191,7 +191,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -207,7 +207,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
           Text(
             'RIDE SUMMARY',
             style: TextStyle(
-              color: Colors.grey[500],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
               letterSpacing: 0.6,
             ),
@@ -228,13 +228,13 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
           ),
           Row(
             children: [
-              Icon(Icons.credit_card_outlined, color: Colors.grey[400], size: 20),
+              Icon(Icons.credit_card_outlined, color: Theme.of(context).colorScheme.outlineVariant, size: 20),
               const SizedBox(width: 10),
               const Text('Payment', style: TextStyle(fontSize: 14)),
               const Spacer(),
               Text(
                 _capitalise(paymentLabel),
-                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
               ),
             ],
           ),
@@ -259,7 +259,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
         Text(
           'EARNINGS',
           style: TextStyle(
-            color: Colors.grey[500],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 12,
             letterSpacing: 0.6,
           ),
@@ -277,7 +277,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
         const SizedBox(height: 4),
         Text(
           'After platform fee',
-          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
         ),
       ],
     );
@@ -311,7 +311,7 @@ class _RideCompleteScreenState extends ConsumerState<RideCompleteScreen> {
                 child: Icon(
                   filled ? Icons.star : Icons.star_border,
                   color:
-                      filled ? const Color(0xFFFACC15) : Colors.grey[400],
+                      filled ? const Color(0xFFFACC15) : Theme.of(context).colorScheme.outlineVariant,
                   size: 36,
                 ),
               ),
@@ -386,7 +386,7 @@ class _StatColumn extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
         ],
       ),
     );
@@ -396,6 +396,6 @@ class _StatColumn extends StatelessWidget {
 class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: Colors.grey[200]);
+    return Container(width: 1, height: 36, color: Theme.of(context).colorScheme.outlineVariant);
   }
 }

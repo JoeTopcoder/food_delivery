@@ -402,6 +402,42 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
+# ── Food / payment edge functions ───────────────────────────────────────────
+# Use service-role key for DB ops; JWT pre-validation causes
+# UNAUTHORIZED_LEGACY_JWT when the client session was issued with an older secret.
+[functions.place-order]
+verify_jwt = false
+
+[functions.grocery-order]
+verify_jwt = false
+
+[functions.stripe-payment]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-subscription-webhook]
+verify_jwt = false
+
+[functions.check-order-payment]
+verify_jwt = false
+
+[functions.validate-promo]
+verify_jwt = false
+
+[functions.calculate-delivery-fee]
+verify_jwt = false
+
+[functions.calculate-order-total]
+verify_jwt = false
+
+[functions.create-payment-intent]
+verify_jwt = false
+
+[functions.complete-delivery]
+verify_jwt = false
+
 # ── Ride / driver edge functions ────────────────────────────────────────────
 # These functions decode the JWT manually, so Supabase infra must not
 # pre-validate it (avoids UNAUTHORIZED_LEGACY_JWT on older tokens).
@@ -430,4 +466,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.update-driver-location]
+verify_jwt = false
+
+[functions.admin-review-driver]
+verify_jwt = false
+
+[functions.submit-driver-application]
 verify_jwt = false

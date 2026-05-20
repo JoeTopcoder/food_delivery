@@ -593,7 +593,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                   const SizedBox(height: 2),
                   Text(
                     ride.rideStatus.toDisplayString(),
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.outlineVariant, fontSize: 12),
                   ),
                 ],
               ),
@@ -755,7 +755,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                           decoration: BoxDecoration(
                             color: _isOnline
                                 ? const Color(0xFF22C55E)
-                                : Colors.grey[600],
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -811,7 +811,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                     ? 'Waiting for Ride Requests…'
                     : 'Incoming Rides (${_pendingRequests.length})',
                 style: TextStyle(
-                  color: _pendingRequests.isEmpty ? Colors.grey[500] : Colors.white,
+                  color: _pendingRequests.isEmpty ? Theme.of(context).colorScheme.onSurfaceVariant : Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
@@ -833,16 +833,16 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
               child: Column(
                 children: [
                   Icon(Icons.directions_car_outlined,
-                      color: Colors.grey[700], size: 44),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant, size: 44),
                   const SizedBox(height: 10),
                   Text(
                     'No ride requests nearby',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'New requests will appear here',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                   ),
                 ],
               ),
@@ -920,15 +920,15 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
             if (ride == null)
               Row(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        color: Colors.grey, strokeWidth: 2),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant, strokeWidth: 2),
                   ),
                   const SizedBox(width: 10),
                   Text('Loading ride details…',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                 ],
               )
             else ...[
@@ -943,7 +943,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                       width: 3,
                       height: 3,
                       decoration: BoxDecoration(
-                          color: Colors.grey[700], shape: BoxShape.circle),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant, shape: BoxShape.circle),
                     ),
                   ),
                 ),
@@ -985,7 +985,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                       ),
                       Text(
                         'you earn',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 10),
                       ),
                     ],
                   ),
@@ -1115,9 +1115,9 @@ class _StatChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.grey[500], size: 14),
+        Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 14),
         const SizedBox(width: 4),
-        Text(value, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+        Text(value, style: TextStyle(color: Theme.of(context).colorScheme.outlineVariant, fontSize: 12)),
       ],
     );
   }
@@ -1314,7 +1314,7 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
                       children: List.generate(3, (_) => Container(
                         margin: const EdgeInsets.symmetric(vertical: 2),
                         width: 3, height: 3,
-                        decoration: BoxDecoration(color: Colors.grey[700], shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurfaceVariant, shape: BoxShape.circle),
                       )),
                     ),
                   ),

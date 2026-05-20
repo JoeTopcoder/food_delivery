@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/restaurant_ad_model.dart';
@@ -540,42 +539,51 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                if (ref.watch(isPeakHourProvider).valueOrNull ??
-                    AppConstants.isPeakHour) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
+                Consumer(
+                  builder: (context, ref, _) {
+                    final isPeak = ref.watch(isPeakHourProvider).valueOrNull ??
+                        AppConstants.isPeakHour;
+                    if (!isPeak) return const SizedBox.shrink();
+                    return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.local_fire_department,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          'PEAK',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              SizedBox(width: 3),
+                              Text(
+                                'PEAK',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ],
             ),
             actions: [
@@ -1277,13 +1285,14 @@ class _CompactRestaurantCard extends StatelessWidget {
               ),
               child:
                   restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: restaurant.imageUrl!,
+                  ? Image.network(
+                      restaurant.imageUrl!,
                       height: 110,
                       width: 180,
                       fit: BoxFit.cover,
-                      memCacheWidth: 360,
-                      errorWidget: (_, _, _) => _placeholder(),
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : _placeholder(),
                     )
                   : _placeholder(),
             ),
@@ -1299,7 +1308,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1309,7 +1318,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1321,7 +1330,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -1338,7 +1347,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -1355,7 +1364,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                         '${restaurant.estimatedDeliveryTime ?? 30} min',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppTheme.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -1535,34 +1544,28 @@ class _DynamicBannerCarouselState
           fit: StackFit.expand,
           children: [
             if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: banner.imageUrl!,
+              Image.network(
+                banner.imageUrl!,
                 fit: BoxFit.cover,
-                memCacheWidth: 800,
                 color: Colors.black.withValues(alpha: 0.35),
                 colorBlendMode: BlendMode.darken,
-                errorWidget: (_, _, _) => Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.primaryColor,
-                          AppTheme.primaryColor.withValues(alpha: 0.75),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryColor,
+                        AppTheme.primaryColor.withValues(alpha: 0.75),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: Align(
-                      alignment: Alignment.bottomRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 0, bottom: 0),
-                        child: Icon(
-                          Icons.local_offer_rounded,
-                          size: 120,
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                      ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Icon(
+                      Icons.local_offer_rounded,
+                      size: 120,
+                      color: Colors.white.withValues(alpha: 0.15),
                     ),
                   ),
                 ),
@@ -1885,10 +1888,12 @@ class _AdPopupDialog extends StatelessWidget {
   Widget _buildAdImage() {
     final url = ad.restaurantImageUrl ?? ad.imageUrl;
     if (url != null && url.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: url,
+      return Image.network(
+        url,
         fit: BoxFit.cover,
-        errorWidget: (_, _, _) => _defaultAdBg(),
+        errorBuilder: (_, __, ___) => _defaultAdBg(),
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _defaultAdBg(),
       );
     }
     return _defaultAdBg();

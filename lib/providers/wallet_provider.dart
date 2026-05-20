@@ -9,7 +9,7 @@ final walletServiceProvider = Provider<WalletService>((ref) {
 });
 
 /// Current user's wallet (auto-refreshes)
-final walletProvider = FutureProvider<Wallet?>((ref) async {
+final walletProvider = FutureProvider.autoDispose<Wallet?>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return null;
   final service = ref.watch(walletServiceProvider);
@@ -17,7 +17,7 @@ final walletProvider = FutureProvider<Wallet?>((ref) async {
 });
 
 /// Wallet transaction history
-final walletTransactionsProvider = FutureProvider<List<WalletTransaction>>((
+final walletTransactionsProvider = FutureProvider.autoDispose<List<WalletTransaction>>((
   ref,
 ) async {
   final userId = ref.watch(currentUserIdProvider);

@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
@@ -80,7 +79,7 @@ class _GroceryCategoryProductsScreenState
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
@@ -174,9 +173,9 @@ class _CategoryProductCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,11 +192,12 @@ class _CategoryProductCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   product.imageUrl != null && product.imageUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: product.imageUrl!,
+                      ? Image.network(
+                          product.imageUrl!,
                           fit: BoxFit.cover,
-                          memCacheWidth: 400,
-                          errorWidget: (_, _, _) => _placeholder(),
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : _placeholder(),
                         )
                       : _placeholder(),
                   if (!inStock)
@@ -268,7 +268,7 @@ class _CategoryProductCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -285,7 +285,7 @@ class _CategoryProductCard extends ConsumerWidget {
                   if (product.weight != null)
                     Text(
                       product.weight!,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   const Spacer(),
                   Row(
@@ -307,7 +307,7 @@ class _CategoryProductCard extends ConsumerWidget {
                                     '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.grey[700],
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       decoration: TextDecoration.lineThrough,
                                     ),
                                   ),
@@ -381,7 +381,7 @@ class _CategoryProductCard extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: inStock
                                     ? AppTheme.primaryColor
-                                    : Colors.grey[300],
+                                    : Theme.of(context).colorScheme.outlineVariant,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -468,10 +468,10 @@ class _StepperBtn extends StatelessWidget {
         height: 26,
         decoration: BoxDecoration(
           color: disabled
-              ? Colors.grey[300]
+              ? Theme.of(context).colorScheme.outlineVariant
               : filled
               ? AppTheme.primaryColor
-              : Colors.grey[200],
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Icon(
@@ -550,8 +550,8 @@ class _BottomCartBar extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SafeArea(

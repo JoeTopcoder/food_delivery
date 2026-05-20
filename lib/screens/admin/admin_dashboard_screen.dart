@@ -595,29 +595,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.directions_car_rounded,
                             label: 'Rides Hub',
                             color: const Color(0xFF1E40AF),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-rides'),
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/admin-rides'),
                           ),
                           _GridAction(
                             icon: Icons.list_alt_rounded,
                             label: 'All Rides',
                             color: const Color(0xFF2563EB),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-rides/list'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-rides/list'),
                           ),
                           _GridAction(
                             icon: Icons.attach_money_rounded,
                             label: 'Ride Pricing',
                             color: const Color(0xFF0284C7),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-rides/pricing'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-rides/pricing'),
                           ),
                           _GridAction(
                             icon: Icons.how_to_reg_rounded,
                             label: 'Driver Approvals',
                             color: const Color(0xFF0891B2),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-rides/driver-approval'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-rides/driver-approval'),
                           ),
                         ],
                       ),
@@ -632,29 +635,33 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.inventory_2_rounded,
                             label: 'Deliveries Hub',
                             color: const Color(0xFF7C3AED),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-packages'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-packages'),
                           ),
                           _GridAction(
                             icon: Icons.local_shipping_rounded,
                             label: 'All Deliveries',
                             color: const Color(0xFF9333EA),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-packages/deliveries'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-packages/deliveries'),
                           ),
                           _GridAction(
                             icon: Icons.qr_code_scanner_rounded,
                             label: 'Package Records',
                             color: const Color(0xFFA855F7),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-packages/records'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-packages/records'),
                           ),
                           _GridAction(
                             icon: Icons.business_rounded,
                             label: 'Shipping Cos',
                             color: const Color(0xFF7C3AED),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-shipping-companies'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-shipping-companies'),
                           ),
                         ],
                       ),

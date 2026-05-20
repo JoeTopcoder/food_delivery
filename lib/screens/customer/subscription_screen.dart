@@ -2,7 +2,7 @@
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/subscription_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feature_providers.dart';
@@ -10,6 +10,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/app_logger.dart';
+import 'payment_screen.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -52,32 +53,6 @@ class _DeliverySubscriptionTabState
   // null = idle; 'basic'/'pro' = that plan subscribing; 'change' = switching plans
   String? _subscribingPlan;
 
-  /// Inits and presents the Stripe payment sheet.
-  /// Returns true if payment completed, false if user cancelled.
-  /// Rethrows on any other Stripe error.
-  Future<bool> _showPaymentSheet({
-    required String clientSecret,
-    String? customerId,
-    String? ephemeralKey,
-  }) async {
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        customerId: customerId,
-        customerEphemeralKeySecret: ephemeralKey,
-        merchantDisplayName: AppConstants.appName,
-        style: ThemeMode.system,
-      ),
-    );
-    try {
-      await Stripe.instance.presentPaymentSheet();
-      return true;
-    } on StripeException catch (e) {
-      if (e.error.code == FailureCode.Canceled) return false;
-      rethrow;
-    }
-  }
-
   Future<void> _subscribe(String planType) async {
     if (_subscribingPlan != null) return;
     setState(() => _subscribingPlan = planType);
@@ -94,15 +69,29 @@ class _DeliverySubscriptionTabState
       }
 
       final subId = result['subscription_id'] as String?;
+      final authUser = Supabase.instance.client.auth.currentUser;
+      final price = planType == 'pro'
+          ? AppConstants.subscriptionProPrice
+          : AppConstants.subscriptionBasicPrice;
 
-      final paid = await _showPaymentSheet(
-        clientSecret: clientSecret,
-        customerId: result['customer_id'] as String?,
-        ephemeralKey: result['ephemeral_key'] as String?,
+      if (!mounted) return;
+      final payResult = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentScreen(
+            orderId: subId ?? '',
+            amount: price,
+            currency: AppConstants.currencyCode,
+            customerEmail: authUser?.email,
+            customerName:
+                authUser?.userMetadata?['name'] as String? ?? 'Member',
+            preloadedClientSecret: clientSecret,
+            type: 'subscription',
+          ),
+        ),
       );
-      if (!paid) {
-        // Remove the pending DB row so the "activating" banner never appears
-        // after a cancelled payment. Fire-and-forget; non-critical.
+
+      if (payResult == null || payResult['status'] != 'paid') {
         if (subId != null) service.deletePendingSubscription(subId).ignore();
         return;
       }
@@ -210,15 +199,32 @@ class _DeliverySubscriptionTabState
         throw Exception('Missing client secret');
       }
 
-      final paid = await _showPaymentSheet(
-        clientSecret: clientSecret,
-        customerId: result['customer_id'] as String?,
-        ephemeralKey: result['ephemeral_key'] as String?,
+      final subId = result['subscription_id'] as String?;
+      final authUser = Supabase.instance.client.auth.currentUser;
+      final price = newPlan == 'pro'
+          ? AppConstants.subscriptionProPrice
+          : AppConstants.subscriptionBasicPrice;
+
+      if (!mounted) return;
+      final payResult = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentScreen(
+            orderId: subId ?? subscriptionId,
+            amount: price,
+            currency: AppConstants.currencyCode,
+            customerEmail: authUser?.email,
+            customerName:
+                authUser?.userMetadata?['name'] as String? ?? 'Member',
+            preloadedClientSecret: clientSecret,
+            type: 'subscription',
+          ),
+        ),
       );
-      if (!paid) return;
+
+      if (payResult == null || payResult['status'] != 'paid') return;
 
       // Payment succeeded — activate immediately
-      final subId = result['subscription_id'] as String?;
       bool activated = false;
       if (subId != null) {
         for (int i = 0; i < 3 && !activated; i++) {
@@ -405,11 +411,18 @@ class _DeliverySubscriptionTabState
                             icon: const Icon(Icons.close),
                             tooltip: 'Dismiss',
                             onPressed: () async {
-                              final service = ref.read(subscriptionServiceProvider);
-                              await service.deletePendingSubscription(activeSub.id);
+                              final service = ref.read(
+                                subscriptionServiceProvider,
+                              );
+                              await service.deletePendingSubscription(
+                                activeSub.id,
+                              );
                               ref.invalidate(activeSubscriptionProvider);
                               if (!context.mounted) return;
-                              AppSnackbar.success(context, 'Cleared. You can now subscribe.');
+                              AppSnackbar.success(
+                                context,
+                                'Cleared. You can now subscribe.',
+                              );
                             },
                           ),
                         ],
@@ -438,7 +451,9 @@ class _DeliverySubscriptionTabState
                   ],
                   color: const Color(0xFF2196F3),
                   subscribing: _subscribingPlan == 'basic',
-                  onSubscribe: _subscribingPlan != null ? null : () => _subscribe('basic'),
+                  onSubscribe: _subscribingPlan != null
+                      ? null
+                      : () => _subscribe('basic'),
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
@@ -454,7 +469,9 @@ class _DeliverySubscriptionTabState
                   color: const Color(0xFF6C63FF),
                   recommended: true,
                   subscribing: _subscribingPlan == 'pro',
-                  onSubscribe: _subscribingPlan != null ? null : () => _subscribe('pro'),
+                  onSubscribe: _subscribingPlan != null
+                      ? null
+                      : () => _subscribe('pro'),
                 ),
               ],
 

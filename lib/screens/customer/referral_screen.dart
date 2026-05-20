@@ -122,7 +122,7 @@ class ReferralScreen extends ConsumerWidget {
                                 '\$${EarningConfig.directOrderRate.toStringAsFixed(2)} per order from referrals',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey[700],
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -161,7 +161,7 @@ class ReferralScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'Your Referral Code',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 8),
                   codeAsync.when(
@@ -272,7 +272,7 @@ class ReferralScreen extends ConsumerWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -280,17 +280,17 @@ class ReferralScreen extends ConsumerWidget {
                         Icon(
                           Icons.person_add_outlined,
                           size: 48,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         SizedBox(height: 8),
                         Text(
                           'No referrals yet',
-                          style: TextStyle(color: Colors.grey[700]),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         Text(
                           'Share your code to start earning!',
                           style: TextStyle(
-                            color: Colors.grey[700],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -342,7 +342,7 @@ class _StatTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -366,7 +366,7 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],
@@ -390,16 +390,16 @@ class _ReferralTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
           CircleAvatar(
             backgroundColor: isCompleted
                 ? const Color(0xFF10B981)
-                : Colors.grey.shade300,
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Icon(
               isCompleted ? Icons.check : Icons.hourglass_empty,
               color: Colors.white,

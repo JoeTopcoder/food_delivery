@@ -14,6 +14,12 @@ class DeliveryRegion {
   /// When non-null this is used for geo-checks instead of the circle.
   final List<LatLng>? polygon;
 
+  /// Whether tax is applied to orders in this zone.
+  final bool taxEnabled;
+
+  /// Zone-specific tax rate (0–1). Null = use global app_config rate.
+  final double? taxRate;
+
   const DeliveryRegion({
     required this.id,
     required this.name,
@@ -24,6 +30,8 @@ class DeliveryRegion {
     required this.createdAt,
     this.updatedAt,
     this.polygon,
+    this.taxEnabled = false,
+    this.taxRate,
   });
 
   bool get hasPolygon => polygon != null && polygon!.length >= 3;
@@ -53,6 +61,8 @@ class DeliveryRegion {
           ? DateTime.parse(json['updated_at'] as String)
           : null,
       polygon: polygon,
+      taxEnabled: json['tax_enabled'] as bool? ?? false,
+      taxRate: (json['tax_rate'] as num?)?.toDouble(),
     );
   }
 
@@ -62,6 +72,8 @@ class DeliveryRegion {
     'longitude': longitude,
     'radius_km': radiusKm,
     'is_active': isActive,
+    'tax_enabled': taxEnabled,
+    if (taxRate != null) 'tax_rate': taxRate,
     if (polygon != null)
       'polygon': polygon!
           .map((p) => {'lat': p.latitude, 'lng': p.longitude})

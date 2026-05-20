@@ -24,6 +24,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isGoogleLoading = false;
 
   String get _roleLabel {
     switch (widget.role) {
@@ -99,6 +100,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
     try {
       await ref.read(authNotifierProvider.notifier).signInWithGoogle();
       _navigateAfterSignIn();
@@ -113,6 +115,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ? 'Google sign-in was cancelled'
             : 'Google sign-in failed: ${msg.length > 120 ? msg.substring(0, 120) : msg}',
       );
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -356,8 +360,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
                     // Sign In button
                     _GradientButton(
-                      onPressed: authState.isLoading ? null : _handleSignIn,
-                      isLoading: authState.isLoading,
+                      onPressed: (authState.isLoading || _isGoogleLoading) ? null : _handleSignIn,
+                      isLoading: authState.isLoading && !_isGoogleLoading,
                       label: context.l10n.signIn,
                     ),
                     const SizedBox(height: 24),
@@ -391,11 +395,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         // Google
                         Expanded(
                           child: _SocialButton(
-                            onPressed: authState.isLoading
+                            onPressed: (_isGoogleLoading || authState.isLoading)
                                 ? null
                                 : _handleGoogleSignIn,
                             icon: _googleIcon(),
                             label: 'Google',
+                            isLoading: _isGoogleLoading,
                           ),
                         ),
                         // Apple — only on iOS/macOS
@@ -603,11 +608,13 @@ class _SocialButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget icon;
   final String label;
+  final bool isLoading;
 
   const _SocialButton({
     required this.onPressed,
     required this.icon,
     required this.label,
+    this.isLoading = false,
   });
 
   @override
@@ -619,21 +626,32 @@ class _SocialButton extends StatelessWidget {
         side: BorderSide(color: Theme.of(context).dividerColor),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          icon,
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+      child: isLoading
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                icon,
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

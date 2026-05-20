@@ -82,6 +82,18 @@ class OrderCalculationService {
   final SupabaseClient _client;
   OrderCalculationService(this._client);
 
+  Future<Map<String, String>> _freshAuthHeader() async {
+    String? token;
+    try {
+      final res = await _client.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    token ??= _client.auth.currentSession?.accessToken;
+    return (token != null && token.isNotEmpty)
+        ? {'Authorization': 'Bearer $token'}
+        : {};
+  }
+
   Future<OrderBreakdown?> calculate({
     required String restaurantId,
     required String userId,
@@ -95,24 +107,25 @@ class OrderCalculationService {
     double? deliveryLongitude,
   }) async {
     try {
-      // Supabase client throws FunctionException for non-2xx — catch JWT
-      // errors, refresh the session, and retry once.
+      final body = {
+        'restaurant_id': restaurantId,
+        'user_id': userId,
+        'items': items,
+        if (promoCode != null) 'promo_code': promoCode,
+        'redeem_points': redeemPoints,
+        'driver_tip': driverTip,
+        'payment_method': paymentMethod,
+        'is_pickup': isPickup,
+        if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
+        if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
+      };
+
       late FunctionResponse response;
       try {
         response = await _client.functions.invoke(
           'calculate-order-total',
-          body: {
-            'restaurant_id': restaurantId,
-            'user_id': userId,
-            'items': items,
-            'promo_code': ?promoCode,
-            'redeem_points': redeemPoints,
-            'driver_tip': driverTip,
-            'payment_method': paymentMethod,
-            'is_pickup': isPickup,
-            'delivery_latitude': ?deliveryLatitude,
-            'delivery_longitude': ?deliveryLongitude,
-          },
+          body: body,
+          headers: await _freshAuthHeader(),
         );
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
@@ -121,40 +134,33 @@ class OrderCalculationService {
             raw.contains('LEGACY_JWT') ||
             raw.contains('ES256') ||
             raw.contains('JWT')) {
-          await _client.auth.refreshSession();
-          response = await _client.functions.invoke(
-            'calculate-order-total',
-            body: {
-              'restaurant_id': restaurantId,
-              'user_id': userId,
-              'items': items,
-              'promo_code': ?promoCode,
-              'redeem_points': redeemPoints,
-              'driver_tip': driverTip,
-              'payment_method': paymentMethod,
-              'is_pickup': isPickup,
-              'delivery_latitude': ?deliveryLatitude,
-              'delivery_longitude': ?deliveryLongitude,
-            },
-          );
+          try {
+            response = await _client.functions.invoke(
+              'calculate-order-total',
+              body: body,
+              headers: await _freshAuthHeader(),
+            );
+          } on FunctionException catch (_) {
+            return null; // Calculation failed — caller falls back to client math
+          }
         } else {
           rethrow;
         }
       }
 
-      final body = response.data is String
+      final result = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>
           : response.data as Map<String, dynamic>;
 
-      if (body['error'] != null) {
-        throw Exception(body['error']);
+      if (result['error'] != null) {
+        throw Exception(result['error']);
       }
-      if (body['verified'] != true) {
+      if (result['verified'] != true) {
         throw Exception('Server did not verify order total');
       }
 
       return OrderBreakdown.fromJson(
-        Map<String, dynamic>.from(body['breakdown'] as Map),
+        Map<String, dynamic>.from(result['breakdown'] as Map),
       );
     } catch (e) {
       AppLogger.error('OrderCalculationService.calculate error: $e');
