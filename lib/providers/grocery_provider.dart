@@ -20,7 +20,7 @@ final groceryStoresProvider = FutureProvider.autoDispose<List<Restaurant>>((
   ref.keepAlive();
   // Real-time: refresh when any grocery store row changes
   final channel = Supabase.instance.client.realtime.channel(
-    'grocery_stores_${DateTime.now().microsecondsSinceEpoch}',
+    'grocery_stores',
   );
   channel
       .onPostgresChanges(
@@ -69,7 +69,7 @@ final groceryProductsProvider = FutureProvider.family
       ref.keepAlive();
       // Real-time: refresh when products for this store change
       final channel = Supabase.instance.client.realtime.channel(
-        'grocery_products_${storeId}_${DateTime.now().microsecondsSinceEpoch}',
+        'grocery_products_$storeId',
       );
       channel
           .onPostgresChanges(
@@ -116,7 +116,7 @@ final groceryCategoriesProvider =
       // Real-time: refresh when grocery_categories or menus table changes
       // so custom categories from new products appear immediately
       final channel = Supabase.instance.client.realtime.channel(
-        'grocery_categories_${DateTime.now().microsecondsSinceEpoch}',
+        'grocery_categories',
       );
       channel
           .onPostgresChanges(
@@ -149,7 +149,7 @@ final allGroceryProductsByCategoryProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, category) {
       // Real-time: refresh when any grocery product changes
       final channel = Supabase.instance.client.realtime.channel(
-        'all_grocery_cat_${category.hashCode}_${DateTime.now().microsecondsSinceEpoch}',
+        'all_grocery_cat_${category.hashCode}',
       );
       channel
           .onPostgresChanges(
@@ -181,7 +181,7 @@ final ownerGroceryStoreProvider = FutureProvider.family
     .autoDispose<Restaurant?, String>((ref, ownerId) {
       // Real-time: refresh when this owner's store changes
       final channel = Supabase.instance.client.realtime.channel(
-        'owner_grocery_${ownerId}_${DateTime.now().microsecondsSinceEpoch}',
+        'owner_grocery_$ownerId',
       );
       channel
           .onPostgresChanges(
@@ -210,7 +210,7 @@ final ownerGroceryProductsProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, storeId) {
       // Real-time: refresh when any product changes
       final channel = Supabase.instance.client.realtime.channel(
-        'owner_grocery_prods_${storeId}_${DateTime.now().microsecondsSinceEpoch}',
+        'owner_grocery_prods_$storeId',
       );
       channel
           .onPostgresChanges(

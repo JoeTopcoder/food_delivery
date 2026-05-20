@@ -16,8 +16,6 @@ import '../../utils/context_extensions.dart';
 const _kNavy  = Color(0xFF004E89);
 const _kBlue  = Color(0xFF0077C8);
 const _kGreen = Color(0xFF10B981);
-const _kBg    = Color(0xFFF4F6F9);
-const _kText  = Color(0xFF1A1A2E);
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 class CustomerProfileScreen extends ConsumerStatefulWidget {
@@ -38,7 +36,7 @@ class _CustomerProfileScreenState
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,13 +133,7 @@ class _CustomerProfileScreenState
                         sub:   context.l10n.addressBookSub,
                         onTap: () => Navigator.of(context).pushNamed('/address-book'),
                       ),
-                      _MenuItem(
-                        icon:  Icons.credit_card_rounded,
-                        color: _kNavy,
-                        title: context.l10n.paymentMethods,
-                        sub:   context.l10n.paymentMethodsSub,
-                        onTap: () => Navigator.pushNamed(context, '/add-card'),
-                      ),
+
                     ]),
 
                     const SizedBox(height: 16),
@@ -615,7 +607,7 @@ class _StatsShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -643,7 +635,7 @@ class _StatsRow extends StatelessWidget {
         children: [
           Expanded(child: _Stat(value: '$orders', label: 'Orders')),
           VerticalDivider(
-            color: Colors.grey.shade200,
+            color: Theme.of(context).colorScheme.outlineVariant,
             thickness: 1,
             indent: 6,
             endIndent: 6,
@@ -655,7 +647,7 @@ class _StatsRow extends StatelessWidget {
             ),
           ),
           VerticalDivider(
-            color: Colors.grey.shade200,
+            color: Theme.of(context).colorScheme.outlineVariant,
             thickness: 1,
             indent: 6,
             endIndent: 6,
@@ -689,7 +681,7 @@ class _Stat extends StatelessWidget {
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: isGreen ? _kGreen : _kNavy,
+              color: isGreen ? _kGreen : Theme.of(context).colorScheme.onSurface,
               letterSpacing: -0.3,
             ),
           ),
@@ -728,7 +720,7 @@ class _MenuGroup extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -755,7 +747,7 @@ class _MenuGroup extends StatelessWidget {
                     height: 1,
                     indent: 60,
                     endIndent: 16,
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.outlineVariant,
                   ),
               ],
             ],
@@ -810,10 +802,10 @@ class _MenuItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14.5,
-                        color: _kText,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -852,7 +844,7 @@ class _SignOutRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

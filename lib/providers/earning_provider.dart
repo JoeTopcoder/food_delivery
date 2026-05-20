@@ -9,7 +9,7 @@ final earningServiceProvider = Provider<EarningService>((ref) {
 });
 
 /// Earning account for the current user
-final earningAccountProvider = FutureProvider.family<EarningAccount?, String>((
+final earningAccountProvider = FutureProvider.autoDispose.family<EarningAccount?, String>((
   ref,
   userId,
 ) async {
@@ -18,7 +18,7 @@ final earningAccountProvider = FutureProvider.family<EarningAccount?, String>((
 
 /// Earning transactions history
 final earningTransactionsProvider =
-    FutureProvider.family<List<EarningTransaction>, String>((
+    FutureProvider.autoDispose.family<List<EarningTransaction>, String>((
       ref,
       userId,
     ) async {
@@ -27,7 +27,7 @@ final earningTransactionsProvider =
 
 /// Direct referrals with order counts
 final earningReferralsProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((
       ref,
       userId,
     ) async {
@@ -35,7 +35,7 @@ final earningReferralsProvider =
     });
 
 /// Admin: all earning accounts
-final allEarningAccountsProvider = FutureProvider<List<EarningAccount>>((
+final allEarningAccountsProvider = FutureProvider.autoDispose<List<EarningAccount>>((
   ref,
 ) async {
   return ref.watch(earningServiceProvider).getAllAccounts();

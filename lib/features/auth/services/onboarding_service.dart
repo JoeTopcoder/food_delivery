@@ -230,6 +230,17 @@ class OnboardingService {
     required String businessName,
     required String phone,
     String? address,
+    String? description,
+    String? cuisineType,
+    String? email,
+    String? openingTime,
+    String? closingTime,
+    String? storeType,
+    String? bankName,
+    String? bankAccountHolder,
+    String? bankAccountNumber,
+    String? bankAccountType,
+    String? bankBranch,
     int onboardingStep = 1,
     bool goLive = false,
     String? menuImageUrl,
@@ -257,12 +268,25 @@ class OnboardingService {
     };
     if (phone.isNotEmpty) basePayload['phone'] = phone;
     if (address != null && address.isNotEmpty) basePayload['address'] = address;
+    if (description != null && description.isNotEmpty) basePayload['description'] = description;
+    if (cuisineType != null && cuisineType.isNotEmpty) basePayload['cuisine_type'] = cuisineType;
+    if (email != null && email.isNotEmpty) basePayload['email'] = email;
+    if (openingTime != null && openingTime.isNotEmpty) basePayload['opening_time'] = openingTime;
+    if (closingTime != null && closingTime.isNotEmpty) basePayload['closing_time'] = closingTime;
+    if (storeType != null && storeType.isNotEmpty) basePayload['store_type'] = storeType;
+    if (bankName != null && bankName.isNotEmpty) basePayload['bank_name'] = bankName;
+    if (bankAccountHolder != null && bankAccountHolder.isNotEmpty) basePayload['bank_account_holder'] = bankAccountHolder;
+    if (bankAccountNumber != null && bankAccountNumber.isNotEmpty) basePayload['bank_account_number'] = bankAccountNumber;
+    if (bankAccountType != null && bankAccountType.isNotEmpty) basePayload['bank_account_type'] = bankAccountType;
+    if (bankBranch != null && bankBranch.isNotEmpty) basePayload['bank_branch'] = bankBranch;
 
-    // Build extended payload (status / onboarding_step). If those columns
-    // don't exist yet, the insert/update below will retry with base payload.
+    // onboarding_step is a core column — always write it in base payload.
+    basePayload['onboarding_step'] = onboardingStep;
+
+    // Build extended payload for optional columns (status, menu_image_url).
     final extendedPayload = Map<String, dynamic>.from(basePayload);
-    extendedPayload['status'] = goLive ? 'active' : 'draft';
-    extendedPayload['onboarding_step'] = onboardingStep;
+    // Always 'draft' — DB check constraint only allows 'draft'/'active'.
+    extendedPayload['status'] = 'draft';
     if (menuImageUrl != null) extendedPayload['menu_image_url'] = menuImageUrl;
 
     // Look up an existing restaurant for this owner. We avoid Supabase's

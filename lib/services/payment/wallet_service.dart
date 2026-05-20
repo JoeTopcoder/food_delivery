@@ -97,7 +97,8 @@ class WalletService {
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false)
-          .limit(limit);
+          .limit(limit)
+          .timeout(const Duration(seconds: 10));
       return (rows as List)
           .map((e) => WalletTransaction.fromJson(e as Map<String, dynamic>))
           .toList();

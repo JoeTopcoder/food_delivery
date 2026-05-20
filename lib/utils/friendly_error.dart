@@ -49,8 +49,13 @@ String friendlyError(Object? error) {
   }
   if (msg.contains('jwt expired') ||
       msg.contains('token expired') ||
-      msg.contains('refresh_token_not_found')) {
-    return 'Your session has expired. Please sign in again.';
+      msg.contains('refresh_token_not_found') ||
+      msg.contains('session expired') ||
+      msg.contains('sign out and sign back in') ||
+      msg.contains('legacy_jwt') ||
+      msg.contains('invalid jwt') ||
+      msg.contains('unauthorized_legacy')) {
+    return 'Something went wrong. Please try again.';
   }
   if (msg.contains('please sign in first')) {
     return 'Please sign in (or confirm your email) to continue.';
@@ -84,6 +89,17 @@ String friendlyError(Object? error) {
   }
   if (msg.contains('404') || msg.contains('not found')) {
     return 'The requested item was not found.';
+  }
+
+  // Extract edge function error messages (they're wrapped in Exception('...')
+  // Pattern: Exception: message
+  final errorStr = error.toString();
+  if (errorStr.startsWith('Exception: ')) {
+    final actualMsg = errorStr.replaceFirst('Exception: ', '').trim();
+    // If it's a specific edge function error, pass it through
+    if (actualMsg.isNotEmpty && actualMsg.length < 150) {
+      return actualMsg;
+    }
   }
 
   // Generic fallback

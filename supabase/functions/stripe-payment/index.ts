@@ -557,10 +557,11 @@ Deno.serve(async (request) => {
         adminClient, userData.user.id, email, name || cardholderName
       );
 
-      // Create a SetupIntent (no amount shown to user)
+      // Create a SetupIntent (card-only — avoids redirect-based payment methods
+      // that would break the embedded CardFormField + confirmSetupIntent flow).
       const si = await stripeRequest("/setup_intents", {
         customer: customerId,
-        "automatic_payment_methods[enabled]": "true",
+        "payment_method_types[]": "card",
         "metadata[type]": "card_verification",
         "metadata[user_id]": userData.user.id,
         usage: "off_session",
@@ -838,9 +839,18 @@ Deno.serve(async (request) => {
           { onConflict: "order_id" }
         );
 
+        // Set BOTH payment_status AND status in one UPDATE so the DB trigger
+        // (check_card_payment_gate) is satisfied. Also sets payment_intent_id
+        // so the stripe-webhook idempotency guard (.neq payment_status completed)
+        // correctly skips re-processing when the webhook arrives.
         await adminClient
           .from("orders")
-          .update({ payment_status: "completed", updated_at: new Date().toISOString() })
+          .update({
+            payment_status: "completed",
+            status: "pending",
+            payment_intent_id: pi.id as string,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", orderId);
       }
 

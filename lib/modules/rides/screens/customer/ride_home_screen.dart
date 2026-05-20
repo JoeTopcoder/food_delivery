@@ -11,7 +11,6 @@ const _kBlue = Color(0xFF2563EB);
 const _kGreen = Color(0xFF22C55E);
 const _kRed = Color(0xFFEF4444);
 const _kAmber = Color(0xFFF59E0B);
-const _kDark = Color(0xFF111827);
 
 class RideHomeScreen extends ConsumerWidget {
   const RideHomeScreen({super.key});
@@ -33,7 +32,7 @@ class RideHomeScreen extends ConsumerWidget {
     final promoEnabled = AppConstants.ridePromoFirstRideEnabled;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -161,12 +160,12 @@ class RideHomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Quick Actions',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -240,9 +239,9 @@ class RideHomeScreen extends ConsumerWidget {
             ),
 
             // ── Recent Rides ─────────────────────────────────────────────────
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 28, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -251,7 +250,7 @@ class RideHomeScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -403,7 +402,7 @@ class _QuickActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -427,10 +426,10 @@ class _QuickActionCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: _kDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -494,7 +493,7 @@ class _EmptyRidesCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 32),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -506,20 +505,20 @@ class _EmptyRidesCard extends StatelessWidget {
         child: Column(
           children: [
             Icon(Icons.directions_car_outlined,
-                size: 48, color: Colors.grey[300]),
+                size: 48, color: Theme.of(context).colorScheme.outlineVariant),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'No rides yet',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Your ride history will appear here',
-              style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -554,7 +553,7 @@ class _RideTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           border: _isActive
               ? Border.all(color: _kBlue.withValues(alpha: 0.35), width: 1.5)
@@ -585,10 +584,10 @@ class _RideTile extends StatelessWidget {
                 children: [
                   Text(
                     '${_short(ride.pickupAddress)} → ${_short(ride.destinationAddress)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      color: _kDark,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -596,8 +595,8 @@ class _RideTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     DateFormat('MMM d, h:mm a').format(ride.requestedAt),
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                        fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -608,10 +607,10 @@ class _RideTile extends StatelessWidget {
               children: [
                 Text(
                   'J\$${fare.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: _kDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),

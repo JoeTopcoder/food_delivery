@@ -10,15 +10,17 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  final String orderId;
+  final String? orderId;
+  final String? rideId;
   final String otherPartyName;
   final String? receiverId;
   const ChatScreen({
     super.key,
-    required this.orderId,
+    this.orderId,
+    this.rideId,
     required this.otherPartyName,
     this.receiverId,
-  });
+  }) : assert(orderId != null || rideId != null);
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -31,6 +33,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _conversationId;
   bool _markedRead = false;
 
+  bool get _isRide => widget.rideId != null;
+
   @override
   void initState() {
     super.initState();
@@ -38,9 +42,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _loadConversation() async {
-    final conv = await ref
-        .read(chatServiceProvider)
-        .getConversationForOrder(widget.orderId);
+    final svc = ref.read(chatServiceProvider);
+    final conv = _isRide
+        ? await svc.getConversationForRide(widget.rideId!)
+        : await svc.getConversationForOrder(widget.orderId!);
     if (conv != null && mounted) {
       setState(() => _conversationId = conv.id);
     }
@@ -61,8 +66,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_markedRead) return;
     _markedRead = true;
     final userId = ref.read(currentUserIdProvider) ?? '';
-    if (userId.isNotEmpty) {
-      ref.read(chatServiceProvider).markRead(widget.orderId, userId);
+    if (userId.isEmpty) return;
+    final svc = ref.read(chatServiceProvider);
+    if (_isRide) {
+      svc.markRideRead(widget.rideId!, userId);
+    } else {
+      svc.markRead(widget.orderId!, userId);
     }
   }
 
@@ -85,12 +94,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       service.setTyping(_conversationId!, false);
     }
     _typingTimer?.cancel();
-    await service.sendMessage(
-      orderId: widget.orderId,
-      senderId: userId,
-      senderRole: role,
-      message: text,
-    );
+    if (_isRide) {
+      await service.sendRideMessage(
+        rideId: widget.rideId!,
+        senderId: userId,
+        senderRole: role,
+        message: text,
+      );
+    } else {
+      await service.sendMessage(
+        orderId: widget.orderId!,
+        senderId: userId,
+        senderRole: role,
+        message: text,
+      );
+    }
     _scrollDown();
     if (_conversationId == null) _loadConversation();
   }
@@ -104,7 +122,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final call = await ref
           .read(chatServiceProvider)
           .initiateCall(
-            orderId: widget.orderId,
+            orderId: widget.rideId ?? widget.orderId!,
             receiverId: widget.receiverId!,
           );
       if (mounted) {
@@ -141,16 +159,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final userId = ref.watch(currentUserIdProvider) ?? '';
     final role = ref.watch(currentUserProvider)?.role ?? 'user';
-    final msgsAsync = ref.watch(chatMessagesProvider(widget.orderId));
+    final msgsAsync = _isRide
+        ? ref.watch(rideMessagesProvider(widget.rideId!))
+        : ref.watch(chatMessagesProvider(widget.orderId!));
 
     // Auto-scroll to bottom when new messages arrive
-    ref.listen(chatMessagesProvider(widget.orderId), (prev, next) {
-      final oldLen = prev?.valueOrNull?.length ?? 0;
-      final newLen = next.valueOrNull?.length ?? 0;
-      if (newLen > oldLen) _scrollDown();
-    });
+    if (_isRide) {
+      ref.listen(rideMessagesProvider(widget.rideId!), (prev, next) {
+        final oldLen = prev?.valueOrNull?.length ?? 0;
+        final newLen = next.valueOrNull?.length ?? 0;
+        if (newLen > oldLen) _scrollDown();
+      });
+    } else {
+      ref.listen(chatMessagesProvider(widget.orderId!), (prev, next) {
+        final oldLen = prev?.valueOrNull?.length ?? 0;
+        final newLen = next.valueOrNull?.length ?? 0;
+        if (newLen > oldLen) _scrollDown();
+      });
+    }
 
     _markReadOnce();
+
+    final channelId = widget.rideId ?? widget.orderId ?? '';
+    final subtitle = _isRide
+        ? 'Ride #${channelId.length >= 8 ? channelId.substring(0, 8).toUpperCase() : channelId.toUpperCase()}'
+        : 'Order #${channelId.length >= 8 ? channelId.substring(0, 8).toUpperCase() : channelId.toUpperCase()}';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
@@ -167,7 +200,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
             Text(
-              'Order #${widget.orderId.length >= 8 ? widget.orderId.substring(0, 8).toUpperCase() : widget.orderId.toUpperCase()}',
+              subtitle,
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -196,8 +229,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               error: (e, _) => AppErrorState(
                 message: 'Connection lost',
                 icon: Icons.wifi_off_rounded,
-                onRetry: () =>
-                    ref.invalidate(chatMessagesProvider(widget.orderId)),
+                onRetry: () => _isRide
+                    ? ref.invalidate(rideMessagesProvider(widget.rideId!))
+                    : ref.invalidate(chatMessagesProvider(widget.orderId!)),
               ),
               data: (msgs) {
                 if (msgs.isEmpty) {

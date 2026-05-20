@@ -156,91 +156,100 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
                 _startSession(orderId);
               },
             )
-          : Column(
-              children: [
-                // ── Status banner ─────────────────────────────────────────────────
-                _StatusBanner(status: state.status, role: widget.role),
+          : SingleChildScrollView(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height -
+                    AppBar().preferredSize.height -
+                    MediaQuery.of(context).padding.top,
+                child: Column(
+                  children: [
+                    // ── Status banner ─────────────────────────────────────────────────
+                    _StatusBanner(status: state.status, role: widget.role),
 
-                // ── Phase 3: Action banner (credit issued, etc.) ──────────────────
-                if (state.pendingAction != null)
-                  _ActionBanner(
-                    action: state.pendingAction!,
-                    onDismiss: () =>
-                        ref.read(aiVoiceProvider.notifier).dismissAction(),
-                  ),
+                    // ── Phase 3: Action banner (credit issued, etc.) ──────────────────
+                    if (state.pendingAction != null)
+                      _ActionBanner(
+                        action: state.pendingAction!,
+                        onDismiss: () =>
+                            ref.read(aiVoiceProvider.notifier).dismissAction(),
+                      ),
 
-                // ── Chat history ──────────────────────────────────────────────────
-                Expanded(
-                  child: state.history.isEmpty
-                      ? _EmptyStateHint(role: widget.role)
-                      : _ChatHistory(
-                          messages: state.history,
-                          scrollController: _scrollController,
-                          onCallDriver: (userId, name) =>
-                              _callDriver(context, userId, name),
-                        ),
+                    // ── Chat history ──────────────────────────────────────────────────
+                    Expanded(
+                      child: state.history.isEmpty
+                          ? _EmptyStateHint(role: widget.role)
+                          : _ChatHistory(
+                              messages: state.history,
+                              scrollController: _scrollController,
+                              onCallDriver: (userId, name) =>
+                                  _callDriver(context, userId, name),
+                            ),
+                    ),
+
+                    // ── Quick reply suggestions (after last AI response) ─────────────
+                    if (state.history.isNotEmpty &&
+                        !state.history.last.isUser &&
+                        state.status == AiVoiceStatus.idle)
+                      _QuickReplySuggestions(
+                        role: widget.role,
+                        lastAiMessage: state.history.last.text,
+                        lastUserMessage: state.history
+                            .lastWhere(
+                              (m) => m.isUser,
+                              orElse: () => state.history.last,
+                            )
+                            .text,
+                        onSend: (text) =>
+                            ref.read(aiVoiceProvider.notifier).sendText(text),
+                      ),
+
+                    // ── Live transcription ────────────────────────────────────────────
+                    if (state.status == AiVoiceStatus.listening &&
+                        state.transcribedText.isNotEmpty)
+                      _TranscriptionBubble(text: state.transcribedText),
+
+                    // ── Processing indicator ──────────────────────────────────────────
+                    if (state.status == AiVoiceStatus.processing)
+                      const _ThinkingIndicator(),
+
+                    // ── Escalate to support ───────────────────────────────────────────
+                    if (state.canEscalate &&
+                        (widget.orderId ?? _resolvedOrderId) != null)
+                      _EscalateBar(onEscalate: () => _escalateToSupport(context)),
+
+                    // ── Text input (fallback) ─────────────────────────────────────────
+                    if (_showTextInput)
+                      _TextInputBar(
+                        controller: _textController,
+                        onSend: () {
+                          final text = _textController.text.trim();
+                          if (text.isNotEmpty) {
+                            ref
+                                .read(aiVoiceProvider.notifier)
+                                .sendText(text);
+                            _textController.clear();
+                          }
+                        },
+                      ),
+
+                    // ── Mic button row ────────────────────────────────────────────────
+                    _MicButtonRow(
+                      state: state,
+                      pulseController: _pulseController,
+                      waveController: _waveController,
+                      onMicTap: () =>
+                          ref.read(aiVoiceProvider.notifier).toggleListening(),
+                      onStopSpeaking: () =>
+                          ref.read(aiVoiceProvider.notifier).stopSpeaking(),
+                      onToggleKeyboard: () =>
+                          setState(() => _showTextInput = !_showTextInput),
+                    ),
+
+                    const SizedBox(height: 20),
+                  ],
                 ),
-
-                // ── Quick reply suggestions (after last AI response) ─────────────
-                if (state.history.isNotEmpty &&
-                    !state.history.last.isUser &&
-                    state.status == AiVoiceStatus.idle)
-                  _QuickReplySuggestions(
-                    role: widget.role,
-                    lastAiMessage: state.history.last.text,
-                    lastUserMessage: state.history
-                        .lastWhere(
-                          (m) => m.isUser,
-                          orElse: () => state.history.last,
-                        )
-                        .text,
-                    onSend: (text) =>
-                        ref.read(aiVoiceProvider.notifier).sendText(text),
-                  ),
-
-                // ── Live transcription ────────────────────────────────────────────
-                if (state.status == AiVoiceStatus.listening &&
-                    state.transcribedText.isNotEmpty)
-                  _TranscriptionBubble(text: state.transcribedText),
-
-                // ── Processing indicator ──────────────────────────────────────────
-                if (state.status == AiVoiceStatus.processing)
-                  const _ThinkingIndicator(),
-
-                // ── Escalate to support ───────────────────────────────────────────
-                if (state.canEscalate &&
-                    (widget.orderId ?? _resolvedOrderId) != null)
-                  _EscalateBar(onEscalate: () => _escalateToSupport(context)),
-
-                // ── Text input (fallback) ─────────────────────────────────────────
-                if (_showTextInput)
-                  _TextInputBar(
-                    controller: _textController,
-                    onSend: () {
-                      final text = _textController.text.trim();
-                      if (text.isNotEmpty) {
-                        ref.read(aiVoiceProvider.notifier).sendText(text);
-                        _textController.clear();
-                      }
-                    },
-                  ),
-
-                // ── Mic button row ────────────────────────────────────────────────
-                _MicButtonRow(
-                  state: state,
-                  pulseController: _pulseController,
-                  waveController: _waveController,
-                  onMicTap: () =>
-                      ref.read(aiVoiceProvider.notifier).toggleListening(),
-                  onStopSpeaking: () =>
-                      ref.read(aiVoiceProvider.notifier).stopSpeaking(),
-                  onToggleKeyboard: () =>
-                      setState(() => _showTextInput = !_showTextInput),
-                ),
-
-                const SizedBox(height: 20),
-              ],
-            ), // end Column (non-picker branch)
+              ),
+            ), // end SingleChildScrollView (non-picker branch)
     );
   }
 

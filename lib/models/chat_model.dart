@@ -197,7 +197,7 @@ extension CallStatusExt on CallStatus {
 
 class CallRecord {
   final String id;
-  final String orderId;
+  final String? orderId;
   final String? conversationId;
   final String callerId;
   final String receiverId;
@@ -211,7 +211,7 @@ class CallRecord {
 
   const CallRecord({
     required this.id,
-    required this.orderId,
+    this.orderId,
     this.conversationId,
     required this.callerId,
     required this.receiverId,
@@ -226,7 +226,7 @@ class CallRecord {
 
   factory CallRecord.fromJson(Map<String, dynamic> json) => CallRecord(
     id: json['id'] as String,
-    orderId: json['order_id'] as String,
+    orderId: json['order_id'] as String?,
     conversationId: json['conversation_id'] as String?,
     callerId: json['caller_id'] as String,
     receiverId: json['receiver_id'] as String,

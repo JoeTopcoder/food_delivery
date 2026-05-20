@@ -23,9 +23,9 @@ class MenuItemCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,7 +40,7 @@ class MenuItemCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: AppTheme.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -52,7 +52,7 @@ class MenuItemCard extends StatelessWidget {
                       item.description!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -137,11 +137,11 @@ class MenuItemCard extends StatelessWidget {
                 errorBuilder: (_, _, _) => Container(
                   width: 90,
                   height: 90,
-                  color: Colors.grey[100],
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Icon(
                     Icons.fastfood,
                     size: 36,
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

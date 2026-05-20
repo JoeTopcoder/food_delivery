@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../utils/app_theme.dart';
@@ -21,6 +22,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
   final _lastNameCtrl = TextEditingController();
   bool _isSaving = false;
   bool _cardComplete = false;
+  bool _stripeReady = false;
   CardFieldInputDetails? _cardDetails;
 
   // Live preview state
@@ -33,6 +35,24 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
     super.initState();
     _firstNameCtrl.addListener(_updateNamePreview);
     _lastNameCtrl.addListener(_updateNamePreview);
+    _initStripe();
+  }
+
+  Future<void> _initStripe() async {
+    try {
+      if (Stripe.publishableKey.isEmpty) {
+        final key = AppConstants.stripePublishableKey;
+        if (key.isNotEmpty) {
+          Stripe.publishableKey = key;
+          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+        }
+      }
+      Stripe.urlScheme = 'sevendash.app';
+      await Stripe.instance.applySettings();
+    } catch (e) {
+      AppLogger.error('Stripe init error: $e');
+    }
+    if (mounted) setState(() => _stripeReady = true);
   }
 
   @override
@@ -81,14 +101,13 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final enabled = _cardComplete && !_isSaving;
 
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF0D1117)
           : AppTheme.backgroundColor,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Add New Card'),
         backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
@@ -139,11 +158,8 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
           ),
 
           // ── Sticky bottom panel: CardFormField + Save button ─────────────
-          // Rises above the keyboard because resizeToAvoidBottomInset is false.
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF111827) : Colors.white,
               boxShadow: [
@@ -204,27 +220,37 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                 const SizedBox(height: 14),
 
                 // Stripe CardFormField (custom embedded — no native sheet)
-                CardFormField(
-                  onCardChanged: _onCardChanged,
-                  enablePostalCode: false,
-                  style: CardFormStyle(
-                    backgroundColor:
-                        isDark ? const Color(0xFF1F2937) : Colors.white,
-                    textColor: isDark
-                        ? Colors.white
-                        : const Color(0xFF1A1A2E),
-                    placeholderColor: isDark
-                        ? const Color(0xFF6B7280)
-                        : const Color(0xFFAAAAAA),
-                    borderColor: isDark
-                        ? const Color(0xFF374151)
-                        : const Color(0xFFDDDDDD),
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    fontSize: 16,
-                    cursorColor: const Color(0xFF635BFF),
+                // Only rendered after applySettings() completes to avoid
+                // "stripeSdk has not been initialized" on Android.
+                if (_stripeReady)
+                  CardFormField(
+                    onCardChanged: _onCardChanged,
+                    enablePostalCode: false,
+                    style: CardFormStyle(
+                      backgroundColor:
+                          isDark ? const Color(0xFF1F2937) : Colors.white,
+                      textColor: isDark
+                          ? Colors.white
+                          : const Color(0xFF1A1A2E),
+                      placeholderColor: isDark
+                          ? const Color(0xFF6B7280)
+                          : const Color(0xFFAAAAAA),
+                      borderColor: isDark
+                          ? const Color(0xFF374151)
+                          : const Color(0xFFDDDDDD),
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      fontSize: 16,
+                      cursorColor: const Color(0xFF635BFF),
+                    ),
+                  )
+                else
+                  const SizedBox(
+                    height: 116,
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 8),
 
                 // Security note
@@ -486,11 +512,18 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         throw Exception('Unable to start card verification flow.');
       }
 
-      // Confirm using the custom CardFormField data (no native Stripe sheet)
+      // Confirm using the custom CardFormField data (no native Stripe sheet).
+      // Billing details help satisfy SCA requirements for off-session use.
       await Stripe.instance.confirmSetupIntent(
         paymentIntentClientSecret: clientSecret,
-        params: const PaymentMethodParams.card(
-          paymentMethodData: PaymentMethodData(),
+        params: PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(
+            billingDetails: BillingDetails(
+              name: cardholderName.isNotEmpty ? cardholderName : name,
+              email: email.isNotEmpty ? email : null,
+              phone: phone.isNotEmpty ? phone : null,
+            ),
+          ),
         ),
       );
 

@@ -8,7 +8,7 @@ final addressServiceProvider = Provider<AddressService>((ref) {
   return AddressService(Supabase.instance.client);
 });
 
-final userAddressesProvider = FutureProvider.family<List<UserAddress>, String>((
+final userAddressesProvider = FutureProvider.autoDispose.family<List<UserAddress>, String>((
   ref,
   userId,
 ) {
@@ -16,7 +16,7 @@ final userAddressesProvider = FutureProvider.family<List<UserAddress>, String>((
 
   // Subscribe to real-time changes on user_addresses for this user
   final channel = Supabase.instance.client.realtime.channel(
-    'addr_${userId}_${DateTime.now().microsecondsSinceEpoch}',
+    'addr_$userId',
   );
   channel
       .onPostgresChanges(
@@ -29,7 +29,6 @@ final userAddressesProvider = FutureProvider.family<List<UserAddress>, String>((
           value: userId,
         ),
         callback: (_) {
-          // Invalidate so the provider refetches fresh data
           ref.invalidateSelf();
         },
       )
@@ -44,7 +43,7 @@ final userAddressesProvider = FutureProvider.family<List<UserAddress>, String>((
 });
 
 /// The default address for a given user (first where is_default == true).
-final defaultAddressProvider = FutureProvider.family<UserAddress?, String>((
+final defaultAddressProvider = FutureProvider.autoDispose.family<UserAddress?, String>((
   ref,
   userId,
 ) async {

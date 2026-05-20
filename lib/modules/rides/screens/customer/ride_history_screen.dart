@@ -48,9 +48,9 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: _kDark),
@@ -119,20 +119,20 @@ class _ActiveRideTab extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+              Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 12),
               Text(
                 'Could not load active ride',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 e.toString(),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -259,7 +259,7 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _kBlue.withValues(alpha: 0.25), width: 1.5),
               boxShadow: [
@@ -363,7 +363,7 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
                                       _vehicleLine!,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey.shade500,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                 ],
@@ -415,7 +415,7 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
                         child: Container(
                           width: 1.5,
                           height: 18,
-                          color: Colors.grey.shade300,
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
                       _RouteRow(
@@ -438,7 +438,7 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
                             'Estimated Fare',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade500,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           Text(
@@ -545,7 +545,7 @@ class _RouteRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -584,7 +584,7 @@ class _EmptyActiveState extends StatelessWidget {
           Icon(
             Icons.directions_car_outlined,
             size: 64,
-            color: Colors.grey.shade300,
+            color: Theme.of(context).colorScheme.outlineVariant,
           ),
           const SizedBox(height: 16),
           const Text(
@@ -598,7 +598,7 @@ class _EmptyActiveState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Your current ride will appear here.',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -631,7 +631,7 @@ class _HistoryTabBody extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+              Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 12),
               const Text(
                 'Could not load ride history',
@@ -644,7 +644,7 @@ class _HistoryTabBody extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 err.toString(),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -692,7 +692,7 @@ class _HistoryTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Row(
         children: List.generate(_labels.length, (i) {
@@ -711,7 +711,7 @@ class _HistoryTabBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: selected
                       ? (isActive ? _kBlue : _kDark)
-                      : const Color(0xFFF3F4F6),
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(50),
                 ),
                 child: Row(
@@ -733,7 +733,7 @@ class _HistoryTabBar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : Colors.grey.shade600,
+                        color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -813,7 +813,7 @@ class _GroupHeader extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: Colors.grey.shade500,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           letterSpacing: 0.6,
         ),
       ),
@@ -849,7 +849,7 @@ class _RideTile extends StatelessWidget {
     final fromStr = _shortAddress(ride.pickupAddress);
     final toStr = _shortAddress(ride.destinationAddress);
 
-    final iconColor = _statusIconColor(ride.rideStatus);
+    final iconColor = _statusIconColor(ride.rideStatus, context);
 
     return GestureDetector(
       onTap: _isActive
@@ -862,7 +862,7 @@ class _RideTile extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           border: _isActive
               ? Border.all(color: _kBlue.withValues(alpha: 0.4), width: 1.5)
@@ -934,7 +934,7 @@ class _RideTile extends StatelessWidget {
             padding: const EdgeInsets.only(top: 3),
             child: Text(
               timeStr,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
           trailing: Column(
@@ -958,13 +958,13 @@ class _RideTile extends StatelessWidget {
     );
   }
 
-  Color _statusIconColor(RideStatus status) {
+  Color _statusIconColor(RideStatus status, BuildContext context) {
     switch (status) {
       case RideStatus.rideCompleted:
         return _kBlue;
       case RideStatus.cancelled:
       case RideStatus.failed:
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       case RideStatus.rideStarted:
         return _kGreen;
       default:
@@ -1050,7 +1050,7 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.directions_car_outlined,
             size: 64,
-            color: Colors.grey.shade300,
+            color: Theme.of(context).colorScheme.outlineVariant,
           ),
           const SizedBox(height: 16),
           Text(
@@ -1064,7 +1064,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Your $label rides will appear here.',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),

@@ -49,7 +49,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   final _paymentEmailCtrl = TextEditingController();
   final _paymentPhoneCtrl = TextEditingController();
   final _cvcCtrl = TextEditingController();
-  String _selectedPayment = 'cash';
+  String _selectedPayment = 'stripe';
   SavedCard? _selectedSavedCard;
   bool _agreeToTerms = false;
   bool _addressConfirmed = false;
@@ -223,7 +223,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
     final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
-    final tax = subtotal * AppConstants.taxRate;
+
+    // Zone-based tax: look up the delivery zone only when coords are known.
+    final taxKey = (!isPickup && delLat != null && delLng != null)
+        ? '$delLat|$delLng'
+        : null;
+    final zoneTax = taxKey != null
+        ? ref.watch(zoneTaxProvider(taxKey)).valueOrNull
+        : null;
+    final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
+    final tax = subtotal * effectiveTaxRate;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -380,7 +389,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade200),
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                           ),
                           child: Row(
                             children: [
@@ -520,14 +529,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   icon: Icons.payment_rounded,
                   child: Column(
                     children: [
-                      _PaymentTile(
-                        icon: Icons.money_rounded,
-                        label: 'Cash on Delivery',
-                        subtitle: 'Pay the driver when your order arrives',
-                        selected: _selectedPayment == 'cash',
-                        onTap: () => setState(() => _selectedPayment = 'cash'),
-                      ),
-                      const SizedBox(height: 8),
                       // Wallet payment option
                       Consumer(
                         builder: (context, ref, _) {
@@ -552,7 +553,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       const SizedBox(height: 8),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
-                        label: 'Pay with Stripe',
+                        label: 'Credit / Debit Card',
                         subtitle: 'Visa, Mastercard, and more',
                         selected: _selectedPayment == 'stripe',
                         onTap: () =>
@@ -582,10 +583,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Colors.grey.shade200,
+                                      color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   child: Column(
@@ -897,7 +898,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 'Driver will verify with a one-time PIN',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey[700],
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -925,7 +926,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         Text(
                           '100% goes directly to your driver',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -948,11 +949,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   ),
                                   selected: _driverTip == 0,
                                   selectedColor: AppTheme.primaryColor,
-                                  backgroundColor: Colors.grey.shade100,
+                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   labelStyle: TextStyle(
                                     color: _driverTip == 0
                                         ? Colors.white
-                                        : Colors.black87,
+                                        : Theme.of(context).colorScheme.onSurface,
                                   ),
                                   onSelected: (_) {
                                     setState(() {
@@ -980,11 +981,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     ),
                                     selected: isSelected,
                                     selectedColor: const Color(0xFF10B981),
-                                    backgroundColor: Colors.grey.shade100,
+                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     labelStyle: TextStyle(
                                       color: isSelected
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : Theme.of(context).colorScheme.onSurface,
                                     ),
                                     onSelected: (_) {
                                       setState(() {
@@ -1008,11 +1009,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             prefixText: '\$ ',
                             hintText: 'Custom tip amount',
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                color: Colors.grey.shade300,
+                                color: Theme.of(context).colorScheme.outlineVariant,
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -1123,17 +1124,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         'Service Fee',
                         '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                       ),
-                      _SummaryRow(
-                        'Tax',
-                        '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
-                      ),
+                      if (tax > 0)
+                        _SummaryRow(
+                          'Tax (${(effectiveTaxRate * 100).toStringAsFixed(0)}%)',
+                          '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                        ),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
                           '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
-                      Divider(color: Colors.grey[200], height: 16),
+                      Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
                       _SummaryRow(
                         'Total',
                         '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
@@ -1176,7 +1178,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             'I agree to the MealHub terms and conditions',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1446,15 +1448,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       final verifiedDiscount =
           (breakdown?.promoDiscount ?? promoDiscount) +
           (breakdown?.loyaltyDiscount ?? loyaltyDiscount);
-      // Platform 5% service fee applied on the verified subtotal
-      final verifiedServiceFee =
-          verifiedSubtotal * AppConstants.platformServiceFeeRate;
-      // Recalculate total if we overrode the delivery fee, then add service fee
+      // Use the server's grand total directly — it already includes the platform
+      // service fee. Adding it again would double-charge the customer.
       final serverTotal = breakdown?.grandTotal ?? total;
-      final baseVerifiedTotal = serverDeliveryFee == verifiedDeliveryFee
+      final verifiedTotal = serverDeliveryFee == verifiedDeliveryFee
           ? serverTotal
           : serverTotal - serverDeliveryFee + verifiedDeliveryFee;
-      final verifiedTotal = baseVerifiedTotal + verifiedServiceFee;
 
       final orderItems = cart
           .map(
@@ -1524,31 +1523,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         throw Exception('Order could not be created. Please try again.');
       }
 
-      // ── Wallet: deduct balance after order is written ────────────────────
-      if (_selectedPayment == 'wallet') {
-        try {
-          await ref
-              .read(walletNotifierProvider.notifier)
-              .payWithWallet(verifiedTotal, order.id);
-        } catch (e) {
-          if (!mounted) return;
-          setState(() => _placingOrder = false);
-
-          // Ensure unpaid order is removed server-side.
-          final cleaned = await paymentService
-              .cleanupUnpaidOrder(order.id)
-              .timeout(const Duration(seconds: 10), onTimeout: () => false);
-          if (!cleaned) {
-            await _deleteOrder(order.id);
-          }
-
-          AppSnackbar.error(
-            context,
-            'Wallet payment failed: ${friendlyError(e)}',
-          );
-          return;
-        }
-      }
+      // Wallet payment is now handled atomically inside the place-order edge
+      // function before the order row is inserted — nothing to do here.
 
       // ── Stripe: saved card (off-session) or payment sheet ─────────────────
       if (_selectedPayment == 'stripe') {
@@ -1665,6 +1641,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       ref.read(redeemPointsProvider.notifier).state = 0;
       ref.read(selectedAddressIdProvider.notifier).state = null;
       ref.read(isPickupProvider.notifier).state = false;
+      // Refresh wallet balance — edge function deducted it server-side.
+      if (_selectedPayment == 'wallet') {
+        unawaited(ref.read(walletNotifierProvider.notifier).refresh());
+      }
 
       if (!mounted) return;
       setState(() => _placingOrder = false);
@@ -1964,7 +1944,7 @@ class _Section extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2002,10 +1982,10 @@ class _AddressChip extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8, bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor : Colors.grey.shade50,
+        color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade200,
+          color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Text(
@@ -2046,10 +2026,10 @@ class _TimeChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? AppTheme.primaryColor.withValues(alpha: 0.08)
-                : Colors.white,
+                : Theme.of(context).colorScheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
+              color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -2063,13 +2043,13 @@ class _TimeChip extends StatelessWidget {
                   fontSize: 13,
                   color: selected
                       ? AppTheme.primaryColor
-                      : const Color(0xFF1F2937),
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -2107,7 +2087,7 @@ class _PaymentTile extends StatelessWidget {
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
+            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2119,14 +2099,14 @@ class _PaymentTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected
                     ? AppTheme.primaryColor.withValues(alpha: 0.12)
-                    : Colors.grey.shade100,
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? AppTheme.primaryColor
-                    : const Color(0xFF9CA3AF),
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 18,
               ),
             ),
@@ -2141,7 +2121,7 @@ class _PaymentTile extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
-                          ? const Color(0xFF1F2937)
+                          ? Theme.of(context).colorScheme.onSurface
                           : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -2151,7 +2131,7 @@ class _PaymentTile extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         fontSize: 11,
-                        color: const Color(0xFF9CA3AF),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -2201,10 +2181,10 @@ class _SavedCardTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
-              : Colors.white,
+              : Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Colors.grey.shade200,
+            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2250,9 +2230,9 @@ class _SavedCardTile extends StatelessWidget {
                   ),
                   Text(
                     card.cardholderName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF9CA3AF),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -2280,10 +2260,10 @@ class _SavedCardTile extends StatelessWidget {
             // Delete button
             GestureDetector(
               onTap: onDelete,
-              child: const Icon(
+              child: Icon(
                 Icons.delete_outline_rounded,
                 size: 18,
-                color: Color(0xFFD1D5DB),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 4),

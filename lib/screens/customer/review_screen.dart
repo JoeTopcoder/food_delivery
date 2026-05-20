@@ -117,7 +117,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -263,7 +263,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         fontSize: 13,
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(
@@ -474,7 +474,7 @@ class _RatingCategory extends StatelessWidget {
                     i < value ? Icons.star_rounded : Icons.star_outline_rounded,
                     color: i < value
                         ? const Color(0xFFF59E0B)
-                        : const Color(0xFFD1D5DB),
+                        : Theme.of(context).colorScheme.outlineVariant,
                     size: 36,
                   ),
                 ),

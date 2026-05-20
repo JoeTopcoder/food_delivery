@@ -53,6 +53,51 @@ async function getConfig(key: string, fallback: number): Promise<number> {
   return data ? parseFloat(data.value) : fallback;
 }
 
+/** Returns effective tax rate for a delivery location using per-zone settings.
+ *  Falls back to global app_config tax_rate when the zone has no override. */
+async function getTaxRateForLocation(
+  lat: number | null,
+  lng: number | null,
+  globalTaxRate: number,
+): Promise<number> {
+  if (!lat || !lng) return 0;
+
+  const { data: regions } = await admin
+    .from("delivery_regions")
+    .select("latitude, longitude, radius_km, polygon, tax_enabled, tax_rate")
+    .eq("is_active", true);
+
+  if (!regions || regions.length === 0) return 0;
+
+  for (const region of regions) {
+    let inside = false;
+    if (region.polygon && Array.isArray(region.polygon) && region.polygon.length >= 3) {
+      inside = pointInPolygon(lat, lng, region.polygon as Array<{lat: number; lng: number}>);
+    } else {
+      const dist = haversineKm(lat, lng, region.latitude, region.longitude);
+      inside = dist <= region.radius_km;
+    }
+    if (inside) {
+      if (!region.tax_enabled) return 0;
+      return region.tax_rate ?? globalTaxRate;
+    }
+  }
+  return 0; // outside all zones → no tax
+}
+
+function pointInPolygon(lat: number, lng: number, polygon: Array<{lat: number; lng: number}>): boolean {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].lat, yi = polygon[i].lng;
+    const xj = polygon[j].lat, yj = polygon[j].lng;
+    const intersect = ((yi > lng) !== (yj > lng)) &&
+      (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -98,13 +143,16 @@ Deno.serve(async (request) => {
     return json({ error: "Missing required fields" }, 400);
   }
 
-  // ── PAYMENT GATE: card orders start as 'draft' ─────────────────────────────
-  // 'stripe' = food checkout card payment
-  // 'card'   = grocery checkout card payment
-  // Both are gated: the order remains invisible to restaurant/drivers until
-  // stripe-webhook confirms payment and sets status = 'pending'.
+  // ── PAYMENT GATE ───────────────────────────────────────────────────────────
+  // card   → 'draft' until stripe-webhook sets payment_status = 'completed'
+  // wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
+  // cash   → 'preparing' immediately
   const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
-  const initialStatus = isCardPayment ? "draft" : "pending";
+  const isWalletPayment = paymentMethod === "wallet";
+  const initialStatus = isCardPayment ? "draft" : "preparing";
+
+  // Pre-generate the order UUID so we can pass it to wallet_pay before the insert.
+  const orderId: string = crypto.randomUUID();
 
   try {
     // ── 1. Fetch restaurant commission rate ─────────────────────────────
@@ -124,6 +172,14 @@ Deno.serve(async (request) => {
     if (fromAd) {
       commissionRate = commissionRate + 0.05;
     }
+
+    // ── Zone-based tax (server-authoritative) ───────────────────────────
+    const globalTaxRate = await getConfig("tax_rate", 0.0);
+    const effectiveTaxRate = isPickup
+      ? 0
+      : await getTaxRateForLocation(deliveryLatitude, deliveryLongitude, globalTaxRate);
+    const serverTaxAmount = round2(subtotal * effectiveTaxRate);
+
     const commissionAmount = round2(totalAmount * commissionRate);
 
     // ── 2. Generate OTP + receipt number ────────────────────────────────
@@ -150,20 +206,38 @@ Deno.serve(async (request) => {
       ));
     }
 
-    // ── 4. Insert order ──────────────────────────────────────────────────
+    // ── 4. Wallet payment gate (atomic — must succeed before order is created) ──
+    if (isWalletPayment) {
+      const { error: walletErr } = await admin.rpc("wallet_pay", {
+        p_user_id: userId,
+        p_amount: totalAmount,
+        p_order_id: orderId,
+      });
+      if (walletErr) {
+        const msg = walletErr.message ?? "Wallet payment failed";
+        const isInsufficient = msg.toLowerCase().includes("insufficient");
+        return json(
+          { error: isInsufficient ? "Insufficient wallet balance" : msg },
+          isInsufficient ? 402 : 500,
+        );
+      }
+    }
+
+    // ── 5. Insert order ──────────────────────────────────────────────────
     const orderData: Record<string, unknown> = {
+      id: orderId,           // use pre-generated UUID (needed for wallet_pay above)
       user_id: userId,
       restaurant_id: restaurantId,
       subtotal,
-      tax_amount: taxAmount,
+      tax_amount: serverTaxAmount,
       delivery_fee: deliveryFee,
       total_amount: totalAmount,
-      status: initialStatus,        // 'draft' for card, 'pending' for cash/wallet
+      status: initialStatus,
       delivery_address: deliveryAddress,
       delivery_latitude: deliveryLatitude,
       delivery_longitude: deliveryLongitude,
       payment_method: paymentMethod,
-      payment_status: "pending",
+      payment_status: isWalletPayment ? "completed" : "pending",
       ordered_at: now.toISOString(),
       contactless_delivery: contactlessDelivery,
       delivery_otp: otp,
@@ -200,9 +274,7 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order", details: orderErr?.message }, 500);
     }
 
-    const orderId = order.id as string;
-
-    // ── 5. Insert order items + sides ────────────────────────────────────
+    // ── 6. Insert order items + sides ────────────────────────────────────
     for (const item of items) {
       const { data: insertedItem, error: itemErr } = await admin
         .from("order_items")
@@ -256,7 +328,7 @@ Deno.serve(async (request) => {
         total_amount: totalAmount,
         delivery_fee: deliveryFee,
         subtotal,
-        tax_amount: taxAmount,
+        tax_amount: serverTaxAmount,
         discount,
         driver_tip: driverTip,
         commission_rate: commissionRate,

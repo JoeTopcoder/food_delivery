@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
@@ -92,11 +91,12 @@ class _GroceryStoreDetailScreenState
             background:
                 widget.store.imageUrl != null &&
                     widget.store.imageUrl!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: widget.store.imageUrl!,
+                ? Image.network(
+                    widget.store.imageUrl!,
                     fit: BoxFit.cover,
-                    memCacheWidth: 800,
-                    errorWidget: (_, _, _) => _storePlaceholder(),
+                    errorBuilder: (_, __, ___) => _storePlaceholder(),
+                    loadingBuilder: (_, child, progress) =>
+                        progress == null ? child : _storePlaceholder(),
                   )
                 : _storePlaceholder(),
           ),
@@ -179,7 +179,7 @@ class _GroceryStoreDetailScreenState
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
@@ -218,7 +218,7 @@ class _GroceryStoreDetailScreenState
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppTheme.primaryColor
-                            : Colors.grey[100],
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -226,7 +226,7 @@ class _GroceryStoreDetailScreenState
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : Colors.grey[700],
+                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -248,7 +248,7 @@ class _GroceryStoreDetailScreenState
                       Icon(
                         Icons.inventory_2_outlined,
                         size: 56,
-                        color: Colors.grey[300],
+                        color: Theme.of(context).colorScheme.outlineVariant,
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -315,9 +315,9 @@ class _ProductCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,11 +334,12 @@ class _ProductCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   product.imageUrl != null && product.imageUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: product.imageUrl!,
+                      ? Image.network(
+                          product.imageUrl!,
                           fit: BoxFit.cover,
-                          memCacheWidth: 400,
-                          errorWidget: (_, _, _) => _productPlaceholder(),
+                          errorBuilder: (_, __, ___) => _productPlaceholder(),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : _productPlaceholder(),
                         )
                       : _productPlaceholder(),
                   if (!inStock)
@@ -398,7 +399,7 @@ class _ProductCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -417,7 +418,7 @@ class _ProductCard extends ConsumerWidget {
                   if (product.weight != null)
                     Text(
                       product.weight!,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   const Spacer(),
                   Flexible(
@@ -442,7 +443,7 @@ class _ProductCard extends ConsumerWidget {
                                       '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Colors.grey[700],
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         decoration: TextDecoration.lineThrough,
                                       ),
                                     ),
@@ -484,7 +485,7 @@ class _ProductCard extends ConsumerWidget {
                                       width: 26,
                                       height: 26,
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[200],
+                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Icon(
@@ -520,7 +521,7 @@ class _ProductCard extends ConsumerWidget {
                                       height: 26,
                                       decoration: BoxDecoration(
                                         color: atMax
-                                            ? Colors.grey[300]
+                                            ? Theme.of(context).colorScheme.outlineVariant
                                             : AppTheme.primaryColor,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
@@ -545,7 +546,7 @@ class _ProductCard extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color: inStock
                                       ? AppTheme.primaryColor
-                                      : Colors.grey[300],
+                                      : Theme.of(context).colorScheme.outlineVariant,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -600,11 +601,11 @@ class _ProductCard extends ConsumerWidget {
 
   Widget _productPlaceholder() => Container(
     color: Colors.grey[100],
-    child: Center(
+    child: const Center(
       child: Icon(
         Icons.shopping_bag_outlined,
         size: 36,
-        color: Colors.grey[300],
+        color: Colors.grey,
       ),
     ),
   );
@@ -623,8 +624,8 @@ class _GroceryCartBar extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SafeArea(

@@ -68,7 +68,7 @@ class _DriverRideRequestsScreenState
                 const SizedBox(height: 8),
                 Text(
                   error.toString(),
-                  style: const TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -166,21 +166,21 @@ class _DriverRideRequestsScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.directions_car_outlined,
-              color: Colors.grey, size: 64),
+          Icon(Icons.directions_car_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant, size: 64),
           const SizedBox(height: 16),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Rides will appear here',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
           ),
         ],
       ),
@@ -344,7 +344,7 @@ class _Tab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.grey,
+            color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
             fontWeight:
                 selected ? FontWeight.w600 : FontWeight.normal,
@@ -403,7 +403,7 @@ class _RideTripCard extends StatelessWidget {
                   Container(
                     width: 2,
                     height: 28,
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const Icon(
                     Icons.location_pin,
@@ -450,7 +450,7 @@ class _RideTripCard extends StatelessWidget {
                 style: TextStyle(
                   color: ride.rideStatus == RideStatus.rideCompleted
                       ? const Color(0xFF22C55E)
-                      : Colors.grey[600],
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -468,7 +468,7 @@ class _RideTripCard extends StatelessWidget {
             children: [
               Text(
                 dateLabel,
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
               ),
               _StatusChip(status: ride.rideStatus),
             ],
@@ -483,14 +483,14 @@ class _RideTripCard extends StatelessWidget {
                   if (ride.distanceKm != null) ...[
                     Icon(
                       Icons.straighten_outlined,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 14,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${ride.distanceKm!.toStringAsFixed(1)} km',
                       style:
-                          TextStyle(color: Colors.grey[500], fontSize: 12),
+                          TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                   ],
                   if (ride.distanceKm != null &&
@@ -499,14 +499,14 @@ class _RideTripCard extends StatelessWidget {
                   if (ride.estimatedDurationMinutes != null) ...[
                     Icon(
                       Icons.access_time_outlined,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 14,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${ride.estimatedDurationMinutes} min',
                       style:
-                          TextStyle(color: Colors.grey[500], fontSize: 12),
+                          TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                   ],
                 ],
@@ -527,25 +527,25 @@ class _StatusChip extends StatelessWidget {
 
   const _StatusChip({required this.status});
 
-  Color get _bgColor {
+  Color _bgColor(BuildContext context) {
     return switch (status) {
       RideStatus.rideCompleted => const Color(0xFF166534),
       RideStatus.cancelled     => const Color(0xFF7F1D1D),
       RideStatus.failed        => const Color(0xFF7F1D1D),
       RideStatus.rideStarted   => const Color(0xFF1E40AF),
       RideStatus.ridePaused    => const Color(0xFF92400E),
-      _                        => const Color(0xFF374151),
+      _                        => Theme.of(context).colorScheme.onSurfaceVariant,
     };
   }
 
-  Color get _textColor {
+  Color _textColor(BuildContext context) {
     return switch (status) {
       RideStatus.rideCompleted => const Color(0xFF4ADE80),
       RideStatus.cancelled     => const Color(0xFFF87171),
       RideStatus.failed        => const Color(0xFFF87171),
       RideStatus.rideStarted   => const Color(0xFF93C5FD),
       RideStatus.ridePaused    => const Color(0xFFFCD34D),
-      _                        => Colors.grey,
+      _                        => Theme.of(context).colorScheme.onSurfaceVariant,
     };
   }
 
@@ -554,13 +554,13 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _bgColor,
+        color: _bgColor(context),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         status.toDisplayString(),
         style: TextStyle(
-          color: _textColor,
+          color: _textColor(context),
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),

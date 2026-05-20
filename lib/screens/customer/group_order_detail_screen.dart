@@ -842,7 +842,7 @@ class _ParticipantTileState extends State<_ParticipantTile> {
         border: Border.all(
           color: widget.isCurrentUser
               ? AppTheme.primaryColor.withValues(alpha: 0.2)
-              : Colors.grey.shade200,
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -947,7 +947,7 @@ class _ParticipantTileState extends State<_ParticipantTile> {
           ),
           // ── Expanded item list ────────────────────────────────────
           if (_expanded && hasItems) ...[
-            Divider(height: 1, color: Colors.grey.shade200),
+            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Column(

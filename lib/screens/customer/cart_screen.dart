@@ -102,8 +102,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
 
     final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
-    final tax = subtotal * AppConstants.taxRate;
-    final total = subtotal + activeFee + platformServiceFee + tax;
+    // Tax is determined server-side (zone-based) at checkout — omit from estimate.
+    final total = subtotal + activeFee + platformServiceFee;
 
     return Scaffold(
       appBar: AppBar(
@@ -541,11 +541,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             _PriceRow(
                               'Service Fee',
                               '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
-                            ),
-                            const SizedBox(height: 8),
-                            _PriceRow(
-                              context.l10n.tax,
-                              '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                             ),
                             Divider(color: scheme.outlineVariant, height: 16),
                             _PriceRow(

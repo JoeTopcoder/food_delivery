@@ -207,6 +207,71 @@ class ChatService {
         .map((rows) => rows.where((r) => r['is_typing'] == true).toList());
   }
 
+  // ─── Ride chat ───────────────────────────────────────────────────────────
+
+  Stream<List<ChatMessage>> watchRideMessages(String rideId) {
+    return _client
+        .from('chat_messages')
+        .stream(primaryKey: ['id'])
+        .eq('ride_id', rideId)
+        .order('created_at')
+        .map((rows) => rows.map((e) => ChatMessage.fromJson(e)).toList());
+  }
+
+  Future<String?> sendRideMessage({
+    required String rideId,
+    required String senderId,
+    required String senderRole,
+    required String message,
+    MessageType messageType = MessageType.text,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final result = await _client.rpc(
+        'send_ride_message',
+        params: {
+          'p_ride_id': rideId,
+          'p_message': message.trim(),
+          'p_message_type': messageType.value,
+          'p_metadata': metadata ?? {},
+        },
+      );
+      return result as String?;
+    } catch (e) {
+      if (kDebugMode) debugPrint('ChatService.sendRideMessage error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Conversation?> getConversationForRide(String rideId) async {
+    final rows = await _client
+        .from('conversations')
+        .select()
+        .eq('ride_id', rideId)
+        .limit(1);
+    if ((rows as List).isEmpty) return null;
+    return Conversation.fromJson(rows[0]);
+  }
+
+  Future<void> markRideRead(String rideId, String readerId) async {
+    try {
+      final convRows = await _client
+          .from('conversations')
+          .select('id')
+          .eq('ride_id', rideId)
+          .limit(1);
+      if ((convRows as List).isNotEmpty) {
+        final convId = convRows[0]['id'] as String;
+        await _client.rpc(
+          'mark_messages_status',
+          params: {'p_conversation_id': convId, 'p_new_status': 'seen'},
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('ChatService.markRideRead error: $e');
+    }
+  }
+
   // ─── Calls ───────────────────────────────────────────────────────────────
 
   /// Fetch an Agora RTC token from the edge function.
@@ -313,14 +378,18 @@ class ChatService {
       }
     }
 
-    // Send a system message about the call
-    await sendMessage(
-      orderId: orderId,
-      senderId: callerId,
-      senderRole: '',
-      message: 'Voice call started',
-      messageType: MessageType.callEvent,
-    );
+    // Send a system message about the call (no-op for rides — no conversation)
+    try {
+      await sendMessage(
+        orderId: orderId,
+        senderId: callerId,
+        senderRole: '',
+        message: 'Voice call started',
+        messageType: MessageType.callEvent,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('initiateCall: system message skipped: $e');
+    }
 
     // Send FCM push notification to receiver so their phone rings
     _notifyIncomingCall(callRecord);

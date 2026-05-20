@@ -31,6 +31,9 @@ class PaymentScreen extends ConsumerStatefulWidget {
   final String? restaurantName;
   final int? itemCount;
   final String type;
+  /// If provided the screen skips the server createStripeCheckout call and
+  /// uses this secret directly (e.g. subscription flow which already has one).
+  final String? preloadedClientSecret;
 
   const PaymentScreen({
     super.key,
@@ -42,6 +45,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
     this.restaurantName,
     this.itemCount,
     this.type = 'order',
+    this.preloadedClientSecret,
   });
 
   @override
@@ -79,12 +83,31 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
+  /// Extracts the payment intent ID from a client secret
+  /// (format: pi_xxxxx_secret_yyy → pi_xxxxx).
+  String? _extractPaymentIntentId(String clientSecret) {
+    final idx = clientSecret.indexOf('_secret_');
+    return idx < 0 ? null : clientSecret.substring(0, idx);
+  }
+
   Future<void> _initStripeAndCreateIntent() async {
     try {
       if (Stripe.publishableKey.isEmpty) {
         Stripe.publishableKey = AppConstants.stripePublishableKey;
         Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
         await Stripe.instance.applySettings();
+      }
+
+      // Subscription (and similar) flows supply the client secret directly.
+      if (widget.preloadedClientSecret != null) {
+        if (!mounted) return;
+        setState(() {
+          _clientSecret = widget.preloadedClientSecret;
+          _paymentIntentId =
+              _extractPaymentIntentId(widget.preloadedClientSecret!);
+          _state = _PayState.ready;
+        });
+        return;
       }
 
       final paymentService = ref.read(paymentServiceProvider);
@@ -141,6 +164,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
   }
 
   Future<bool> _checkAlreadyPaid() async {
+    if (widget.preloadedClientSecret != null || widget.orderId.isEmpty) {
+      return false;
+    }
     try {
       final row = await Supabase.instance.client
           .from('orders')

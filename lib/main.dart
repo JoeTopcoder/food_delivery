@@ -151,6 +151,9 @@ void main() {
     );
 
     FlutterError.onError = (FlutterErrorDetails details) {
+      // silent=true means the widget already handled it (e.g. image 404 with errorWidget).
+      // Logging those as "Uncaught" is misleading noise — skip them.
+      if (details.silent) return;
       AppLogger.error('[Flutter] Uncaught: ${details.exception}\n${details.stack}');
     };
 
@@ -227,11 +230,23 @@ class MyApp extends ConsumerStatefulWidget {
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _startupHydrated = false;
+  Timer? _sessionRefreshTimer;
+
+  void _startSessionTimer() {
+    _sessionRefreshTimer?.cancel();
+    // Supabase JWTs expire in 60 min — refresh every 45 min to keep the
+    // session alive for as long as the user has the app open.
+    _sessionRefreshTimer = Timer.periodic(
+      const Duration(minutes: 45),
+      (_) => _refreshSession(),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _startSessionTimer();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _hydrateDeferredStartup();
@@ -316,6 +331,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _sessionRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -323,7 +339,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
     if (lifecycle == AppLifecycleState.resumed) {
+      // Refresh immediately on resume, then reset the periodic countdown so
+      // the next silent refresh is a full 45 min away.
       _refreshSession();
+      _startSessionTimer();
       // Ensure Flutter redraws after the surface is restored on Android.
       WidgetsBinding.instance.scheduleFrame();
     }
@@ -384,7 +403,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
                   builder: (context) => RoleGuard(
-                    allowedRoles: const ['user', 'customer'],
+                    allowedRoles: const ['user', 'customer', 'admin'],
                     child: _getHomeForRole(authState.user?.role),
                   ),
                 );
@@ -396,7 +415,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
                   builder: (context) => RoleGuard(
-                    allowedRoles: const ['driver'],
+                    allowedRoles: const ['driver', 'admin'],
                     child: _getHomeForRole(authState.user?.role),
                   ),
                 );
@@ -408,7 +427,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               if (authState.isAuthenticated) {
                 return MaterialPageRoute(
                   builder: (context) => RoleGuard(
-                    allowedRoles: const ['restaurant'],
+                    allowedRoles: const ['restaurant', 'admin'],
                     child: _getHomeForRole(authState.user?.role),
                   ),
                 );
@@ -770,7 +789,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               final args = settings.arguments as Map<String, dynamic>?;
               return MaterialPageRoute(
                 builder: (context) => ChatScreen(
-                  orderId: args?['orderId'] as String? ?? '',
+                  orderId: args?['orderId'] as String?,
+                  rideId: args?['rideId'] as String?,
                   otherPartyName: args?['otherPartyName'] as String? ?? 'Chat',
                   receiverId: args?['receiverId'] as String?,
                 ),

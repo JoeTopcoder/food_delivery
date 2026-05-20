@@ -14,7 +14,6 @@ import 'package:food_driver/screens/customer/payment_screen.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
 
 const _kBlue = Color(0xFF2563EB);
-const _kDark = Color(0xFF111827);
 const _kRed = Color(0xFFEF4444);
 
 const _kDefaultPickup = LatLng(18.0060, -76.7964);
@@ -709,7 +708,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
         onTap: _dismissSuggestions,
         behavior: HitTestBehavior.translucent,
         child: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           resizeToAvoidBottomInset: true,
           body: SafeArea(
             child: Column(
@@ -737,7 +736,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       onTap: _dismissSuggestions,
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Column(
@@ -825,7 +824,7 @@ class _LocationInputCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -950,7 +949,7 @@ class _LocationTextField extends StatelessWidget {
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -961,14 +960,14 @@ class _LocationTextField extends StatelessWidget {
               onChanged: onChanged,
               onSubmitted: (_) => onSearch(),
               textInputAction: TextInputAction.search,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: _kDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+                hintStyle: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
@@ -988,7 +987,7 @@ class _LocationTextField extends StatelessWidget {
                 )
               : GestureDetector(
                   onTap: onSearch,
-                  child: const Icon(Icons.search, size: 20, color: Colors.grey),
+                  child: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
         ],
       ),
@@ -1020,7 +1019,7 @@ class _SuggestionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1039,10 +1038,10 @@ class _SuggestionsCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           searchQuery,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: _kDark,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1078,21 +1077,21 @@ class _SuggestionsCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
                 child: Column(
                   children: [
-                    const Icon(Icons.search_off, size: 36, color: Color(0xFFD1D5DB)),
+                    Icon(Icons.search_off, size: 36, color: Theme.of(context).colorScheme.outlineVariant),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'No results found',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF374151),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Try a different spelling, or press the search icon to pin the address manually.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -1134,10 +1133,10 @@ class _SuggestionsCard extends StatelessWidget {
                                 children: [
                                   Text(
                                     s.exactAddress,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: _kDark,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -1145,9 +1144,9 @@ class _SuggestionsCard extends StatelessWidget {
                                   const SizedBox(height: 2),
                                   Text(
                                     s.displayName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF9CA3AF),
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -1322,7 +1321,7 @@ class _BottomCard extends StatelessWidget {
     final bottomPad = MediaQuery.of(context).padding.bottom;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
@@ -1358,9 +1357,9 @@ class _NoFareContent extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
+        Text(
           'Enter addresses above, then tap Search ↵ or Calculate Fare',
-          style: TextStyle(fontSize: 14, color: Colors.grey),
+          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
@@ -1491,14 +1490,14 @@ class _FareContent extends StatelessWidget {
             onTap: onPickSchedule,
             child: Row(
               children: [
-                const Icon(Icons.schedule_outlined, size: 18, color: _kDark),
+                Icon(Icons.schedule_outlined, size: 18, color: Theme.of(context).colorScheme.onSurface),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Schedule for later',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _kDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -1515,14 +1514,14 @@ class _FareContent extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            const Icon(Icons.credit_card, size: 20, color: _kDark),
+            Icon(Icons.credit_card, size: 20, color: Theme.of(context).colorScheme.onSurface),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Card payment',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: _kDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(width: 6),
@@ -1562,9 +1561,9 @@ class _FareContent extends StatelessWidget {
           child: ElevatedButton(
             onPressed: isConfirming ? null : onConfirm,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _kDark,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey.shade300,
+              backgroundColor: Theme.of(context).colorScheme.onSurface,
+              foregroundColor: Theme.of(context).colorScheme.surface,
+              disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1604,14 +1603,14 @@ class _StatItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: _kDark,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -1622,6 +1621,6 @@ class _StatItem extends StatelessWidget {
 class _StatDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 32, color: Colors.grey.shade200);
+    return Container(width: 1, height: 32, color: Theme.of(context).colorScheme.outlineVariant);
   }
 }

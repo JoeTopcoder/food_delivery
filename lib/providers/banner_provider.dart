@@ -4,7 +4,8 @@ import '../models/banner_model.dart';
 
 /// Active banners for the customer home screen (food section).
 /// Only shows banners whose linked restaurant is verified.
-final activeBannersProvider = FutureProvider<List<Banner>>((ref) async {
+final activeBannersProvider = FutureProvider.autoDispose<List<Banner>>((ref) async {
+  ref.keepAlive();
   final now = DateTime.now().toUtc();
   final data = await SupabaseConfig.client
       .from('banners')
@@ -23,7 +24,8 @@ final activeBannersProvider = FutureProvider<List<Banner>>((ref) async {
 });
 
 /// Active banners for the grocery section.
-final activeGroceryBannersProvider = FutureProvider<List<Banner>>((ref) async {
+final activeGroceryBannersProvider = FutureProvider.autoDispose<List<Banner>>((ref) async {
+  ref.keepAlive();
   final now = DateTime.now().toUtc();
   final data = await SupabaseConfig.client
       .from('banners')
@@ -41,7 +43,7 @@ final activeGroceryBannersProvider = FutureProvider<List<Banner>>((ref) async {
 });
 
 /// All banners for admin management (including inactive).
-final allBannersProvider = FutureProvider<List<Banner>>((ref) async {
+final allBannersProvider = FutureProvider.autoDispose<List<Banner>>((ref) async {
   final data = await SupabaseConfig.client
       .from('banners')
       .select('*, restaurants(name)')

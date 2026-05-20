@@ -1,7 +1,6 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/banner_model.dart' as app;
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
@@ -417,11 +416,12 @@ class _SearchProductCard extends ConsumerWidget {
                   fit: StackFit.expand,
                   children: [
                     product.imageUrl != null && product.imageUrl!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: product.imageUrl!,
+                        ? Image.network(
+                            product.imageUrl!,
                             fit: BoxFit.cover,
-                            memCacheWidth: 400,
-                            errorWidget: (_, _, _) => _placeholder(),
+                            errorBuilder: (_, __, ___) => _placeholder(),
+                            loadingBuilder: (_, child, progress) =>
+                                progress == null ? child : _placeholder(),
                           )
                         : _placeholder(),
                     if (!inStock)
@@ -829,12 +829,12 @@ class _GroceryBannerCard extends ConsumerWidget {
           fit: StackFit.expand,
           children: [
             if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: banner.imageUrl!,
+              Image.network(
+                banner.imageUrl!,
                 fit: BoxFit.cover,
                 color: Colors.black.withValues(alpha: 0.35),
                 colorBlendMode: BlendMode.darken,
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             if (banner.imageUrl == null || banner.imageUrl!.isEmpty)
               Positioned(

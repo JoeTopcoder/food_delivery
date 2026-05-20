@@ -147,6 +147,15 @@ class _DriverOnboardingScreenState
     final user = ref.read(authNotifierProvider).user;
     if (user == null) throw Exception('Sign in did not return a user.');
 
+    // Admin logging in from any portal — skip role upsert and go straight to
+    // the admin dashboard so their DB role is never overwritten.
+    if (user.role == 'admin') {
+      if (!mounted) return;
+      AppSnackbar.success(context, 'Welcome, Admin!');
+      Navigator.of(context).pushNamedAndRemoveUntil('/admin-dashboard', (_) => false);
+      return;
+    }
+
     await ref.read(roleProvider.notifier).setRole(OnboardingRole.driver);
     try {
       await ref

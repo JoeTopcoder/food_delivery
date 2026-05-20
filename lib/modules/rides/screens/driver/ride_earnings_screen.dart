@@ -164,7 +164,7 @@ class _RideEarningsScreenState extends ConsumerState<RideEarningsScreen> {
                       child: Text(
                         'Recent Rides',
                         style: TextStyle(
-                          color: Colors.grey[300],
+                          color: Theme.of(context).colorScheme.outlineVariant,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -187,12 +187,12 @@ class _RideEarningsScreenState extends ConsumerState<RideEarningsScreen> {
                         child: Column(
                           children: [
                             Icon(Icons.directions_car_outlined,
-                                color: Colors.grey[700], size: 44),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant, size: 44),
                             const SizedBox(height: 10),
                             Text(
                               'No completed rides yet',
                               style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 14),
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                             ),
                           ],
                         ),
@@ -317,7 +317,7 @@ class _RideEarningsScreenState extends ConsumerState<RideEarningsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   dateLabel,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11),
                 ),
               ],
             ),

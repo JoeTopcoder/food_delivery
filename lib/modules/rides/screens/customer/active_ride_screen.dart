@@ -7,6 +7,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/config/supabase_config.dart';
+import 'package:food_driver/providers/chat_provider.dart';
+import 'package:food_driver/utils/app_feedback_widgets.dart';
+import 'package:food_driver/utils/friendly_error.dart';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -72,6 +75,38 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
     WidgetsBinding.instance.removeObserver(this);
     _tickTimer?.cancel();
     super.dispose();
+  }
+
+  void _openChat() {
+    final driverUserId = _driverInfo?['user_id'] as String?;
+    final driverName = _driverInfo?['name'] as String? ?? 'Your Driver';
+    Navigator.pushNamed(context, '/chat', arguments: {
+      'rideId': widget.rideId,
+      'otherPartyName': driverName,
+      'receiverId': driverUserId,
+    });
+  }
+
+  Future<void> _callDriver() async {
+    final driverUserId = _driverInfo?['user_id'] as String?;
+    if (driverUserId == null || driverUserId.isEmpty) {
+      AppSnackbar.warning(context, 'Driver info not loaded yet — try again.');
+      return;
+    }
+    final driverName = _driverInfo?['name'] as String? ?? 'Your Driver';
+    try {
+      final call = await ref
+          .read(chatServiceProvider)
+          .initiateCall(orderId: widget.rideId, receiverId: driverUserId);
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/call', arguments: {
+        'call': call,
+        'isCaller': true,
+        'otherPartyName': driverName,
+      });
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    }
   }
 
   Future<void> _fetchDriverInfo(String driverId) async {
@@ -175,11 +210,11 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Cancellation fee',
                       style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 4),
@@ -196,8 +231,8 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
                       ride?.waitingStartedAt != null
                           ? 'Driver earning + accumulated waiting fee'
                           : 'This goes directly to your driver',
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.grey),
+                      style: TextStyle(
+                          fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -327,8 +362,8 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
               waitingFee: ride != null ? _currentWaitingFee(ride) : 0,
               now: _now,
               formatMmSs: _formatMmSs,
-              onCall: () {},
-              onChat: () {},
+              onCall: _callDriver,
+              onChat: _openChat,
               onShare: () {},
               onCancel: _cancelRide,
               onViewHistory: () => Navigator.pushReplacementNamed(
@@ -467,7 +502,7 @@ class _StatusPill extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(50),
           boxShadow: [
             BoxShadow(
@@ -592,7 +627,7 @@ class _DriverCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius:
             const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
@@ -615,7 +650,7 @@ class _DriverCard extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -876,8 +911,8 @@ class _DriverCard extends StatelessWidget {
                       const SizedBox(height: 1),
                       Text(
                         colorPlate,
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey),
+                        style: TextStyle(
+                            fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ],
@@ -953,7 +988,7 @@ class _DriverCard extends StatelessWidget {
               'Ride Details',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey.shade500,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.5,
               ),
@@ -972,7 +1007,7 @@ class _DriverCard extends StatelessWidget {
             child: Container(
               width: 1.5,
               height: 14,
-              color: Colors.grey.shade300,
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
           ),
           _RouteDetailRow(
@@ -1026,7 +1061,7 @@ class _DriverCard extends StatelessWidget {
                       'Total charged',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade500,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

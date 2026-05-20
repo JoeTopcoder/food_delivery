@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
@@ -61,10 +60,13 @@ class _RestaurantDetailScreenState
       List<dynamic> existingItems = [];
       if (groupOrderId != null) {
         final groupOrder = await service.getGroupOrder(groupOrderId);
-        final participant = groupOrder?.participants.firstWhere(
-          (p) => p.id == participantId,
-          orElse: () => groupOrder.participants.first,
-        );
+        final parts = groupOrder?.participants ?? [];
+        final participant = parts.isNotEmpty
+            ? parts.firstWhere(
+                (p) => p.id == participantId,
+                orElse: () => parts.first,
+              )
+            : null;
         existingItems = List<dynamic>.from(participant?.items ?? []);
       }
 
@@ -345,13 +347,12 @@ class _RestaurantDetailScreenState
                       child:
                           widget.restaurant.imageUrl != null &&
                               widget.restaurant.imageUrl!.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: widget.restaurant.imageUrl!,
+                          ? Image.network(
+                              widget.restaurant.imageUrl!,
                               height: 260,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              memCacheWidth: 800,
-                              errorWidget: (_, _, _) => Container(
+                              errorBuilder: (_, __, ___) => Container(
                                 height: 260,
                                 width: double.infinity,
                                 decoration: BoxDecoration(
@@ -478,7 +479,7 @@ class _RestaurantDetailScreenState
                               Icon(
                                 Icons.location_on_outlined,
                                 size: 16,
-                                color: Colors.grey[700],
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
@@ -549,7 +550,7 @@ class _RestaurantDetailScreenState
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
@@ -581,7 +582,7 @@ class _RestaurantDetailScreenState
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -774,12 +775,12 @@ class _RestaurantDetailScreenState
                                   decoration: BoxDecoration(
                                     color: isActive
                                         ? AppTheme.primaryColor
-                                        : Colors.grey.shade50,
+                                        : Theme.of(context).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(22),
                                     border: Border.all(
                                       color: isActive
                                           ? AppTheme.primaryColor
-                                          : Colors.grey.shade200,
+                                          : Theme.of(context).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   child: Text(
@@ -844,7 +845,7 @@ class _RestaurantDetailScreenState
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: SafeArea(

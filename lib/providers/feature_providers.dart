@@ -28,9 +28,10 @@ final configVersionProvider = StateProvider<int>((ref) => 0);
 // ── Food categories (Browse by Category on home screen) ─────
 /// Fetched from the `food_categories` table so admins can manage them
 /// without an app release.  Falls back to an empty list on error.
-final foodCategoriesProvider = FutureProvider<List<Map<String, String>>>((
+final foodCategoriesProvider = FutureProvider.autoDispose<List<Map<String, String>>>((
   ref,
 ) async {
+  ref.keepAlive();
   final rows = await SupabaseConfig.client
       .from('food_categories')
       .select('name, emoji')
@@ -208,7 +209,7 @@ final availablePlansProvider = FutureProvider.autoDispose<List<MealPlan>>(
 /// All meal plans (admin) — real-time via Supabase Realtime.
 final allMealPlansProvider = FutureProvider.autoDispose<List<MealPlan>>((ref) {
   final channel = Supabase.instance.client.realtime.channel(
-    'meal_plans_all_${DateTime.now().microsecondsSinceEpoch}',
+    'meal_plans_all',
   );
   channel
       .onPostgresChanges(
@@ -243,7 +244,7 @@ final activeSubscriptionProvider = FutureProvider.autoDispose<UserSubscription?>
 
   // Subscribe to Realtime changes on user_subscriptions for this user
   final channel = Supabase.instance.client.realtime.channel(
-    'active_sub_${userId.hashCode.abs()}_${DateTime.now().microsecondsSinceEpoch}',
+    'active_sub_${userId.hashCode.abs()}',
   );
   channel
       .onPostgresChanges(
@@ -286,7 +287,7 @@ final cuisineCategoriesProvider =
 final allSurgeZonesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
       final channel = Supabase.instance.client.realtime.channel(
-        'surge_zones_all_${DateTime.now().microsecondsSinceEpoch}',
+        'surge_zones_all',
       );
       channel
           .onPostgresChanges(
@@ -317,7 +318,7 @@ final surgeMultiplierProvider = FutureProvider.autoDispose.family<double, String
   // Real-time: re-fetch when any surge zone is created/updated/deleted
   try {
     final channel = Supabase.instance.client.realtime.channel(
-      'surge_mult_${latLng.hashCode.abs()}_${DateTime.now().microsecondsSinceEpoch}',
+      'surge_mult_${latLng.hashCode.abs()}',
     );
     channel
         .onPostgresChanges(

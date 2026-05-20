@@ -18,7 +18,7 @@ final adminServiceProvider = riverpod_pkg.Provider<AdminService>((ref) {
 
 /// All users provider
 final allUsersProvider =
-    riverpod_pkg.FutureProvider.family<
+    riverpod_pkg.FutureProvider.autoDispose.family<
       List<user_models.User>,
       (int offset, int limit)
     >((ref, params) async {
@@ -29,7 +29,7 @@ final allUsersProvider =
 
 /// Users search provider
 final userSearchProvider =
-    riverpod_pkg.FutureProvider.family<List<user_models.User>, String>((
+    riverpod_pkg.FutureProvider.autoDispose.family<List<user_models.User>, String>((
       ref,
       query,
     ) async {
@@ -39,7 +39,7 @@ final userSearchProvider =
 
 /// Users by role provider
 final usersByRoleProvider =
-    riverpod_pkg.FutureProvider.family<List<user_models.User>, String>((
+    riverpod_pkg.FutureProvider.autoDispose.family<List<user_models.User>, String>((
       ref,
       role,
     ) async {
@@ -49,7 +49,7 @@ final usersByRoleProvider =
 
 /// User statistics provider
 final userStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getUserStatistics();
     });
@@ -58,7 +58,7 @@ final userStatisticsProvider =
 
 /// All restaurants provider
 final allRestaurantsAdminProvider =
-    riverpod_pkg.FutureProvider.family<
+    riverpod_pkg.FutureProvider.autoDispose.family<
       List<Restaurant>,
       (int offset, int limit)
     >((ref, params) async {
@@ -69,21 +69,21 @@ final allRestaurantsAdminProvider =
 
 /// Pending restaurants provider
 final pendingRestaurantsProvider =
-    riverpod_pkg.FutureProvider<List<Restaurant>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getPendingVerificationRestaurants();
     });
 
 /// Rejected restaurants provider
 final rejectedRestaurantsProvider =
-    riverpod_pkg.FutureProvider<List<Restaurant>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getRejectedRestaurants();
     });
 
 /// Restaurant statistics provider
 final restaurantStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getRestaurantStatistics();
     });
@@ -92,7 +92,7 @@ final restaurantStatisticsProvider =
 
 /// All drivers provider
 final allDriversAdminProvider =
-    riverpod_pkg.FutureProvider.family<List<Driver>, (int offset, int limit)>((
+    riverpod_pkg.FutureProvider.autoDispose.family<List<Driver>, (int offset, int limit)>((
       ref,
       params,
     ) async {
@@ -102,7 +102,7 @@ final allDriversAdminProvider =
     });
 
 /// Pending drivers provider
-final pendingDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
+final pendingDriversProvider = riverpod_pkg.FutureProvider.autoDispose<List<Driver>>((
   ref,
 ) async {
   final adminService = ref.watch(adminServiceProvider);
@@ -110,7 +110,7 @@ final pendingDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
 });
 
 /// Rejected drivers provider
-final rejectedDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
+final rejectedDriversProvider = riverpod_pkg.FutureProvider.autoDispose<List<Driver>>((
   ref,
 ) async {
   final adminService = ref.watch(adminServiceProvider);
@@ -119,7 +119,7 @@ final rejectedDriversProvider = riverpod_pkg.FutureProvider<List<Driver>>((
 
 /// Driver statistics provider
 final driverStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getDriverStatistics();
     });
@@ -130,7 +130,7 @@ final driverStatisticsProvider =
 
 /// All ads for a restaurant (admin view)
 final restaurantAdsProvider =
-    riverpod_pkg.FutureProvider.family<List<Map<String, dynamic>>, String?>((
+    riverpod_pkg.FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String?>((
       ref,
       restaurantId,
     ) async {
@@ -140,35 +140,35 @@ final restaurantAdsProvider =
 
 /// Active ads for customer display
 final activeAdsProvider =
-    riverpod_pkg.FutureProvider<List<Map<String, dynamic>>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getActiveAds();
     });
 
 /// Revenue statistics provider
 final revenueStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getRevenueStatistics();
     });
 
 /// Order statistics provider
 final orderStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getOrderStatistics();
     });
 
 /// Dashboard summary provider
 final dashboardSummaryProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getDashboardSummary();
     });
 
 /// Financial statistics provider
 final financialStatisticsProvider =
-    riverpod_pkg.FutureProvider<Map<String, dynamic>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getFinancialStatistics();
     });
@@ -177,7 +177,7 @@ final financialStatisticsProvider =
 
 /// Pending disputes provider
 final pendingDisputesProvider =
-    riverpod_pkg.FutureProvider<List<Map<String, dynamic>>>((ref) async {
+    riverpod_pkg.FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final adminService = ref.watch(adminServiceProvider);
       return adminService.getPendingDisputes();
     });

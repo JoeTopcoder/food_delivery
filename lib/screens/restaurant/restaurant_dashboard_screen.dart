@@ -208,14 +208,25 @@ class _RestaurantDashboardScreenState
           return _buildSetupRestaurant(currentUserId);
         }
 
-        // Redirect to verification wizard if the restaurant hasn't been approved yet.
-        final needsVerification = restaurant.status == 'draft' ||
-            restaurant.status == 'rejected';
-        if (needsVerification) {
+        // Show rejection screen so they can update & resubmit.
+        if (restaurant.status == 'rejected') {
           return _buildVerificationGate(restaurant);
         }
 
-        // Show a read-only status screen while under review.
+        if (restaurant.status == 'draft' && !restaurant.isVerified) {
+          // bankName is required by the onboarding form validator, so it's only
+          // non-null if the restaurant completed and submitted the 5-step form.
+          // onboardingStep >= 3 catches future submissions where the step is saved.
+          final hasSubmitted =
+              (restaurant.bankName != null && restaurant.bankName!.isNotEmpty) ||
+              restaurant.onboardingStep >= 3;
+          if (hasSubmitted) {
+            return _buildPendingReview(restaurant);
+          }
+          return _buildVerificationGate(restaurant);
+        }
+
+        // Legacy status values.
         if (restaurant.status == 'pending_review' ||
             restaurant.status == 'under_review') {
           return _buildPendingReview(restaurant);
@@ -946,55 +957,168 @@ class _RestaurantDashboardScreenState
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Success badge
               Container(
-                width: 80, height: 80,
+                width: 88, height: 88,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    width: 2,
+                  ),
                 ),
                 child: const Icon(Icons.hourglass_top_rounded,
-                    color: Color(0xFFF59E0B), size: 40),
+                    color: Color(0xFFF59E0B), size: 42),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              // Submitted confirmation chip
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded,
+                        color: Color(0xFF10B981), size: 14),
+                    SizedBox(width: 6),
+                    Text(
+                      'Application Submitted',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               const Text(
-                'Application Under Review',
+                'Under Review',
                 style: TextStyle(
-                  color: Colors.white, fontSize: 24,
+                  color: Colors.white, fontSize: 26,
                   fontWeight: FontWeight.w800, letterSpacing: -0.5,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               const Text(
                 'Our team is reviewing your restaurant application. '
-                'This typically takes 24–48 hours. We\'ll notify you once approved.',
-                style: TextStyle(color: Colors.white54, fontSize: 14, height: 1.5),
+                'This typically takes 24–48 hours. You\'ll be notified once approved.',
+                style: TextStyle(color: Colors.white54, fontSize: 14, height: 1.6),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
+              // Review timeline
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1F2E),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'What happens next?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _TimelineStep(
+                      icon: Icons.task_alt_rounded,
+                      color: const Color(0xFF10B981),
+                      title: 'Application submitted',
+                      subtitle: 'All your details have been received',
+                      isDone: true,
+                    ),
+                    _TimelineStep(
+                      icon: Icons.manage_search_rounded,
+                      color: const Color(0xFFF59E0B),
+                      title: 'Under admin review',
+                      subtitle: 'Our team verifies your documents',
+                      isActive: true,
+                    ),
+                    _TimelineStep(
+                      icon: Icons.verified_rounded,
+                      color: const Color(0xFF6366F1),
+                      title: 'Approval decision',
+                      subtitle: 'You\'ll receive a notification',
+                      isLast: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Restaurant info summary
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1F2E),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white12),
                 ),
                 child: Column(
                   children: [
-                    _ReviewItem(icon: Icons.store_rounded, label: 'Restaurant Name', value: restaurant.name),
-                    const SizedBox(height: 10),
-                    _ReviewItem(icon: Icons.category_rounded, label: 'Cuisine', value: restaurant.cuisineType ?? '—'),
-                    const SizedBox(height: 10),
-                    _ReviewItem(icon: Icons.place_rounded, label: 'Address', value: restaurant.address ?? '—'),
+                    _ReviewItem(icon: Icons.store_rounded,
+                        label: 'Restaurant Name', value: restaurant.name),
+                    if (restaurant.cuisineType != null) ...[
+                      const SizedBox(height: 10),
+                      _ReviewItem(icon: Icons.category_rounded,
+                          label: 'Cuisine', value: restaurant.cuisineType!),
+                    ],
+                    if (restaurant.address != null) ...[
+                      const SizedBox(height: 10),
+                      _ReviewItem(icon: Icons.place_rounded,
+                          label: 'Address', value: restaurant.address!),
+                    ],
+                    if (restaurant.phone != null) ...[
+                      const SizedBox(height: 10),
+                      _ReviewItem(icon: Icons.phone_rounded,
+                          label: 'Phone', value: restaurant.phone!),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
+              // Refresh button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final uid = ref.read(currentUserIdProvider);
+                    if (uid != null) ref.invalidate(restaurantByOwnerProvider(uid));
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Check Status',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextButton.icon(
                 onPressed: _signOut,
                 icon: const Icon(Icons.logout_rounded, size: 16, color: Colors.white38),
@@ -1491,6 +1615,97 @@ class _ReviewItem extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _TimelineStep extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final bool isDone;
+  final bool isActive;
+  final bool isLast;
+
+  const _TimelineStep({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    this.isDone = false,
+    this.isActive = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 32,
+            child: Column(
+              children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: (isDone || isActive)
+                        ? color.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: (isDone || isActive) ? color : Colors.white24,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(icon,
+                      color: (isDone || isActive) ? color : Colors.white24,
+                      size: 16),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      color: isDone ? color.withValues(alpha: 0.4) : Colors.white12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: (isDone || isActive) ? Colors.white : Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: (isDone || isActive)
+                          ? Colors.white54
+                          : Colors.white24,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -689,7 +689,7 @@ class _TimelineCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
@@ -762,9 +762,8 @@ class _TimelineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orange = AppTheme.primaryColor;
-    final dotColor = isCompleted || isCurrent
-        ? orange
-        : const Color(0xFFD1D5DB);
+    final outline = Theme.of(context).colorScheme.outlineVariant;
+    final dotColor = isCompleted || isCurrent ? orange : outline;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,7 +785,7 @@ class _TimelineRow extends StatelessWidget {
               Container(
                 width: 2,
                 height: 36,
-                color: isCompleted ? orange : const Color(0xFFE5E7EB),
+                color: isCompleted ? orange : outline,
               ),
           ],
         ),
@@ -803,15 +802,15 @@ class _TimelineRow extends StatelessWidget {
                     fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
                     fontSize: 13,
                     color: isCompleted || isCurrent
-                        ? const Color(0xFF1F2937)
-                        : const Color(0xFF9CA3AF),
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF9CA3AF),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -856,16 +855,16 @@ class _OrderDetailsCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '${item.itemName} ×${item.quantity}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF4B5563),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${AppConstants.currencySymbol}${item.subtotal.toStringAsFixed(0)}',
+                    '${AppConstants.currencySymbol}${item.subtotal.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -875,26 +874,53 @@ class _OrderDetailsCard extends StatelessWidget {
               ),
             ),
           ),
-          Divider(color: Colors.grey[200], height: 20),
+          Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 20),
           _Row(
             context.l10n.subtotal,
-            '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(0)}',
+            '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
           ),
           _Row(
             'Delivery Fee',
             _effectiveDeliveryFee(order) == 0
                 ? 'FREE'
-                : '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(0)}',
+                : '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(2)}',
           ),
-          if (order.taxAmount != null)
+          Builder(builder: (context) {
+            // Service fee = total - subtotal - delivery - tax - tip + discount
+            final serviceFee = (order.totalAmount -
+                    order.subtotal -
+                    order.deliveryFee -
+                    (order.taxAmount ?? 0) -
+                    (order.driverTip ?? 0) +
+                    (order.discount ?? 0))
+                .clamp(0.0, double.infinity);
+            if (serviceFee > 0.01) {
+              return _Row(
+                'Service Fee',
+                '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(2)}',
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+          if (order.taxAmount != null && order.taxAmount! > 0)
             _Row(
               context.l10n.tax,
-              '${AppConstants.currencySymbol}${order.taxAmount!.toStringAsFixed(0)}',
+              '${AppConstants.currencySymbol}${order.taxAmount!.toStringAsFixed(2)}',
+            ),
+          if (order.driverTip != null && order.driverTip! > 0)
+            _Row(
+              'Driver Tip',
+              '${AppConstants.currencySymbol}${order.driverTip!.toStringAsFixed(2)}',
+            ),
+          if ((order.discount ?? 0) > 0)
+            _Row(
+              'Discount',
+              '−${AppConstants.currencySymbol}${order.discount!.toStringAsFixed(2)}',
             ),
           const SizedBox(height: 4),
           _Row(
             'Total',
-            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}',
+            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
             bold: true,
           ),
         ],
@@ -936,7 +962,9 @@ class _Row extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.bold : FontWeight.w400,
-                color: bold ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                color: bold
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               overflow: TextOverflow.ellipsis,
             ),

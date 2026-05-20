@@ -38,6 +38,45 @@ async function getConfig(key: string, fallback: number): Promise<number> {
   return data ? parseFloat(data.value) : fallback;
 }
 
+function pointInPolygon(lat: number, lng: number, polygon: Array<{lat: number; lng: number}>): boolean {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].lat, yi = polygon[i].lng;
+    const xj = polygon[j].lat, yj = polygon[j].lng;
+    const intersect = ((yi > lng) !== (yj > lng)) &&
+      (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+async function getTaxRateForLocation(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  globalTaxRate: number,
+): Promise<number> {
+  if (!lat || !lng) return 0;
+  const { data: regions } = await admin
+    .from("delivery_regions")
+    .select("latitude, longitude, radius_km, polygon, tax_enabled, tax_rate")
+    .eq("is_active", true);
+  if (!regions || regions.length === 0) return 0;
+  for (const region of regions) {
+    let inside = false;
+    if (region.polygon && Array.isArray(region.polygon) && region.polygon.length >= 3) {
+      inside = pointInPolygon(lat, lng, region.polygon as Array<{lat: number; lng: number}>);
+    } else {
+      inside = haversineKm(lat, lng, region.latitude, region.longitude) <= region.radius_km;
+    }
+    if (inside) {
+      if (!region.tax_enabled) return 0;
+      return region.tax_rate ?? globalTaxRate;
+    }
+  }
+  return 0;
+}
+
 function generatePickupCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -140,9 +179,9 @@ Deno.serve(async (request) => {
     }
 
     // ── 3. Fetch config ─────────────────────────────────────────────────
-    const [taxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2, taxEnabled] =
+    const [globalTaxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
       await Promise.all([
-        getConfig("tax_rate", 0.10),
+        getConfig("tax_rate", 0.0),
         getConfig("delivery_base_fee", 50.0),
         getConfig("delivery_per_km_fee", 30.0),
         getConfig("delivery_base_km", 3.0),
@@ -154,7 +193,6 @@ Deno.serve(async (request) => {
         getConfig("peak_hours_end", 14),
         getConfig("peak_hours_start_2", 18),
         getConfig("peak_hours_end_2", 21),
-        getConfig("tax_enabled", 1),
       ]);
 
     // Check if current hour is within a peak window
@@ -238,17 +276,41 @@ Deno.serve(async (request) => {
       }
     }
 
-    // ── 7. Calculate totals ─────────────────────────────────────────────
-    const taxOn = taxEnabled >= 1;
-    const tax = taxOn ? Math.round(subtotal * taxRate * 100) / 100 : 0;
+    // ── 7. Calculate totals (zone-based tax) ───────────────────────────
+    const effectiveTaxRate = isPickup
+      ? 0
+      : await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate);
+    const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
     // ── 8. Create order ─────────────────────────────────────────────────
-    // PAYMENT GATE: card orders start as 'draft' so they are invisible to
-    // the restaurant until stripe-webhook confirms payment_status = 'completed'.
+    // PAYMENT GATE:
+    //   card   → 'draft' until stripe-webhook sets payment_status = 'completed'
+    //   wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
+    //   cash   → 'preparing' immediately
     const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
-    const initialStatus = isCardPayment ? "draft" : "pending";
+    const isWalletPayment = paymentMethod === "wallet";
+    const initialStatus = isCardPayment ? "draft" : "preparing";
+
+    // Pre-generate order UUID so wallet_pay can reference it before the insert.
+    const orderId: string = crypto.randomUUID();
+
+    if (isWalletPayment) {
+      const { error: walletErr } = await admin.rpc("wallet_pay", {
+        p_user_id: userId,
+        p_amount: grandTotal,
+        p_order_id: orderId,
+      });
+      if (walletErr) {
+        const msg = walletErr.message ?? "Wallet payment failed";
+        const isInsufficient = msg.toLowerCase().includes("insufficient");
+        return json(
+          { error: isInsufficient ? "Insufficient wallet balance" : msg },
+          isInsufficient ? 402 : 500,
+        );
+      }
+    }
 
     // Generate GRO- receipt number
     const today = new Date().toISOString().split("T")[0];
@@ -259,15 +321,16 @@ Deno.serve(async (request) => {
     const receiptNumber = `GRO-${today.replace(/-/g, "")}-${String((todayCount ?? 0) + 1).padStart(4, "0")}`;
 
     const orderData: Record<string, unknown> = {
+      id: orderId,
       user_id: userId,
       restaurant_id: storeId,
-      status: initialStatus,      // 'draft' for card, 'pending' for cash/wallet
+      status: initialStatus,
       subtotal,
       delivery_fee: deliveryFee,
       tax_amount: tax,
       total_amount: grandTotal,
       payment_method: paymentMethod,
-      payment_status: "pending",
+      payment_status: isWalletPayment ? "completed" : "pending",
       is_pickup: isPickup,
       special_instructions: specialInstructions ?? null,
       delivery_address: isPickup ? store.address : deliveryAddress,
@@ -293,7 +356,7 @@ Deno.serve(async (request) => {
 
     // ── 9. Create order items ───────────────────────────────────────────
     const orderItems = verifiedItems.map((v) => ({
-      order_id: order.id,
+      order_id: orderId,
       menu_item_id: v.menu_item_id,
       quantity: v.quantity,
       price: v.unit_price,
@@ -304,7 +367,7 @@ Deno.serve(async (request) => {
     const { error: itemsErr } = await admin.from("order_items").insert(orderItems);
     if (itemsErr) {
       // Rollback order
-      await admin.from("orders").delete().eq("id", order.id);
+      await admin.from("orders").delete().eq("id", orderId);
       return json({ error: "Failed to create order items", details: itemsErr.message }, 500);
     }
 
@@ -319,7 +382,7 @@ Deno.serve(async (request) => {
         "use_subscription_delivery",
         {
           p_subscription_id: eligibleSubscriptionId,
-          p_order_id: order.id,
+          p_order_id: orderId,
         }
       );
 
@@ -340,7 +403,7 @@ Deno.serve(async (request) => {
             total_amount: finalGrandTotal,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", order.id);
+          .eq("id", orderId);
       }
     }
 
@@ -348,14 +411,14 @@ Deno.serve(async (request) => {
     // from stripe-webhook after payment_intent.succeeded fires.
     if (!isCardPayment) {
       admin.functions.invoke("send-receipt-email", {
-        body: { order_id: order.id },
+        body: { order_id: orderId },
       }).catch(() => {});
     }
 
     return json({
       success: true,
       order: {
-        id: order.id,
+        id: orderId,
         status: order.status,
         total: finalGrandTotal,
         subtotal,
