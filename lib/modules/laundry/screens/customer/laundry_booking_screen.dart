@@ -218,8 +218,13 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
 
       AppLogger.info('[Booking] provider=${widget.provider.id} pickupFee=$pickupFee estimatedAmt=$estimatedAmt');
 
-      // 1. Check wallet balance before booking (use the unified wallet provider)
-      final available = ref.read(walletBalanceStreamProvider).value?.availableBalance ?? 0.0;
+      // 1. Check wallet balance before booking.
+      // Use maybeWhen so a not-yet-emitted stream (value == null) is treated as
+      // 0 rather than crashing, while a loaded wallet returns its actual balance.
+      final available = ref.read(walletBalanceStreamProvider).maybeWhen(
+        data: (w) => w?.availableBalance ?? 0.0,
+        orElse: () => 0.0,
+      );
       AppLogger.info('[Booking] walletAvailable=$available minNeeded=${pickupFee + estimatedAmt}');
       final minNeeded  = pickupFee + estimatedAmt;
       if (minNeeded > 0 && available < minNeeded) {

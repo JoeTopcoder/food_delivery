@@ -387,6 +387,34 @@ class _OrderActionsSheetState extends ConsumerState<_OrderActionsSheet> {
               const SizedBox(height: 20),
             ],
 
+            // Waiting for customer to approve the weighed price
+            if (booking.status == LaundryBookingStatus.weighed &&
+                !booking.priceApprovedByCustomer) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.hourglass_top_rounded,
+                        color: Colors.orange, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Waiting for customer to approve the price.\n'
+                        'You can start washing once they confirm.',
+                        style: TextStyle(fontSize: 13, color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             if (actions.isNotEmpty) ...[
               const Text('Actions',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
@@ -409,20 +437,27 @@ class _OrderActionsSheetState extends ConsumerState<_OrderActionsSheet> {
     switch (status) {
       case LaundryBookingStatus.newRequest:
         return [
-          _Action('Accept Booking', Icons.check_circle_rounded,
+          _Action('Accept Booking',  Icons.check_circle_rounded,
               Colors.green, LaundryBookingStatus.accepted),
-          _Action('Reject Booking', Icons.cancel_rounded,
-              Colors.red, LaundryBookingStatus.cancelled),
+          _Action('Reject Booking',  Icons.cancel_rounded,
+              Colors.red,   LaundryBookingStatus.cancelled),
         ];
       case LaundryBookingStatus.accepted:
-        return [_Action('Waiting for Pickup', Icons.hourglass_top_rounded,
+        return [_Action('Confirm Pickup Arranged', Icons.local_shipping_outlined,
             Colors.orange, LaundryBookingStatus.waitingForPickup)];
+      // Pickup driver states — provider can manually advance if no driver app
+      case LaundryBookingStatus.pickupDriverSearching:
+      case LaundryBookingStatus.pickupDriverAssigned:
+      case LaundryBookingStatus.waitingForPickup:
+        return [_Action('Mark Laundry Collected', Icons.shopping_bag_rounded,
+            Colors.blue, LaundryBookingStatus.pickedUpFromCustomer)];
       case LaundryBookingStatus.pickedUpFromCustomer:
         return [_Action('Mark Received at Laundry', Icons.store_rounded,
             AppTheme.primaryColor, LaundryBookingStatus.receivedAtLaundry)];
+      // receivedAtLaundry: handled by the weigh-in form above, no button needed
       case LaundryBookingStatus.weighed:
-        return [_Action('Price Confirmed — Start Washing', Icons.wash_rounded,
-            AppTheme.primaryColor, LaundryBookingStatus.washingCleaning)];
+        // Customer must approve the price first — provider cannot skip this step
+        return [];
       case LaundryBookingStatus.priceConfirmed:
         return [_Action('Start Washing / Cleaning', Icons.wash_rounded,
             AppTheme.primaryColor, LaundryBookingStatus.washingCleaning)];
@@ -432,11 +467,16 @@ class _OrderActionsSheetState extends ConsumerState<_OrderActionsSheet> {
       case LaundryBookingStatus.qualityCheck:
         return [_Action('Ready for Delivery', Icons.inventory_2_rounded,
             Colors.teal, LaundryBookingStatus.readyForDelivery)];
+      // Return delivery states — provider/driver advances through these
       case LaundryBookingStatus.readyForDelivery:
-        return [_Action('Mark as Completed', Icons.check_circle_rounded,
-            Colors.green, LaundryBookingStatus.completed)];
+      case LaundryBookingStatus.returnPaymentRequired:
+      case LaundryBookingStatus.returnDriverSearching:
+      case LaundryBookingStatus.returnDriverAssigned:
+        return [_Action('Out for Delivery', Icons.local_shipping_rounded,
+            Colors.indigo, LaundryBookingStatus.outForDelivery)];
+      case LaundryBookingStatus.pickedUpForReturn:
       case LaundryBookingStatus.outForDelivery:
-        return [_Action('Mark Delivered', Icons.local_shipping_rounded,
+        return [_Action('Mark Delivered ✓', Icons.check_circle_rounded,
             Colors.green, LaundryBookingStatus.completed)];
       default:
         return [];
