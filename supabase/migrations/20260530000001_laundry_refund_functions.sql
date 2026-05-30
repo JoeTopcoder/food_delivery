@@ -146,19 +146,22 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_customer_id  UUID;
-  v_reserved_amt NUMERIC;
-  v_actual_total NUMERIC;
-  v_pickup_fee   NUMERIC;
-  v_delivery_fee NUMERIC;
-  v_charge       NUMERIC;
+  v_customer_id    UUID;
+  v_booking_number TEXT;
+  v_reserved_amt   NUMERIC;
+  v_actual_total   NUMERIC;
+  v_pickup_fee     NUMERIC;
+  v_delivery_fee   NUMERIC;
+  v_services       TEXT;
+  v_charge         NUMERIC;
 BEGIN
   SELECT customer_id,
+         COALESCE(booking_number, p_booking_id::text),
          COALESCE(reserved_amount, 0),
          COALESCE(actual_total, estimated_total, 0),
          COALESCE(pickup_fee, 0),
          COALESCE(delivery_fee, 0)
-  INTO v_customer_id, v_reserved_amt, v_actual_total, v_pickup_fee, v_delivery_fee
+  INTO v_customer_id, v_booking_number, v_reserved_amt, v_actual_total, v_pickup_fee, v_delivery_fee
   FROM laundry_bookings
   WHERE id = p_booking_id;
 
@@ -166,32 +169,33 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'booking not found');
   END IF;
 
-  -- Total amount to charge = actual_total + pickup_fee + delivery_fee
+  -- Build human-readable service list for the transaction description
+  SELECT COALESCE(string_agg(service_name, ', ' ORDER BY service_name), 'Laundry Service')
+  INTO v_services FROM laundry_booking_items WHERE booking_id = p_booking_id;
+
   v_charge := v_actual_total + v_pickup_fee + v_delivery_fee;
 
-  -- Deduct from balance and clear reservation
+  -- Deduct actual charge from balance and release the reservation hold
   UPDATE wallets SET
     balance          = GREATEST(0, balance - v_charge),
     reserved_balance = GREATEST(0, reserved_balance - v_reserved_amt),
     updated_at       = NOW()
   WHERE user_id = v_customer_id;
 
-  -- Record payment transaction
+  -- Record payment transaction.
+  -- order_id is NULL — FK references orders, not laundry_bookings.
+  -- Idempotent: skips if a payment for this booking number already exists.
   INSERT INTO wallet_transactions (user_id, amount, type, status, description, order_id)
-  VALUES (
-    v_customer_id,
-    -v_charge,
-    'payment',
-    'completed',
-    'Laundry service payment',
-    p_booking_id
-  )
-  ON CONFLICT DO NOTHING;
+  SELECT v_customer_id, -v_charge, 'payment', 'completed',
+         v_services || ' · ' || v_booking_number || ' — laundry payment',
+         NULL
+  WHERE NOT EXISTS (
+    SELECT 1 FROM wallet_transactions
+    WHERE user_id = v_customer_id AND type = 'payment'
+      AND description LIKE '%' || v_booking_number || '%'
+  );
 
-  -- Zero out reservation on booking
-  UPDATE laundry_bookings
-  SET reserved_amount = 0
-  WHERE id = p_booking_id;
+  UPDATE laundry_bookings SET reserved_amount = 0 WHERE id = p_booking_id;
 
   RETURN jsonb_build_object('success', true, 'charged', v_charge);
 END;
