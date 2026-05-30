@@ -267,13 +267,14 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
         ],
       ),
     );
+    // Capture text before disposing the controller
+    final reason = reasonCtrl.text;
     reasonCtrl.dispose();
     if (confirmed == true && mounted) {
       try {
         await ref
             .read(laundryServiceProvider)
-            .cancelBooking(booking.id, reasonCtrl.text);
-        ref.invalidate(laundryBookingDetailProvider(widget.bookingId));
+            .cancelBooking(booking.id, reason);
         ref.invalidate(myLaundryBookingsProvider);
         if (mounted) {
           AppSnackbar.success(
@@ -282,6 +283,7 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
                 ? 'Booking cancelled — refund returned to your wallet'
                 : 'Booking cancelled',
           );
+          Navigator.pop(context);
         }
       } catch (e) {
         if (mounted) AppSnackbar.error(context, friendlyError(e));
