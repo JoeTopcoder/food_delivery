@@ -22,7 +22,8 @@ class IncomingCallListener extends ConsumerStatefulWidget {
       _IncomingCallListenerState();
 }
 
-class _IncomingCallListenerState extends ConsumerState<IncomingCallListener> {
+class _IncomingCallListenerState extends ConsumerState<IncomingCallListener>
+    with WidgetsBindingObserver {
   RealtimeChannel? _channel;
   String? _currentUserId;
   String? _handledCallId; // Prevent duplicate navigation
@@ -30,13 +31,19 @@ class _IncomingCallListenerState extends ConsumerState<IncomingCallListener> {
   @override
   void initState() {
     super.initState();
-    _setup();
-  }
-
-  void _setup() {
+    WidgetsBinding.instance.addObserver(this);
     final userId = ref.read(currentUserIdProvider);
     if (userId != null && userId.isNotEmpty) {
       _subscribe(userId);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reconnect the realtime channel when the app returns to foreground —
+    // the WebSocket connection is often dropped while backgrounded.
+    if (state == AppLifecycleState.resumed && _currentUserId != null) {
+      _subscribe(_currentUserId!);
     }
   }
 
@@ -106,22 +113,23 @@ class _IncomingCallListenerState extends ConsumerState<IncomingCallListener> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _channel?.unsubscribe();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Watch for auth changes to subscribe/unsubscribe
-    final userId = ref.watch(currentUserIdProvider);
-    if (userId != _currentUserId) {
-      if (userId != null && userId.isNotEmpty) {
-        _subscribe(userId);
-      } else {
+    // Use ref.listen so auth-driven subscribe/unsubscribe is a side-effect
+    // callback, never a direct call inside the build method.
+    ref.listen<String?>(currentUserIdProvider, (prev, next) {
+      if (next != null && next.isNotEmpty) {
+        if (next != _currentUserId) _subscribe(next);
+      } else if (_currentUserId != null) {
         _channel?.unsubscribe();
         _currentUserId = null;
       }
-    }
+    });
 
     return widget.child;
   }

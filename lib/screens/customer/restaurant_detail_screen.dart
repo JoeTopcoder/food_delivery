@@ -298,6 +298,48 @@ class _RestaurantDetailScreenState
                 ),
               ),
               actions: [
+                Consumer(
+                  builder: (context, ref, _) {
+                    final cartItems = ref.watch(cartProvider);
+                    if (cartItems.isEmpty) return const SizedBox.shrink();
+                    return Stack(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.shopping_cart_outlined,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/cart'),
+                        ),
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentColor,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '${cartItems.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 IconButton(
                   icon: Icon(
                     isFav ? Icons.favorite : Icons.favorite_outline,
@@ -336,7 +378,7 @@ class _RestaurantDetailScreenState
         children: [
           SingleChildScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -425,9 +467,71 @@ class _RestaurantDetailScreenState
                                   ],
                                 ),
                                 padding: const EdgeInsets.all(8),
-                                child: const Icon(Icons.arrow_back, size: 24),
+                                child: const Icon(Icons.arrow_back, size: 24, color: Colors.black87),
                               ),
                             ),
+                    ),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final cartItems = ref.watch(cartProvider);
+                        if (cartItems.isEmpty) return const SizedBox.shrink();
+                        return Positioned(
+                          top: 40,
+                          right: 68,
+                          child: GestureDetector(
+                            onTap: () =>
+                                Navigator.pushNamed(context, '/cart'),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                            alpha: 0.1),
+                                        blurRadius: 10,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: const Icon(
+                                    Icons.shopping_cart_outlined,
+                                    size: 24,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: -4,
+                                  top: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      '${cartItems.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     Positioned(
                       top: 40,
@@ -449,7 +553,7 @@ class _RestaurantDetailScreenState
                           child: Icon(
                             isFav ? Icons.favorite : Icons.favorite_outline,
                             size: 24,
-                            color: isFav ? Colors.red : Colors.black,
+                            color: isFav ? Colors.red : Colors.black87,
                           ),
                         ),
                       ),
@@ -652,14 +756,17 @@ class _RestaurantDetailScreenState
                       // Cuisine + delivery fee row
                       Row(
                         children: [
-                          Text(
+                          Flexible(
+                            child: Text(
                             widget.restaurant.cuisineType ?? 'Multi-cuisine',
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13,
                               color: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
                             ),
+                          ),
                           ),
                           const SizedBox(width: 16),
                           Text(
@@ -1094,32 +1201,73 @@ class _RestaurantDetailScreenState
     final cartNotifier = ref.read(cartProvider.notifier);
 
     if (cartNotifier.isDifferentRestaurant(item)) {
-      final replace = await showDialog<bool>(
+      final maxRestaurants =
+          ref.read(maxRestaurantsPerOrderProvider).valueOrNull ?? 2;
+      final limitReached =
+          cartNotifier.wouldExceedRestaurantLimit(item, maxRestaurants);
+
+      final choice = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Replace cart?'),
-          content: const Text(
-            'Your cart has items from another restaurant. '
-            'Clear it and add this item instead?',
+          title: Text(
+            limitReached ? 'Restaurant limit reached' : 'Add to order?',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                limitReached
+                    ? 'You can order from a maximum of $maxRestaurants restaurants '
+                        'at once. Clear your cart to add from this restaurant.'
+                    : 'Your cart already has items from another restaurant. '
+                        'Add this item too, or clear & replace your cart.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, 'replace'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade400,
+                    side: BorderSide(color: Colors.red.shade300),
+                  ),
+                  child: const Text('Clear & replace'),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
               child: const Text('Cancel'),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Replace'),
-            ),
+            if (!limitReached)
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, 'add'),
+                child: const Text('Add to order'),
+              ),
           ],
         ),
       );
-      if (replace != true) return;
-      cartNotifier.replaceWithItem(
-        item,
-        sides: result.selectedSides,
-        options: result.selectedOptions,
-      );
+
+      if (choice == null || choice == 'cancel') return;
+      if (choice == 'replace') {
+        cartNotifier.replaceWithItem(
+          item,
+          sides: result.selectedSides,
+          options: result.selectedOptions,
+        );
+      } else {
+        // Add to multi-restaurant cart
+        for (int i = 0; i < result.quantity; i++) {
+          cartNotifier.addItemFromNewRestaurant(
+            item,
+            sides: result.selectedSides,
+            options: result.selectedOptions,
+          );
+        }
+      }
     } else {
       // Add the item with the chosen quantity
       for (int i = 0; i < result.quantity; i++) {

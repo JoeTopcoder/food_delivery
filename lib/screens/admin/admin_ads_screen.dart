@@ -261,11 +261,19 @@ class _AdCard extends StatelessWidget {
               children: [
                 _InfoChip(
                   icon: Icons.trending_up_rounded,
-                  label: '+5% commission',
+                  label: ad['commission_rate'] != null
+                      ? '+${ad['commission_rate']}% commission'
+                      : 'Featured Ad',
                   color: const Color(0xFFF59E0B),
                 ),
                 const SizedBox(width: 8),
-                if (ad['starts_at'] != null)
+                if (ad['ends_at'] != null)
+                  _InfoChip(
+                    icon: Icons.schedule,
+                    label: 'Ends ${_formatDate(ad['ends_at'])}',
+                    color: const Color(0xFF6366F1),
+                  )
+                else if (ad['starts_at'] != null)
                   _InfoChip(
                     icon: Icons.schedule,
                     label: _formatDate(ad['starts_at']),
@@ -401,6 +409,7 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   Restaurant? _selectedRestaurant;
+  DateTime? _endsAt;
   bool _creating = false;
 
   @override
@@ -410,6 +419,16 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
     super.dispose();
   }
 
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _endsAt = picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -417,8 +436,8 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
       title: Row(
         children: [
           Icon(Icons.campaign_rounded, color: AppTheme.primaryColor),
-          SizedBox(width: 8),
-          Text('Create New Ad', style: TextStyle(fontSize: 17)),
+          const SizedBox(width: 8),
+          const Text('Create New Ad', style: TextStyle(fontSize: 17)),
         ],
       ),
       content: SingleChildScrollView(
@@ -480,24 +499,50 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
             ),
             const SizedBox(height: 14),
 
-            // Commission info
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Color(0xFFF59E0B), size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Orders from this ad get +5% commission boost',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+            // End date picker
+            GestureDetector(
+              onTap: _pickEndDate,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      size: 18,
+                      color: Color(0xFF9CA3AF),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _endsAt == null
+                            ? 'No end date (runs indefinitely)'
+                            : 'Ends: ${_endsAt!.day}/${_endsAt!.month}/${_endsAt!.year}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _endsAt == null
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    if (_endsAt != null)
+                      GestureDetector(
+                        onTap: () => setState(() => _endsAt = null),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -552,6 +597,7 @@ class _CreateAdDialogState extends State<_CreateAdDialog> {
             description: _descCtrl.text.trim().isEmpty
                 ? null
                 : _descCtrl.text.trim(),
+            endsAt: _endsAt,
           );
       widget.onCreated();
       if (mounted) {

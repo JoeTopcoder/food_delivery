@@ -11,6 +11,7 @@ import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/app_logger.dart';
 import 'payment_screen.dart';
+import '../../core/utils/responsive.dart';
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -267,7 +268,7 @@ class _DeliverySubscriptionTabState
       error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (activeSub) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(Responsive.cardPadding(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -389,8 +390,8 @@ class _DeliverySubscriptionTabState
                               children: [
                                 Text(
                                   'Activating ${activeSub.planLabel}...',
-                                  style: const TextStyle(
-                                    fontSize: 16,
+                                  style: TextStyle(
+                                    fontSize: Responsive.headingSmall(context),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -398,7 +399,7 @@ class _DeliverySubscriptionTabState
                                 Text(
                                   'Payment received. Tap here to retry activation.',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: Responsive.smallText(context),
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.onSurfaceVariant,
@@ -435,9 +436,9 @@ class _DeliverySubscriptionTabState
 
               // Plan cards
               if (activeSub == null) ...[
-                const Text(
+                Text(
                   'Choose your plan',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
@@ -477,9 +478,9 @@ class _DeliverySubscriptionTabState
 
               const SizedBox(height: 24),
               // FAQ
-              const Text(
+              Text(
                 'How it works',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: Responsive.headingSmall(context), fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               _FaqItem(
@@ -562,8 +563,10 @@ class _ActiveSubBanner extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   sub.planLabel,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: Responsive.headingSmall(context),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -715,7 +718,7 @@ class _PlanOptionCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: Responsive.headingMedium(context),
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),

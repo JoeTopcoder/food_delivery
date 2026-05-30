@@ -9,8 +9,10 @@ import '../../../features/auth/services/onboarding_service.dart';
 import '../../../features/auth/widgets/social_auth_panel.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../utils/app_logger.dart';
+import '../../../services/notification_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
+import '../../../core/utils/responsive.dart';
 
 class CustomerOnboardingScreen extends ConsumerStatefulWidget {
   const CustomerOnboardingScreen({super.key});
@@ -30,6 +32,7 @@ class _CustomerOnboardingScreenState
   bool _googleLoading = false;
   bool _appleLoading = false;
   bool _enableLocation = true;
+  bool _enableNotifications = true;
 
   bool get _isBusy => _emailLoading || _googleLoading || _appleLoading;
 
@@ -41,6 +44,8 @@ class _CustomerOnboardingScreenState
         return '/restaurant-dashboard';
       case 'admin':
         return '/admin-dashboard';
+      case 'service_provider':
+        return '/car-services/provider';
       default:
         return '/home';
     }
@@ -189,6 +194,11 @@ class _CustomerOnboardingScreenState
       await Geolocator.requestPermission();
     }
 
+    // Request notification permission if user opted in.
+    if (_enableNotifications) {
+      await NotificationService().initialize();
+    }
+
     await ref
         .read(onboardingProvider(OnboardingRole.customer).notifier)
         .setStep(3);
@@ -229,12 +239,17 @@ class _CustomerOnboardingScreenState
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+          ),
           child: ListView(
             children: [
-              const Text(
+              Text(
                 'Start browsing in seconds',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: Responsive.headingLarge(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(isAuthStep ? 'Step 1 of 1' : 'Getting ready...'),
@@ -284,6 +299,15 @@ class _CustomerOnboardingScreenState
                   ),
                   value: _enableLocation,
                   onChanged: (v) => setState(() => _enableLocation = v ?? true),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enable notifications'),
+                  subtitle: const Text(
+                    'Get updates on your orders, rides and offers',
+                  ),
+                  value: _enableNotifications,
+                  onChanged: (v) => setState(() => _enableNotifications = v ?? true),
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton(

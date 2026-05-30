@@ -176,7 +176,7 @@ class _CompanyTile extends StatelessWidget {
                 Switch(
                   value: active,
                   onChanged: (_) => onToggleActive(),
-                  activeColor: const Color(0xFF7C3AED),
+                  activeThumbColor: const Color(0xFF7C3AED),
                 ),
               ],
             ),
@@ -452,36 +452,33 @@ class _AddEditShippingCompanyScreenState
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            ...[
-              ('manual', 'Manual', 'Admin verifies packages manually',
-                  Icons.check_circle_outline),
-              ('api', 'API', 'Verify via REST API call to company',
-                  Icons.api),
-              ('webhook', 'Webhook',
-                  'Company pushes status updates via webhook',
-                  Icons.webhook),
-            ].map((opt) {
-              final (val, label, sub, icon) = opt;
-              return RadioListTile<String>(
-                value: val,
-                groupValue: _verificationType,
-                onChanged: (v) => setState(() => _verificationType = v!),
-                title: Row(
-                  children: [
-                    Icon(icon, size: 18, color: const Color(0xFF7C3AED)),
-                    const SizedBox(width: 8),
-                    Text(label,
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                subtitle: Text(sub,
-                    style:
-                        const TextStyle(fontSize: 12, color: Colors.grey)),
-                activeColor: const Color(0xFF7C3AED),
-                contentPadding: EdgeInsets.zero,
-              );
-            }),
+            RadioGroup<String>(
+              groupValue: _verificationType,
+              onChanged: (v) => setState(() => _verificationType = v!),
+              child: Column(
+                children: [
+                  ('manual', 'Admin verifies packages manually', Icons.check_circle_outline),
+                  ('api', 'Verify via REST API call to company', Icons.api),
+                  ('webhook', 'Company pushes status updates via webhook', Icons.webhook),
+                ].map((opt) {
+                  final (val, sub, icon) = opt;
+                  final label = val == 'manual' ? 'Manual' : val == 'api' ? 'API' : 'Webhook';
+                  return RadioListTile<String>(
+                    value: val,
+                    title: Row(
+                      children: [
+                        Icon(icon, size: 18, color: const Color(0xFF7C3AED)),
+                        const SizedBox(width: 8),
+                        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    subtitle: Text(sub,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    contentPadding: EdgeInsets.zero,
+                  );
+                }).toList(),
+              ),
+            ),
 
             // ── API Credentials ───────────────────────────────────────
             if (_verificationType == 'api') ...[
@@ -547,7 +544,7 @@ class _AddEditShippingCompanyScreenState
               title: const Text('Active'),
               subtitle: const Text(
                   'Inactive companies are hidden from customers'),
-              activeColor: const Color(0xFF7C3AED),
+              activeThumbColor: const Color(0xFF7C3AED),
               contentPadding: EdgeInsets.zero,
             ),
 

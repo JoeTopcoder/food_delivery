@@ -230,21 +230,54 @@ class AdminService {
     }
   }
 
-  /// Verify/reject restaurant
+  /// Verify/reject restaurant via the admin-verify-restaurant Edge Function,
+  /// which uses the service_role key to bypass RLS on the restaurants table.
   Future<void> verifyRestaurant(String restaurantId, bool isVerified) async {
-    try {
-      AppLogger.info('Verifying restaurant: $restaurantId -> $isVerified');
+    AppLogger.info('Verifying restaurant: $restaurantId -> $isVerified');
 
-      await _supabaseClient.rpc(
-        'admin_verify_restaurant',
-        params: {'p_restaurant_id': restaurantId, 'p_is_verified': isVerified},
-      );
+    final session = _supabaseClient.auth.currentSession;
+    if (session == null) throw Exception('Not authenticated');
 
-      AppLogger.info('Restaurant verification updated');
-    } catch (e) {
-      AppLogger.error('Error verifying restaurant: $e');
-      rethrow;
+    final res = await http.post(
+      Uri.parse(
+        '${AppConstants.supabaseFunctionsBaseUrl}/admin-verify-restaurant',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      body: jsonEncode({
+        'restaurant_id': restaurantId,
+        'is_verified': isVerified,
+      }),
+    );
+
+    AppLogger.info(
+      'verifyRestaurant response: ${res.statusCode} ${res.body}',
+    );
+
+    if (res.statusCode == 404) {
+      // Edge Function not deployed yet — fall back to direct update
+      AppLogger.info('Edge function not found, using direct update');
+      await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .update({'is_verified': isVerified})
+          .eq('id', restaurantId);
+      return;
     }
+
+    if (res.statusCode != 200) {
+      Map<String, dynamic> responseBody = {};
+      try {
+        responseBody = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(
+        responseBody['error'] as String? ??
+            'HTTP ${res.statusCode}: ${res.body}',
+      );
+    }
+
+    AppLogger.info('Restaurant verification updated via Edge Function');
   }
 
   /// Update commission rate for a restaurant
@@ -451,26 +484,36 @@ class AdminService {
     }
   }
 
-  /// Get drivers pending verification (not yet reviewed)
+  /// Get drivers pending admin review (submitted but not yet approved/rejected)
   Future<List<Driver>> getPendingDrivers() async {
     try {
       AppLogger.info('Fetching drivers pending verification');
-
       final response = await _supabaseClient
           .from(AppConstants.tableDrivers)
           .select()
-          .eq('is_verified', false)
-          .neq('documents_status', 'rejected')
+          .inFilter('driver_status', ['pending_review', 'under_review', 'draft'])
           .order('created_at', ascending: true)
           .limit(200);
-
-      final drivers = (response as List)
-          .map((driver) => Driver.fromJson(driver))
-          .toList();
-
-      return drivers;
+      return (response as List).map((d) => Driver.fromJson(d)).toList();
     } catch (e) {
       AppLogger.error('Error fetching pending drivers: $e');
+      return [];
+    }
+  }
+
+  /// Get approved/verified drivers
+  Future<List<Driver>> getApprovedDrivers() async {
+    try {
+      AppLogger.info('Fetching approved drivers');
+      final response = await _supabaseClient
+          .from(AppConstants.tableDrivers)
+          .select()
+          .eq('driver_status', 'approved')
+          .order('approved_at', ascending: false)
+          .limit(200);
+      return (response as List).map((d) => Driver.fromJson(d)).toList();
+    } catch (e) {
+      AppLogger.error('Error fetching approved drivers: $e');
       return [];
     }
   }
@@ -479,15 +522,12 @@ class AdminService {
   Future<List<Driver>> getRejectedDrivers() async {
     try {
       AppLogger.info('Fetching rejected drivers');
-
       final response = await _supabaseClient
           .from(AppConstants.tableDrivers)
           .select()
-          .eq('is_verified', false)
-          .eq('documents_status', 'rejected')
+          .eq('driver_status', 'rejected')
           .order('updated_at', ascending: false)
           .limit(200);
-
       return (response as List).map((d) => Driver.fromJson(d)).toList();
     } catch (e) {
       AppLogger.error('Error fetching rejected drivers: $e');
@@ -495,16 +535,28 @@ class AdminService {
     }
   }
 
-  /// Verify/reject driver
-  Future<void> verifyDriver(String driverId, bool isVerified) async {
+  /// Approve or reject a driver — updates driver_status, is_verified, and
+  /// is_food_driver_approved so the driver can immediately go online if approved.
+  Future<void> verifyDriver(String driverId, bool approve) async {
     try {
-      AppLogger.info('Verifying driver: $driverId -> $isVerified');
-
-      await _supabaseClient.rpc(
-        'admin_verify_driver',
-        params: {'p_driver_id': driverId, 'p_is_verified': isVerified},
-      );
-
+      AppLogger.info('verifyDriver: $driverId approve=$approve');
+      final now = DateTime.now().toIso8601String();
+      await _supabaseClient.from(AppConstants.tableDrivers).update(
+        approve
+            ? {
+                'driver_status': 'approved',
+                'is_verified': true,
+                'is_food_driver_approved': true,
+                'approved_at': now,
+                'updated_at': now,
+              }
+            : {
+                'driver_status': 'rejected',
+                'is_verified': false,
+                'is_food_driver_approved': false,
+                'updated_at': now,
+              },
+      ).eq('id', driverId);
       AppLogger.info('Driver verification updated');
     } catch (e) {
       AppLogger.error('Error verifying driver: $e');

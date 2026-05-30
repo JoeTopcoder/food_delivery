@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +13,7 @@ import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
 import '../../utils/app_logger.dart';
+import '../../core/utils/responsive.dart';
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
 const _kBg = Color(0xFF0B0D14);
@@ -253,7 +254,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     setState(() => _savingDocs = true);
     try {
       final ok = await _saveDocuments(driver);
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (ok) {
         AppSnackbar.success(context, 'Documents saved successfully!');
       } else {
@@ -261,7 +262,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
       }
     } catch (e) {
       AppLogger.error('Save docs error: $e');
-      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _savingDocs = false);
     }
@@ -270,7 +271,6 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
   Future<void> _submitForReview(Driver driver) async {
     setState(() => _submitting = true);
     try {
-      // Save all document data first, then change status
       await _saveDocuments(driver);
 
       final svc = ref.read(driverServiceProvider);
@@ -278,12 +278,12 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
       final userId = ref.read(currentUserIdProvider)!;
       ref.invalidate(driverProfileProvider(userId));
-      if (context.mounted) {
+      if (mounted) {
         AppSnackbar.success(context, 'Application submitted for review!');
       }
     } catch (e) {
       AppLogger.error('Submit for review error: $e');
-      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -336,7 +336,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
         return Scaffold(
           backgroundColor: _kBg,
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               // ── Hero App Bar ────────────────────────────────────────
               SliverAppBar(
@@ -397,7 +397,7 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 0, Responsive.horizontalPadding(context), 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -896,7 +896,7 @@ class _VerificationStatusBanner extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: Responsive.bodyText(context),
                     fontWeight: FontWeight.w700,
                     color: icon,
                   ),
@@ -904,7 +904,7 @@ class _VerificationStatusBanner extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 12, color: _kMuted),
+                  style: TextStyle(fontSize: Responsive.smallText(context), color: _kMuted),
                 ),
               ],
             ),
@@ -1338,7 +1338,7 @@ class _SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: EdgeInsets.fromLTRB(Responsive.cardPadding(context), Responsive.cardPadding(context), Responsive.cardPadding(context), 12),
             child: Row(
               children: [
                 Container(
@@ -1354,8 +1354,10 @@ class _SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 15,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: Responsive.headingSmall(context),
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -1366,7 +1368,7 @@ class _SectionCard extends StatelessWidget {
             ),
           ),
           const Divider(color: _kBorder, height: 1),
-          Padding(padding: const EdgeInsets.all(16), child: child),
+          Padding(padding: EdgeInsets.all(Responsive.cardPadding(context)), child: child),
         ],
       ),
     );

@@ -1,0 +1,50 @@
+name: Deploy Hotels Module (Supabase)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-action@v1
+        with:
+          version: 'latest'
+
+      - name: Supabase login
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase login --access-token "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Run DB migrations (push)
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase db push --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Deploy Hotelbeds Edge Functions
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          cd supabase/functions
+          for f in hotelbeds-search hotelbeds-get-hotel-content hotelbeds-check-rate hotelbeds-create-booking hotelbeds-get-booking hotelbeds-cancel-booking hotelbeds-generate-voucher; do
+            supabase functions deploy "$f" --project-ref "$SUPABASE_PROJECT_REF"
+          done
+
+      - name: Ensure Hotelbeds secrets (set)
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          HOTELBEDS_API_KEY: ${{ secrets.HOTELBEDS_API_KEY }}
+          HOTELBEDS_SECRET: ${{ secrets.HOTELBEDS_SECRET }}
+        run: |
+          if [ -n "$HOTELBEDS_API_KEY" ] && [ -n "$HOTELBEDS_SECRET" ]; then
+            supabase secrets set HOTELBEDS_API_KEY="$HOTELBEDS_API_KEY" HOTELBEDS_SECRET="$HOTELBEDS_SECRET" --project-ref "$SUPABASE_PROJECT_REF" || true
+          else
+            echo "HOTELBEDS secrets not provided in repo secrets; skipping secret set step"
+          fi

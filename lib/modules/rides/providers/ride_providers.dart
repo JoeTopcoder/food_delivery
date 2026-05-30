@@ -45,7 +45,12 @@ final createRideRequestProvider = FutureProvider.family<Map<String, dynamic>, Cr
     platformFee: params.platformFee,
     paymentMethod: params.paymentMethod,
     savedCardId: params.savedCardId,
+    stripePaymentIntentId: params.stripePaymentIntentId,
     scheduledFor: params.scheduledFor,
+    isAirportPickup: params.isAirportPickup,
+    isAirportDropoff: params.isAirportDropoff,
+    terminalInfo: params.terminalInfo,
+    airportSurcharge: params.airportSurcharge,
   );
 });
 
@@ -62,7 +67,12 @@ class CreateRideParams {
   final double platformFee;
   final String paymentMethod;
   final String? savedCardId;
+  final String? stripePaymentIntentId;
   final DateTime? scheduledFor;
+  final bool isAirportPickup;
+  final bool isAirportDropoff;
+  final String? terminalInfo;
+  final double? airportSurcharge;
 
   const CreateRideParams({
     required this.pickupAddress,
@@ -77,7 +87,12 @@ class CreateRideParams {
     required this.platformFee,
     required this.paymentMethod,
     this.savedCardId,
+    this.stripePaymentIntentId,
     this.scheduledFor,
+    this.isAirportPickup = false,
+    this.isAirportDropoff = false,
+    this.terminalInfo,
+    this.airportSurcharge,
   });
 }
 
@@ -156,6 +171,7 @@ final rideHistoryProvider = FutureProvider.family<List<RideRequest>, String>((re
 
 /// Real-time stream of all rides for a customer, newest first.
 final rideHistoryStreamProvider = StreamProvider.family<List<RideRequest>, String>((ref, customerId) {
+  if (customerId.isEmpty) return const Stream.empty();
   return ref.watch(rideServiceProvider).streamRideHistory(customerId);
 });
 
@@ -166,11 +182,18 @@ final activeCustomerRideProvider = FutureProvider.family<RideRequest?, String>((
 
 /// Real-time stream of the customer's active ride (null when none).
 final activeCustomerRideStreamProvider = StreamProvider.family<RideRequest?, String>((ref, customerId) {
+  if (customerId.isEmpty) return const Stream.empty();
   return ref.watch(rideServiceProvider).streamActiveRideForCustomer(customerId);
 });
 
 final driverRidesProvider = FutureProvider.family<List<RideRequest>, String>((ref, driverId) async {
   return ref.watch(rideServiceProvider).getDriverRides(driverId: driverId);
+});
+
+/// All completed/cancelled rides for a driver — used by DriverRideHistoryScreen.
+final driverRideHistoryProvider = FutureProvider.family<List<RideRequest>, String>((ref, driverId) async {
+  if (driverId.isEmpty) return [];
+  return ref.watch(rideServiceProvider).getDriverRideHistory(driverId);
 });
 
 // ── LOCATION STREAM ───────────────────────────────────────────────────────────
@@ -217,6 +240,12 @@ final driverRideOffersStreamProvider = StreamProvider.family<List<DriverRideOffe
 /// Fetches list of pending driver requests (one-time, for initial load).
 final driverRideRequestsProvider = FutureProvider.family<List<RideDriverRequest>, String>((ref, driverId) async {
   return ref.watch(rideServiceProvider).getDriverRequests(driverId);
+});
+
+/// Real-time stream of the driver's accepted scheduled rides, sorted by pickup time.
+final driverScheduledRidesStreamProvider = StreamProvider.family<List<RideRequest>, String>((ref, driverId) {
+  if (driverId.isEmpty) return const Stream.empty();
+  return ref.watch(rideServiceProvider).streamDriverScheduledRides(driverId);
 });
 
 // ── DRIVER AVAILABILITY ───────────────────────────────────────────────────────

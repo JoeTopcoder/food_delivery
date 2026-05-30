@@ -8,6 +8,12 @@ class Driver {
   final String userId;
   final String? vehicleType; // 'bike', 'car', 'scooter'
   final String? vehicleNumber;
+  final String? vehicleBrand;
+  final String? vehicleColor;
+  final String? vehicleMake;
+  final String? vehicleModel;
+  final String? plateNumber;
+  final String? licensePlate;
   final String? licenseNumber;
   final double? rating;
   final int? completedDeliveries;
@@ -62,6 +68,12 @@ class Driver {
     required this.userId,
     this.vehicleType,
     this.vehicleNumber,
+    this.vehicleBrand,
+    this.vehicleColor,
+    this.vehicleMake,
+    this.vehicleModel,
+    this.plateNumber,
+    this.licensePlate,
     this.licenseNumber,
     this.rating,
     this.completedDeliveries,
@@ -120,6 +132,12 @@ class Driver {
     String? userId,
     String? vehicleType,
     String? vehicleNumber,
+    String? vehicleBrand,
+    String? vehicleColor,
+    String? vehicleMake,
+    String? vehicleModel,
+    String? plateNumber,
+    String? licensePlate,
     String? licenseNumber,
     double? rating,
     int? completedDeliveries,
@@ -168,6 +186,12 @@ class Driver {
       userId: userId ?? this.userId,
       vehicleType: vehicleType ?? this.vehicleType,
       vehicleNumber: vehicleNumber ?? this.vehicleNumber,
+      vehicleBrand: vehicleBrand ?? this.vehicleBrand,
+      vehicleColor: vehicleColor ?? this.vehicleColor,
+      vehicleMake: vehicleMake ?? this.vehicleMake,
+      vehicleModel: vehicleModel ?? this.vehicleModel,
+      plateNumber: plateNumber ?? this.plateNumber,
+      licensePlate: licensePlate ?? this.licensePlate,
       licenseNumber: licenseNumber ?? this.licenseNumber,
       rating: rating ?? this.rating,
       completedDeliveries: completedDeliveries ?? this.completedDeliveries,

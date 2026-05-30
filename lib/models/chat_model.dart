@@ -62,7 +62,8 @@ extension MessageStatusExt on MessageStatus {
 
 class ChatMessage {
   final String id;
-  final String orderId;
+  final String? orderId;
+  final String? rideId;
   final String? conversationId;
   final String senderId;
   final String senderRole; // 'user' | 'driver' | 'restaurant' | 'admin'
@@ -75,7 +76,8 @@ class ChatMessage {
 
   const ChatMessage({
     required this.id,
-    required this.orderId,
+    this.orderId,
+    this.rideId,
     this.conversationId,
     required this.senderId,
     required this.senderRole,
@@ -89,7 +91,8 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
     id: json['id'] as String,
-    orderId: json['order_id'] as String,
+    orderId: json['order_id'] as String?,
+    rideId: json['ride_id'] as String?,
     conversationId: json['conversation_id'] as String?,
     senderId: json['sender_id'] as String,
     senderRole: json['sender_role'] as String,
@@ -106,6 +109,7 @@ class ChatMessage {
   Map<String, dynamic> toJson() => {
     'id': id,
     'order_id': orderId,
+    'ride_id': rideId,
     'conversation_id': conversationId,
     'sender_id': senderId,
     'sender_role': senderRole,
@@ -122,7 +126,8 @@ class ChatMessage {
 
 class Conversation {
   final String id;
-  final String orderId;
+  final String? orderId;
+  final String? rideId;
   final List<String> participantIds;
   final String? lastMessageText;
   final DateTime? lastMessageAt;
@@ -130,7 +135,8 @@ class Conversation {
 
   const Conversation({
     required this.id,
-    required this.orderId,
+    this.orderId,
+    this.rideId,
     required this.participantIds,
     this.lastMessageText,
     this.lastMessageAt,
@@ -139,7 +145,8 @@ class Conversation {
 
   factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
     id: json['id'] as String,
-    orderId: json['order_id'] as String,
+    orderId: json['order_id'] as String?,
+    rideId: json['ride_id'] as String?,
     participantIds:
         (json['participant_ids'] as List<dynamic>?)
             ?.map((e) => e as String)

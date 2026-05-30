@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/supabase_config.dart';
 import '../../models/banner_model.dart' as app;
 import '../../providers/banner_provider.dart';
@@ -159,6 +162,16 @@ class _BannerTile extends StatelessWidget {
     required this.onDelete,
   });
 
+  Widget _fallbackIcon() => Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(Icons.campaign_rounded, color: AppTheme.primaryColor),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -170,14 +183,17 @@ class _BannerTile extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(Icons.campaign_rounded, color: AppTheme.primaryColor),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: banner.imageUrl != null && banner.imageUrl!.isNotEmpty
+              ? Image.network(
+                  banner.imageUrl!,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _fallbackIcon(),
+                )
+              : _fallbackIcon(),
         ),
         title: Text(
           banner.title,
@@ -231,22 +247,26 @@ class _BannerForm extends ConsumerStatefulWidget {
 }
 
 class _BannerFormState extends ConsumerState<_BannerForm> {
-  final _titleCtrl = TextEditingController();
+  final _titleCtrl    = TextEditingController();
   final _subtitleCtrl = TextEditingController();
-  final _imageUrlCtrl = TextEditingController();
   String? _selectedRestaurantId;
-  String _section = 'food'; // 'food' or 'grocery'
-  bool _saving = false;
+  String  _section = 'food';
+  bool    _saving  = false;
+
+  // Image state
+  File?   _pickedImage;
+  String? _existingImageUrl;
+  bool    _uploadingImage = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.existing != null) {
-      _titleCtrl.text = widget.existing!.title;
-      _subtitleCtrl.text = widget.existing!.subtitle ?? '';
-      _imageUrlCtrl.text = widget.existing!.imageUrl ?? '';
-      _selectedRestaurantId = widget.existing!.restaurantId;
-      _section = widget.existing!.section;
+      _titleCtrl.text           = widget.existing!.title;
+      _subtitleCtrl.text        = widget.existing!.subtitle ?? '';
+      _existingImageUrl         = widget.existing!.imageUrl;
+      _selectedRestaurantId     = widget.existing!.restaurantId;
+      _section                  = widget.existing!.section;
     }
   }
 
@@ -254,8 +274,53 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   void dispose() {
     _titleCtrl.dispose();
     _subtitleCtrl.dispose();
-    _imageUrlCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (picked != null && mounted) {
+      setState(() => _pickedImage = File(picked.path));
+    }
+  }
+
+  Future<String?> _uploadImageIfNeeded() async {
+    if (_pickedImage == null) return _existingImageUrl;
+    setState(() => _uploadingImage = true);
+    try {
+      final bytes    = await _pickedImage!.readAsBytes();
+      final fileName = 'banner_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await Supabase.instance.client.storage
+          .from('banners')
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+          );
+      return Supabase.instance.client.storage
+          .from('banners')
+          .getPublicUrl(fileName);
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
+  Widget _imagePlaceholder(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[600]),
+        const SizedBox(height: 8),
+        Text(
+          'Tap to add banner image',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+      ],
+    );
   }
 
   Future<void> _save() async {
@@ -266,14 +331,13 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     }
     setState(() => _saving = true);
     try {
+      final imageUrl = await _uploadImageIfNeeded();
       final data = {
         'title': title,
         'subtitle': _subtitleCtrl.text.trim().isEmpty
             ? null
             : _subtitleCtrl.text.trim(),
-        'image_url': _imageUrlCtrl.text.trim().isEmpty
-            ? null
-            : _imageUrlCtrl.text.trim(),
+        'image_url': imageUrl,
         'restaurant_id': _selectedRestaurantId,
         'section': _section,
       };
@@ -369,12 +433,59 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
           ),
           const SizedBox(height: 12),
 
-          // Image URL
-          TextField(
-            controller: _imageUrlCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Image URL (optional)',
-              hintText: 'https://...',
+          // Banner image picker
+          GestureDetector(
+            onTap: _uploadingImage ? null : _pickImage,
+            child: Container(
+              height: 140,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _uploadingImage
+                  ? const Center(child: CircularProgressIndicator())
+                  : _pickedImage != null
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(_pickedImage!, fit: BoxFit.cover),
+                            Positioned(
+                              top: 8, right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text('Tap to change', style: TextStyle(color: Colors.white, fontSize: 11)),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _existingImageUrl != null && _existingImageUrl!.isNotEmpty
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.network(_existingImageUrl!, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _imagePlaceholder(context)),
+                                Positioned(
+                                  top: 8, right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text('Tap to change', style: TextStyle(color: Colors.white, fontSize: 11)),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : _imagePlaceholder(context),
             ),
           ),
           const SizedBox(height: 12),

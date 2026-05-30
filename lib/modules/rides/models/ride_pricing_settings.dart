@@ -9,6 +9,7 @@ class RidePricingSettings {
   final double maxSearchRadiusKm;
   final int driverRequestTimeoutSeconds;
   final double waitingFeePerMin;
+  final double cardAuthBufferPercent;
   final bool cashEnabled;
   final bool cardEnabled;
   final bool active;
@@ -26,6 +27,7 @@ class RidePricingSettings {
     required this.maxSearchRadiusKm,
     required this.driverRequestTimeoutSeconds,
     required this.waitingFeePerMin,
+    required this.cardAuthBufferPercent,
     required this.cashEnabled,
     required this.cardEnabled,
     required this.active,
@@ -47,6 +49,7 @@ class RidePricingSettings {
       driverRequestTimeoutSeconds:
           json['driver_request_timeout_seconds'] as int,
       waitingFeePerMin: (json['waiting_fee_per_min'] as num?)?.toDouble() ?? 75.0,
+      cardAuthBufferPercent: (json['card_auth_buffer_percent'] as num?)?.toDouble() ?? 50.0,
       cashEnabled: json['cash_enabled'] as bool? ?? true,
       cardEnabled: json['card_enabled'] as bool? ?? true,
       active: json['active'] as bool? ?? true,
@@ -66,6 +69,7 @@ class RidePricingSettings {
     'max_search_radius_km': maxSearchRadiusKm,
     'driver_request_timeout_seconds': driverRequestTimeoutSeconds,
     'waiting_fee_per_min': waitingFeePerMin,
+    'card_auth_buffer_percent': cardAuthBufferPercent,
     'cash_enabled': cashEnabled,
     'card_enabled': cardEnabled,
     'active': active,
@@ -84,6 +88,7 @@ class RidePricingSettings {
     double? maxSearchRadiusKm,
     int? driverRequestTimeoutSeconds,
     double? waitingFeePerMin,
+    double? cardAuthBufferPercent,
     bool? cashEnabled,
     bool? cardEnabled,
     bool? active,
@@ -103,6 +108,7 @@ class RidePricingSettings {
       driverRequestTimeoutSeconds:
           driverRequestTimeoutSeconds ?? this.driverRequestTimeoutSeconds,
       waitingFeePerMin: waitingFeePerMin ?? this.waitingFeePerMin,
+      cardAuthBufferPercent: cardAuthBufferPercent ?? this.cardAuthBufferPercent,
       cashEnabled: cashEnabled ?? this.cashEnabled,
       cardEnabled: cardEnabled ?? this.cardEnabled,
       active: active ?? this.active,

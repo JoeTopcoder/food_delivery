@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +26,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     with SingleTickerProviderStateMixin {
   bool _togglingAvailability = false;
   bool _creatingProfile = false;
+  bool _redirecting = false;
   late AnimationController _pulseController;
   Driver? _lastDriver;
   final Set<String> _togglingServices = {};
@@ -228,12 +229,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         : null;
 
     if (authState.user == null || currentUserId == null) {
-      if (!authState.isAuthenticated) {
+      if (!authState.isAuthenticated && !_redirecting) {
+        _redirecting = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (context.mounted) {
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil('/signin', (_) => false);
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
           }
         });
       }
@@ -256,7 +256,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           body: _buildError(currentUserId, driverProfileAsync!.error!),
         );
       }
-      if (driverProfileAsync == null) {
+      // Show no-profile screen when the provider resolved with null
+      // (auto-create failed) OR when the async value itself is null.
+      if (driverProfileAsync == null ||
+          driverProfileAsync.hasValue == true) {
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: _buildNoProfile(currentUserId),
@@ -271,10 +274,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
 
     // ── Verification gate ─────────────────────────────────────────────────────
-    // Drivers who are not yet approved are shown a status screen instead of
-    // the full dashboard. Existing drivers without driver_status set ('draft')
-    // keep normal access so live production drivers are not disrupted.
-    if (driver.driverStatus != 'approved' && driver.driverStatus != 'draft') {
+    // Only fully approved drivers reach the dashboard.
+    // 'draft' is no longer treated as a bypass — new signups are set to
+    // 'pending_review' at the end of onboarding and must wait for admin approval.
+    if (driver.driverStatus != 'approved') {
       return _buildVerificationGate(driver);
     }
 
@@ -717,7 +720,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         .clamp(0.0, double.infinity);
 
     return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         // ── HERO ────────────────────────────────────────────────────
         SliverToBoxAdapter(

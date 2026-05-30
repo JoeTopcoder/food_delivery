@@ -1,4 +1,4 @@
-enum OnboardingRole { customer, driver, restaurant }
+enum OnboardingRole { customer, driver, restaurant, serviceProvider }
 
 extension OnboardingRoleX on OnboardingRole {
   String get dbRole {
@@ -9,12 +9,13 @@ extension OnboardingRoleX on OnboardingRole {
         return 'driver';
       case OnboardingRole.restaurant:
         return 'restaurant';
+      case OnboardingRole.serviceProvider:
+        return 'service_provider';
     }
   }
 
   String get legacySafeRole {
-    // Constraint allows ('customer','driver','restaurant','admin'); use
-    // the canonical dbRole value.
+    // DB constraint allows ('customer','driver','restaurant','admin','service_provider').
     return dbRole;
   }
 
@@ -26,6 +27,8 @@ extension OnboardingRoleX on OnboardingRole {
         return 'Earn as Driver';
       case OnboardingRole.restaurant:
         return 'Partner Restaurant';
+      case OnboardingRole.serviceProvider:
+        return 'Car Service Provider';
     }
   }
 
@@ -37,6 +40,8 @@ extension OnboardingRoleX on OnboardingRole {
         return '/onboarding/driver';
       case OnboardingRole.restaurant:
         return '/onboarding/restaurant';
+      case OnboardingRole.serviceProvider:
+        return '/onboarding/service-provider';
     }
   }
 
@@ -49,6 +54,8 @@ extension OnboardingRoleX on OnboardingRole {
         return OnboardingRole.driver;
       case 'restaurant':
         return OnboardingRole.restaurant;
+      case 'service_provider':
+        return OnboardingRole.serviceProvider;
       default:
         return null;
     }

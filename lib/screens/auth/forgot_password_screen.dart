@@ -5,6 +5,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -60,7 +61,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.only(
+          left: Responsive.horizontalPadding(context),
+          right: Responsive.horizontalPadding(context),
+          top: Responsive.cardPadding(context),
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              Responsive.cardPadding(context),
+        ),
         child: _isSubmitted
             ? _buildSuccessWidget(context)
             : _buildFormWidget(context, authState),

@@ -35,19 +35,19 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
 
   Future<void> _refresh() async {
     ref.invalidate(allDriversAdminProvider);
-    ref.invalidate(pendingDriversProvider);
+    ref.invalidate(approvedDriversProvider);
     ref.invalidate(rejectedDriversProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     final allAsync = ref.watch(allDriversAdminProvider((0, 200)));
-    final pendingAsync = ref.watch(pendingDriversProvider);
+    final approvedAsync = ref.watch(approvedDriversProvider);
     final rejectedAsync = ref.watch(rejectedDriversProvider);
     final verifyAsync = ref.watch(pendingVerificationDriversProvider);
 
     int allCount = allAsync.valueOrNull?.length ?? 0;
-    int pendingCount = pendingAsync.valueOrNull?.length ?? 0;
+    int approvedCount = approvedAsync.valueOrNull?.length ?? 0;
     int rejectedCount = rejectedAsync.valueOrNull?.length ?? 0;
     int verifyCount = verifyAsync.valueOrNull?.length ?? 0;
 
@@ -63,6 +63,8 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
           labelColor: Colors.white,
@@ -73,12 +75,8 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
           ),
           tabs: [
             _countTab('All', allCount),
-            _countTab('Pending', pendingCount, color: const Color(0xFFFEF3C7)),
-            _countTab(
-              'Rejected',
-              rejectedCount,
-              color: const Color(0xFFFEE2E2),
-            ),
+            _countTab('Approved', approvedCount, color: const Color(0xFFD1FAE5)),
+            _countTab('Rejected', rejectedCount, color: const Color(0xFFFEE2E2)),
             _countTab('Review', verifyCount, color: const Color(0xFFE0E7FF)),
           ],
         ),
@@ -99,21 +97,18 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
           _DriverList(
             asyncValue: allAsync,
             onRefresh: _refresh,
-            showVerifyActions: true,
             ref: ref,
           ),
           _DriverList(
-            asyncValue: pendingAsync,
+            asyncValue: approvedAsync,
             onRefresh: _refresh,
-            showVerifyActions: true,
             ref: ref,
-            emptyMessage: 'No drivers pending verification',
-            emptyIcon: Icons.check_circle_outline,
+            emptyMessage: 'No approved drivers yet',
+            emptyIcon: Icons.verified_rounded,
           ),
           _DriverList(
             asyncValue: rejectedAsync,
             onRefresh: _refresh,
-            showVerifyActions: true,
             ref: ref,
             emptyMessage: 'No rejected drivers',
             emptyIcon: Icons.cancel_outlined,
@@ -175,7 +170,6 @@ class _AdminDriversScreenState extends ConsumerState<AdminDriversScreen>
 class _DriverList extends StatelessWidget {
   final AsyncValue<List<Driver>> asyncValue;
   final Future<void> Function() onRefresh;
-  final bool showVerifyActions;
   final WidgetRef ref;
   final String emptyMessage;
   final IconData emptyIcon;
@@ -183,7 +177,6 @@ class _DriverList extends StatelessWidget {
   const _DriverList({
     required this.asyncValue,
     required this.onRefresh,
-    required this.showVerifyActions,
     required this.ref,
     this.emptyMessage = 'No drivers found',
     this.emptyIcon = Icons.directions_bike_outlined,
@@ -205,7 +198,7 @@ class _DriverList extends StatelessWidget {
             itemCount: drivers.length,
             itemBuilder: (context, index) {
               final driver = drivers[index];
-              final isVerified = driver.isVerified == true;
+              final isApproved = driver.isApproved;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -232,7 +225,7 @@ class _DriverList extends StatelessWidget {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: isVerified
+                              color: isApproved
                                   ? const Color(
                                       0xFF10B981,
                                     ).withValues(alpha: 0.12)
@@ -243,7 +236,7 @@ class _DriverList extends StatelessWidget {
                             ),
                             child: Icon(
                               Icons.directions_bike_rounded,
-                              color: isVerified
+                              color: isApproved
                                   ? const Color(0xFF10B981)
                                   : const Color(0xFFF59E0B),
                               size: 22,
@@ -254,34 +247,42 @@ class _DriverList extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Driver name
                                 Text(
-                                  driver.vehicleNumber?.isNotEmpty == true
-                                      ? driver.vehicleNumber!
-                                      : 'No vehicle number',
+                                  driver.fullName?.isNotEmpty == true
+                                      ? driver.fullName!
+                                      : 'Driver',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 14,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
+                                const SizedBox(height: 2),
+                                // Vehicle make/model line
                                 Text(
-                                  driver.vehicleType?.isNotEmpty == true
-                                      ? (driver.vehicleType![0].toUpperCase() +
-                                            driver.vehicleType!.substring(1))
-                                      : 'Unknown type',
+                                  _vehicleLine(driver),
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                // Plate + color line
+                                Text(
+                                  _vehicleDetail(driver),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          _StatusBadge(isVerified: isVerified),
+                          _StatusBadge(isApproved: isApproved, status: driver.driverStatus),
                           const SizedBox(width: 8),
                           IconButton(
                             icon: const Icon(
@@ -293,29 +294,28 @@ class _DriverList extends StatelessWidget {
                             constraints: const BoxConstraints(),
                             padding: const EdgeInsets.all(4),
                             onPressed: () async {
+                              final phone = driver.phoneNumber?.isNotEmpty == true
+                                  ? driver.phoneNumber
+                                  : null;
+                              if (phone != null) {
+                                launchUrl(Uri(scheme: 'tel', path: phone));
+                                return;
+                              }
                               try {
                                 final userData = await SupabaseConfig.client
                                     .from('users')
                                     .select('phone')
                                     .eq('id', driver.userId)
                                     .maybeSingle();
-                                final phone = userData?['phone'] as String?;
-                                if (phone != null && phone.isNotEmpty) {
-                                  launchUrl(Uri(scheme: 'tel', path: phone));
-                                } else {
-                                  if (context.mounted) {
-                                    AppSnackbar.warning(
-                                      context,
-                                      'No phone number on file for this driver',
-                                    );
-                                  }
+                                final p = userData?['phone'] as String?;
+                                if (p != null && p.isNotEmpty) {
+                                  launchUrl(Uri(scheme: 'tel', path: p));
+                                } else if (context.mounted) {
+                                  AppSnackbar.warning(context, 'No phone number on file');
                                 }
                               } catch (_) {
                                 if (context.mounted) {
-                                  AppSnackbar.error(
-                                    context,
-                                    'Could not retrieve driver phone number',
-                                  );
+                                  AppSnackbar.error(context, 'Could not retrieve phone number');
                                 }
                               }
                             },
@@ -460,7 +460,7 @@ class _DriverList extends StatelessWidget {
                         ),
                       ),
 
-                      if (!isVerified) ...[
+                      if (!isApproved) ...[
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -551,7 +551,7 @@ class _DriverList extends StatelessWidget {
         minChildSize: 0.5,
         expand: false,
         builder: (ctx, scrollController) {
-          final isVerified = driver.isVerified == true;
+          final isApproved = driver.isApproved;
           return Container(
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
@@ -583,7 +583,7 @@ class _DriverList extends StatelessWidget {
                             width: 52,
                             height: 52,
                             decoration: BoxDecoration(
-                              color: isVerified
+                              color: isApproved
                                   ? const Color(
                                       0xFF10B981,
                                     ).withValues(alpha: 0.12)
@@ -594,7 +594,7 @@ class _DriverList extends StatelessWidget {
                             ),
                             child: Icon(
                               Icons.directions_bike_rounded,
-                              color: isVerified
+                              color: isApproved
                                   ? const Color(0xFF10B981)
                                   : const Color(0xFFF59E0B),
                               size: 26,
@@ -606,9 +606,8 @@ class _DriverList extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  driver.vehicleNumber?.isNotEmpty == true
-                                      ? driver.vehicleNumber!
-                                      : 'No vehicle number',
+                                  _vehicleLine(driver),
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
@@ -618,10 +617,22 @@ class _DriverList extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  driver.vehicleType?.isNotEmpty == true
-                                      ? (driver.vehicleType![0].toUpperCase() +
-                                            driver.vehicleType!.substring(1))
-                                      : 'Unknown type',
+                                  () {
+                                    final plate = driver.plateNumber ??
+                                        driver.licensePlate ??
+                                        driver.vehicleNumber;
+                                    final color = driver.vehicleColor;
+                                    final parts = <String>[
+                                      if (plate != null && plate.isNotEmpty)
+                                        plate,
+                                      if (color != null && color.isNotEmpty)
+                                        color,
+                                    ];
+                                    return parts.isEmpty
+                                        ? 'No plate on file'
+                                        : parts.join(' · ');
+                                  }(),
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Theme.of(
@@ -632,7 +643,7 @@ class _DriverList extends StatelessWidget {
                               ],
                             ),
                           ),
-                          _StatusBadge(isVerified: isVerified),
+                          _StatusBadge(isApproved: isApproved, status: driver.driverStatus),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -747,7 +758,7 @@ class _DriverList extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      if (!isVerified) ...[
+                      if (!isApproved) ...[
                         Row(
                           children: [
                             Expanded(
@@ -1065,38 +1076,69 @@ class _FloatQuickBtn extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  final bool isVerified;
-  const _StatusBadge({required this.isVerified});
+  final bool isApproved;
+  final String? status;
+  const _StatusBadge({required this.isApproved, this.status});
+
+  Color get _color {
+    switch (status) {
+      case 'approved':
+        return const Color(0xFF10B981);
+      case 'rejected':
+        return Colors.red;
+      case 'pending_review':
+      case 'under_review':
+        return const Color(0xFFF59E0B);
+      default:
+        return isApproved ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    }
+  }
+
+  String get _label {
+    switch (status) {
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending_review':
+        return 'Pending';
+      case 'under_review':
+        return 'In Review';
+      case 'draft':
+        return 'Draft';
+      default:
+        return isApproved ? 'Approved' : 'Pending';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final color = _color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isVerified
-            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-            : const Color(0xFFF59E0B).withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isVerified ? Icons.verified_rounded : Icons.hourglass_top_rounded,
+            status == 'approved' || isApproved
+                ? Icons.verified_rounded
+                : status == 'rejected'
+                ? Icons.cancel_rounded
+                : Icons.hourglass_top_rounded,
             size: 12,
-            color: isVerified
-                ? const Color(0xFF10B981)
-                : const Color(0xFFF59E0B),
+            color: color,
           ),
           const SizedBox(width: 4),
           Text(
-            isVerified ? 'Verified' : 'Pending',
+            _label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isVerified
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFFF59E0B),
+              color: color,
             ),
           ),
         ],
@@ -1227,6 +1269,8 @@ class _DetailItem extends StatelessWidget {
             flex: 3,
             child: Text(
               value,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1848,6 +1892,7 @@ class _VerificationCardState extends State<_VerificationCard> {
                     children: [
                       Text(
                         _driverName,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
@@ -1855,6 +1900,7 @@ class _VerificationCardState extends State<_VerificationCard> {
                       ),
                       Text(
                         _driverEmail,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -2021,6 +2067,30 @@ class _StatusChip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Vehicle helpers ──────────────────────────────────────────────────────────
+
+String _vehicleLine(Driver driver) {
+  final parts = <String>[];
+  final type = driver.vehicleType;
+  if (type != null && type.isNotEmpty) {
+    parts.add(type[0].toUpperCase() + type.substring(1));
+  }
+  final make = driver.vehicleMake ?? driver.vehicleBrand;
+  final model = driver.vehicleModel;
+  if (make != null && make.isNotEmpty) parts.add(make);
+  if (model != null && model.isNotEmpty) parts.add(model);
+  return parts.isEmpty ? 'Unknown vehicle' : parts.join(' · ');
+}
+
+String _vehicleDetail(Driver driver) {
+  final parts = <String>[];
+  final plate = driver.plateNumber ?? driver.licensePlate ?? driver.vehicleNumber;
+  if (plate != null && plate.isNotEmpty) parts.add('Plate: $plate');
+  final color = driver.vehicleColor;
+  if (color != null && color.isNotEmpty) parts.add(color);
+  return parts.join(' · ');
 }
 
 class _InfoChip extends StatelessWidget {

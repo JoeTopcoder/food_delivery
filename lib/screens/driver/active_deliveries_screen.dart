@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,10 +15,12 @@ import '../../services/location_service.dart';
 import '../../widgets/sos_button.dart';
 import '../../widgets/order_countdown_timer.dart';
 import 'delivery_proof_screen.dart';
+import 'multi_stop_delivery_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -95,13 +97,15 @@ class _ActiveDeliveriesScreenState
         }
 
         final deliveriesAsync = ref.watch(activeDeliveriesProvider(driver.id));
+        final multiTasksAsync = ref.watch(activeDeliveryTasksProvider(driver.id));
+        ref.watch(deliveryTaskRealtimeProvider(driver.id)); // keep realtime alive
         final locationService = ref.read(locationServiceProvider);
         final isTracking = ref.watch(isTrackingProvider);
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               // ── App Bar ────────────────────────────────────────────
               SliverAppBar(
@@ -151,6 +155,110 @@ class _ActiveDeliveriesScreenState
                 ],
               ),
 
+              // ── Multi-stop delivery tasks ──────────────────────────
+              if (multiTasksAsync.valueOrNull?.isNotEmpty == true)
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.horizontalPadding(context), 12,
+                          Responsive.horizontalPadding(context), 6,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.route_rounded,
+                                color: AppTheme.primaryColor, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Multi-Stop Deliveries',
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w700,
+                                fontSize: Responsive.smallText(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ...multiTasksAsync.valueOrNull!.map((task) {
+                        final stops = ((task['delivery_stops'] as List?) ?? [])
+                            .cast<Map<String, dynamic>>();
+                        final completedStops =
+                            stops.where((s) => s['status'] == 'completed').length;
+                        final earning =
+                            (task['driver_earning'] as num?)?.toDouble() ?? 0.0;
+                        return GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MultiStopDeliveryScreen(
+                                deliveryTaskId: task['id'] as String,
+                                driverId: driver.id,
+                              ),
+                            ),
+                          ),
+                          child: Container(
+                            margin: EdgeInsets.fromLTRB(
+                              Responsive.horizontalPadding(context), 0,
+                              Responsive.horizontalPadding(context), 8,
+                            ),
+                            padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E2030),
+                              borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context)),
+                              border: Border.all(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.route_rounded,
+                                      color: AppTheme.primaryColor, size: 22),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${stops.length - 1} Pickup${stops.length - 1 != 1 ? "s" : ""} + 1 Drop-off',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$completedStops/${stops.length} stops done · ${AppConstants.currencySymbol}${earning.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded,
+                                    color: Colors.white38),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+
               // ── Body ──────────────────────────────────────────────
               deliveriesAsync.when(
                 data: (deliveries) {
@@ -164,7 +272,7 @@ class _ActiveDeliveriesScreenState
                     );
                   }
                   return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final delivery = deliveries[index];

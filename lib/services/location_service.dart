@@ -10,6 +10,16 @@ class LocationService {
   String? _activeOrderId;
   DateTime? _lastPushTime;
 
+  // Threshold tracking to avoid redundant DB writes
+  Position? _lastPushedPosition;
+
+  // Skip a GPS fix if accuracy is worse than this (metres)
+  static const double _maxAccuracyMetres = 50.0;
+  // Minimum movement before we push again (metres)
+  static const double _minMovementMetres = 15.0;
+  // Minimum heading change before we push again (degrees)
+  static const double _minHeadingDelta = 10.0;
+
   LocationService(this._client);
 
   Future<bool> requestPermission() async {
@@ -73,12 +83,29 @@ class LocationService {
 
   Future<void> _push(Position pos) async {
     if (_activeDriverId == null) return;
+
+    // Drop fixes with poor GPS accuracy (e.g. indoors, weak signal)
+    if (pos.accuracy > _maxAccuracyMetres) return;
+
     // Throttle: skip if last push was less than 5 seconds ago
     final now = DateTime.now();
     if (_lastPushTime != null && now.difference(_lastPushTime!).inSeconds < 5) {
       return;
     }
+
+    // Skip if the driver hasn't moved enough AND heading hasn't changed
+    final prev = _lastPushedPosition;
+    if (prev != null) {
+      final moved = Geolocator.distanceBetween(
+        prev.latitude, prev.longitude, pos.latitude, pos.longitude,
+      );
+      final headingDelta = (pos.heading - prev.heading).abs();
+      final normalised = headingDelta > 180 ? 360 - headingDelta : headingDelta;
+      if (moved < _minMovementMetres && normalised < _minHeadingDelta) return;
+    }
+
     _lastPushTime = now;
+    _lastPushedPosition = pos;
     try {
       await _client.from('driver_locations').upsert({
         'driver_id': _activeDriverId,
@@ -87,6 +114,7 @@ class LocationService {
         'longitude': pos.longitude,
         'heading': pos.heading,
         'speed': pos.speed,
+        'accuracy': pos.accuracy,
         'updated_at': now.toIso8601String(),
       }, onConflict: 'driver_id');
     } catch (e) {

@@ -7,25 +7,21 @@ final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService(Supabase.instance.client);
 });
 
-final chatMessagesProvider = StreamProvider.family<List<ChatMessage>, String>((
-  ref,
-  orderId,
-) {
-  return ref.watch(chatServiceProvider).watchMessages(orderId);
-});
+/// Key for chatMessagesProvider — supply either orderId or rideId.
+typedef ChatKey = ({String? orderId, String? rideId});
 
-final rideMessagesProvider = StreamProvider.family<List<ChatMessage>, String>((
-  ref,
-  rideId,
-) {
-  return ref.watch(chatServiceProvider).watchRideMessages(rideId);
+final chatMessagesProvider =
+    StreamProvider.family<List<ChatMessage>, ChatKey>((ref, key) {
+  return ref
+      .watch(chatServiceProvider)
+      .watchMessages(orderId: key.orderId, rideId: key.rideId);
 });
 
 // Conversation for a specific order
 final conversationForOrderProvider =
     FutureProvider.family<Conversation?, String>((ref, orderId) {
-      return ref.watch(chatServiceProvider).getConversationForOrder(orderId);
-    });
+  return ref.watch(chatServiceProvider).getConversationForOrder(orderId);
+});
 
 // All conversations stream (for admin / inbox)
 final conversationsProvider = StreamProvider<List<Conversation>>((ref) {
@@ -35,24 +31,20 @@ final conversationsProvider = StreamProvider<List<Conversation>>((ref) {
 // Typing indicators for a conversation
 final typingIndicatorsProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((
-      ref,
-      conversationId,
-    ) {
-      return ref.watch(chatServiceProvider).watchTyping(conversationId);
-    });
+  ref,
+  conversationId,
+) {
+  return ref.watch(chatServiceProvider).watchTyping(conversationId);
+});
 
 // Active calls for the current user
-final activeCallsProvider = StreamProvider.family<List<CallRecord>, String>((
-  ref,
-  userId,
-) {
+final activeCallsProvider =
+    StreamProvider.family<List<CallRecord>, String>((ref, userId) {
   return ref.watch(chatServiceProvider).watchActiveCalls(userId);
 });
 
-final orderIssuesProvider = FutureProvider.family<List<OrderIssue>, String>((
-  ref,
-  orderId,
-) {
+final orderIssuesProvider =
+    FutureProvider.family<List<OrderIssue>, String>((ref, orderId) {
   return ref.watch(chatServiceProvider).getIssues(orderId: orderId);
 });
 
@@ -64,5 +56,5 @@ final allIssuesProvider = FutureProvider.autoDispose<List<OrderIssue>>((ref) {
 /// All chat summaries for admin (order_id + latest message)
 final allChatSummariesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-      return ref.watch(chatServiceProvider).getAllChatSummaries();
-    });
+  return ref.watch(chatServiceProvider).getAllChatSummaries();
+});

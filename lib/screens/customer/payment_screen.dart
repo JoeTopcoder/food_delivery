@@ -237,7 +237,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
     setState(() => _state = _PayState.success);
     _checkCtrl.forward();
     Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) Navigator.of(context).pop({'status': 'paid'});
+      if (mounted) Navigator.of(context).pop({'status': 'paid', 'payment_intent_id': _paymentIntentId});
     });
   }
 
@@ -492,9 +492,10 @@ class _CardFormViewState extends State<_CardFormView> {
     final sym = AppConstants.currencySymbol;
     final amtStr = '$sym${widget.amount.toStringAsFixed(2)}';
     final enabled = widget.cardComplete && !widget.processing;
-    // viewInsets.bottom is the keyboard height; we use it to push the sticky
-    // panel above the keyboard since resizeToAvoidBottomInset is false.
+    // viewInsets.bottom = keyboard height; padding.bottom = system nav bar.
+    // Both must be added since resizeToAvoidBottomInset is false.
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final navBarHeight = MediaQuery.of(context).padding.bottom;
 
     return Column(
       children: [
@@ -518,7 +519,7 @@ class _CardFormViewState extends State<_CardFormView> {
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset + navBarHeight),
           decoration: BoxDecoration(
             color: _kBg,
             boxShadow: [

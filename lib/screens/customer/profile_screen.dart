@@ -11,6 +11,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kNavy  = Color(0xFF004E89);
@@ -133,7 +134,13 @@ class _CustomerProfileScreenState
                         sub:   context.l10n.addressBookSub,
                         onTap: () => Navigator.of(context).pushNamed('/address-book'),
                       ),
-
+                      _MenuItem(
+                        icon:  Icons.directions_car_rounded,
+                        color: const Color(0xFF1D4ED8),
+                        title: 'My Vehicles',
+                        sub:   'Manage your saved cars',
+                        onTap: () => Navigator.of(context).pushNamed('/my-vehicles'),
+                      ),
                     ]),
 
                     const SizedBox(height: 16),
@@ -226,7 +233,7 @@ class _CustomerProfileScreenState
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: Theme.of(ctx).colorScheme.outline.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -336,8 +343,7 @@ class _CustomerProfileScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.cancel,
-                style: TextStyle(color: Colors.grey.shade600)),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () async {
@@ -688,7 +694,7 @@ class _Stat extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       );
@@ -713,7 +719,7 @@ class _MenuGroup extends StatelessWidget {
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               letterSpacing: 1.4,
             ),
           ),
@@ -781,7 +787,7 @@ class _MenuItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 12),
           child: Row(
             children: [
               // Icon container
@@ -802,6 +808,8 @@ class _MenuItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14.5,
@@ -811,9 +819,11 @@ class _MenuItem extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       sub,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
+                        fontSize: Responsive.smallText(context),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -823,7 +833,7 @@ class _MenuItem extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 20,
-                color: Colors.grey.shade400,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -861,7 +871,7 @@ class _SignOutRow extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 14),
             child: Row(
               children: [
                 Container(
@@ -891,7 +901,7 @@ class _SignOutRow extends StatelessWidget {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
-                  color: Colors.grey.shade400,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),

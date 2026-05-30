@@ -6,6 +6,7 @@ import '../../../screens/main_navigation_screen.dart';
 import '../../../screens/driver/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/restaurant_dashboard_screen.dart';
 import '../../../screens/admin/admin_dashboard_screen.dart';
+import '../../../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../../../widgets/role_guard.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
@@ -77,6 +78,11 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
           return const RoleGuard(
             allowedRoles: ['admin'],
             child: AdminDashboardScreen(),
+          );
+        case 'service_provider':
+          return const RoleGuard(
+            allowedRoles: ['service_provider'],
+            child: CarServiceProviderDashboardScreen(),
           );
         default:
           // Unknown / null role — sign out immediately and return to role

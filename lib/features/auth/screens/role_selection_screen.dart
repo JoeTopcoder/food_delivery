@@ -31,6 +31,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
         'driver' => '/driver-dashboard',
         'restaurant' => '/restaurant-dashboard',
         'admin' => '/admin-dashboard',
+        'service_provider' => '/car-services/provider',
         _ => '/home',
       };
       if (!context.mounted) return;
@@ -89,6 +90,16 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
                 enabled: !_navigating,
                 onTap: () =>
                     _continueAs(context, ref, OnboardingRole.restaurant),
+              ),
+              const SizedBox(height: 12),
+              _RoleCard(
+                icon: Icons.car_repair_rounded,
+                title: 'Car Service Provider',
+                subtitle: 'List your car wash or detailing service',
+                color: const Color(0xFF0D9488),
+                enabled: !_navigating,
+                onTap: () =>
+                    _continueAs(context, ref, OnboardingRole.serviceProvider),
               ),
               const Spacer(),
               TextButton(

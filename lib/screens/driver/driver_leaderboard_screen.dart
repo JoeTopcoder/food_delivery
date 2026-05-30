@@ -30,9 +30,7 @@ class _DriverLeaderboardScreenState
           ref.invalidate(driverLeaderboardProvider);
         },
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           slivers: [
             SliverAppBar(
               expandedHeight: 180,

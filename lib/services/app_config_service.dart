@@ -71,36 +71,16 @@ class AppConfigService {
   void _applyConfig(Map<String, dynamic> c) {
     // Fees
     AppConstants.taxRate = _double(c, 'tax_rate', AppConstants.taxRate);
-    AppConstants.defaultDeliveryFee = _double(
-      c,
-      'default_delivery_fee',
-      AppConstants.defaultDeliveryFee,
-    );
-    AppConstants.driverFeePerDelivery = _double(
-      c,
-      'driver_fee_per_delivery',
-      AppConstants.driverFeePerDelivery,
-    );
-    AppConstants.cardFeePercent = _double(
-      c,
-      'card_fee_percent',
-      AppConstants.cardFeePercent,
-    );
-    AppConstants.cashFeePercent = _double(
-      c,
-      'cash_fee_percent',
-      AppConstants.cashFeePercent,
-    );
-    AppConstants.cardVerificationChargeMin = _double(
-      c,
-      'card_verification_charge_min',
-      AppConstants.cardVerificationChargeMin,
-    );
-    AppConstants.cardVerificationChargeMax = _double(
-      c,
-      'card_verification_charge_max',
-      AppConstants.cardVerificationChargeMax,
-    );
+    AppConstants.taxEnabled = _bool(c, 'tax_enabled', AppConstants.taxEnabled);
+    AppConstants.platformCommissionCap = _double(c, 'platform_commission_cap', AppConstants.platformCommissionCap);
+    AppConstants.defaultDeliveryFee = _double(c, 'default_delivery_fee', AppConstants.defaultDeliveryFee);
+    AppConstants.pickupServiceFee = _double(c, 'pickup_service_fee', AppConstants.pickupServiceFee);
+    AppConstants.driverFeePerDelivery = _double(c, 'driver_fee_per_delivery', AppConstants.driverFeePerDelivery);
+    AppConstants.cardFeePercent = _double(c, 'card_fee_percent', AppConstants.cardFeePercent);
+    AppConstants.cashFeePercent = _double(c, 'cash_fee_percent', AppConstants.cashFeePercent);
+    AppConstants.bankTransferFeePercent = _double(c, 'bank_transfer_fee_percent', AppConstants.bankTransferFeePercent);
+    AppConstants.cardVerificationChargeMin = _double(c, 'card_verification_charge_min', AppConstants.cardVerificationChargeMin);
+    AppConstants.cardVerificationChargeMax = _double(c, 'card_verification_charge_max', AppConstants.cardVerificationChargeMax);
 
     // Ride promotional banners
     AppConstants.ridePromoFirstRideEnabled = _bool(
@@ -201,22 +181,25 @@ class AppConfigService {
       AppConstants.driverBonusPerOrder,
     );
 
-    // Driver pay rates ($1.50/mile compliance)
-    AppConstants.driverRatePerMile = _double(
-      c,
-      'driver_rate_per_mile',
-      AppConstants.driverRatePerMile,
-    );
-    AppConstants.driverRatePerKm = _double(
-      c,
-      'driver_rate_per_km',
-      AppConstants.driverRatePerKm,
-    );
-    AppConstants.driverMinBasePay = _double(
-      c,
-      'driver_base_pay_minimum',
-      AppConstants.driverMinBasePay,
-    );
+    // Driver pay rates
+    AppConstants.driverRatePerMile = _double(c, 'driver_rate_per_mile', AppConstants.driverRatePerMile);
+    AppConstants.driverRatePerKm = _double(c, 'driver_rate_per_km', AppConstants.driverRatePerKm);
+    AppConstants.driverRatePerMinute = _double(c, 'driver_rate_per_minute', AppConstants.driverRatePerMinute);
+    AppConstants.driverWaitPayPerMinute = _double(c, 'driver_wait_pay_per_minute', AppConstants.driverWaitPayPerMinute);
+    AppConstants.driverMinBasePay = _double(c, 'driver_base_pay_minimum', AppConstants.driverMinBasePay);
+    AppConstants.driverEarningsFloor = _double(c, 'driver_earnings_floor', AppConstants.driverEarningsFloor);
+    AppConstants.driverBoostAmount = _double(c, 'driver_boost_amount', AppConstants.driverBoostAmount);
+
+    // Driver order stacking
+    AppConstants.driverMaxStackOrders = _int(c, 'driver_max_stack_orders', AppConstants.driverMaxStackOrders);
+    AppConstants.driverStackDistanceKm = _double(c, 'driver_stack_distance_km', AppConstants.driverStackDistanceKm);
+    AppConstants.driverStackMaxDelay = _int(c, 'driver_stack_max_delay', AppConstants.driverStackMaxDelay);
+    AppConstants.driverStackMinIncrease = _double(c, 'driver_stack_min_increase', AppConstants.driverStackMinIncrease);
+
+    // Driver tiers
+    AppConstants.driverTierSilverScore = _int(c, 'driver_tier_silver_score', AppConstants.driverTierSilverScore);
+    AppConstants.driverTierGoldScore = _int(c, 'driver_tier_gold_score', AppConstants.driverTierGoldScore);
+    AppConstants.driverTierEliteScore = _int(c, 'driver_tier_elite_score', AppConstants.driverTierEliteScore);
 
     // Peak hour pricing
     AppConstants.peakAddonFee = _double(
@@ -298,10 +281,24 @@ class AppConfigService {
     );
 
     // Commission
-    AppConstants.defaultCommissionRate = _double(
+    AppConstants.defaultCommissionRate = _double(c, 'default_commission_rate', AppConstants.defaultCommissionRate);
+    AppConstants.restaurantCommissionPct = _double(c, 'restaurant_commission_pct', AppConstants.restaurantCommissionPct);
+
+    // Car Services
+    AppConstants.carServiceMobileFee = _double(
       c,
-      'default_commission_rate',
-      AppConstants.defaultCommissionRate,
+      'car_service_mobile_fee',
+      AppConstants.carServiceMobileFee,
+    );
+    AppConstants.carServicePlatformFeePct = _double(
+      c,
+      'car_service_platform_fee_pct',
+      AppConstants.carServicePlatformFeePct,
+    );
+    AppConstants.carServiceServiceFee = _double(
+      c,
+      'car_service_service_fee',
+      AppConstants.carServiceServiceFee,
     );
 
     // ── Earning system ──────────────────────────────────────────────
@@ -449,7 +446,40 @@ class AppConfigService {
       }
     }
 
-    // System
+    // Platform fees
+    AppConstants.platformServiceFeeRate = _double(
+      c,
+      'platform_service_fee_rate',
+      AppConstants.platformServiceFeeRate,
+    );
+
+    // Ride sharing
+    AppConstants.airportSurchargeJmd = _double(
+      c,
+      'airport_surcharge_jmd',
+      AppConstants.airportSurchargeJmd,
+    );
+    AppConstants.rideBookingAdvanceDays = _int(
+      c,
+      'ride_booking_advance_days',
+      AppConstants.rideBookingAdvanceDays,
+    );
+    AppConstants.scheduledRideBufferHours = _int(
+      c,
+      'scheduled_ride_buffer_hours',
+      AppConstants.scheduledRideBufferHours,
+    );
+    AppConstants.rideDriverOfferTimeoutSecs = _int(c, 'ride_driver_offer_timeout_secs', AppConstants.rideDriverOfferTimeoutSecs);
+    AppConstants.rideMaxSearchRadiusKm = _double(c, 'ride_max_search_radius_km', AppConstants.rideMaxSearchRadiusKm);
+    AppConstants.rideDriverSchedAdvanceHours = _int(c, 'ride_driver_sched_advance_hours', AppConstants.rideDriverSchedAdvanceHours);
+
+    // Support contact
+    AppConstants.supportPhone = _str(c, 'support_phone', AppConstants.supportPhone);
+    AppConstants.supportEmail = _str(c, 'support_email', AppConstants.supportEmail);
+    AppConstants.supportWhatsApp = _str(c, 'support_whatsapp', AppConstants.supportWhatsApp);
+
+    // System / maintenance
+    AppConstants.maintenanceMode = _bool(c, 'maintenance_mode', AppConstants.maintenanceMode);
     AppConstants.apiTimeout = _int(c, 'api_timeout', AppConstants.apiTimeout);
     AppConstants.connectionTimeout = _int(
       c,
@@ -467,12 +497,14 @@ class AppConfigService {
   double _double(Map<String, dynamic> c, String key, double fallback) {
     final v = c[key];
     if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? fallback;
     return fallback;
   }
 
   int _int(Map<String, dynamic> c, String key, int fallback) {
     final v = c[key];
     if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? fallback;
     return fallback;
   }
 

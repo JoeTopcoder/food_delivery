@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +25,7 @@ import 'features/auth/screens/auth_launch_gate_screen.dart';
 import 'features/customer/screens/customer_onboarding_screen.dart';
 import 'features/driver/screens/driver_onboarding_screen.dart';
 import 'features/restaurant/screens/restaurant_onboarding_screen.dart';
+import 'features/car_services/screens/service_provider_onboarding_screen.dart';
 import 'screens/driver/driver_dashboard_screen.dart';
 import 'screens/driver/available_orders_screen.dart';
 import 'screens/driver/active_deliveries_screen.dart';
@@ -42,6 +42,8 @@ import 'screens/customer/cart_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
 import 'screens/customer/grocery_checkout_screen.dart';
+import 'screens/customer/multi_restaurant_checkout_screen.dart';
+import 'screens/customer/multi_restaurant_order_detail_screen.dart';
 import 'screens/customer/order_tracking_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/customer/review_screen.dart';
@@ -84,6 +86,7 @@ import 'screens/admin/admin_ads_screen.dart';
 import 'screens/admin/admin_pricing_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/splash_screen.dart';
+import 'screens/maintenance_screen.dart';
 import 'widgets/role_guard.dart';
 import 'screens/customer/refund_dispute_screen.dart';
 import 'screens/customer/group_order_screen.dart';
@@ -103,11 +106,38 @@ import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
 import 'screens/admin/admin_earnings_screen.dart';
 import 'screens/admin/admin_mealhub_screen.dart';
+import 'screens/admin/admin_meal_plans_screen.dart';
 import 'screens/admin/admin_shipping_companies_screen.dart';
 import 'screens/admin/admin_package_deliveries_screen.dart';
 import 'modules/rides/screens/admin/admin_rides_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
 import 'screens/main_navigation_screen.dart';
+// Car Services module
+import 'modules/car_services/screens/customer/car_services_home_screen.dart';
+import 'modules/car_services/screens/customer/car_service_provider_detail_screen.dart';
+import 'modules/car_services/screens/customer/car_service_booking_screen.dart';
+import 'modules/car_services/screens/customer/car_service_booking_summary_screen.dart';
+import 'modules/car_services/screens/customer/car_service_tracking_screen.dart';
+import 'modules/car_services/screens/customer/car_service_my_bookings_screen.dart';
+import 'modules/car_services/screens/customer/car_service_history_screen.dart';
+import 'modules/car_services/screens/customer/my_vehicles_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_bookings_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_booking_detail_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_services_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_availability_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_earnings_screen.dart';
+import 'modules/car_services/screens/provider/car_service_provider_profile_screen.dart';
+import 'modules/car_services/screens/admin/car_service_admin_screen.dart';
+// Laundry module
+import 'modules/laundry/screens/customer/laundry_home_screen.dart';
+import 'modules/laundry/screens/customer/laundry_booking_screen.dart';
+import 'modules/laundry/screens/customer/laundry_tracking_screen.dart';
+import 'modules/laundry/screens/customer/laundry_history_screen.dart';
+import 'modules/laundry/screens/provider/laundry_provider_dashboard_screen.dart';
+import 'modules/laundry/screens/provider/laundry_provider_onboarding_screen.dart';
+import 'modules/laundry/screens/admin/admin_laundry_screen.dart';
+import 'modules/car_services/models/index.dart' show CarServiceBooking;
 // Rides module
 import 'modules/rides/screens/customer/ride_home_screen.dart';
 import 'modules/rides/screens/customer/ride_booking_screen.dart';
@@ -116,83 +146,96 @@ import 'modules/rides/screens/customer/active_ride_screen.dart';
 import 'modules/rides/screens/customer/ride_history_screen.dart';
 import 'modules/rides/screens/driver/driver_mode_screen.dart';
 import 'modules/rides/screens/driver/active_ride_driver_screen.dart';
-import 'modules/rides/screens/driver/driver_ride_requests_screen.dart';
+import 'modules/rides/screens/driver/driver_ride_history_screen.dart';
+import 'modules/rides/screens/driver/driver_schedule_screen.dart';
 import 'modules/packages/screens/customer/shipping_company_screen.dart';
 import 'modules/packages/screens/driver/package_request_card.dart';
 import 'modules/packages/models/package_delivery_request.dart';
+
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
 import 'providers/feature_providers.dart';
 
 void main() {
-  runZonedGuarded(() async {
-    // ensureInitialized must be called inside the same zone as runApp.
-    WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () async {
+      // ensureInitialized must be called inside the same zone as runApp.
+      WidgetsFlutterBinding.ensureInitialized();
 
-    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
 
-    // Keep only the minimum boot dependencies on the critical path.
-    await Future.wait([
-      Firebase.initializeApp(),
-      SupabaseConfig.initialize(),
-      CacheService.init(),
-    ]);
+      // Keep only the minimum boot dependencies on the critical path.
+      await Future.wait([
+        Firebase.initializeApp(),
+        SupabaseConfig.initialize(),
+        CacheService.init(),
+      ]);
 
-    // Initialize Stripe (non-blocking — don't await applySettings)
-    final stripeKey = AppConstants.stripePublishableKey;
-    if (stripeKey.isNotEmpty) {
-      Stripe.publishableKey = stripeKey;
-      Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-      Stripe.instance.applySettings().catchError((_) {});
-    }
-    AppLogger.info(
-      '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
-    );
+      // Initialize Stripe (non-blocking — don't await applySettings)
+      final stripeKey = AppConstants.stripePublishableKey;
+      if (stripeKey.isNotEmpty) {
+        Stripe.publishableKey = stripeKey;
+        Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+        Stripe.instance.applySettings().catchError((_) {});
+      }
+      AppLogger.info(
+        '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
+      );
 
-    FlutterError.onError = (FlutterErrorDetails details) {
-      // silent=true means the widget already handled it (e.g. image 404 with errorWidget).
-      // Logging those as "Uncaught" is misleading noise — skip them.
-      if (details.silent) return;
-      AppLogger.error('[Flutter] Uncaught: ${details.exception}\n${details.stack}');
-    };
+      FlutterError.onError = (FlutterErrorDetails details) {
+        // silent=true means the widget already handled it (e.g. image 404 with errorWidget).
+        // Logging those as "Uncaught" is misleading noise — skip them.
+        if (details.silent) return;
+        AppLogger.error(
+          '[Flutter] Uncaught: ${details.exception}\n${details.stack}',
+        );
+      };
 
-    // Replace the default red crash widget with a calm fallback so a broken
-    // subtree never produces a white or red screen in release builds.
-    ErrorWidget.builder = (FlutterErrorDetails details) {
-      AppLogger.error('[ErrorWidget] ${details.exception}');
-      return Material(
-        color: Colors.white,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 52),
-                const SizedBox(height: 14),
-                const Text(
-                  'Something went wrong',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Go back and try again.',
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+      // Replace the default red crash widget with a calm fallback so a broken
+      // subtree never produces a white or red screen in release builds.
+      ErrorWidget.builder = (FlutterErrorDetails details) {
+        AppLogger.error('[ErrorWidget] ${details.exception}');
+        return Material(
+          color: Colors.white,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Colors.redAccent,
+                    size: 52,
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Something went wrong',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Go back and try again.',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    };
+        );
+      };
 
-    runApp(const ProviderScope(child: MyApp()));
-  }, (error, stack) {
-    AppLogger.error('[Zone] Uncaught: $error\n$stack');
-  });
+      runApp(const ProviderScope(child: MyApp()));
+    },
+    (error, stack) {
+      AppLogger.error('[Zone] Uncaught: $error\n$stack');
+    },
+  );
 }
 
 /// Global scroll behavior: smooth iOS-style bouncing physics on every platform,
@@ -213,10 +256,18 @@ class SmoothScrollBehavior extends MaterialScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    // BouncingScrollPhysics gives a smoother, more natural feel than the
-    // default Android clamping physics. AlwaysScrollable lets RefreshIndicator
-    // and pull-to-refresh keep working even on short content.
     return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Remove Android's stretch/glow overscroll indicator — bouncing physics
+    // already communicate the boundary, the visual effect just adds jank.
+    return child;
   }
 }
 
@@ -263,11 +314,21 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       final isSignedOut = wasAuthenticated && !next.isAuthenticated;
 
       if (isSignedOut) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-            '/role-selection',
-            (route) => false,
-          );
+        // Debounce: wait 2 s before treating this as a real sign-out.
+        // Supabase can emit a transient unauthenticated state during a
+        // token refresh on Android resume — jumping to role-selection
+        // immediately would look like the app "restarted" to the user.
+        Future.delayed(const Duration(milliseconds: 2000), () {
+          if (!mounted) return;
+          final currentAuth = ref.read(authNotifierProvider);
+          // Auth recovered within the window — do nothing.
+          if (currentAuth.isAuthenticated) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/role-selection',
+              (route) => false,
+            );
+          });
         });
       }
 
@@ -275,6 +336,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       if (next.isAuthenticated) {
         final role = next.user?.role;
         final userId = next.user?.id;
+
+        // Save FCM token now that we have an authenticated user.
+        // initialize() fires before login so the first save attempt has no user.
+        unawaited(NotificationService().saveFCMToken());
+
         if (role == 'driver') {
           NotificationService().subscribeToTopic(
             AppConstants.fcmTopicAvailableDrivers,
@@ -316,6 +382,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     ]);
 
     if (!mounted) return;
+    // Bump configVersionProvider so maintenanceModeProvider (and any other
+    // provider watching config) re-evaluates with the values just loaded from DB.
+    ref.read(configVersionProvider.notifier).state++;
     setState(() {
       _startupHydrated = true;
     });
@@ -323,6 +392,17 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
   Future<void> _refreshSession() async {
     try {
+      final session = SupabaseConfig.client.auth.currentSession;
+      // No session to refresh — skip silently.
+      if (session == null) return;
+      // Supabase auto-refreshes tokens; only force-refresh if the JWT
+      // expires within the next 10 minutes to avoid triggering unnecessary
+      // null auth-state events that can look like a sign-out on resume.
+      final expiresAt = session.expiresAt;
+      if (expiresAt != null) {
+        final expiry = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+        if (expiry.difference(DateTime.now()).inMinutes > 10) return;
+      }
       await SupabaseConfig.client.auth.refreshSession();
     } catch (_) {
       // Not signed in yet or refresh failed — ignore.
@@ -339,12 +419,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
     if (lifecycle == AppLifecycleState.resumed) {
-      // Refresh immediately on resume, then reset the periodic countdown so
-      // the next silent refresh is a full 45 min away.
+      // Silently refresh the Supabase JWT and reset the periodic timer.
+      // No setState — the navigator stack is already intact on warm resume.
       _refreshSession();
       _startSessionTimer();
-      // Ensure Flutter redraws after the surface is restored on Android.
-      WidgetsBinding.instance.scheduleFrame();
     }
   }
 
@@ -359,6 +437,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         return const RestaurantDashboardScreen();
       case 'admin':
         return const AdminDashboardScreen();
+      case 'service_provider':
+        return const CarServiceProviderDashboardScreen();
+      case 'laundry_provider':
+        return const LaundryProviderDashboardScreen();
       default:
         // Unknown/null role must never silently show the customer screen.
         // Return the gate — AuthLaunchGateScreen will sign them out.
@@ -371,9 +453,23 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     final authState = ref.watch(authNotifierProvider);
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
+    final isMaintenance = ref.watch(maintenanceModeProvider);
     // Initialize notifications
     ref.watch(initNotificationProvider);
     final _ = _startupHydrated;
+
+    // Admins can still log in during maintenance to monitor / fix issues.
+    final isAdmin = authState.user?.role == 'admin';
+    if (isMaintenance && !isAdmin) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        scrollBehavior: const SmoothScrollBehavior(),
+        home: const MaintenanceScreen(),
+      );
+    }
 
     return IncomingCallListener(
       navigatorKey: _navigatorKey,
@@ -434,6 +530,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               }
               return MaterialPageRoute(
                 builder: (context) => const RestaurantOnboardingScreen(),
+              );
+            case '/onboarding/service-provider':
+              return MaterialPageRoute(
+                builder: (context) => const ServiceProviderOnboardingScreen(),
               );
             case '/join/driver':
               return MaterialPageRoute(
@@ -640,6 +740,23 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: GroceryCheckoutScreen(),
+                ),
+              );
+            case '/multi-restaurant-checkout':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: MultiRestaurantCheckoutScreen(),
+                ),
+              );
+            case '/multi-order-detail':
+              final mid = settings.arguments as String?;
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: MultiRestaurantOrderDetailScreen(
+                    masterOrderId: mid ?? '',
+                  ),
                 ),
               );
             case '/order-tracking':
@@ -1010,6 +1127,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminMealhubScreen(),
                 ),
               );
+            case '/admin-meal-plans':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMealPlansScreen(),
+                ),
+              );
             case '/admin-shipping-companies':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -1132,7 +1256,201 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['driver'],
-                  child: DriverRideRequestsScreen(driverId: driverId),
+                  child: DriverRideHistoryScreen(driverId: driverId),
+                ),
+              );
+            case '/rides/driver/schedule':
+              final schedArgs = settings.arguments as Map<String, dynamic>?;
+              final schedDriverId = schedArgs?['driverId'] as String? ?? '';
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['driver'],
+                  child: DriverScheduleScreen(driverId: schedDriverId),
+                ),
+              );
+
+            // ── Laundry – Customer ───────────────────────────────────
+            case '/laundry':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: LaundryHomeScreen(),
+                ),
+              );
+            case '/laundry/provider-detail':
+              return MaterialPageRoute(
+                builder: (_) => LaundryBookingScreen(
+                  provider: settings.arguments as dynamic,
+                ),
+              );
+            case '/laundry/book':
+              return MaterialPageRoute(
+                builder: (_) => LaundryBookingScreen(
+                  provider: settings.arguments as dynamic,
+                ),
+              );
+            case '/laundry/tracking':
+              final bookingId = settings.arguments as String;
+              return MaterialPageRoute(
+                builder: (_) => LaundryTrackingScreen(bookingId: bookingId),
+              );
+            case '/laundry/history':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: LaundryHistoryScreen(),
+                ),
+              );
+
+            // ── Laundry – Provider ────────────────────────────────────
+            case '/laundry/provider-onboarding':
+              return MaterialPageRoute(
+                builder: (_) => const LaundryProviderOnboardingScreen(),
+              );
+            case '/laundry/provider-dashboard':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['laundry_provider', 'admin'],
+                  child: LaundryProviderDashboardScreen(),
+                ),
+              );
+
+            // ── Laundry – Admin ───────────────────────────────────────
+            case '/admin/laundry':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminLaundryScreen(),
+                ),
+              );
+
+            // ── Car Services – Customer ───────────────────────────────
+            case '/car-services':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServicesHomeScreen(),
+                ),
+              );
+            case '/car-services/provider-detail':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceProviderDetailScreen(),
+                ),
+              );
+            case '/car-services/book':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceBookingScreen(),
+                ),
+              );
+            case '/car-services/booking-summary':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceBookingSummaryScreen(),
+                ),
+              );
+            case '/car-services/tracking':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceTrackingScreen(),
+                ),
+              );
+            case '/car-services/my-bookings':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceMyBookingsScreen(),
+                ),
+              );
+            case '/car-services/history':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: CarServiceHistoryScreen(),
+                ),
+              );
+            case '/my-vehicles':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: MyVehiclesScreen(),
+                ),
+              );
+
+            // ── Car Services – Provider (Washer) ──────────────────────
+            case '/car-services/provider':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderDashboardScreen(),
+                ),
+              );
+            case '/car-services/provider/bookings':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderBookingsScreen(),
+                ),
+              );
+            case '/car-services/provider/booking-detail':
+              final csBooking = settings.arguments as CarServiceBooking;
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['service_provider', 'admin'],
+                  child: CarServiceProviderBookingDetailScreen(
+                    booking: csBooking,
+                  ),
+                ),
+              );
+            case '/car-services/provider/services':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderServicesScreen(),
+                ),
+              );
+            case '/car-services/provider/availability':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderAvailabilityScreen(),
+                ),
+              );
+            case '/car-services/provider/earnings':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderEarningsScreen(),
+                ),
+              );
+            case '/car-services/provider/profile':
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['service_provider', 'admin'],
+                  child: CarServiceProviderProfileScreen(),
+                ),
+              );
+
+            // ── Car Services – Admin ───────────────────────────────────
+            case '/admin/car-services':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: CarServiceAdminScreen(),
                 ),
               );
 

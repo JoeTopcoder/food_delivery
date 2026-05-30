@@ -5,12 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/modules/rides/services/ride_service.dart';
+import 'package:food_driver/providers/wallet_provider.dart';
 
 const _kBlue = Color(0xFF2563EB);
 const _kGreen = Color(0xFF22C55E);
-const _kDark = Color(0xFF111827);
 const _kRed = Color(0xFFEF4444);
-const _kGrey = Color(0xFF6B7280);
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -112,10 +111,9 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
     if (confirmed != true || !mounted) return;
     setState(() => _cancelling = true);
     try {
-      await ref.read(rideServiceProvider).updateRideStatus(
-        rideId: widget.rideId,
-        newStatus: 'cancelled',
-      );
+      await ref.read(rideServiceProvider).cancelRide(rideId: widget.rideId);
+      // Refresh wallet in case a wallet refund was issued
+      ref.read(walletNotifierProvider.notifier).refresh();
       if (mounted) Navigator.pop(context);
     } on RideAuthException {
       if (!mounted) return;
@@ -248,12 +246,12 @@ class _TopBar extends StatelessWidget {
             child: const Icon(Icons.directions_car, color: _kBlue, size: 20),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Choose Your Driver', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _kDark)),
-                Text('Select the driver you want', style: TextStyle(fontSize: 12, color: _kGrey)),
+                Text('Choose Your Driver', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+                Text('Select the driver you want', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -287,7 +285,7 @@ class _StatusHeader extends StatelessWidget {
               _StatusChip(
                 icon: Icons.remove_red_eye_outlined,
                 label: '$pendingCount viewing',
-                color: _kGrey,
+                color: const Color(0xFF6B7280),
               ),
               const SizedBox(width: 12),
               if (offerCount > 0)
@@ -458,9 +456,9 @@ class _SearchingState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Searching for drivers…', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _kDark)),
+          Text('Searching for drivers…', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 6),
-          const Text('Nearby drivers are being notified', style: TextStyle(fontSize: 13, color: _kGrey)),
+          Text('Nearby drivers are being notified', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -557,7 +555,7 @@ class _DriverOfferCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _kDark)),
+                      Text(name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
                       const SizedBox(height: 3),
                       Row(
                         children: [
@@ -565,17 +563,17 @@ class _DriverOfferCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Text(
                             rating > 0 ? rating.toStringAsFixed(1) : 'New',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kDark),
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                           ),
                           const SizedBox(width: 8),
-                          Container(width: 4, height: 4, decoration: const BoxDecoration(color: _kGrey, shape: BoxShape.circle)),
+                          Container(width: 4, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurfaceVariant, shape: BoxShape.circle)),
                           const SizedBox(width: 8),
-                          const Icon(Icons.local_taxi, size: 14, color: _kGrey),
+                          Icon(Icons.local_taxi, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               vehicleLabel.isNotEmpty ? vehicleLabel : 'Vehicle',
-                              style: const TextStyle(fontSize: 12, color: _kGrey),
+                              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -583,7 +581,7 @@ class _DriverOfferCard extends StatelessWidget {
                       ),
                       if (vehicleDetail.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text(vehicleDetail, style: const TextStyle(fontSize: 12, color: _kGrey)),
+                        Text(vehicleDetail, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       ],
                     ],
                   ),

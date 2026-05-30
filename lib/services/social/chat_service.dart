@@ -7,48 +7,113 @@ class ChatService {
   final SupabaseClient _client;
   ChatService(this._client);
 
-  // ─── Messages (stream by order) ──────────────────────────────────────────
+  // ─── Messages (stream by order or ride) ────────────────────────────────────
 
-  Stream<List<ChatMessage>> watchMessages(String orderId) {
-    return _client
-        .from('chat_messages')
-        .stream(primaryKey: ['id'])
-        .eq('order_id', orderId)
-        .order('created_at')
-        .map((rows) => rows.map((e) => ChatMessage.fromJson(e)).toList());
+  Stream<List<ChatMessage>> watchMessages({String? orderId, String? rideId}) {
+    assert(orderId != null || rideId != null,
+        'Must provide either orderId or rideId');
+    final messages = <ChatMessage>[];
+    RealtimeChannel? channel;
+
+    final controller = StreamController<List<ChatMessage>>(
+      onCancel: () => channel?.unsubscribe(),
+    );
+
+    // Initial fetch
+    var query = _client.from('chat_messages').select();
+    if (orderId != null) {
+      query = query.eq('order_id', orderId);
+    } else {
+      query = query.eq('ride_id', rideId!);
+    }
+    query.order('created_at').then((data) {
+      if (controller.isClosed) return;
+      messages.addAll((data as List).map((e) => ChatMessage.fromJson(e)));
+      controller.add(List.from(messages));
+    }).catchError((Object e) {
+      if (!controller.isClosed) controller.addError(e);
+    });
+
+    // Real-time inserts — filter client-side
+    final channelName =
+        orderId != null ? 'order_chat_$orderId' : 'ride_chat_$rideId';
+    channel = _client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'chat_messages',
+          callback: (payload) {
+            if (controller.isClosed) return;
+            final record = payload.newRecord;
+            if (orderId != null && record['order_id'] != orderId) return;
+            if (rideId != null && record['ride_id'] != rideId) return;
+            try {
+              final msg =
+                  ChatMessage.fromJson(Map<String, dynamic>.from(record));
+              if (!messages.any((m) => m.id == msg.id)) {
+                messages.add(msg);
+                messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                controller.add(List.from(messages));
+              }
+            } catch (e) {
+              if (kDebugMode) debugPrint('Message parse error: $e');
+            }
+          },
+        )
+        .subscribe();
+
+    return controller.stream;
   }
 
-  // ─── Send message via server-validated RPC ────────────────────────────────
+  // ─── Send message (order or ride) ───────────────────────────────────────────
 
   Future<String?> sendMessage({
-    required String orderId,
+    String? orderId,
+    String? rideId,
     required String senderId,
     required String senderRole,
     required String message,
     MessageType messageType = MessageType.text,
     Map<String, dynamic>? metadata,
   }) async {
+    assert(orderId != null || rideId != null,
+        'Must provide either orderId or rideId');
     try {
-      final result = await _client.rpc(
-        'send_message_secure',
-        params: {
-          'p_order_id': orderId,
-          'p_message': message.trim(),
-          'p_message_type': messageType.value,
-          'p_metadata': metadata ?? {},
-        },
-      );
+      String? result;
+      if (rideId != null) {
+        result = (await _client.rpc(
+          'send_ride_message',
+          params: {
+            'p_ride_id': rideId,
+            'p_message': message.trim(),
+            'p_message_type': messageType.value,
+            'p_metadata': metadata ?? {},
+          },
+        )) as String?;
+      } else {
+        result = (await _client.rpc(
+          'send_message_secure',
+          params: {
+            'p_order_id': orderId,
+            'p_message': message.trim(),
+            'p_message_type': messageType.value,
+            'p_metadata': metadata ?? {},
+          },
+        )) as String?;
+      }
 
-      // Send push notification to other participants (non-blocking)
+      // Send push notification for text messages
       if (messageType == MessageType.text) {
         _notifyNewMessage(
           orderId: orderId,
+          rideId: rideId,
           senderId: senderId,
           message: message,
         );
       }
 
-      return result as String?;
+      return result;
     } catch (e) {
       if (kDebugMode) debugPrint('ChatService.sendMessage error: $e');
       rethrow;
@@ -57,7 +122,8 @@ class ChatService {
 
   /// Send FCM push to other conversation participants about a new message.
   Future<void> _notifyNewMessage({
-    required String orderId,
+    String? orderId,
+    String? rideId,
     required String senderId,
     required String message,
   }) async {
@@ -71,12 +137,15 @@ class ChatService {
       final senderName = senderRow?['name'] as String? ?? 'Someone';
 
       // Get conversation participants
-      final convRows = await _client
-          .from('conversations')
-          .select('participant_ids')
-          .eq('order_id', orderId)
-          .limit(1);
+      var convQuery = _client.from('conversations').select('participant_ids');
+      if (orderId != null) {
+        convQuery = convQuery.eq('order_id', orderId);
+      } else {
+        convQuery = convQuery.eq('ride_id', rideId!);
+      }
+      final convRows = await convQuery.limit(1);
       if ((convRows as List).isEmpty) return;
+
       final participantIds = (convRows[0]['participant_ids'] as List<dynamic>)
           .map((e) => e as String)
           .where((id) => id != senderId)
@@ -84,10 +153,11 @@ class ChatService {
       if (participantIds.isEmpty) return;
 
       // Get FCM tokens for all other participants
-      final userRows = await _client
-          .from('users')
-          .select('id, fcm_token')
-          .inFilter('id', participantIds);
+      final userRows =
+          await _client.from('users').select('id, fcm_token').inFilter(
+                'id',
+                participantIds,
+              );
 
       for (final row in (userRows as List)) {
         final fcmToken = row['fcm_token'] as String?;
@@ -103,7 +173,8 @@ class ChatService {
                 : message,
             'data': {
               'type': 'new_message',
-              'order_id': orderId,
+              if (orderId != null) 'order_id': orderId,
+              if (rideId != null) 'ride_id': rideId,
               'sender_id': senderId,
               'sender_name': senderName,
               'user_id': row['id'] as String,
@@ -116,23 +187,30 @@ class ChatService {
     }
   }
 
-  // ─── Mark read (legacy compat) ───────────────────────────────────────────
+  // ─── Mark read (order or ride) ───────────────────────────────────────────
 
-  Future<void> markRead(String orderId, String readerId) async {
+  Future<void> markRead({
+    String? orderId,
+    String? rideId,
+    required String readerId,
+  }) async {
+    assert(orderId != null || rideId != null,
+        'Must provide either orderId or rideId');
     try {
-      // First get the conversation for this order
-      final convRows = await _client
-          .from('conversations')
-          .select('id')
-          .eq('order_id', orderId)
-          .limit(1);
+      var query = _client.from('conversations').select('id');
+      if (orderId != null) {
+        query = query.eq('order_id', orderId);
+      } else {
+        query = query.eq('ride_id', rideId!);
+      }
+      final convRows = await query.limit(1);
       if ((convRows as List).isNotEmpty) {
         final convId = convRows[0]['id'] as String;
         await _client.rpc(
           'mark_messages_status',
           params: {'p_conversation_id': convId, 'p_new_status': 'seen'},
         );
-      } else {
+      } else if (orderId != null) {
         // Fallback: direct update for old messages without conversations
         await _client
             .from('chat_messages')
@@ -186,6 +264,16 @@ class ChatService {
     return Conversation.fromJson(rows[0]);
   }
 
+  Future<Conversation?> getConversationForRide(String rideId) async {
+    final rows = await _client
+        .from('conversations')
+        .select()
+        .eq('ride_id', rideId)
+        .limit(1);
+    if ((rows as List).isEmpty) return null;
+    return Conversation.fromJson(rows[0]);
+  }
+
   // ─── Typing indicators ──────────────────────────────────────────────────
 
   Future<void> setTyping(String conversationId, bool isTyping) async {
@@ -207,70 +295,6 @@ class ChatService {
         .map((rows) => rows.where((r) => r['is_typing'] == true).toList());
   }
 
-  // ─── Ride chat ───────────────────────────────────────────────────────────
-
-  Stream<List<ChatMessage>> watchRideMessages(String rideId) {
-    return _client
-        .from('chat_messages')
-        .stream(primaryKey: ['id'])
-        .eq('ride_id', rideId)
-        .order('created_at')
-        .map((rows) => rows.map((e) => ChatMessage.fromJson(e)).toList());
-  }
-
-  Future<String?> sendRideMessage({
-    required String rideId,
-    required String senderId,
-    required String senderRole,
-    required String message,
-    MessageType messageType = MessageType.text,
-    Map<String, dynamic>? metadata,
-  }) async {
-    try {
-      final result = await _client.rpc(
-        'send_ride_message',
-        params: {
-          'p_ride_id': rideId,
-          'p_message': message.trim(),
-          'p_message_type': messageType.value,
-          'p_metadata': metadata ?? {},
-        },
-      );
-      return result as String?;
-    } catch (e) {
-      if (kDebugMode) debugPrint('ChatService.sendRideMessage error: $e');
-      rethrow;
-    }
-  }
-
-  Future<Conversation?> getConversationForRide(String rideId) async {
-    final rows = await _client
-        .from('conversations')
-        .select()
-        .eq('ride_id', rideId)
-        .limit(1);
-    if ((rows as List).isEmpty) return null;
-    return Conversation.fromJson(rows[0]);
-  }
-
-  Future<void> markRideRead(String rideId, String readerId) async {
-    try {
-      final convRows = await _client
-          .from('conversations')
-          .select('id')
-          .eq('ride_id', rideId)
-          .limit(1);
-      if ((convRows as List).isNotEmpty) {
-        final convId = convRows[0]['id'] as String;
-        await _client.rpc(
-          'mark_messages_status',
-          params: {'p_conversation_id': convId, 'p_new_status': 'seen'},
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('ChatService.markRideRead error: $e');
-    }
-  }
 
   // ─── Calls ───────────────────────────────────────────────────────────────
 

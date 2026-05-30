@@ -10,6 +10,8 @@ import 'package:food_driver/config/supabase_config.dart';
 import 'package:food_driver/providers/chat_provider.dart';
 import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
+import 'package:food_driver/config/app_constants.dart';
+import 'package:food_driver/providers/wallet_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -249,7 +251,7 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
             style: TextButton.styleFrom(foregroundColor: _kRed),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(hasFee
-                ? 'Cancel (J\$${fee.toStringAsFixed(0)} fee)'
+                ? 'Cancel (${AppConstants.currencySymbol}${fee.toStringAsFixed(2)} fee)'
                 : 'Cancel Ride'),
           ),
         ],
@@ -259,10 +261,9 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(rideServiceProvider).updateRideStatus(
-            rideId: widget.rideId,
-            newStatus: 'cancelled',
-          );
+      await ref.read(rideServiceProvider).cancelRide(rideId: widget.rideId);
+      // Refresh wallet in case a refund was issued
+      ref.read(walletNotifierProvider.notifier).refresh();
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -369,6 +370,7 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
               onViewHistory: () => Navigator.pushReplacementNamed(
                 context,
                 '/rides/history',
+                arguments: SupabaseConfig.client.auth.currentUser?.id ?? '',
               ),
             ),
           ),
@@ -520,10 +522,10 @@ class _StatusPill extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: _kDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -873,10 +875,10 @@ class _DriverCard extends StatelessWidget {
                   children: [
                     Text(
                       driverName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -889,10 +891,10 @@ class _DriverCard extends StatelessWidget {
                           rating != null
                               ? rating.toStringAsFixed(1)
                               : 'New',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: _kDark,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -901,9 +903,9 @@ class _DriverCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         vehicleLine,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
-                            color: _kDark,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -1051,10 +1053,10 @@ class _DriverCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'J\$${ride!.finalFare!.toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: _kDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     Text(
@@ -1252,7 +1254,7 @@ class _ActionButton extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: color == _kRed ? _kRed : _kDark,
+              color: color == _kRed ? _kRed : Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1287,9 +1289,9 @@ class _RouteDetailRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: _kDark,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,

@@ -22,17 +22,38 @@ class DriverService {
     try {
       AppLogger.info('Creating driver profile for user: $userId');
 
+      // Ensure public.users row exists before inserting into drivers (FK).
+      try {
+        final authUser = _supabaseClient.auth.currentUser;
+        final email = authUser?.email ?? '$userId@otp.fooddriver.app';
+        final metaName = authUser?.userMetadata?['name'] as String?;
+        final name = (metaName != null && metaName.isNotEmpty)
+            ? metaName
+            : email.split('@').first;
+        await _supabaseClient.from(AppConstants.tableUsers).upsert({
+          'id': userId,
+          'role': 'driver',
+          'email': email,
+          'name': name,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        AppLogger.warning('createDriverProfile: users upsert failed (continuing): $e');
+      }
+
       final response = await _supabaseClient
           .from(AppConstants.tableDrivers)
           .insert({
             'user_id': userId,
-            'vehicle_type': vehicleType ?? 'motorcycle',
-            'vehicle_number': vehicleNumber ?? '',
-            'license_number': licenseNumber ?? '',
             'is_available': false,
             'completed_deliveries': 0,
             'rating': 0.0,
-            'documents_status': 'pending',
+            'documents_status': {
+              'license': 'pending',
+              'registration': 'pending',
+              'insurance': 'pending',
+            },
+            'driver_status': 'pending_review',
             'created_at': DateTime.now().toIso8601String(),
           })
           .select()
@@ -64,27 +85,54 @@ class DriverService {
         return driver;
       }
 
-      // No profile found — auto-create one
+      // No profile found — ensure public.users row exists first (FK requirement),
+      // then auto-create the driver record.
       AppLogger.info('No driver profile found, creating one for user: $userId');
-      final created = await _supabaseClient
-          .from(AppConstants.tableDrivers)
-          .insert({
-            'user_id': userId,
-            'vehicle_type': 'bike',
-            'vehicle_number': '',
-            'license_number': '',
-            'is_available': false,
-            'completed_deliveries': 0,
-            'rating': 0.0,
-            'documents_status': 'pending',
-            'created_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
+      try {
+        final authUser = _supabaseClient.auth.currentUser;
+        final email = authUser?.email ?? '$userId@otp.fooddriver.app';
+        final metaName = authUser?.userMetadata?['name'] as String?;
+        final name = (metaName != null && metaName.isNotEmpty)
+            ? metaName
+            : email.split('@').first;
+        await _supabaseClient.from(AppConstants.tableUsers).upsert({
+          'id': userId,
+          'role': 'driver',
+          'email': email,
+          'name': name,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        AppLogger.warning('getDriverByUserId: users upsert failed (continuing): $e');
+      }
 
-      return Driver.fromJson(created);
+      try {
+        final created = await _supabaseClient
+            .from(AppConstants.tableDrivers)
+            .insert({
+              'user_id': userId,
+              'is_available': false,
+              'completed_deliveries': 0,
+              'rating': 0.0,
+              'documents_status': {
+                'license': 'pending',
+                'registration': 'pending',
+                'insurance': 'pending',
+              },
+              'driver_status': 'pending_review',
+              'created_at': DateTime.now().toIso8601String(),
+            })
+            .select()
+            .single();
+        return Driver.fromJson(created);
+      } catch (insertError) {
+        AppLogger.error('getDriverByUserId: auto-create failed: $insertError');
+        // Return null — the dashboard will show "create profile" rather than
+        // crashing the whole screen with a FK/RLS error.
+        return null;
+      }
     } catch (e) {
-      AppLogger.error('Error fetching/creating driver profile: $e');
+      AppLogger.error('Error fetching driver profile: $e');
       rethrow;
     }
   }
@@ -247,6 +295,7 @@ class DriverService {
           .from(AppConstants.tableOrders)
           .select('*, restaurants(latitude, longitude)')
           .filter('driver_id', 'is', null)
+          .filter('order_group_id', 'is', null) // multi-restaurant sub-orders are assigned as a group
           .eq('is_pickup', false)
           .inFilter('status', [
             AppConstants.orderReady,

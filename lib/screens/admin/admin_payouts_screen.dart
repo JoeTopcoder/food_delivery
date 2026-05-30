@@ -389,7 +389,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
   Future<void> _openStripePayoutDialog(dynamic payout) async {
     final amount = NumberFormat.currency(
-      symbol: '\$ ',
+      symbol: '${AppConstants.currencySymbol} ',
       decimalDigits: 2,
     ).format(payout.amount);
     final details =

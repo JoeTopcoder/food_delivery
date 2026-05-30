@@ -13,6 +13,7 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../shared/chat_screen.dart';
 import '../../models/order_model.dart';
+import '../../core/utils/responsive.dart';
 
 /// Full-screen AI Voice Assistant.
 /// Works for all 3 roles: customer, driver, admin.
@@ -589,7 +590,7 @@ class _ChatHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 12),
       itemCount: messages.length,
       itemBuilder: (_, i) =>
           _MessageBubble(msg: messages[i], onCallDriver: onCallDriver),
@@ -1164,13 +1165,13 @@ class _OrderPickerOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(Responsive.cardPadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(Responsive.cardPadding(context)),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppTheme.primaryColor, Color(0xFF9C27B0)],
@@ -1322,7 +1323,7 @@ class _EmptyStateHint extends StatelessWidget {
     final suggestions = _suggestionsFor(role);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(Responsive.cardPadding(context)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1341,11 +1342,11 @@ class _EmptyStateHint extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'How can I help you?',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: Responsive.headingMedium(context),
                 fontWeight: FontWeight.bold,
               ),
             ),

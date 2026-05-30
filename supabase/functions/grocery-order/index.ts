@@ -293,14 +293,14 @@ Deno.serve(async (request) => {
     const isWalletPayment = paymentMethod === "wallet";
     const initialStatus = isCardPayment ? "draft" : "preparing";
 
-    // Pre-generate order UUID so wallet_pay can reference it before the insert.
     const orderId: string = crypto.randomUUID();
 
+    // wallet_deduct has no order_id FK so it safely runs before the order row exists.
     if (isWalletPayment) {
-      const { error: walletErr } = await admin.rpc("wallet_pay", {
-        p_user_id: userId,
-        p_amount: grandTotal,
-        p_order_id: orderId,
+      const { error: walletErr } = await admin.rpc("wallet_deduct", {
+        p_user_id:     userId,
+        p_amount:      grandTotal,
+        p_description: `Grocery order payment`,
       });
       if (walletErr) {
         const msg = walletErr.message ?? "Wallet payment failed";

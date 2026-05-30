@@ -5,6 +5,7 @@ import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../core/utils/responsive.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryCategoryProductsScreen extends ConsumerStatefulWidget {
@@ -79,7 +80,9 @@ class _GroceryCategoryProductsScreenState
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
@@ -136,11 +139,13 @@ class _GroceryCategoryProductsScreenState
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                   ).copyWith(bottom: 16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.62,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: Responsive.gridColumns(context),
+                    childAspectRatio: Responsive.productCardAspectRatio(
+                      context,
+                    ),
+                    crossAxisSpacing: Responsive.gridSpacing(context),
+                    mainAxisSpacing: Responsive.gridSpacing(context),
                   ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) => RepaintBoundary(
@@ -175,15 +180,17 @@ class _CategoryProductCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – fixed height for uniform sizing
-          SizedBox(
-            height: 130,
-            width: double.infinity,
+          // Image – scales with card width via aspect ratio
+          AspectRatio(
+            aspectRatio: 1.2,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(14),
@@ -285,7 +292,10 @@ class _CategoryProductCard extends ConsumerWidget {
                   if (product.weight != null)
                     Text(
                       product.weight!,
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   const Spacer(),
                   Row(
@@ -307,7 +317,9 @@ class _CategoryProductCard extends ConsumerWidget {
                                     '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       decoration: TextDecoration.lineThrough,
                                     ),
                                   ),
@@ -381,7 +393,9 @@ class _CategoryProductCard extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: inStock
                                     ? AppTheme.primaryColor
-                                    : Theme.of(context).colorScheme.outlineVariant,
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -551,7 +565,9 @@ class _BottomCartBar extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        border: Border(
+          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SafeArea(

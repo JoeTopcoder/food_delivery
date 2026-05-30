@@ -15,6 +15,7 @@ import '../../utils/friendly_error.dart';
 import 'add_card_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -71,10 +72,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final result = await Navigator.of(context).push<_TopUpResult>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => _TopUpPage(
-          walletDisplayId: _walletDisplayId(),
-          userId: userId,
-        ),
+        builder: (_) =>
+            _TopUpPage(walletDisplayId: _walletDisplayId(), userId: userId),
       ),
     );
 
@@ -114,8 +113,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         currentBalance: wallet?.balance ?? 0,
         ref: ref,
         onSuccess: () {
-          ref.read(walletNotifierProvider.notifier).refresh();
-          ref.invalidate(walletTransactionsProvider);
+          // walletBalanceStreamProvider auto-updates when the DB row changes,
+          // which then triggers walletTransactionsStreamProvider to re-fetch.
+          ref.invalidate(walletTransactionsStreamProvider);
         },
       ),
     );
@@ -133,9 +133,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   // ── Add / Manage cards ────────────────────────────────────────────────────
 
   Future<void> _addNewCard() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AddCardScreen()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddCardScreen()));
     if (result == true && mounted) {
       final userId = ref.read(currentUserIdProvider);
       if (userId != null) ref.invalidate(savedCardsProvider(userId));
@@ -150,15 +150,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Remove Card'),
         content: Text(
-            'Remove ${card.displayBrand} ending in ${card.lastFour}?'),
+          'Remove ${card.displayBrand} ending in ${card.lastFour}?',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('Remove', style: TextStyle(color: Colors.red))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -185,16 +187,20 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     if (!mounted) return matched;
     if (matched) {
       AppSnackbar.success(
-          context, 'Card verified successfully! Charge will be reversed.');
+        context,
+        'Card verified successfully! Charge will be reversed.',
+      );
     } else {
-      final updatedCards =
-          userId != null ? await svc.getSavedCards(userId) : <SavedCard>[];
-      final updatedCard =
-          updatedCards.where((c) => c.id == cardId).firstOrNull;
+      final updatedCards = userId != null
+          ? await svc.getSavedCards(userId)
+          : <SavedCard>[];
+      final updatedCard = updatedCards.where((c) => c.id == cardId).firstOrNull;
       if (updatedCard != null && updatedCard.isFailed) {
         if (!mounted) return false;
-        AppSnackbar.error(context,
-            'Verification failed — too many wrong attempts. Please try adding the card again.');
+        AppSnackbar.error(
+          context,
+          'Verification failed — too many wrong attempts. Please try adding the card again.',
+        );
       } else {
         if (!mounted) return false;
         final attemptsLeft = 3 - (updatedCard?.verificationAttempts ?? 1);
@@ -208,7 +214,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   Future<void> _depositWithSavedCard(
-      double amount, SavedCard card, String cvv) async {
+    double amount,
+    SavedCard card,
+    String cvv,
+  ) async {
     final paymentService = ref.read(paymentServiceProvider);
     final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
     final session = await paymentService.prepareSavedCardPayment(
@@ -241,15 +250,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       if (e.error.code == FailureCode.Canceled) {
         AppSnackbar.warning(context, 'Payment cancelled');
       } else {
-        AppSnackbar.error(context,
-            e.error.localizedMessage ?? 'Payment failed. Please try again.');
+        AppSnackbar.error(
+          context,
+          e.error.localizedMessage ?? 'Payment failed. Please try again.',
+        );
       }
       return;
     }
     if (!mounted) return;
     try {
       await ref.read(walletNotifierProvider.notifier).deposit(amount);
-      ref.invalidate(walletTransactionsProvider);
+      ref.invalidate(walletTransactionsStreamProvider);
       if (mounted) {
         AppSnackbar.success(
           context,
@@ -270,8 +281,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final paymentService = ref.read(paymentServiceProvider);
     final authUser = Supabase.instance.client.auth.currentUser;
     final email = authUser?.email ?? '';
-    final name =
-        authUser?.userMetadata?['name'] as String? ?? 'Customer';
+    final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
     final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
     final result = await paymentService.presentStripePaymentSheet(
       orderId: topupId,
@@ -287,7 +297,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
     try {
       await ref.read(walletNotifierProvider.notifier).deposit(amount);
-      ref.invalidate(walletTransactionsProvider);
+      ref.invalidate(walletTransactionsStreamProvider);
       if (mounted) {
         AppSnackbar.success(
           context,
@@ -306,7 +316,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
   // ── Saved cards section ───────────────────────────────────────────────────
 
-  Widget _buildCardsSection(bool isDark) {
+  Widget _buildCardsSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final userId = ref.watch(currentUserIdProvider);
     if (userId == null) return const SizedBox.shrink();
     final cardsAsync = ref.watch(savedCardsProvider(userId));
@@ -320,14 +331,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade200,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.credit_card_rounded,
-                  size: 20,
-                  color: isDark ? Colors.white70 : Colors.black87),
+              child: Icon(
+                Icons.credit_card_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             const SizedBox(width: 10),
             Text(
@@ -345,10 +356,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               label: const Text('Add Card'),
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                side: BorderSide(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
               ),
             ),
           ],
@@ -360,17 +374,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             height: 60,
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
-          error: (e, _) => Text(friendlyError(e),
-              style: TextStyle(color: AppTheme.errorColor)),
+          error: (e, _) => Text(
+            friendlyError(e),
+            style: TextStyle(color: AppTheme.errorColor),
+          ),
           data: (cards) {
             if (cards.isEmpty) {
-              return _EmptyCardsPlaceholder(onAdd: _addNewCard, isDark: isDark);
+              return _EmptyCardsPlaceholder(onAdd: _addNewCard);
             }
 
-            final pendingCards =
-                cards.where((c) => c.isPending && !c.isExpired).toList();
-            final expiredCards =
-                cards.where((c) => c.isPending && c.isExpired).toList();
+            final pendingCards = cards
+                .where((c) => c.isPending && !c.isExpired)
+                .toList();
+            final expiredCards = cards
+                .where((c) => c.isPending && c.isExpired)
+                .toList();
             final failedCards = cards.where((c) => c.isFailed).toList();
             final verifiedCards = cards.where((c) => c.isVerified).toList();
 
@@ -394,21 +412,23 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       color: Colors.orange.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.3)),
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline,
-                            color: Colors.orange, size: 18),
+                        const Icon(
+                          Icons.info_outline,
+                          color: Colors.orange,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Check your bank statement for the charge amount, then tap Verify.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark
-                                  ? Colors.orange.shade200
-                                  : Colors.orange.shade900,
+                              color: Colors.orange.shade800,
                             ),
                           ),
                         ),
@@ -425,37 +445,42 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       'Credit/Debit Card',
                       style: TextStyle(
                         fontSize: 13,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
 
-                ...pendingCards.map((card) => _SavedCardTile(
-                      key: ValueKey(
-                          '${card.id}_${card.status}_${card.verificationAttempts}'),
-                      card: card,
-                      isDark: isDark,
-                      onSetDefault: () {},
-                      onDelete: () => _deleteCard(card),
-                      onVerifyAmount: (cardId, amount) =>
-                          _verifyCardInline(cardId, amount),
-                    )),
-                ...failedCards.map((card) => _SavedCardTile(
-                      key: ValueKey('${card.id}_${card.status}'),
-                      card: card,
-                      isDark: isDark,
-                      onSetDefault: () {},
-                      onDelete: () => _deleteCard(card),
-                    )),
-                ...verifiedCards.map((card) => _SavedCardTile(
-                      key: ValueKey('${card.id}_${card.status}'),
-                      card: card,
-                      isDark: isDark,
-                      onSetDefault: () => _setDefaultCard(card),
-                      onDelete: () => _deleteCard(card),
-                    )),
+                ...pendingCards.map(
+                  (card) => _SavedCardTile(
+                    key: ValueKey(
+                      '${card.id}_${card.status}_${card.verificationAttempts}',
+                    ),
+                    card: card,
+                    isDark: isDark,
+                    onSetDefault: () {},
+                    onDelete: () => _deleteCard(card),
+                    onVerifyAmount: (cardId, amount) =>
+                        _verifyCardInline(cardId, amount),
+                  ),
+                ),
+                ...failedCards.map(
+                  (card) => _SavedCardTile(
+                    key: ValueKey('${card.id}_${card.status}'),
+                    card: card,
+                    isDark: isDark,
+                    onSetDefault: () {},
+                    onDelete: () => _deleteCard(card),
+                  ),
+                ),
+                ...verifiedCards.map(
+                  (card) => _SavedCardTile(
+                    key: ValueKey('${card.id}_${card.status}'),
+                    card: card,
+                    isDark: isDark,
+                    onSetDefault: () => _setDefaultCard(card),
+                    onDelete: () => _deleteCard(card),
+                  ),
+                ),
 
                 const SizedBox(height: 12),
 
@@ -465,16 +490,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   child: ElevatedButton(
                     onPressed: _addNewCard,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.onSurface,
+                      foregroundColor: Theme.of(context).colorScheme.surface,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: const Text(
                       'Add New Card +',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 ),
@@ -490,23 +518,34 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final walletAsync = ref.watch(walletNotifierProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Stream provider gives real-time balance updates from Supabase.
+    // walletNotifierProvider is kept only for mutation actions (deposit, send).
+    final walletAsync = ref.watch(walletBalanceStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Payment & Wallet',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Payment & Wallet',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(walletNotifierProvider.notifier).refresh();
-          ref.invalidate(walletTransactionsProvider);
+          // Invalidating both recreates the streams and forces an immediate
+          // re-fetch of balance and full transaction history.
+          ref.invalidate(walletBalanceStreamProvider);
+          ref.invalidate(walletTransactionsStreamProvider);
         },
         child: ListView(
           physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics()),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            16,
+            Responsive.horizontalPadding(context),
+            32,
+          ),
           children: [
             // Wallet card
             walletAsync.when(
@@ -519,16 +558,58 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 onHistory: _showHistory,
               ),
               loading: () => const SizedBox(
-                  height: 220,
-                  child: Center(child: CircularProgressIndicator())),
-              error: (e, _) => Text(friendlyError(e),
-                  style: TextStyle(color: AppTheme.errorColor)),
+                height: 220,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Text(
+                friendlyError(e),
+                style: TextStyle(color: AppTheme.errorColor),
+              ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Outstanding debt banner
+            if (walletAsync.valueOrNull?.hasDebt == true)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.orange.shade700, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Outstanding Balance',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: Colors.orange.shade800)),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${AppConstants.currencySymbol}${walletAsync.valueOrNull!.debtBalance.toStringAsFixed(2)} '
+                            'will be automatically deducted from your next top-up.',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.orange.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 28),
 
             // Saved cards
-            _buildCardsSection(isDark),
+            _buildCardsSection(),
           ],
         ),
       ),
@@ -557,9 +638,11 @@ class _WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final balance = wallet?.balance ?? 0;
+    final balance  = wallet?.balance ?? 0;
     final cashback = wallet?.cashbackBalance ?? 0;
-    final total = balance + cashback;
+    final reserved = wallet?.reservedBalance ?? 0;
+    // Show spendable balance (what the user can actually use right now).
+    final available = (balance + cashback - reserved).clamp(0.0, double.infinity);
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -590,8 +673,11 @@ class _WalletCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.account_balance_wallet_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -606,8 +692,10 @@ class _WalletCard extends StatelessWidget {
               GestureDetector(
                 onTap: onHistory,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF5B03C),
                     borderRadius: BorderRadius.circular(10),
@@ -615,15 +703,20 @@ class _WalletCard extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.bar_chart_rounded,
-                          color: Colors.white, size: 16),
+                      Icon(
+                        Icons.bar_chart_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                       SizedBox(width: 4),
-                      Text('History',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          )),
+                      Text(
+                        'History',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -634,7 +727,7 @@ class _WalletCard extends StatelessWidget {
           const SizedBox(height: 18),
 
           Text(
-            'My Balance',
+            'Available Balance',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 13,
@@ -645,7 +738,7 @@ class _WalletCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                '${AppConstants.currencySymbol}${available.toStringAsFixed(2)}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 34,
@@ -657,7 +750,7 @@ class _WalletCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  'JMD',
+                  AppConstants.currencyCode,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 14,
@@ -667,6 +760,27 @@ class _WalletCard extends StatelessWidget {
               ),
             ],
           ),
+          if (reserved > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${AppConstants.currencySymbol}${reserved.toStringAsFixed(2)} on hold',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.65),
+                fontSize: 12,
+              ),
+            ),
+          ],
+          if ((wallet?.debtBalance ?? 0) > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${AppConstants.currencySymbol}${wallet!.debtBalance.toStringAsFixed(2)} outstanding — clears on next top-up',
+              style: TextStyle(
+                color: Colors.orange.shade200,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
 
           const SizedBox(height: 8),
           Text(
@@ -752,8 +866,7 @@ class _WalletActionButton extends StatelessWidget {
 
 class _EmptyCardsPlaceholder extends StatelessWidget {
   final VoidCallback onAdd;
-  final bool isDark;
-  const _EmptyCardsPlaceholder({required this.onAdd, required this.isDark});
+  const _EmptyCardsPlaceholder({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -761,24 +874,26 @@ class _EmptyCardsPlaceholder extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? const Color(0xFF374151) : Colors.grey.shade200,
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
         children: [
-          Icon(Icons.credit_card_off_outlined,
-              size: 40,
-              color:
-                  isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+          Icon(
+            Icons.credit_card_off_outlined,
+            size: 40,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 8),
-          Text('No cards added yet',
-              style: TextStyle(
-                color:
-                    isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              )),
+          Text(
+            'No cards added yet',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: onAdd,
@@ -880,84 +995,166 @@ class _TransactionTile extends StatelessWidget {
   final WalletTransaction tx;
   const _TransactionTile({required this.tx});
 
+  static _TxMeta _meta(String type, String? desc) {
+    final d = (desc ?? '').toLowerCase();
+    // Laundry-specific overrides
+    if (d.contains('laundry') && d.contains('refund')) {
+      return _TxMeta('Laundry Refund', Icons.local_laundry_service_rounded,
+          const Color(0xFF3B82F6));
+    }
+    if (d.contains('laundry') && d.contains('payment')) {
+      return _TxMeta('Laundry Payment', Icons.local_laundry_service_rounded,
+          const Color(0xFF8B5CF6));
+    }
+    if (d.contains('laundry') && d.contains('cancel')) {
+      return _TxMeta('Laundry Cancelled', Icons.local_laundry_service_rounded,
+          const Color(0xFF3B82F6));
+    }
+    return switch (type) {
+      'deposit'           => _TxMeta('Top Up',           Icons.add_circle_rounded,           const Color(0xFF10B981)),
+      'payment'           => _TxMeta('Payment',          Icons.shopping_bag_outlined,         const Color(0xFF6366F1)),
+      'cashback'          => _TxMeta('Cashback',         Icons.card_giftcard_rounded,         const Color(0xFFF59E0B)),
+      'refund'            => _TxMeta('Refund',           Icons.keyboard_return_rounded,       const Color(0xFF3B82F6)),
+      'penalty'           => _TxMeta('Penalty',          Icons.warning_amber_rounded,         const Color(0xFFEF4444)),
+      'tip_received'      => _TxMeta('Tip Received',     Icons.favorite_rounded,              const Color(0xFF10B981)),
+      'transfer_sent'     => _TxMeta('Sent',             Icons.send_rounded,                  const Color(0xFF6366F1)),
+      'transfer_received' => _TxMeta('Received',         Icons.call_received_rounded,         const Color(0xFF10B981)),
+      _                   => _TxMeta(type.replaceAll('_', ' ').capitalize(), Icons.receipt_rounded, Colors.grey),
+    };
+  }
+
+  String _relativeTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return DateFormat('d MMM, h:mm a').format(dt);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final (IconData icon, Color color) = switch (tx.type) {
-      'deposit' => (Icons.add_circle_outline, AppTheme.successColor),
-      'payment' => (Icons.shopping_cart_outlined, AppTheme.primaryColor),
-      'cashback' => (Icons.card_giftcard, const Color(0xFFF59E0B)),
-      'refund' => (Icons.replay, const Color(0xFF3B82F6)),
-      'penalty' => (Icons.warning_amber_rounded, AppTheme.errorColor),
-      'tip_received' => (Icons.favorite, AppTheme.successColor),
-      'transfer_sent' => (Icons.send_rounded, AppTheme.primaryColor),
-      'transfer_received' => (Icons.call_received_rounded, AppTheme.successColor),
-      _ => (Icons.receipt, Colors.grey),
-    };
+    final c   = AppConstants.currencySymbol;
+    final meta = _meta(tx.type, tx.description);
+    final isCredit = tx.amount > 0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? const Color(0xFF374151) : Colors.grey.shade200,
-          width: 0.5,
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
         children: [
+          // Icon bubble
           Container(
-            width: 40,
-            height: 40,
+            width: 44, height: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: meta.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(meta.icon, color: meta.color, size: 22),
           ),
           const SizedBox(width: 12),
+          // Label + description + time
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tx.description ?? tx.type.replaceAll('_', ' ').toUpperCase(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Text(
+                      meta.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    if (tx.status != 'completed') ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          tx.status.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 2),
+                if (tx.description != null &&
+                    tx.description!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    tx.description!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 3),
                 Text(
-                  DateFormat.yMMMd().add_jm().format(tx.createdAt),
+                  _relativeTime(tx.createdAt),
                   style: TextStyle(
-                    fontSize: 12,
-                    color:
-                        isDark ? Colors.grey.shade400 : AppTheme.textLight,
+                    fontSize: 11,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.7),
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            '${tx.isCredit ? '+' : ''}\$${tx.amount.abs().toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: tx.isCredit
-                  ? AppTheme.successColor
-                  : AppTheme.errorColor,
-            ),
+          const SizedBox(width: 10),
+          // Amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isCredit ? '+' : '-'}$c${tx.amount.abs().toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                  color: isCredit
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFEF4444),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class _TxMeta {
+  final String label;
+  final IconData icon;
+  final Color color;
+  const _TxMeta(this.label, this.icon, this.color);
+}
+
+extension on String {
+  String capitalize() =>
+      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
 }
 
 // ─── Saved card tile ──────────────────────────────────────────────────────────
@@ -1012,12 +1209,12 @@ class _SavedCardTileState extends State<_SavedCardTile> {
             color: isPending
                 ? Colors.orange.withValues(alpha: 0.6)
                 : isFailed
-                    ? Colors.red.withValues(alpha: 0.4)
-                    : card.isDefault
-                        ? AppTheme.primaryColor.withValues(alpha: 0.5)
-                        : isDark
-                            ? const Color(0xFF374151)
-                            : Colors.grey.shade200,
+                ? Colors.red.withValues(alpha: 0.4)
+                : card.isDefault
+                ? AppTheme.primaryColor.withValues(alpha: 0.5)
+                : isDark
+                ? const Color(0xFF374151)
+                : Colors.grey.shade200,
             width: (isPending || card.isDefault) ? 1.5 : 0.5,
           ),
         ),
@@ -1054,9 +1251,7 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1065,13 +1260,16 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                           if (card.isDefault && card.isVerified) ...[
                             const SizedBox(width: 6),
                             _StatusBadge(
-                                label: 'DEFAULT',
-                                color: AppTheme.primaryColor),
+                              label: 'DEFAULT',
+                              color: AppTheme.primaryColor,
+                            ),
                           ],
                           if (isPending) ...[
                             const SizedBox(width: 6),
                             _StatusBadge(
-                                label: 'PENDING', color: Colors.orange),
+                              label: 'PENDING',
+                              color: Colors.orange,
+                            ),
                           ],
                           if (isFailed) ...[
                             const SizedBox(width: 6),
@@ -1096,7 +1294,9 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                         Text(
                           '${card.timeRemaining!.inMinutes} min to verify',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.orange.shade700),
+                            fontSize: 11,
+                            color: Colors.orange.shade700,
+                          ),
                         ),
                       ],
                     ],
@@ -1107,21 +1307,27 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                 if (isPending && widget.onVerifyAmount != null)
                   IconButton(
                     onPressed: widget.onDelete,
-                    icon: Icon(Icons.delete_outline,
-                        color: Colors.red.shade400, size: 20),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red.shade400,
+                      size: 20,
+                    ),
                     tooltip: 'Remove card',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   )
                 else if (!isPending)
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_horiz_rounded,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                        size: 22),
+                    icon: Icon(
+                      Icons.more_horiz_rounded,
+                      color: isDark
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade600,
+                      size: 22,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     onSelected: (value) {
                       if (value == 'default') widget.onSetDefault();
                       if (value == 'delete') widget.onDelete();
@@ -1142,11 +1348,13 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline,
-                                size: 18, color: Colors.red),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
                             SizedBox(width: 8),
-                            Text('Remove',
-                                style: TextStyle(color: Colors.red)),
+                            Text('Remove', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
@@ -1166,7 +1374,8 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                       : Colors.orange.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.25)),
+                    color: Colors.orange.withValues(alpha: 0.25),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1192,10 +1401,12 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                               controller: _amountCtrl,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
-                                      decimal: true),
+                                    decimal: true,
+                                  ),
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(
-                                    RegExp(r'[\d.]')),
+                                  RegExp(r'[\d.]'),
+                                ),
                               ],
                               decoration: InputDecoration(
                                 prefixText: '\$ ',
@@ -1204,12 +1415,13 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                                 fillColor: isDark
                                     ? const Color(0xFF1F2937)
                                     : Colors.white,
-                                contentPadding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 border: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(8)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                                 isDense: true,
                               ),
                               enabled: !_isVerifying,
@@ -1224,20 +1436,20 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                                 ? null
                                 : () async {
                                     final amount = double.tryParse(
-                                        _amountCtrl.text.trim());
+                                      _amountCtrl.text.trim(),
+                                    );
                                     if (amount == null || amount <= 0) {
-                                      AppSnackbar.warning(context,
-                                          'Please enter a valid amount.');
+                                      AppSnackbar.warning(
+                                        context,
+                                        'Please enter a valid amount.',
+                                      );
                                       return;
                                     }
-                                    setState(
-                                        () => _isVerifying = true);
-                                    final matched =
-                                        await widget.onVerifyAmount!(
-                                            card.id, amount);
+                                    setState(() => _isVerifying = true);
+                                    final matched = await widget
+                                        .onVerifyAmount!(card.id, amount);
                                     if (mounted) {
-                                      setState(
-                                          () => _isVerifying = false);
+                                      setState(() => _isVerifying = false);
                                       if (matched) _amountCtrl.clear();
                                     }
                                   },
@@ -1246,21 +1458,24 @@ class _SavedCardTileState extends State<_SavedCardTile> {
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white),
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
                                   )
                                 : const Icon(Icons.check_circle, size: 18),
-                            label: const Text('Verify',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                            label: const Text(
+                              'Verify',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.successColor,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16),
+                                horizontal: 16,
+                              ),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(8)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
                         ),
@@ -1358,18 +1573,21 @@ class _CvvSheetState extends State<_CvvSheet> {
               ),
             ),
           ),
-          Text('Enter CVV',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            'Enter CVV',
+            style: TextStyle(
+              fontSize: Responsive.headingMedium(context),
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             '${widget.card.displayBrand}  ••••  ${widget.card.lastFour}',
             style: TextStyle(
-                fontSize: 13,
-                color:
-                    isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+              fontSize: 13,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 20),
           TextField(
@@ -1384,7 +1602,8 @@ class _CvvSheetState extends State<_CvvSheet> {
               hintText: _isAmex ? '••••' : '•••',
               prefixIcon: const Icon(Icons.lock_outline, size: 20),
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               counterText: '',
             ),
             onSubmitted: (val) {
@@ -1403,12 +1622,15 @@ class _CvvSheetState extends State<_CvvSheet> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(
                   'Pay  ${AppConstants.currencySymbol}${widget.amount.toStringAsFixed(2)}',
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -1453,7 +1675,8 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
   }
 
   void _syncSelectedCard(AsyncValue<List<SavedCard>> cardsAsync) {
-    final cards = cardsAsync.valueOrNull
+    final cards =
+        cardsAsync.valueOrNull
             ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
             .toList() ??
         [];
@@ -1465,10 +1688,12 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
     if (_selectedCard != null && cards.any((c) => c.id == _selectedCard!.id)) {
       return;
     }
-    setState(() => _selectedCard = cards.firstWhere(
-          (c) => c.isDefault,
-          orElse: () => cards.first,
-        ));
+    setState(
+      () => _selectedCard = cards.firstWhere(
+        (c) => c.isDefault,
+        orElse: () => cards.first,
+      ),
+    );
   }
 
   @override
@@ -1478,9 +1703,9 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
   }
 
   Future<void> _addNewCard() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AddCardScreen()),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddCardScreen()));
     if (result == true && mounted) {
       ref.invalidate(savedCardsProvider(widget.userId));
       setState(() => _selectedCard = null);
@@ -1491,77 +1716,91 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardsAsync = ref.watch(savedCardsProvider(widget.userId));
-    final verifiedCards = cardsAsync.valueOrNull
+    final verifiedCards =
+        cardsAsync.valueOrNull
             ?.where((c) => c.isVerified && c.stripePaymentMethodId != null)
             .toList() ??
         [];
 
     // Keep selection in sync whenever the provider emits a new value
     ref.listen<AsyncValue<List<SavedCard>>>(
-        savedCardsProvider(widget.userId), (_, next) => _syncSelectedCard(next));
+      savedCardsProvider(widget.userId),
+      (_, next) => _syncSelectedCard(next),
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Top-up',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Top-up',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           // Wallet ID
-          Text('Your 7Dash Wallet ID',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            'Your 7Dash Wallet ID',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1F2937)
-                  : const Color(0xFFECF8F5),
+              color: isDark ? const Color(0xFF1F2937) : const Color(0xFFECF8F5),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(widget.walletDisplayId,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface)),
+            child: Text(
+              widget.walletDisplayId,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
           ),
 
           const SizedBox(height: 24),
 
           // Amount
-          Text('Amount',
-              style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            'Amount',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1F2937)
-                  : const Color(0xFFECF8F5),
+              color: isDark ? const Color(0xFF1F2937) : const Color(0xFFECF8F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
               controller: _amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
               ],
               style: TextStyle(
-                  fontSize: 15,
-                  color: Theme.of(context).colorScheme.onSurface),
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
               decoration: InputDecoration(
                 hintText: 'Enter amount',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1571,21 +1810,25 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
           // Card selector section
           Row(
             children: [
-              Text('Select Credit / Debit Card',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface)),
+              Text(
+                'Select Credit / Debit Card',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
               const Spacer(),
               TextButton.icon(
                 onPressed: _addNewCard,
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Card',
-                    style: TextStyle(fontSize: 13)),
+                label: const Text('Add Card', style: TextStyle(fontSize: 13)),
                 style: TextButton.styleFrom(
                   foregroundColor: AppTheme.primaryColor,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
               ),
             ],
@@ -1595,8 +1838,7 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
           cardsAsync.when(
             loading: () => const SizedBox(
               height: 60,
-              child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             ),
             error: (e, _) => const SizedBox.shrink(),
             data: (_) {
@@ -1620,15 +1862,20 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add_card_rounded,
-                            color: AppTheme.primaryColor, size: 22),
+                        Icon(
+                          Icons.add_card_rounded,
+                          color: AppTheme.primaryColor,
+                          size: 22,
+                        ),
                         const SizedBox(width: 10),
-                        Text('Add New Card',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            )),
+                        Text(
+                          'Add New Card',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1651,18 +1898,17 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppTheme.primaryColor
-                                  .withValues(alpha: 0.08)
+                              ? AppTheme.primaryColor.withValues(alpha: 0.08)
                               : isDark
-                                  ? const Color(0xFF1F2937)
-                                  : Colors.grey.shade50,
+                              ? const Color(0xFF1F2937)
+                              : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: selected
                                 ? AppTheme.primaryColor
                                 : isDark
-                                    ? const Color(0xFF374151)
-                                    : Colors.grey.shade200,
+                                ? const Color(0xFF374151)
+                                : Colors.grey.shade200,
                             width: selected ? 2 : 1,
                           ),
                         ),
@@ -1672,22 +1918,26 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(card.displayBrand,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface)),
-                                  Text('••••${card.lastFour}',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade500)),
+                                  Text(
+                                    card.displayBrand,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  Text(
+                                    '••••${card.lastFour}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -1699,8 +1949,11 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                                   color: AppTheme.primaryColor,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.check,
-                                    color: Colors.white, size: 14),
+                                child: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
                               ),
                           ],
                         ),
@@ -1718,9 +1971,10 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
             '*This money can only be spent on 7Dash.\n'
             '*You can send 7Dash wallet money to other 7Dash wallets.',
             style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.primaryColor,
-                height: 1.6),
+              fontSize: 12,
+              color: AppTheme.primaryColor,
+              height: 1.6,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -1736,15 +1990,17 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                     ? () {
                         // Defensive: if _selectedCard is still null but there are
                         // verified cards (e.g. listener never fired), pick the default.
-                        final card = _selectedCard ??
+                        final card =
+                            _selectedCard ??
                             (verifiedCards.isNotEmpty
                                 ? verifiedCards.firstWhere(
                                     (c) => c.isDefault,
                                     orElse: () => verifiedCards.first,
                                   )
                                 : null);
-                        Navigator.of(context).pop(
-                            _TopUpResult(amount: amount, savedCard: card));
+                        Navigator.of(
+                          context,
+                        ).pop(_TopUpResult(amount: amount, savedCard: card));
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -1754,11 +2010,13 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                child: const Text('Add Money',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
+                child: const Text(
+                  'Add Money',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               );
             },
           ),
@@ -1821,12 +2079,15 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
     setState(() => _sending = true);
     try {
-      await widget.ref.read(walletNotifierProvider.notifier).transfer(
+      await widget.ref
+          .read(walletNotifierProvider.notifier)
+          .transfer(
             recipientWalletId: recipientId,
             amount: amount,
             note: note.isEmpty ? null : note,
           );
-      widget.ref.invalidate(walletTransactionsProvider);
+      widget.ref.invalidate(walletTransactionsStreamProvider);
+      widget.ref.invalidate(walletBalanceStreamProvider);
       widget.onSuccess();
       if (mounted) {
         Navigator.of(context).pop();
@@ -1888,10 +2149,13 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
             ),
             child: Column(
               children: [
-                Text('My Current Balance',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13)),
+                Text(
+                  'My Current Balance',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${AppConstants.currencySymbol}${widget.currentBalance.toStringAsFixed(2)}JMD',
@@ -1908,16 +2172,17 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
           const SizedBox(height: 20),
 
           // Wallet ID field
-          Text('7Dash Wallet ID',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            '7Dash Wallet ID',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF111827)
-                  : const Color(0xFFECF8F5),
+              color: isDark ? const Color(0xFF111827) : const Color(0xFFECF8F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
@@ -1928,7 +2193,9 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1936,22 +2203,24 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
           const SizedBox(height: 16),
 
           // Amount field
-          Text('Amount (JMD)',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            'Amount (JMD)',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF111827)
-                  : const Color(0xFFECF8F5),
+              color: isDark ? const Color(0xFF111827) : const Color(0xFFECF8F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
               controller: _amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
               ],
@@ -1960,7 +2229,9 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1968,16 +2239,17 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
           const SizedBox(height: 16),
 
           // Note field
-          Text('Note',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface)),
+          Text(
+            'Note',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF111827)
-                  : const Color(0xFFECF8F5),
+              color: isDark ? const Color(0xFF111827) : const Color(0xFFECF8F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
@@ -1985,11 +2257,16 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
               decoration: InputDecoration(
                 hintText: 'Add special Note',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
-                prefixIcon: Icon(Icons.note_alt_outlined,
-                    color: AppTheme.primaryColor, size: 20),
+                prefixIcon: Icon(
+                  Icons.note_alt_outlined,
+                  color: AppTheme.primaryColor,
+                  size: 20,
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1997,8 +2274,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
           const SizedBox(height: 12),
           Text(
             '*This money can only be spent on 7Dash',
-            style: TextStyle(
-                fontSize: 12, color: AppTheme.primaryColor),
+            style: TextStyle(fontSize: 12, color: AppTheme.primaryColor),
           ),
 
           const SizedBox(height: 20),
@@ -2013,18 +2289,25 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: _sending
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Send Money',
+                  : const Text(
+                      'Send Money',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -2035,14 +2318,24 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
 // ─── Transaction history sheet ────────────────────────────────────────────────
 
-class _TransactionHistorySheet extends StatelessWidget {
-  final WidgetRef ref;
+class _TransactionHistorySheet extends ConsumerStatefulWidget {
   const _TransactionHistorySheet({required this.ref});
 
+  final WidgetRef ref;
+
+  @override
+  ConsumerState<_TransactionHistorySheet> createState() =>
+      _TransactionHistorySheetState();
+}
+
+class _TransactionHistorySheetState
+    extends ConsumerState<_TransactionHistorySheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final txAsync = ref.watch(walletTransactionsProvider);
+    final currentUserId = ref.watch(currentUserIdProvider);
+    // Stream provider — updates live whenever a new transaction is written.
+    final txAsync = ref.watch(walletTransactionsStreamProvider);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
@@ -2067,16 +2360,17 @@ class _TransactionHistorySheet extends StatelessWidget {
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  Text('Transaction History',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color:
-                              Theme.of(context).colorScheme.onSurface)),
+                  Text(
+                    'Transaction History',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -2085,21 +2379,149 @@ class _TransactionHistorySheet extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1),
+            if (currentUserId == null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No user session detected. Transactions require login.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Divider(height: 1),
             Expanded(
               child: txAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(friendlyError(e))),
-                data: (txns) => txns.isEmpty
-                    ? const Center(child: Text('No transactions yet'))
-                    : ListView.builder(
-                        controller: scrollCtrl,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: txns.length,
-                        itemBuilder: (_, i) =>
-                            _TransactionTile(tx: txns[i]),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.red),
+                        const SizedBox(height: 12),
+                        Text('Error loading transactions',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        Text(friendlyError(error),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                          onPressed: () =>
+                              ref.invalidate(walletTransactionsStreamProvider),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                data: (txns) {
+                  if (txns.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.receipt_long_outlined,
+                                size: 56,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(alpha: 0.4)),
+                            const SizedBox(height: 16),
+                            Text('No transactions yet',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant)),
+                            const SizedBox(height: 6),
+                            Text('Top up or make a booking to get started.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.6))),
+                          ],
+                        ),
                       ),
+                    );
+                  }
+
+                  // Group transactions by date label
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final yesterday = today.subtract(const Duration(days: 1));
+                  final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+
+                  String dateLabel(DateTime dt) {
+                    final d = DateTime(dt.year, dt.month, dt.day);
+                    if (!d.isBefore(today)) return 'Today';
+                    if (!d.isBefore(yesterday) && d.isBefore(today)) return 'Yesterday';
+                    if (!d.isBefore(thisWeekStart)) return 'This Week';
+                    return DateFormat('MMMM yyyy').format(dt);
+                  }
+
+                  final List<Object> items = [];
+                  String? lastLabel;
+                  for (final tx in txns) {
+                    final label = dateLabel(tx.createdAt);
+                    if (label != lastLabel) {
+                      items.add(label);
+                      lastLabel = label;
+                    }
+                    items.add(tx);
+                  }
+
+                  return ListView.builder(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                    itemCount: items.length,
+                    itemBuilder: (_, i) {
+                      final item = items[i];
+                      if (item is String) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 16, bottom: 8),
+                          child: Text(
+                            item,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        );
+                      }
+                      return _TransactionTile(tx: item as WalletTransaction);
+                    },
+                  );
+                },
               ),
             ),
           ],

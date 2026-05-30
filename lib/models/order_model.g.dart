@@ -109,6 +109,10 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
   pickupCode: json['pickup_code'] as String?,
   fromAd: json['from_ad'] as bool? ?? false,
   adId: json['ad_id'] as String?,
+  orderGroupId: json['order_group_id'] as String?,
+  isMultiRestaurant: json['is_multi_restaurant'] as bool? ?? false,
+  sequenceInGroup: (json['sequence_in_group'] as num?)?.toInt(),
+  restaurantOrderNumber: json['restaurant_order_number'] as String?,
 );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -160,4 +164,8 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'pickup_code': instance.pickupCode,
   'from_ad': instance.fromAd,
   'ad_id': instance.adId,
+  'order_group_id': instance.orderGroupId,
+  'is_multi_restaurant': instance.isMultiRestaurant,
+  'sequence_in_group': instance.sequenceInGroup,
+  'restaurant_order_number': instance.restaurantOrderNumber,
 };

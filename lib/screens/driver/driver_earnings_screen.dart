@@ -10,6 +10,7 @@ import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 
 class DriverEarningsScreen extends ConsumerStatefulWidget {
   const DriverEarningsScreen({super.key});
@@ -114,7 +115,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [
           SliverAppBar(
             pinned: true,
@@ -161,7 +162,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -408,10 +409,10 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                   const SizedBox(height: 24),
 
                   // Delivery Log header
-                  const Text(
+                  Text(
                     'Delivery Log',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: Responsive.headingSmall(context),
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -557,9 +558,11 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
               fontWeight: FontWeight.w800,
-              fontSize: 16,
+              fontSize: Responsive.headingSmall(context),
               color: Colors.white,
             ),
           ),
@@ -643,10 +646,12 @@ class _DeliveryRow extends StatelessWidget {
             children: [
               Text(
                 '${AppConstants.currencySymbol}${earning.toStringAsFixed(2)}',
-                style: const TextStyle(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: Color(0xFF22C55E),
+                  fontSize: Responsive.headingSmall(context),
+                  color: const Color(0xFF22C55E),
                 ),
               ),
               if (isCash)

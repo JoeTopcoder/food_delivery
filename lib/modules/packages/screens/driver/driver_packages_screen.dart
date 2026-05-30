@@ -258,8 +258,19 @@ class _AvailablePackageCardState
                   child: req.companyLogoUrl != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.network(req.companyLogoUrl!,
-                              fit: BoxFit.cover),
+                          child: Image.network(
+                            req.companyLogoUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              width: 40,
+                              height: 40,
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Colors.grey),
+                            ),
+                          ),
                         )
                       : const Icon(Icons.local_shipping,
                           color: Color(0xFF7C3AED), size: 22),

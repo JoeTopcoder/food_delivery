@@ -194,10 +194,18 @@ Deno.serve(async (request) => {
       );
     }
 
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isMultiRestaurant = txnType === "multi_restaurant_order";
+
+    // Multi-restaurant pre-order PI: no order exists yet — skip order lookup.
+    // The order is created AFTER payment is confirmed (inside create-multi-restaurant-order).
+    // orderId is used only as Stripe metadata; validation happens in the order edge function.
+    if (isMultiRestaurant) {
+      // No DB lookup needed — just proceed to create the PaymentIntent below.
+    }
 
     // For standard orders, validate the order exists and belongs to user
-    if (!isNonOrder) {
+    if (!isNonOrder && !isMultiRestaurant) {
       const { data: order, error: orderError } = await adminClient
         .from("orders")
         .select("id, user_id, total_amount, payment_status")
@@ -239,9 +247,16 @@ Deno.serve(async (request) => {
           txnType === "wallet_topup"
             ? `Wallet top-up ${orderId}`
             : txnType === "ride"
-            ? `Ride payment ${orderId}`
+            ? `Ride authorization ${orderId}`
+            : txnType === "car_service"
+            ? `Car service booking ${orderId}`
             : `Order payment ${orderId}`,
       };
+
+      // Rides use manual capture: authorize now, capture the final fare at completion.
+      if (txnType === "ride") {
+        params["capture_method"] = "manual";
+      }
 
       if (name) {
         params["metadata[customer_name]"] = name;
@@ -257,8 +272,9 @@ Deno.serve(async (request) => {
         );
       }
 
-      // Record the payment in Supabase payments table (for order payments)
-      if (!isNonOrder) {
+      // Record the payment in Supabase payments table (for single-restaurant orders).
+      // Multi-restaurant orders track payment status on order_groups directly.
+      if (!isNonOrder && !isMultiRestaurant) {
         await adminClient.from("payments").upsert(
           {
             order_id: orderId,
@@ -690,15 +706,32 @@ Deno.serve(async (request) => {
     const orderId = String(body.orderId ?? "").trim();
     const amount = Number(body.amount ?? 0);
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
-    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
+    const currency = String(body.currency ?? "usd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {
       return json({ error: "Missing required fields (orderId, amount, paymentMethodId)." }, 400);
     }
 
-    if (!isNonOrder) {
+    if (isMultiRestaurant) {
+      let moCustomerId: string | null = null;
+      let moPaymentStatus: string | null = null;
+      const { data: mo2 } = await adminClient
+        .from("master_orders").select("id,customer_id,payment_status").eq("id", orderId).maybeSingle();
+      if (mo2) { moCustomerId = mo2.customer_id; moPaymentStatus = mo2.payment_status; }
+      else {
+        const { data: og2 } = await adminClient
+          .from("order_groups").select("id,customer_id,payment_status").eq("id", orderId).maybeSingle();
+        if (og2) { moCustomerId = og2.customer_id; moPaymentStatus = og2.payment_status; }
+      }
+      if (!moCustomerId) return json({ error: "Order not found." }, 404);
+      if (moCustomerId !== userData.user.id) return json({ error: "Order does not belong to you." }, 403);
+      if (moPaymentStatus === "paid" || moPaymentStatus === "completed") return json({ error: "Order is already paid." }, 400);
+    }
+
+    if (!isNonOrder && !isMultiRestaurant) {
       const { data: order, error: orderError } = await adminClient
         .from("orders")
         .select("id, user_id, total_amount, payment_status")
@@ -758,16 +791,34 @@ Deno.serve(async (request) => {
     const orderId = String(body.orderId ?? "").trim();
     const amount = Number(body.amount ?? 0);
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
-    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
+    const currency = String(body.currency ?? "usd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {
       return json({ error: "Missing required fields (orderId, amount, paymentMethodId)." }, 400);
     }
 
+    // Multi-restaurant orders: validate against master_orders (new) or order_groups (legacy)
+    if (isMultiRestaurant) {
+      let moCustomerId3: string | null = null;
+      let moPaymentStatus3: string | null = null;
+      const { data: mo3 } = await adminClient
+        .from("master_orders").select("id,customer_id,payment_status").eq("id", orderId).maybeSingle();
+      if (mo3) { moCustomerId3 = mo3.customer_id; moPaymentStatus3 = mo3.payment_status; }
+      else {
+        const { data: og3 } = await adminClient
+          .from("order_groups").select("id,customer_id,payment_status").eq("id", orderId).maybeSingle();
+        if (og3) { moCustomerId3 = og3.customer_id; moPaymentStatus3 = og3.payment_status; }
+      }
+      if (!moCustomerId3) return json({ error: "Order not found." }, 404);
+      if (moCustomerId3 !== userData.user.id) return json({ error: "Order does not belong to you." }, 403);
+      if (moPaymentStatus3 === "paid" || moPaymentStatus3 === "completed") return json({ error: "Order is already paid." }, 400);
+    }
+
     // For real orders: validate the order exists and belongs to this user
-    if (!isNonOrder) {
+    if (!isNonOrder && !isMultiRestaurant) {
       const { data: order, error: orderError } = await adminClient
         .from("orders")
         .select("id, user_id, total_amount, payment_status")
@@ -823,8 +874,35 @@ Deno.serve(async (request) => {
       const piStatus = pi.status as string;
       const succeeded = piStatus === "succeeded" || piStatus === "requires_capture";
 
-      // Only update orders / payments tables for real order payments
-      if (succeeded && !isNonOrder) {
+      // Update DB on success
+      if (succeeded && isMultiRestaurant) {
+        // Try new master_orders table first; fall back to legacy order_groups
+        const { data: moCheck } = await adminClient
+          .from("master_orders").select("id").eq("id", orderId).maybeSingle();
+        if (moCheck) {
+          // New schema: delegate to finalize function (handles notifications + driver assignment)
+          fetch(`${supabaseUrl}/functions/v1/finalize-multi-restaurant-order`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+              "apikey": supabaseServiceRoleKey,
+            },
+            body: JSON.stringify({ master_order_id: orderId, payment_intent_id: pi.id }),
+          }).catch(() => null);
+        } else {
+          // Legacy schema: update order_groups and orders directly
+          await adminClient.from("order_groups").update({
+            payment_status: "paid", status: "preparing",
+            stripe_payment_intent_id: pi.id as string,
+            updated_at: new Date().toISOString(),
+          }).eq("id", orderId);
+          await adminClient.from("orders").update({
+            payment_status: "completed", status: "preparing",
+            updated_at: new Date().toISOString(),
+          }).eq("order_group_id", orderId);
+        }
+      } else if (succeeded && !isNonOrder) {
         await adminClient.from("payments").upsert(
           {
             order_id: orderId,

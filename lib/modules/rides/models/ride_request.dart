@@ -108,6 +108,9 @@ class RideRequest {
   // Payment
   final PaymentStatus paymentStatus;
   final PaymentMethod? paymentMethod;
+  final String? stripePaymentIntentId;
+  final double? authorizedAmount;
+  final String? savedCardId;
 
   // Status
   final RideStatus rideStatus;
@@ -126,6 +129,12 @@ class RideRequest {
 
   // Scheduled ride
   final DateTime? scheduledFor;
+
+  // Airport
+  final bool isAirportPickup;
+  final bool isAirportDropoff;
+  final String? terminalInfo;
+  final double? airportSurcharge;
 
   // OTP PIN shown to customer; driver must enter to start the ride
   final String? ridePin;
@@ -165,6 +174,9 @@ class RideRequest {
     this.driverEarning,
     required this.paymentStatus,
     this.paymentMethod,
+    this.stripePaymentIntentId,
+    this.authorizedAmount,
+    this.savedCardId,
     required this.rideStatus,
     this.pauseReason,
     this.pausedAt,
@@ -173,6 +185,10 @@ class RideRequest {
     this.rating,
     this.review,
     this.scheduledFor,
+    this.isAirportPickup = false,
+    this.isAirportDropoff = false,
+    this.terminalInfo,
+    this.airportSurcharge,
     this.ridePin,
     this.cancellationFee,
     this.waitingStartedAt,
@@ -219,6 +235,11 @@ class RideRequest {
       paymentMethod: json['payment_method'] != null
           ? PaymentMethod.fromString(json['payment_method'] as String)
           : null,
+      stripePaymentIntentId: json['stripe_payment_intent_id'] as String?,
+      authorizedAmount: json['authorized_amount'] != null
+          ? (json['authorized_amount'] as num).toDouble()
+          : null,
+      savedCardId: json['saved_card_id'] as String?,
       rideStatus: RideStatus.fromString(json['ride_status'] as String? ?? ''),
       pauseReason: json['pause_reason'] as String?,
       pausedAt: json['paused_at'] != null
@@ -230,6 +251,12 @@ class RideRequest {
       review: json['review'] as String?,
       scheduledFor: json['scheduled_for'] != null
           ? DateTime.parse(json['scheduled_for'] as String)
+          : null,
+      isAirportPickup: json['is_airport_pickup'] as bool? ?? false,
+      isAirportDropoff: json['is_airport_dropoff'] as bool? ?? false,
+      terminalInfo: json['terminal_info'] as String?,
+      airportSurcharge: json['airport_surcharge'] != null
+          ? (json['airport_surcharge'] as num).toDouble()
           : null,
       ridePin: json['ride_pin'] as String?,
       cancellationFee: json['cancellation_fee'] != null
@@ -277,6 +304,9 @@ class RideRequest {
     'driver_earning': driverEarning,
     'payment_status': paymentStatus.name,
     'payment_method': paymentMethod?.name,
+    'stripe_payment_intent_id': stripePaymentIntentId,
+    'authorized_amount': authorizedAmount,
+    'saved_card_id': savedCardId,
     'ride_status': rideStatus.name,
     'pause_reason': pauseReason,
     'paused_at': pausedAt?.toIso8601String(),
@@ -285,6 +315,10 @@ class RideRequest {
     'rating': rating,
     'review': review,
     'scheduled_for': scheduledFor?.toIso8601String(),
+    'is_airport_pickup': isAirportPickup,
+    'is_airport_dropoff': isAirportDropoff,
+    'terminal_info': terminalInfo,
+    'airport_surcharge': airportSurcharge,
     'ride_pin': ridePin,
     'cancellation_fee': cancellationFee,
     'waiting_started_at': waitingStartedAt?.toIso8601String(),
@@ -316,6 +350,9 @@ class RideRequest {
     double? driverEarning,
     PaymentStatus? paymentStatus,
     PaymentMethod? paymentMethod,
+    String? stripePaymentIntentId,
+    double? authorizedAmount,
+    String? savedCardId,
     RideStatus? rideStatus,
     String? pauseReason,
     DateTime? pausedAt,
@@ -324,6 +361,10 @@ class RideRequest {
     int? rating,
     String? review,
     DateTime? scheduledFor,
+    bool? isAirportPickup,
+    bool? isAirportDropoff,
+    String? terminalInfo,
+    double? airportSurcharge,
     String? ridePin,
     double? cancellationFee,
     DateTime? waitingStartedAt,
@@ -355,6 +396,9 @@ class RideRequest {
       driverEarning: driverEarning ?? this.driverEarning,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      stripePaymentIntentId: stripePaymentIntentId ?? this.stripePaymentIntentId,
+      authorizedAmount: authorizedAmount ?? this.authorizedAmount,
+      savedCardId: savedCardId ?? this.savedCardId,
       rideStatus: rideStatus ?? this.rideStatus,
       pauseReason: pauseReason ?? this.pauseReason,
       pausedAt: pausedAt ?? this.pausedAt,
@@ -363,6 +407,10 @@ class RideRequest {
       rating: rating ?? this.rating,
       review: review ?? this.review,
       scheduledFor: scheduledFor ?? this.scheduledFor,
+      isAirportPickup: isAirportPickup ?? this.isAirportPickup,
+      isAirportDropoff: isAirportDropoff ?? this.isAirportDropoff,
+      terminalInfo: terminalInfo ?? this.terminalInfo,
+      airportSurcharge: airportSurcharge ?? this.airportSurcharge,
       ridePin: ridePin ?? this.ridePin,
       cancellationFee: cancellationFee ?? this.cancellationFee,
       waitingStartedAt: waitingStartedAt ?? this.waitingStartedAt,

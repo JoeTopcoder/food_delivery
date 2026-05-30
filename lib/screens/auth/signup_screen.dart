@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../core/utils/responsive.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   final String role;
@@ -66,6 +67,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           case 'admin':
             route = '/admin-dashboard';
             break;
+          case 'service_provider':
+            route = '/car-services/provider';
+            break;
           default:
             route = '/home';
         }
@@ -85,7 +89,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     return Scaffold(
       body: SingleChildScrollView(
-        child: Column(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
           children: [
             // ── Gradient Header ──────────────────────────────────────────
             Container(
@@ -153,7 +161,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Text(
                         context.l10n.createAccount,
                         style: TextStyle(
-                          fontSize: 26,
+                          fontSize: Responsive.headingLarge(context),
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 0.5,
@@ -163,7 +171,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       Text(
                         'Join 7DASH today',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: Responsive.bodyText(context),
                           color: Colors.white.withValues(alpha: 0.85),
                         ),
                       ),
@@ -176,7 +184,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
             // ── Form ─────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                28,
+                Responsive.horizontalPadding(context),
+                Responsive.cardPadding(context),
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -310,6 +323,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

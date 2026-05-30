@@ -34,8 +34,8 @@ class AddressService {
           'user_id': userId,
           'label': label,
           'address': address,
-          'latitude': ?latitude,
-          'longitude': ?longitude,
+          'latitude': latitude,
+          'longitude': longitude,
           'is_default': isDefault,
         })
         .select()
@@ -81,8 +81,8 @@ class AddressService {
         .update({
           'label': label,
           'address': address,
-          'latitude': ?latitude,
-          'longitude': ?longitude,
+          'latitude': latitude,
+          'longitude': longitude,
         })
         .eq('id', addressId);
   }

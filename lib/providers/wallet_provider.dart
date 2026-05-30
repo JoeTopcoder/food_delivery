@@ -2,37 +2,95 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/wallet_model.dart';
 import '../services/payment/wallet_service.dart';
+import '../utils/app_logger.dart';
 import 'auth_provider.dart';
 
 final walletServiceProvider = Provider<WalletService>((ref) {
   return WalletService(Supabase.instance.client);
 });
 
-/// Current user's wallet (auto-refreshes)
+// ─── Real-time wallet balance ─────────────────────────────────────────────────
+// Streams the wallets row directly from Supabase Realtime.
+// This is the single source of truth for balance across the whole app.
+
+final walletBalanceStreamProvider = StreamProvider.autoDispose<Wallet?>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return Stream.value(null);
+  return Supabase.instance.client
+      .from('wallets')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', userId)
+      .map((rows) => rows.isEmpty ? null : Wallet.fromJson(rows.first));
+});
+
+// ─── Real-time transaction list ───────────────────────────────────────────────
+// Re-fetches the full transaction history every time the wallet row changes.
+// This avoids needing wallet_transactions in Supabase Realtime — the wallets
+// table stream (above) is the trigger, and we always get a fresh ordered list.
+
+final walletTransactionsStreamProvider =
+    StreamProvider.autoDispose<List<WalletTransaction>>((ref) async* {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) {
+    yield [];
+    return;
+  }
+
+  final service = ref.read(walletServiceProvider);
+
+  // Fetch immediately so the list appears without waiting for the first
+  // wallet-change event.
+  try {
+    yield await service.getTransactions(userId);
+  } catch (e) {
+    AppLogger.error('walletTransactions initial fetch: $e');
+    yield [];
+  }
+
+  // Subscribe to wallet row changes. Every INSERT/UPDATE/DELETE on wallets
+  // (balance top-up, reservation, settlement, refund) fires this stream, which
+  // triggers a fresh transaction fetch so the history is always in sync.
+  final walletStream = Supabase.instance.client
+      .from('wallets')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', userId);
+
+  await for (final _ in walletStream) {
+    try {
+      final txns = await service.getTransactions(userId);
+      yield txns;
+    } catch (e) {
+      AppLogger.error('walletTransactions wallet-trigger fetch: $e');
+    }
+  }
+});
+
+// ─── Legacy one-shot providers (kept for screens that still use them) ─────────
+
 final walletProvider = FutureProvider.autoDispose<Wallet?>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return null;
-  final service = ref.watch(walletServiceProvider);
-  return service.getWallet(userId);
+  return ref.watch(walletServiceProvider).getWallet(userId);
 });
 
-/// Wallet transaction history
-final walletTransactionsProvider = FutureProvider.autoDispose<List<WalletTransaction>>((
-  ref,
-) async {
+final walletTransactionsProvider =
+    FutureProvider.autoDispose<List<WalletTransaction>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return [];
-  final service = ref.watch(walletServiceProvider);
-  return service.getTransactions(userId);
+  return ref.watch(walletServiceProvider).getTransactions(userId);
 });
 
-/// Notifier for wallet actions (deposit, pay, etc.)
+// ─── Wallet action notifier ───────────────────────────────────────────────────
+// Used for mutations (deposit, pay, transfer). After each action the underlying
+// DB row changes, which fires walletBalanceStreamProvider automatically — so
+// callers only need to await the action; they don't need to manually refresh.
+
 class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
   final WalletService _service;
   final String? _userId;
 
   WalletNotifier(this._service, this._userId)
-    : super(const AsyncValue.loading()) {
+      : super(const AsyncValue.loading()) {
     if (_userId != null) _load();
   }
 
@@ -40,8 +98,7 @@ class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
     if (_userId == null) return;
     state = const AsyncValue.loading();
     try {
-      final wallet = await _service.getWallet(_userId);
-      state = AsyncValue.data(wallet);
+      state = AsyncValue.data(await _service.getWallet(_userId));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -89,14 +146,14 @@ class WalletNotifier extends StateNotifier<AsyncValue<Wallet?>> {
       _userId,
       refundMethod,
     );
-    await _load(); // Refresh balance after potential penalty
+    await _load();
     return result;
   }
 }
 
 final walletNotifierProvider =
     StateNotifierProvider<WalletNotifier, AsyncValue<Wallet?>>((ref) {
-      final service = ref.watch(walletServiceProvider);
-      final userId = ref.watch(currentUserIdProvider);
-      return WalletNotifier(service, userId);
-    });
+  final service = ref.watch(walletServiceProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  return WalletNotifier(service, userId);
+});

@@ -51,6 +51,13 @@ android {
 
     buildTypes {
         debug {
+            // Sign debug builds with the same key as release so that debug and
+            // release APKs can be swapped without hitting INSTALL_FAILED_UPDATE_INCOMPATIBLE.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
         }

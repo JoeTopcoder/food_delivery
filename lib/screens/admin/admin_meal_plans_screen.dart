@@ -132,7 +132,14 @@ class _MealPlanCard extends ConsumerWidget {
                   value: plan.isActive,
                   activeThumbColor: const Color(0xFF10B981),
                   onChanged: (v) async {
-                    await service.togglePlanActive(plan.id, v);
+                    try {
+                      await service.togglePlanActive(plan.id, v);
+                      ref.invalidate(allMealPlansProvider);
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppSnackbar.error(context, 'Failed to update plan');
+                      }
+                    }
                   },
                 ),
               ],
@@ -213,7 +220,17 @@ class _MealPlanCard extends ConsumerWidget {
                       ),
                     );
                     if (confirmed == true) {
-                      await service.deletePlan(plan.id);
+                      try {
+                        await service.deletePlan(plan.id);
+                        ref.invalidate(allMealPlansProvider);
+                        if (context.mounted) {
+                          AppSnackbar.success(context, '"${plan.name}" deleted');
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          AppSnackbar.error(context, 'Failed to delete plan');
+                        }
+                      }
                     }
                   },
                   icon: const Icon(Icons.delete_rounded, size: 16),
@@ -337,6 +354,7 @@ class _MealPlanFormSheetState extends ConsumerState<_MealPlanFormSheet> {
     setState(() => _saving = false);
 
     if (ok) {
+      ref.invalidate(allMealPlansProvider);
       Navigator.pop(context);
       AppSnackbar.success(context, _isEdit ? 'Plan updated' : 'Plan created');
     } else {

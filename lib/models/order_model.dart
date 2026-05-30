@@ -101,6 +101,10 @@ class Order {
   final String? pickupCode;
   final bool fromAd;
   final String? adId;
+  final String? orderGroupId;
+  final bool isMultiRestaurant;
+  final int? sequenceInGroup;
+  final String? restaurantOrderNumber;
 
   Order({
     required this.id,
@@ -151,6 +155,10 @@ class Order {
     this.pickupCode,
     this.fromAd = false,
     this.adId,
+    this.orderGroupId,
+    this.isMultiRestaurant = false,
+    this.sequenceInGroup,
+    this.restaurantOrderNumber,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -205,6 +213,10 @@ class Order {
     String? pickupCode,
     bool? fromAd,
     String? adId,
+    String? orderGroupId,
+    bool? isMultiRestaurant,
+    int? sequenceInGroup,
+    String? restaurantOrderNumber,
   }) {
     return Order(
       id: id ?? this.id,
@@ -255,6 +267,10 @@ class Order {
       pickupCode: pickupCode ?? this.pickupCode,
       fromAd: fromAd ?? this.fromAd,
       adId: adId ?? this.adId,
+      orderGroupId: orderGroupId ?? this.orderGroupId,
+      isMultiRestaurant: isMultiRestaurant ?? this.isMultiRestaurant,
+      sequenceInGroup: sequenceInGroup ?? this.sequenceInGroup,
+      restaurantOrderNumber: restaurantOrderNumber ?? this.restaurantOrderNumber,
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../providers/payment_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
+import '../../core/utils/responsive.dart';
 
 class AddCardScreen extends ConsumerStatefulWidget {
   const AddCardScreen({super.key});
@@ -133,7 +134,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                             Text(
                               'Add Payment Method',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: Responsive.headingMedium(context),
                                 fontWeight: FontWeight.bold,
                                 color: textColor,
                               ),
@@ -393,7 +394,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
           Text(
             _previewNumber,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: Responsive.headingMedium(context),
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
               color: isDark ? Colors.white : Colors.black87,
@@ -420,7 +421,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                   Text(
                     _previewName.toUpperCase(),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.bodyText(context),
                       fontWeight: FontWeight.w600,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
@@ -443,7 +444,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                   Text(
                     _previewExpiry,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.bodyText(context),
                       fontWeight: FontWeight.w600,
                       color: isDark ? Colors.white : Colors.black87,
                     ),

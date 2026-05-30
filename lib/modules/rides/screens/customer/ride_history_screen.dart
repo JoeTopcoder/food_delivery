@@ -53,14 +53,14 @@ class _RideHistoryScreenState extends ConsumerState<RideHistoryScreen>
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _kDark),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Ride History',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: _kDark,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 18,
           ),
         ),
@@ -352,10 +352,10 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
                                 children: [
                                   Text(
                                     _driverName!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                      color: _kDark,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                     ),
                                   ),
                                   if (_vehicleLine != null && _vehicleLine!.isNotEmpty)
@@ -443,10 +443,10 @@ class _ActiveRideCardState extends ConsumerState<_ActiveRideCard> {
                           ),
                           Text(
                             fareStr,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: _kDark,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
@@ -552,9 +552,9 @@ class _RouteRow extends StatelessWidget {
               const SizedBox(height: 1),
               Text(
                 address,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: _kDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
                 maxLines: 2,
@@ -587,12 +587,12 @@ class _EmptyActiveState extends StatelessWidget {
             color: Theme.of(context).colorScheme.outlineVariant,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No active ride',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: _kDark,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -633,12 +633,12 @@ class _HistoryTabBody extends ConsumerWidget {
             children: [
               Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Could not load ride history',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: _kDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 6),
@@ -898,10 +898,10 @@ class _RideTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   '$fromStr → $toStr',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _kDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -943,10 +943,10 @@ class _RideTile extends StatelessWidget {
             children: [
               Text(
                 fareStr,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: _kDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 5),
@@ -1055,10 +1055,10 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No $label rides yet',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: _kDark,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),

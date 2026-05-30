@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../config/app_constants.dart';
 import '../../providers/feature_providers.dart';
 import '../../models/refund_model.dart';
 import '../../utils/friendly_error.dart';
@@ -126,7 +127,7 @@ class _AdminRefundCard extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '\$ ${refund.amount.toStringAsFixed(2)}',
+                  '${AppConstants.currencySymbol}${refund.amount.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

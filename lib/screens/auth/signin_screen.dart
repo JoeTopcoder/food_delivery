@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../core/utils/responsive.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key, this.role});
@@ -62,12 +63,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         return '/restaurant-dashboard';
       case 'admin':
         return '/admin-dashboard';
+      case 'service_provider':
+        return '/car-services/provider';
       default:
         return '/home';
     }
   }
 
   bool _rolesMatch(String? userRole) {
+    if (userRole == 'admin') return true; // admin can sign in from any portal
     if (widget.role == null) return true;
     final expected = widget.role;
     if (expected == 'user' && (userRole == 'user' || userRole == 'customer')) {
@@ -159,7 +163,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
     return Scaffold(
       body: SingleChildScrollView(
-        child: Column(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
           children: [
             // ── Gradient Header ──────────────────────────────────────────
             Container(
@@ -268,7 +276,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
             // ── Form ─────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                36,
+                Responsive.horizontalPadding(context),
+                Responsive.cardPadding(context),
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -279,7 +292,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ? context.l10n.signIn
                           : '${context.l10n.signIn} as $_roleLabel',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: Responsive.headingLarge(context),
                         fontWeight: FontWeight.bold,
                         color: context.colors.onSurface,
                       ),
@@ -290,7 +303,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ? 'Enter your credentials to continue'
                           : 'Sign in to your $_roleLabel account',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: Responsive.bodyText(context),
                         color: context.colors.onSurfaceVariant,
                       ),
                     ),
@@ -472,6 +485,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -645,7 +659,7 @@ class _SocialButton extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: Responsive.bodyText(context),
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),

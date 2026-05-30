@@ -131,12 +131,14 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
 
   void _applyDefaults() {
     _proprietorName.text = 'Innovative Menu Solutions Limited';
-    _tradingAs.text = '7Krave';
+    _tradingAs.text = AppConstants.appName;
     _clientName.text = '';
     _feePercent.text = '10';
     _feeCapPercent.text = '5';
     _feeCapMonths.text = '24';
-    _supportEmail.text = 'support@applizonecentralja.com';
+    _supportEmail.text = AppConstants.supportEmail.isNotEmpty
+        ? AppConstants.supportEmail
+        : 'support@applizonecentralja.com';
     _bankName.text = '';
     _accountNumber.text = '';
     _accountName.text = '';
@@ -473,10 +475,10 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
                 _numberedItem(
                   '1.1',
                   spans: [
-                    const TextSpan(
+                    TextSpan(
                       text:
                           'Any order from THE CLIENT\'S restaurant done through '
-                          '${'' /* placeholder */} will be charged a ',
+                          '${_tradingAs.text.isNotEmpty ? _tradingAs.text : AppConstants.appName} will be charged a ',
                     ),
                     _editableSpan(_feePercent, bold: true, suffix: '%'),
                     const TextSpan(
@@ -495,24 +497,29 @@ class _AdminContractScreenState extends ConsumerState<AdminContractScreen> {
                       'have a zero surcharge to THE CLIENT\'s original menu items\' '
                       'cost, unless stated otherwise in an APPENDIX.',
                 ),
-                _numberedText(
-                  '1.3',
-                  'For all meals prepared by THE CLIENT through the platform, '
-                      'the transfer to THE CLIENT\'S bank account will be calculated '
-                      'as ${100 - (int.tryParse(_feePercent.text) ?? 10)}% of the '
-                      'original menu item cost plus any General Consumption Tax (GCT). '
-                      'For example, if the cost of a meal is \$100 plus GCT, resulting '
-                      'in a total of \$115, the transfer amount will be '
-                      '${AppConstants.currencySymbol}${100 - (int.tryParse(_feePercent.text) ?? 10)} '
-                      '(${100 - (int.tryParse(_feePercent.text) ?? 10)}% of \$100) '
-                      'plus GCT, totaling \$${((100 - (int.tryParse(_feePercent.text) ?? 10)) * 1.15).toStringAsFixed(2)}. '
-                      'These transfers will be made by THE PROPRIETOR to THE CLIENT\'S '
-                      'bank account every Tuesday and Friday by 3:00 pm. Tuesday '
-                      'transfers will cover outstanding orders not yet paid for up to '
-                      'and including the Sunday before, and Friday transfers will cover '
-                      'outstanding orders not yet paid for up to and including the '
-                      'Wednesday before.',
-                ),
+                Builder(builder: (context) {
+                  final feeRate = int.tryParse(_feePercent.text) ?? 10;
+                  final clientPct = 100 - feeRate;
+                  final cur = AppConstants.currencySymbol;
+                  const gctRate = 1.15;
+                  final exampleTransfer = (clientPct * gctRate).toStringAsFixed(2);
+                  return _numberedText(
+                    '1.3',
+                    'For all meals prepared by THE CLIENT through the platform, '
+                        'the transfer to THE CLIENT\'S bank account will be calculated '
+                        'as $clientPct% of the original menu item cost plus any General '
+                        'Consumption Tax (GCT). For example, if the cost of a meal is '
+                        '${cur}100 plus GCT, resulting in a total of ${cur}115, the '
+                        'transfer amount will be $cur$clientPct ($clientPct% of '
+                        '${cur}100) plus GCT, totaling $cur$exampleTransfer. '
+                        'These transfers will be made by THE PROPRIETOR to THE CLIENT\'S '
+                        'bank account every Tuesday and Friday by 3:00 pm. Tuesday '
+                        'transfers will cover outstanding orders not yet paid for up to '
+                        'and including the Sunday before, and Friday transfers will cover '
+                        'outstanding orders not yet paid for up to and including the '
+                        'Wednesday before.',
+                  );
+                }),
                 _numberedItem(
                   '1.4',
                   spans: [

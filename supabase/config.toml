@@ -151,11 +151,11 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "sevendash.app://login-callback"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "http://127.0.0.1:3000", "sevendash.app://login-callback", "com.example.food_driver://login-callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
-jwt_expiry = 3600
+jwt_expiry = 33600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
 # jwt_issuer = ""
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -290,8 +290,8 @@ max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
@@ -472,4 +472,28 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-driver-application]
+verify_jwt = false
+
+# ── Hotel / Hotelbeds edge functions ────────────────────────────────────────
+[functions.hotelbeds-search]
+verify_jwt = false
+
+[functions.hotelbeds-get-hotel-content]
+verify_jwt = false
+
+# ── Multi-restaurant order edge functions ───────────────────────────────────
+# verify_jwt = false so Supabase infra skips legacy JWT pre-validation.
+[functions.create-multi-restaurant-order]
+verify_jwt = false
+
+[functions.finalize-multi-restaurant-order]
+verify_jwt = false
+
+[functions.validate-multi-restaurant-cart]
+verify_jwt = false
+
+[functions.update-delivery-stop]
+verify_jwt = false
+
+[functions.assign-driver-multi-pickup]
 verify_jwt = false

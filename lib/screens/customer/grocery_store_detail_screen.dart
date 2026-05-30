@@ -6,6 +6,7 @@ import '../../providers/grocery_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../core/utils/responsive.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryStoreDetailScreen extends ConsumerStatefulWidget {
@@ -179,7 +180,9 @@ class _GroceryStoreDetailScreenState
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
@@ -218,7 +221,9 @@ class _GroceryStoreDetailScreenState
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppTheme.primaryColor
-                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                            : Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -226,7 +231,9 @@ class _GroceryStoreDetailScreenState
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: isSelected
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -266,11 +273,13 @@ class _GroceryStoreDetailScreenState
                   horizontal: 16,
                 ).copyWith(bottom: 16),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.62,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: Responsive.gridColumns(context),
+                    childAspectRatio: Responsive.productCardAspectRatio(
+                      context,
+                    ),
+                    crossAxisSpacing: Responsive.gridSpacing(context),
+                    mainAxisSpacing: Responsive.gridSpacing(context),
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => RepaintBoundary(
@@ -317,7 +326,10 @@ class _ProductCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +430,10 @@ class _ProductCard extends ConsumerWidget {
                   if (product.weight != null)
                     Text(
                       product.weight!,
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   const Spacer(),
                   Flexible(
@@ -443,7 +458,9 @@ class _ProductCard extends ConsumerWidget {
                                       '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         decoration: TextDecoration.lineThrough,
                                       ),
                                     ),
@@ -485,7 +502,9 @@ class _ProductCard extends ConsumerWidget {
                                       width: 26,
                                       height: 26,
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Icon(
@@ -521,7 +540,9 @@ class _ProductCard extends ConsumerWidget {
                                       height: 26,
                                       decoration: BoxDecoration(
                                         color: atMax
-                                            ? Theme.of(context).colorScheme.outlineVariant
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.outlineVariant
                                             : AppTheme.primaryColor,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
@@ -546,7 +567,9 @@ class _ProductCard extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color: inStock
                                       ? AppTheme.primaryColor
-                                      : Theme.of(context).colorScheme.outlineVariant,
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.outlineVariant,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -602,11 +625,7 @@ class _ProductCard extends ConsumerWidget {
   Widget _productPlaceholder() => Container(
     color: Colors.grey[100],
     child: const Center(
-      child: Icon(
-        Icons.shopping_bag_outlined,
-        size: 36,
-        color: Colors.grey,
-      ),
+      child: Icon(Icons.shopping_bag_outlined, size: 36, color: Colors.grey),
     ),
   );
 }
@@ -625,7 +644,9 @@ class _GroceryCartBar extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        border: Border(
+          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: SafeArea(
