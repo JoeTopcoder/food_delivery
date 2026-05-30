@@ -997,17 +997,20 @@ class _TransactionTile extends StatelessWidget {
 
   static _TxMeta _meta(String type, String? desc) {
     final d = (desc ?? '').toLowerCase();
-    // Laundry-specific overrides
-    if (d.contains('laundry') && d.contains('refund')) {
+    // Laundry-specific overrides — matches both old "laundry" keyword and new
+    // "· LDY-XXXXXX — refunded" format that no longer contains "laundry".
+    final isLaundryTx = d.contains('laundry') ||
+        RegExp(r'·\s*ldy-\d+').hasMatch(d);
+    if (isLaundryTx && (d.contains('refund') || d.contains('cancel') || d.contains('refunded'))) {
       return _TxMeta('Laundry Refund', Icons.local_laundry_service_rounded,
           const Color(0xFF3B82F6));
     }
-    if (d.contains('laundry') && d.contains('payment')) {
+    if (isLaundryTx && d.contains('payment')) {
       return _TxMeta('Laundry Payment', Icons.local_laundry_service_rounded,
           const Color(0xFF8B5CF6));
     }
-    if (d.contains('laundry') && d.contains('cancel')) {
-      return _TxMeta('Laundry Cancelled', Icons.local_laundry_service_rounded,
+    if (isLaundryTx) {
+      return _TxMeta('Laundry', Icons.local_laundry_service_rounded,
           const Color(0xFF3B82F6));
     }
     return switch (type) {
@@ -1032,7 +1035,7 @@ class _TransactionTile extends StatelessWidget {
     return DateFormat('d MMM, h:mm a').format(dt);
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     final c   = AppConstants.currencySymbol;
     final meta = _meta(tx.type, tx.description);
