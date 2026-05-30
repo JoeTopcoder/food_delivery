@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'customer/home_screen.dart';
 import 'customer/grocery_screen.dart';
 import 'customer/profile_screen.dart';
+import '../modules/car_services/screens/customer/car_services_home_screen.dart';
 import '../providers/user_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/wallet_provider.dart';
@@ -35,6 +36,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     CustomerHomeScreen(),
     GroceryScreen(),
     OrdersScreen(),
+    CarServicesHomeScreen(),
     CustomerProfileScreen(),
   ];
 
@@ -142,6 +144,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             icon: const Icon(Icons.receipt_outlined),
             activeIcon: const Icon(Icons.receipt),
             label: context.l10n.orders,
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.directions_car_outlined),
+            activeIcon: Icon(Icons.directions_car),
+            label: 'Car Services',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.account_circle_outlined),
