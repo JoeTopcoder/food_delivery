@@ -148,7 +148,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           const BottomNavigationBarItem(
             icon: Icon(Icons.directions_car_outlined),
             activeIcon: Icon(Icons.directions_car),
-            label: 'Car Services',
+            label: 'Services',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.account_circle_outlined),
