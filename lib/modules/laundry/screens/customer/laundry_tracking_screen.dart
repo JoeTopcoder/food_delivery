@@ -17,7 +17,8 @@ class LaundryTrackingScreen extends ConsumerStatefulWidget {
   const LaundryTrackingScreen({super.key, required this.bookingId});
 
   @override
-  ConsumerState<LaundryTrackingScreen> createState() => _LaundryTrackingScreenState();
+  ConsumerState<LaundryTrackingScreen> createState() =>
+      _LaundryTrackingScreenState();
 }
 
 class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
@@ -47,7 +48,9 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingAsync = ref.watch(laundryBookingDetailProvider(widget.bookingId));
+    final bookingAsync = ref.watch(
+      laundryBookingDetailProvider(widget.bookingId),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -55,7 +58,8 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.invalidate(laundryBookingDetailProvider(widget.bookingId)),
+            onPressed: () =>
+                ref.invalidate(laundryBookingDetailProvider(widget.bookingId)),
           ),
         ],
       ),
@@ -63,7 +67,8 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
         loading: () => const AppLoadingIndicator(message: 'Loading booking…'),
         error: (e, _) => AppErrorState(
           message: friendlyError(e),
-          onRetry: () => ref.invalidate(laundryBookingDetailProvider(widget.bookingId)),
+          onRetry: () =>
+              ref.invalidate(laundryBookingDetailProvider(widget.bookingId)),
         ),
         data: (booking) {
           if (booking == null) {
@@ -85,10 +90,12 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
                   const SizedBox(height: 16),
 
                   // ── Top-up required banners ────────────────────────────
-                  if (booking.status == LaundryBookingStatus.returnPaymentRequired) ...[
+                  if (booking.status ==
+                      LaundryBookingStatus.returnPaymentRequired) ...[
                     _TopUpBanner(
                       title: 'Return Delivery Payment Required',
-                      body: 'Please top up your wallet so we can assign a return delivery driver.',
+                      body:
+                          'Please top up your wallet so we can assign a return delivery driver.',
                       onTopUp: () => Navigator.pushNamed(context, '/wallet'),
                     ),
                     const SizedBox(height: 16),
@@ -130,7 +137,8 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
                     const SizedBox(height: 16),
                     _RateProviderCard(
                       booking: booking,
-                      onRate: (rating, review) => _submitReview(booking, rating, review),
+                      onRate: (rating, review) =>
+                          _submitReview(booking, rating, review),
                     ),
                   ],
                   // Only allow cancellation before driver picks up the laundry.
@@ -159,19 +167,25 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
     }
   }
 
-  Future<void> _submitReview(LaundryBooking booking, int rating, String review) async {
+  Future<void> _submitReview(
+    LaundryBooking booking,
+    int rating,
+    String review,
+  ) async {
     try {
-      await ref.read(laundryServiceProvider).submitReview(
-        LaundryReview(
-          id: '',
-          bookingId: booking.id,
-          customerId: booking.customerId,
-          providerId: booking.providerId,
-          providerRating: rating,
-          reviewText: review.isEmpty ? null : review,
-          createdAt: DateTime.now(),
-        ),
-      );
+      await ref
+          .read(laundryServiceProvider)
+          .submitReview(
+            LaundryReview(
+              id: '',
+              bookingId: booking.id,
+              customerId: booking.customerId,
+              providerId: booking.providerId,
+              providerRating: rating,
+              reviewText: review.isEmpty ? null : review,
+              createdAt: DateTime.now(),
+            ),
+          );
       ref.invalidate(laundryBookingDetailProvider(widget.bookingId));
       if (mounted) AppSnackbar.success(context, 'Review submitted!');
     } catch (e) {
@@ -199,8 +213,10 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Cancel Booking',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Cancel Booking',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,32 +232,42 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_balance_wallet_rounded,
-                        color: Colors.green.shade700, size: 18),
+                    Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Colors.green.shade700,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Full refund of \$${booking.reservedAmount.toStringAsFixed(2)} '
                         'will be returned to your wallet.',
                         style: TextStyle(
-                            fontSize: 13, color: Colors.green.shade800),
+                          fontSize: 13,
+                          color: Colors.green.shade800,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             if (hasReserved) const SizedBox(height: 14),
-            const Text('Why are you cancelling?',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text(
+              'Why are you cancelling?',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: reasonCtrl,
               decoration: InputDecoration(
                 hintText: 'Reason (optional)',
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
+                  horizontal: 12,
+                  vertical: 10,
+                ),
               ),
               maxLines: 2,
             ),
@@ -258,11 +284,14 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
-            child: const Text('Cancel Booking',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Cancel Booking',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -313,10 +342,16 @@ class _BookingHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.confirmation_number_rounded, color: Colors.white70, size: 16),
+              const Icon(
+                Icons.confirmation_number_rounded,
+                color: Colors.white70,
+                size: 16,
+              ),
               const SizedBox(width: 6),
-              Text(booking.bookingNumber,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              Text(
+                booking.bookingNumber,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
               const Spacer(),
               _StatusChip(status: booking.status),
             ],
@@ -324,12 +359,20 @@ class _BookingHeader extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             booking.providerName ?? 'Laundry Provider',
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.calendar_today_rounded, color: Colors.white60, size: 14),
+              const Icon(
+                Icons.calendar_today_rounded,
+                color: Colors.white60,
+                size: 14,
+              ),
               const SizedBox(width: 4),
               Text(
                 'Pickup: ${booking.pickupDate.day}/${booking.pickupDate.month}/${booking.pickupDate.year}'
@@ -350,25 +393,33 @@ class _StatusChip extends StatelessWidget {
 
   Color get _color {
     switch (status) {
-      case LaundryBookingStatus.completed:     return AppTheme.successColor;
-      case LaundryBookingStatus.cancelled:     return Colors.red;
-      case LaundryBookingStatus.disputed:      return Colors.orange;
-      default:                                 return Colors.white.withValues(alpha: 0.2);
+      case LaundryBookingStatus.completed:
+        return AppTheme.successColor;
+      case LaundryBookingStatus.cancelled:
+        return Colors.red;
+      case LaundryBookingStatus.disputed:
+        return Colors.orange;
+      default:
+        return Colors.white.withValues(alpha: 0.2);
     }
   }
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: _color,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          status.displayLabel,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: _color,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      status.displayLabel,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }
 
 class _StatusTimeline extends StatelessWidget {
@@ -378,36 +429,57 @@ class _StatusTimeline extends StatelessWidget {
   static const _milestones = [
     LaundryBookingStatus.newRequest,
     LaundryBookingStatus.accepted,
+    LaundryBookingStatus.pickupDriverSearching,
+    LaundryBookingStatus.pickupDriverAssigned,
     LaundryBookingStatus.waitingForPickup,
     LaundryBookingStatus.pickedUpFromCustomer,
     LaundryBookingStatus.receivedAtLaundry,
+    LaundryBookingStatus.weighed,
+    LaundryBookingStatus.priceConfirmed,
     LaundryBookingStatus.washingCleaning,
+    LaundryBookingStatus.qualityCheck,
     LaundryBookingStatus.readyForDelivery,
+    LaundryBookingStatus.returnPaymentRequired,
+    LaundryBookingStatus.returnDriverSearching,
+    LaundryBookingStatus.returnDriverAssigned,
+    LaundryBookingStatus.pickedUpForReturn,
     LaundryBookingStatus.outForDelivery,
     LaundryBookingStatus.completed,
   ];
 
   @override
   Widget build(BuildContext context) {
+    // indexOf returns -1 for cancelled/disputed — treat as "before start"
     final currentIdx = _milestones.indexOf(booking.status);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Status Timeline', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text(
+            'Status Timeline',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
           const SizedBox(height: 16),
           ..._milestones.asMap().entries.map((e) {
-            final idx    = e.key;
+            final idx = e.key;
             final status = e.value;
-            final done   = idx < currentIdx || booking.status == LaundryBookingStatus.completed;
-            final active = idx == currentIdx;
-            final last   = idx == _milestones.length - 1;
+            // currentIdx == -1 when status is cancelled/disputed (not in list).
+            // In that case show no step as active and nothing as done.
+            final done = currentIdx >= 0 &&
+                (idx < currentIdx ||
+                    booking.status == LaundryBookingStatus.completed);
+            final active = currentIdx >= 0 && idx == currentIdx;
+            final last = idx == _milestones.length - 1;
 
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,25 +487,37 @@ class _StatusTimeline extends StatelessWidget {
                 Column(
                   children: [
                     Container(
-                      width: 28, height: 28,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
                         color: done
                             ? AppTheme.successColor
                             : active
-                                ? AppTheme.primaryColor
-                                : Colors.grey.shade200,
+                            ? AppTheme.primaryColor
+                            : Colors.grey.shade200,
                         shape: BoxShape.circle,
                       ),
                       child: done
-                          ? const Icon(Icons.check, color: Colors.white, size: 14)
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 14,
+                            )
                           : active
-                              ? const Icon(Icons.circle, color: Colors.white, size: 10)
-                              : null,
+                          ? const Icon(
+                              Icons.circle,
+                              color: Colors.white,
+                              size: 10,
+                            )
+                          : null,
                     ),
                     if (!last)
                       Container(
-                        width: 2, height: 28,
-                        color: done ? AppTheme.successColor : Colors.grey.shade200,
+                        width: 2,
+                        height: 28,
+                        color: done
+                            ? AppTheme.successColor
+                            : Colors.grey.shade200,
                       ),
                   ],
                 ),
@@ -448,8 +532,8 @@ class _StatusTimeline extends StatelessWidget {
                       color: active
                           ? AppTheme.primaryColor
                           : done
-                              ? Theme.of(context).colorScheme.onSurface
-                              : Colors.grey,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Colors.grey,
                     ),
                   ),
                 ),
@@ -474,26 +558,49 @@ class _PricingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pricing', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text(
+            'Pricing',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
           const SizedBox(height: 12),
           if (booking.actualWeightKg != null)
-            _PriceRow('Actual weight', '${booking.actualWeightKg!.toStringAsFixed(2)} kg'),
-          if (booking.estimatedWeightKg != null && booking.actualWeightKg == null)
-            _PriceRow('Est. weight', '~${booking.estimatedWeightKg!.toStringAsFixed(2)} kg'),
-          _PriceRow('Pickup fee', '${AppConstants.currencySymbol}${booking.pickupFee.toStringAsFixed(2)}'),
-          _PriceRow('Delivery fee', '${AppConstants.currencySymbol}${booking.deliveryFee.toStringAsFixed(2)}'),
+            _PriceRow(
+              'Actual weight',
+              '${booking.actualWeightKg!.toStringAsFixed(2)} kg',
+            ),
+          if (booking.estimatedWeightKg != null &&
+              booking.actualWeightKg == null)
+            _PriceRow(
+              'Est. weight',
+              '~${booking.estimatedWeightKg!.toStringAsFixed(2)} kg',
+            ),
+          _PriceRow(
+            'Pickup fee',
+            '${AppConstants.currencySymbol}${booking.pickupFee.toStringAsFixed(2)}',
+          ),
+          _PriceRow(
+            'Delivery fee',
+            '${AppConstants.currencySymbol}${booking.deliveryFee.toStringAsFixed(2)}',
+          ),
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 booking.actualTotal != null ? 'Final Total' : 'Estimated Total',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
               ),
               Text(
                 displayTotal != null
@@ -520,15 +627,18 @@ class _PriceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _PriceApprovalBanner extends StatelessWidget {
@@ -538,46 +648,56 @@ class _PriceApprovalBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.orange.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                const Icon(Icons.info_outline_rounded, color: Colors.orange),
-                const SizedBox(width: 8),
-                const Text('Price Approval Required',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: Colors.orange)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your laundry has been weighed. Final price: '
-              '${AppConstants.currencySymbol}${booking.actualTotal?.toStringAsFixed(2) ?? "—"}',
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onApprove,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                child: const Text('Approve Price', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Icon(Icons.info_outline_rounded, color: Colors.orange),
+            const SizedBox(width: 8),
+            const Text(
+              'Price Approval Required',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.orange,
               ),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 8),
+        Text(
+          'Your laundry has been weighed. Final price: '
+          '${AppConstants.currencySymbol}${booking.actualTotal?.toStringAsFixed(2) ?? "—"}',
+          style: const TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: onApprove,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Approve Price',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ItemsList extends StatelessWidget {
@@ -586,34 +706,55 @@ class _ItemsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: Theme.of(
+          context,
+        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Services',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Services', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const SizedBox(height: 10),
-            ...items.map((item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.local_laundry_service_outlined, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(item.serviceName, style: const TextStyle(fontSize: 13))),
-                      Text(
-                        '${AppConstants.currencySymbol}${item.totalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+        const SizedBox(height: 10),
+        ...items.map(
+          (item) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_laundry_service_outlined,
+                  size: 16,
+                  color: Colors.grey,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    item.serviceName,
+                    style: const TextStyle(fontSize: 13),
                   ),
-                )),
-          ],
+                ),
+                Text(
+                  '${AppConstants.currencySymbol}${item.totalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _PhotosSection extends StatelessWidget {
@@ -622,44 +763,53 @@ class _PhotosSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: Theme.of(
+          context,
+        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Photos',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Photos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 80,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: photos.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (ctx, i) => GestureDetector(
-                  onTap: () => _showPhoto(ctx, photos[i].url),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      photos[i].url,
-                      width: 80, height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 80, height: 80,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image_outlined),
-                      ),
-                    ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: photos.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (ctx, i) => GestureDetector(
+              onTap: () => _showPhoto(ctx, photos[i].url),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  photos[i].url,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image_outlined),
                   ),
                 ),
               ),
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   void _showPhoto(BuildContext context, String url) {
     showDialog(
@@ -697,63 +847,71 @@ class _RateProviderCardState extends State<_RateProviderCard> {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Rate Your Experience',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Rate Your Experience', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                5,
-                (i) => GestureDetector(
-                  onTap: () => setState(() => _rating = i + 1),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      i < _rating ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: Colors.amber,
-                      size: 36,
-                    ),
-                  ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            5,
+            (i) => GestureDetector(
+              onTap: () => setState(() => _rating = i + 1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  i < _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: Colors.amber,
+                  size: 36,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _reviewCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Leave a review (optional)',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(12),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _rating == 0
-                    ? null
-                    : () => widget.onRate(_rating, _reviewCtrl.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                child: const Text('Submit Review', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        const SizedBox(height: 12),
+        TextField(
+          controller: _reviewCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Leave a review (optional)',
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.all(12),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _rating == 0
+                ? null
+                : () => widget.onRate(_rating, _reviewCtrl.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Submit Review',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _CancelButton extends StatelessWidget {
@@ -762,15 +920,15 @@ class _CancelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
-        onPressed: onTap,
-        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
-        label: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.red),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          minimumSize: const Size(double.infinity, 44),
-        ),
-      );
+    onPressed: onTap,
+    icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
+    label: const Text('Cancel Booking', style: TextStyle(color: Colors.red)),
+    style: OutlinedButton.styleFrom(
+      side: const BorderSide(color: Colors.red),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      minimumSize: const Size(double.infinity, 44),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -781,50 +939,67 @@ class _TopUpBanner extends StatelessWidget {
   final String title;
   final String body;
   final VoidCallback onTopUp;
-  const _TopUpBanner({required this.title, required this.body, required this.onTopUp});
+  const _TopUpBanner({
+    required this.title,
+    required this.body,
+    required this.onTopUp,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.orange.shade300),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.orange.shade50,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.orange.shade300),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                const Icon(Icons.account_balance_wallet_rounded, color: Colors.orange),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, color: Colors.orange, fontSize: 14)),
-                ),
-              ],
+            const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Colors.orange,
             ),
-            const SizedBox(height: 6),
-            Text(body, style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onTopUp,
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Top Up Wallet', style: TextStyle(fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.orange,
+                  fontSize: 14,
                 ),
               ),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 6),
+        Text(body, style: const TextStyle(fontSize: 13)),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: onTopUp,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text(
+              'Top Up Wallet',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -849,13 +1024,18 @@ class _DriverJobsCard extends ConsumerWidget {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Delivery Jobs',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Text(
+                'Delivery Jobs',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
               const SizedBox(height: 12),
               ...jobs.map((job) => _JobTile(job: job)),
             ],
@@ -872,10 +1052,14 @@ class _JobTile extends StatelessWidget {
 
   Color get _statusColor {
     switch (job.status) {
-      case LaundryJobStatus.completed:  return Colors.green;
-      case LaundryJobStatus.cancelled:  return Colors.red;
-      case LaundryJobStatus.searching:  return Colors.orange;
-      default:                          return _kBlue;
+      case LaundryJobStatus.completed:
+        return Colors.green;
+      case LaundryJobStatus.cancelled:
+        return Colors.red;
+      case LaundryJobStatus.searching:
+        return Colors.orange;
+      default:
+        return _kBlue;
     }
   }
 
@@ -887,7 +1071,8 @@ class _JobTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 38, height: 38,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: _kBlue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
@@ -896,7 +1081,8 @@ class _JobTile extends StatelessWidget {
               job.jobType == LaundryJobType.pickup
                   ? Icons.arrow_upward_rounded
                   : Icons.arrow_downward_rounded,
-              color: _kBlue, size: 20,
+              color: _kBlue,
+              size: 20,
             ),
           ),
           const SizedBox(width: 10),
@@ -904,21 +1090,36 @@ class _JobTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(job.jobType.displayLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(
+                  job.jobType.displayLabel,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
                 if (job.driverName != null)
-                  Text('Driver: ${job.driverName}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    'Driver: ${job.driverName}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 const SizedBox(height: 3),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(job.status.displayLabel,
-                      style: TextStyle(
-                          fontSize: 11, color: _statusColor, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    job.status.displayLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -962,21 +1163,45 @@ class _PaymentSplitCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.receipt_long_rounded, color: Colors.green, size: 18),
+                  const Icon(
+                    Icons.receipt_long_rounded,
+                    color: Colors.green,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
-                  const Text('Payment Receipt',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15, color: Colors.green)),
+                  const Text(
+                    'Payment Receipt',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.green,
+                    ),
+                  ),
                 ],
               ),
               const Divider(height: 20),
-              _SplitRow('Laundry Services',   '$c${split.finalLaundryAmount.toStringAsFixed(2)}'),
-              _SplitRow('Pickup Fee',          '$c${split.pickupDeliveryFee.toStringAsFixed(2)}'),
-              _SplitRow('Return Delivery Fee', '$c${split.returnDeliveryFee.toStringAsFixed(2)}'),
-              _SplitRow('Service Fee',         '$c${split.customerServiceFee.toStringAsFixed(2)}'),
+              _SplitRow(
+                'Laundry Services',
+                '$c${split.finalLaundryAmount.toStringAsFixed(2)}',
+              ),
+              _SplitRow(
+                'Pickup Fee',
+                '$c${split.pickupDeliveryFee.toStringAsFixed(2)}',
+              ),
+              _SplitRow(
+                'Return Delivery Fee',
+                '$c${split.returnDeliveryFee.toStringAsFixed(2)}',
+              ),
+              _SplitRow(
+                'Service Fee',
+                '$c${split.customerServiceFee.toStringAsFixed(2)}',
+              ),
               const Divider(height: 16),
-              _SplitRow('Total Paid',          '$c${split.finalTotal.toStringAsFixed(2)}',
-                  bold: true),
+              _SplitRow(
+                'Total Paid',
+                '$c${split.finalTotal.toStringAsFixed(2)}',
+                bold: true,
+              ),
             ],
           ),
         );
@@ -993,19 +1218,25 @@ class _SplitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: bold ? FontWeight.w700 : FontWeight.normal)),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+          ),
         ),
-      );
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
 }
