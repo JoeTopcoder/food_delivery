@@ -74,13 +74,18 @@ BEGIN
     updated_at       = NOW()
   WHERE user_id = v_customer_id;
 
-  -- Record refund transaction (skip if one already exists for this booking)
+  -- Record refund transaction (skip if one already exists for this booking).
+  -- order_id FK references orders, not laundry_bookings, so store NULL and
+  -- embed the booking ID in the description for traceability.
   INSERT INTO wallet_transactions (user_id, amount, type, status, description, order_id)
   SELECT v_customer_id, v_refund, 'refund', 'completed',
-         'Laundry booking cancelled — ' || p_reason, p_booking_id
+         'Laundry booking cancelled — ' || p_reason || ' [laundry:' || p_booking_id::text || ']',
+         NULL
   WHERE NOT EXISTS (
     SELECT 1 FROM wallet_transactions
-    WHERE order_id = p_booking_id AND type = 'refund'
+    WHERE user_id = v_customer_id
+      AND type = 'refund'
+      AND description LIKE '%' || p_booking_id::text || '%'
   );
 
   -- Mark component reservations as released
@@ -121,7 +126,9 @@ BEGIN
     WHERE lb.status = 'cancelled'
       AND NOT EXISTS (
         SELECT 1 FROM wallet_transactions wt
-        WHERE wt.order_id = lb.id AND wt.type = 'refund'
+        WHERE wt.user_id = lb.customer_id
+          AND wt.type = 'refund'
+          AND wt.description LIKE '%' || lb.id::text || '%'
       )
   LOOP
     -- Prefer reserved_amount; fallback to reservations table
@@ -155,7 +162,8 @@ BEGIN
 
     INSERT INTO wallet_transactions (user_id, amount, type, status, description, order_id)
     VALUES (r.customer_id, v_reserved_amt, 'refund', 'completed',
-            'Laundry booking cancelled — backfill refund', r.booking_id);
+            'Laundry booking cancelled — backfill refund [laundry:' || r.booking_id::text || ']',
+            NULL);
 
     UPDATE laundry_wallet_reservations
     SET status = 'released', updated_at = NOW()
