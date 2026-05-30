@@ -1032,6 +1032,17 @@ class _TransactionTile extends StatelessWidget {
     return DateFormat('d MMM, h:mm a').format(dt);
   }
 
+  // Strips the [laundry:UUID] bracket from the visible description line.
+  String _cleanDescription(String desc) {
+    return desc.replaceAll(RegExp(r'\s*\[laundry:[^\]]+\]'), '').trim();
+  }
+
+  // Extracts the booking UUID from [laundry:UUID], returns null if not present.
+  String? _laundryRef(String desc) {
+    final match = RegExp(r'\[laundry:([^\]]+)\]').firstMatch(desc);
+    return match?.group(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c   = AppConstants.currencySymbol;
@@ -1099,7 +1110,7 @@ class _TransactionTile extends StatelessWidget {
                     tx.description!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    tx.description!,
+                    _cleanDescription(tx.description!),
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1107,6 +1118,29 @@ class _TransactionTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (_laundryRef(tx.description!) != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Booking ID: ${_laundryRef(tx.description!)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3B82F6),
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 3),
                 Text(
