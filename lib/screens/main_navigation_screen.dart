@@ -146,8 +146,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             label: context.l10n.orders,
           ),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car_outlined),
-            activeIcon: Icon(Icons.directions_car),
+            icon: Icon(Icons.car_repair),
+            activeIcon: Icon(Icons.car_repair),
             label: 'Services',
           ),
           BottomNavigationBarItem(
