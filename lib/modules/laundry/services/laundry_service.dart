@@ -459,26 +459,25 @@ class LaundryService {
 
     if (bookingRow == null) return;
 
-    final customerId = (bookingRow['customer_id']    as String?) ?? _uid;
-    final reserved   = (bookingRow['reserved_amount'] as num?)?.toDouble() ?? 0.0;
-    final pickupFee  = (bookingRow['pickup_fee']      as num?)?.toDouble() ?? 0.0;
+    final customerId    = (bookingRow['customer_id']    as String?) ?? _uid;
+    final reserved      = (bookingRow['reserved_amount'] as num?)?.toDouble() ?? 0.0;
+    final pickupFee     = (bookingRow['pickup_fee']      as num?)?.toDouble() ?? 0.0;
+    final bookingNumber = (bookingRow['booking_number']  as String?) ?? bookingId;
 
-    // Build a human-readable services label for the transaction description.
+    // Fetch booked service names for the transaction description
     final itemRows = await _supabase
         .from('laundry_booking_items')
         .select('service_name')
         .eq('booking_id', bookingId);
     final servicesSummary = (itemRows as List).isNotEmpty
-        ? (itemRows as List)
-            .map((r) => r['service_name'] as String)
-            .join(', ')
+        ? (itemRows).map((r) => r['service_name'] as String).join(', ')
         : 'Laundry Service';
 
     // Refund = reserved_amount if set, otherwise fall back to pickup_fee.
     final refundAmount = reserved > 0 ? reserved : pickupFee;
     if (refundAmount <= 0) return;
 
-    // 3. Try the server-side RPC (atomic — handles wallet update + tx record)
+    // 3. Try the server-side RPC (atomic)
     bool rpcOk = false;
     try {
       await releaseReservation(bookingId,
@@ -492,6 +491,7 @@ class LaundryService {
     if (!rpcOk) {
       await _directRefundWallet(
         customerId:      customerId,
+        bookingNumber:   bookingNumber,
         servicesSummary: servicesSummary,
         refundAmount:    refundAmount,
       );
@@ -502,6 +502,7 @@ class LaundryService {
   /// Releases from reserved_balance first; any remainder is added to balance.
   Future<void> _directRefundWallet({
     required String customerId,
+    required String bookingNumber,
     required String servicesSummary,
     required double refundAmount,
   }) async {
@@ -520,7 +521,6 @@ class LaundryService {
       final currentBalance  = (walletRow['balance']          as num?)?.toDouble() ?? 0.0;
       final currentReserved = (walletRow['reserved_balance'] as num?)?.toDouble() ?? 0.0;
 
-      // Release from the hold first; credit remainder back to spendable balance
       final fromReserved = min(currentReserved, refundAmount).clamp(0.0, double.infinity);
       final toBalance    = refundAmount - fromReserved;
 
@@ -536,7 +536,7 @@ class LaundryService {
         'amount':      refundAmount,
         'type':        'refund',
         'status':      'completed',
-        'description': 'Laundry cancelled: $servicesSummary — refunded to wallet',
+        'description': '$servicesSummary · $bookingNumber — refunded to wallet',
         'order_id':    null,
       });
 
