@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
@@ -76,6 +77,7 @@ class _ActiveRideDriverScreenState
   String? _driverId;
   Timer? _locationTimer;
   final RoutingService _routingService = RoutingService();
+  Position? _lastSentPosition;
 
   // Waiting fee state
   Timer? _graceTimer;       // fires after 5-min grace period
@@ -433,6 +435,21 @@ class _ActiveRideDriverScreenState
         ),
       );
 
+      // Skip poor-accuracy fixes (e.g. indoors / weak signal)
+      if (position.accuracy > 40) return;
+
+      // Only push if moved >15 m or heading changed >10°
+      final prev = _lastSentPosition;
+      if (prev != null) {
+        final moved = Geolocator.distanceBetween(
+          prev.latitude, prev.longitude, position.latitude, position.longitude,
+        );
+        final dHeading = (position.heading - prev.heading).abs();
+        final normDHeading = dHeading > 180 ? 360 - dHeading : dHeading;
+        if (moved < 15 && normDHeading < 10) return;
+      }
+      _lastSentPosition = position;
+
       if (!mounted) return;
       setState(() {
         _driverPos = LatLng(position.latitude, position.longitude);
@@ -451,6 +468,30 @@ class _ActiveRideDriverScreenState
     } catch (_) {
       // Location unavailable — silently continue using last known position
     }
+  }
+
+  /// Open turn-by-turn navigation to [dest] in Google Maps or Waze.
+  Future<void> _openNavigation(LatLng dest) async {
+    final lat = dest.latitude;
+    final lng = dest.longitude;
+
+    // Try Google Maps first
+    final gmUrl = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    if (await canLaunchUrl(gmUrl)) {
+      await launchUrl(gmUrl);
+      return;
+    }
+    // Fall back to Waze
+    final wazeUrl = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+    if (await canLaunchUrl(wazeUrl)) {
+      await launchUrl(wazeUrl);
+      return;
+    }
+    // Last resort: browser Google Maps
+    await launchUrl(
+      Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving'),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   // ------------------------------------------------------------------
@@ -745,16 +786,26 @@ class _ActiveRideDriverScreenState
 
     setState(() => _isUpdating = true);
     try {
+      final pausedAt = DateTime.now();
       await ref.read(rideServiceProvider).updateRideStatus(
             rideId: widget.rideId,
             newStatus: 'ride_paused',
             pauseReason: reason,
           );
       if (!mounted) return;
+
+      // Persist the exact pause timestamp so the timer survives navigation.
+      // The RPC may not write paused_at, so we write it directly here.
+      SupabaseConfig.client
+          .from('ride_requests')
+          .update({'paused_at': pausedAt.toUtc().toIso8601String()})
+          .eq('id', widget.rideId)
+          .catchError((_) {});
+
       setState(() {
         _isPaused = true;
         _pauseReason = reason;
-        _pauseBeganAt = DateTime.now();
+        _pauseBeganAt = pausedAt;
         _pauseChargeActive = false;
         _pauseChargeStartedAt = null;
         _isUpdating = false;
@@ -1326,6 +1377,11 @@ class _ActiveRideDriverScreenState
               ),
             ),
             const SizedBox(width: 8),
+            _CircleIconButton(
+              icon: Icons.navigation_rounded,
+              onTap: () => _openNavigation(_pickupLatLng),
+            ),
+            const SizedBox(width: 8),
             _CircleIconButton(icon: Icons.phone_outlined, onTap: _callCustomer),
             const SizedBox(width: 8),
             _CircleIconButton(icon: Icons.chat_bubble_outline, onTap: _openChat),
@@ -1433,8 +1489,8 @@ class _ActiveRideDriverScreenState
           ),
         ],
 
-        // ── Waiting fee meter ────────────────────────────────────────────
-        if (_waitingActive) ...[
+        // ── Waiting fee meter (only before ride starts; fee freezes at ride_started) ──
+        if (_waitingActive && !_rideStarted) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             margin: const EdgeInsets.only(bottom: 14),

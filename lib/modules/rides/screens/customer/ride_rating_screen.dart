@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/ride_providers.dart';
+
 class RideRatingScreen extends ConsumerStatefulWidget {
   final String rideId;
 
@@ -38,12 +40,15 @@ class _RideRatingScreenState extends ConsumerState<RideRatingScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // TODO: Submit rating using ride service
-      // await ref.read(rideServiceProvider).submitRating(
-      //   rideId: widget.rideId,
-      //   rating: _rating,
-      //   review: _reviewController.text,
-      // );
+      await ref
+          .read(rideServiceProvider)
+          .rateCustomer(
+            rideId: widget.rideId,
+            rating: _rating,
+            review: _reviewController.text.trim().isEmpty
+                ? null
+                : _reviewController.text.trim(),
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +90,10 @@ class _RideRatingScreenState extends ConsumerState<RideRatingScreen> {
       appBar: AppBar(
         title: const Text('Rate Your Ride'),
         elevation: 0,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(

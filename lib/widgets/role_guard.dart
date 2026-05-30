@@ -4,41 +4,26 @@ import '../providers/auth_provider.dart';
 
 /// Wraps a screen and only shows it if the user's role is in [allowedRoles].
 /// Otherwise redirects to the correct dashboard for their actual role.
-class RoleGuard extends ConsumerWidget {
+class RoleGuard extends ConsumerStatefulWidget {
   final List<String> allowedRoles;
   final Widget child;
 
   const RoleGuard({super.key, required this.allowedRoles, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authNotifierProvider);
-    // Treat 'customer' as equivalent to 'user' — same role, different label
-    final rawRole = authState.user?.role;
-    final role = rawRole == 'customer' ? 'user' : rawRole;
+  ConsumerState<RoleGuard> createState() => _RoleGuardState();
+}
 
-    // If not authenticated at all, redirect to sign-in
-    if (!authState.isAuthenticated || role == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil('/signin', (r) => false);
-      });
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+class _RoleGuardState extends ConsumerState<RoleGuard> {
+  bool _navigating = false;
 
-    if (allowedRoles.contains(role)) {
-      return child;
-    }
-
-    // Redirect to the correct home for this role after the frame completes
+  void _redirectOnce(String route) {
+    if (_navigating) return;
+    _navigating = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      final route = _homeRouteForRole(rawRole);
+      if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
     });
-
-    // Show nothing while redirecting
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 
   static String _homeRouteForRole(String? role) {
@@ -49,10 +34,30 @@ class RoleGuard extends ConsumerWidget {
         return '/restaurant-dashboard';
       case 'admin':
         return '/admin-dashboard';
+      case 'service_provider':
+        return '/car-services/provider';
       case 'customer':
-        return '/home';
       default:
         return '/home';
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+    final rawRole = authState.user?.role;
+    final role = rawRole == 'customer' ? 'user' : rawRole;
+
+    if (!authState.isAuthenticated || role == null) {
+      _redirectOnce('/signin');
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (widget.allowedRoles.contains(role) || rawRole == 'admin') {
+      return widget.child;
+    }
+
+    _redirectOnce(_homeRouteForRole(rawRole));
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

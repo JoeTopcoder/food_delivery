@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -258,16 +259,32 @@ class OrderService {
         'Fetching orders for user: $userId (offset=$offset, limit=$limit)',
       );
 
+      // Fetch only single-restaurant orders.
+      // Multi-restaurant sub-orders (is_multi_restaurant = true) are excluded here
+      // because they are shown as master orders via customerMasterOrdersProvider.
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
           .select(
             '*, ${AppConstants.tableOrderItems}(*, ${AppConstants.tableOrderItemSides}(*))',
           )
           .eq('user_id', userId)
-          .order('ordered_at', ascending: false)
-          .range(offset, offset + limit - 1);
+          .or('is_multi_restaurant.is.null,is_multi_restaurant.eq.false')
+          .order('ordered_at', ascending: false);
 
-      final orders = (response as List).map((orderData) {
+      final combined = (response as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      combined.sort((a, b) {
+        final aDate =
+            DateTime.tryParse(a['ordered_at'] as String? ?? '') ?? DateTime(0);
+        final bDate =
+            DateTime.tryParse(b['ordered_at'] as String? ?? '') ?? DateTime(0);
+        return bDate.compareTo(aDate);
+      });
+
+      final page = combined.skip(offset).take(limit).toList();
+
+      final orders = page.map((orderData) {
         final rawItems =
             (orderData[AppConstants.tableOrderItems] as List? ?? []);
         final items = rawItems.map((itemJson) {
@@ -281,7 +298,7 @@ class OrderService {
           });
         }).toList();
         return Order.fromJson({
-          ...orderData as Map<String, dynamic>,
+          ...orderData,
           'items': items.map((item) => item.toJson()).toList(),
         });
       }).toList();
@@ -320,33 +337,58 @@ class OrderService {
       // Fire-and-forget: send notifications in the background so the UI
       // updates immediately instead of waiting for every push to complete.
 
-      // When order is marked ready, notify all available drivers (skip pickup orders)
+      // When order is marked ready, notify available drivers.
+      // For multi-restaurant sub-orders, wait until ALL siblings are ready
+      // before updating order_groups and notifying drivers.
       if (status == AppConstants.orderReady) {
         _supabaseClient
             .from(AppConstants.tableOrders)
-            .select('is_pickup')
+            .select('is_pickup, is_multi_restaurant, order_group_id')
             .eq('id', orderId)
             .single()
-            .then((row) {
+            .then((row) async {
               final isPickup = row['is_pickup'] as bool? ?? false;
-              if (!isPickup) {
+              final isMulti = row['is_multi_restaurant'] as bool? ?? false;
+              final groupId = row['order_group_id'] as String?;
+
+              if (isMulti && groupId != null) {
+                final siblings = await _supabaseClient
+                    .from(AppConstants.tableOrders)
+                    .select('status')
+                    .eq('order_group_id', groupId);
+                final allReady = (siblings as List)
+                    .every((o) => o['status'] == AppConstants.orderReady);
+                if (allReady) {
+                  await _supabaseClient
+                      .from('order_groups')
+                      .update({
+                        'status': AppConstants.orderReady,
+                        'updated_at': DateTime.now().toIso8601String(),
+                      })
+                      .eq('id', groupId);
+                  _notifyAvailableDriversForGroup(orderGroupId: groupId);
+                }
+              } else if (!isPickup) {
                 _notifyAvailableDrivers(orderId: orderId);
               }
             })
             .catchError((e) {
-              AppLogger.error('Error checking pickup status: $e');
+              AppLogger.error('Error checking order group ready status: $e');
             });
       }
 
-      // Notify the customer on every status change
+      // Notify the customer. _notifyCustomer omits user_id from data so the
+      // edge function does NOT insert into notifications — preventing
+      // trg_notification_push_fcm from firing a second push.
       _supabaseClient
           .from(AppConstants.tableOrders)
-          .select('user_id')
+          .select('user_id, is_multi_restaurant')
           .eq('id', orderId)
           .single()
           .then((order) {
             final userId = order['user_id'] as String?;
-            if (userId != null) {
+            final isMulti = order['is_multi_restaurant'] as bool? ?? false;
+            if (userId != null && !isMulti) {
               _notifyCustomer(userId: userId, orderId: orderId, status: status);
             }
           })
@@ -479,17 +521,21 @@ class OrderService {
       AppLogger.info('Adding review for order: $orderId');
 
       // 1) Mirror onto the order row (legacy/in-app display).
+      final Map<String, dynamic> orderUpdate = {
+        'user_rating': rating,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (review != null) orderUpdate['user_review'] = review;
+      if (foodRating != null) orderUpdate['food_rating'] = foodRating;
+      if (deliveryRating != null)
+        orderUpdate['delivery_rating'] = deliveryRating;
+      if (packagingRating != null)
+        orderUpdate['packaging_rating'] = packagingRating;
+      if (photoUrl != null) orderUpdate['review_photo_url'] = photoUrl;
+
       await _supabaseClient
           .from(AppConstants.tableOrders)
-          .update({
-            'user_rating': rating,
-            'user_review': ?review,
-            'food_rating': ?foodRating,
-            'delivery_rating': ?deliveryRating,
-            'packaging_rating': ?packagingRating,
-            'review_photo_url': ?photoUrl,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(orderUpdate)
           .eq('id', orderId);
 
       // 2) Canonical insert into `reviews` so analytics, restaurant
@@ -782,6 +828,323 @@ class OrderService {
     }
   }
 
+  /// Cancel every restaurant sub-order and the master order itself.
+  /// Uses .select() on every UPDATE so a zero-row result (RLS block or missing
+  /// row) is immediately surfaced as an exception rather than silent no-op.
+  Future<void> cancelMasterOrder(String masterOrderId) async {
+    AppLogger.info('[cancelMasterOrder] START id=$masterOrderId');
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // ── New schema: master_orders + restaurant_orders ─────────────────────
+      final masterRow = await _supabaseClient
+          .from(AppConstants.tableMasterOrders)
+          .select('status, customer_id, payment_method, payment_status, driver_id')
+          .eq('id', masterOrderId)
+          .maybeSingle();
+
+      AppLogger.info('[cancelMasterOrder] master_orders fetch: $masterRow');
+
+      if (masterRow != null) {
+        final currentStatus = masterRow['status'] as String?;
+        if (currentStatus == AppConstants.orderDelivered ||
+            currentStatus == AppConstants.orderCancelled) {
+          throw Exception('Order is already $currentStatus');
+        }
+
+        // ── Update master_orders FIRST ────────────────────────────────────────
+        // This fires trg_master_order_cancel_notify (migration 114) exactly
+        // once → inserts one notifications row → trg_notification_push_fcm
+        // sends one FCM push.
+        // Updating restaurant_orders afterward is safe because
+        // fn_recalculate_master_status has a guard that skips rows where
+        // master_orders.status is already 'cancelled', so no second
+        // notification fires from the sub-order trigger chain.
+        final masterResult = await _supabaseClient
+            .from(AppConstants.tableMasterOrders)
+            .update({'status': AppConstants.orderCancelled, 'cancelled_at': now})
+            .eq('id', masterOrderId)
+            .select('id, status');
+        AppLogger.info('[cancelMasterOrder] master_orders updated: $masterResult');
+
+        if ((masterResult as List).isEmpty) {
+          throw Exception(
+            'master_orders UPDATE returned 0 rows for id=$masterOrderId. '
+            'Check the Row Level Security UPDATE policy on master_orders '
+            '(migration 111 must be applied).',
+          );
+        }
+
+        // ── Cancel sub-orders AFTER master is already cancelled ───────────────
+        final subResult = await _supabaseClient
+            .from(AppConstants.tableRestaurantOrders)
+            .update({'status': AppConstants.orderCancelled, 'cancelled_at': now})
+            .eq('master_order_id', masterOrderId)
+            .neq('status', AppConstants.orderCancelled)
+            .select('id');
+        AppLogger.info('[cancelMasterOrder] restaurant_orders updated: ${(subResult as List).length} rows');
+
+        final paymentMethod = masterRow['payment_method'] as String?;
+        final paymentStatus = masterRow['payment_status'] as String?;
+        if ((paymentMethod == 'card' || paymentMethod == 'stripe') &&
+            paymentStatus == AppConstants.paymentCompleted) {
+          try {
+            await _supabaseClient.functions.invoke(
+              AppConstants.stripePaymentFunction,
+              body: {'action': 'refund', 'masterOrderId': masterOrderId},
+            );
+          } catch (e) {
+            AppLogger.error('[cancelMasterOrder] Refund failed: $e');
+          }
+        }
+
+        // Notify the customer directly via FCM.
+        // _notifyCustomer omits user_id from data so the edge function does NOT
+        // insert into notifications → trg_notification_push_fcm (migration 099)
+        // does NOT fire a second push. If migration 114 DB trigger is also
+        // applied, the client dedup suppresses the duplicate device push.
+        final customerId = masterRow['customer_id'] as String?;
+        if (customerId != null) {
+          unawaited(_notifyCustomer(
+            userId: customerId,
+            orderId: masterOrderId,
+            status: AppConstants.orderCancelled,
+          ));
+        }
+
+        final driverId = masterRow['driver_id'] as String?;
+        if (driverId != null) {
+          try {
+            await DriverService(_supabaseClient).updateDriverStats(driverId);
+          } catch (e) {
+            AppLogger.error('[cancelMasterOrder] Driver stats update failed: $e');
+          }
+        }
+
+        AppLogger.info('[cancelMasterOrder] SUCCESS (new schema)');
+        return;
+      }
+
+      // ── Legacy schema: order_groups + orders ───────────────────────────────
+      AppLogger.info('[cancelMasterOrder] not in master_orders, trying order_groups');
+
+      final groupRow = await _supabaseClient
+          .from('order_groups')
+          .select('status, customer_id, payment_method, payment_status')
+          .eq('id', masterOrderId)
+          .maybeSingle();
+
+      AppLogger.info('[cancelMasterOrder] order_groups fetch: $groupRow');
+
+      if (groupRow == null) {
+        throw Exception(
+          'Order $masterOrderId not found in master_orders or order_groups.',
+        );
+      }
+
+      final currentStatus = groupRow['status'] as String?;
+      if (currentStatus == AppConstants.orderDelivered ||
+          currentStatus == AppConstants.orderCancelled) {
+        throw Exception('Order is already $currentStatus');
+      }
+
+      final legacySubResult = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .update({'status': AppConstants.orderCancelled, 'cancelled_at': now, 'updated_at': now})
+          .eq('order_group_id', masterOrderId)
+          .neq('status', AppConstants.orderCancelled)
+          .select('id');
+      AppLogger.info('[cancelMasterOrder] orders (legacy) updated: ${(legacySubResult as List).length} rows');
+
+      final legacyGroupResult = await _supabaseClient
+          .from('order_groups')
+          .update({'status': AppConstants.orderCancelled, 'updated_at': now})
+          .eq('id', masterOrderId)
+          .select('id, status');
+      AppLogger.info('[cancelMasterOrder] order_groups updated: $legacyGroupResult');
+
+      if ((legacyGroupResult as List).isEmpty) {
+        throw Exception(
+          'order_groups UPDATE returned 0 rows for id=$masterOrderId. '
+          'Check RLS UPDATE policy on order_groups.',
+        );
+      }
+
+      final legacyCustomerId = groupRow['customer_id'] as String?;
+      if (legacyCustomerId != null) {
+        unawaited(_notifyCustomer(
+          userId: legacyCustomerId,
+          orderId: masterOrderId,
+          status: AppConstants.orderCancelled,
+        ));
+      }
+
+      AppLogger.info('[cancelMasterOrder] SUCCESS (legacy schema)');
+    } catch (e) {
+      AppLogger.error('[cancelMasterOrder] FAILED: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel a single restaurant sub-order within a master order.
+  /// Uses .select() on every UPDATE to detect zero-row silent RLS failures.
+  Future<void> cancelRestaurantSubOrder({
+    required String restaurantOrderId,
+    required String masterOrderId,
+  }) async {
+    AppLogger.info('[cancelSubOrder] START sub=$restaurantOrderId master=$masterOrderId');
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // ── New schema ──────────────────────────────────────────────────────────
+      final roRow = await _supabaseClient
+          .from(AppConstants.tableRestaurantOrders)
+          .select('status, restaurant_id')
+          .eq('id', restaurantOrderId)
+          .maybeSingle();
+
+      AppLogger.info('[cancelSubOrder] restaurant_orders fetch: $roRow');
+
+      if (roRow != null) {
+        final currentStatus = roRow['status'] as String?;
+        if (currentStatus == AppConstants.orderCancelled ||
+            currentStatus == AppConstants.orderPickedUp) {
+          throw Exception('Cannot cancel sub-order with status: $currentStatus');
+        }
+
+        final subResult = await _supabaseClient
+            .from(AppConstants.tableRestaurantOrders)
+            .update({'status': AppConstants.orderCancelled, 'cancelled_at': now})
+            .eq('id', restaurantOrderId)
+            .select('id, status');
+        AppLogger.info('[cancelSubOrder] restaurant_orders updated: $subResult');
+
+        if ((subResult as List).isEmpty) {
+          throw Exception(
+            'restaurant_orders UPDATE returned 0 rows for id=$restaurantOrderId. '
+            'Ensure the authenticated customer has an RLS UPDATE policy on restaurant_orders.',
+          );
+        }
+
+        // The DB trigger fn_recalculate_master_status (SECURITY DEFINER) fires
+        // automatically after restaurant_orders.status changes and recalculates
+        // master_orders.status + stamps cancelled_at — no manual UPDATE needed.
+
+        final siblings = await _supabaseClient
+            .from(AppConstants.tableRestaurantOrders)
+            .select('status')
+            .eq('master_order_id', masterOrderId);
+
+        final allCancelled = (siblings as List)
+            .every((r) => (r as Map)['status'] == AppConstants.orderCancelled);
+
+        AppLogger.info('[cancelSubOrder] all siblings cancelled: $allCancelled');
+
+        final restaurantId = roRow['restaurant_id'] as String?;
+        if (restaurantId != null) {
+          unawaited(_notifyRestaurant(
+            restaurantId: restaurantId,
+            orderId: restaurantOrderId,
+            status: AppConstants.orderCancelled,
+          ));
+        }
+
+        // Notify customer — user_id omitted from data so edge function skips
+        // the notifications insert and trg_notification_push_fcm doesn't re-fire.
+        // If migration 114 DB trigger also fires, client dedup handles duplicate.
+        final masterInfo = await _supabaseClient
+            .from(AppConstants.tableMasterOrders)
+            .select('customer_id, payment_method, payment_status, driver_id')
+            .eq('id', masterOrderId)
+            .maybeSingle();
+
+        final customerId = masterInfo?['customer_id'] as String?;
+        if (customerId != null) {
+          unawaited(_notifyCustomer(
+            userId: customerId,
+            orderId: masterOrderId,
+            status: AppConstants.orderCancelled,
+          ));
+        }
+
+        if (allCancelled) {
+          final paymentMethod = masterInfo?['payment_method'] as String?;
+          final paymentStatus = masterInfo?['payment_status'] as String?;
+          if ((paymentMethod == 'card' || paymentMethod == 'stripe') &&
+              paymentStatus == AppConstants.paymentCompleted) {
+            try {
+              await _supabaseClient.functions.invoke(
+                AppConstants.stripePaymentFunction,
+                body: {'action': 'refund', 'masterOrderId': masterOrderId},
+              );
+            } catch (e) {
+              AppLogger.error('[cancelSubOrder] Refund failed: $e');
+            }
+          }
+        }
+
+        AppLogger.info('[cancelSubOrder] SUCCESS (new schema), allCancelled=$allCancelled');
+        return;
+      }
+
+      // ── Legacy schema (orders + order_groups) ──────────────────────────────
+      AppLogger.info('[cancelSubOrder] not in restaurant_orders, trying orders table');
+
+      final legacyRow = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('status, restaurant_id, order_group_id')
+          .eq('id', restaurantOrderId)
+          .maybeSingle();
+
+      AppLogger.info('[cancelSubOrder] orders (legacy) fetch: $legacyRow');
+
+      if (legacyRow == null) {
+        throw Exception('Sub-order $restaurantOrderId not found in restaurant_orders or orders.');
+      }
+
+      final currentStatus = legacyRow['status'] as String?;
+      if (currentStatus == AppConstants.orderCancelled ||
+          currentStatus == AppConstants.orderPickedUp) {
+        throw Exception('Cannot cancel sub-order with status: $currentStatus');
+      }
+
+      final legacySubResult = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .update({'status': AppConstants.orderCancelled, 'cancelled_at': now, 'updated_at': now})
+          .eq('id', restaurantOrderId)
+          .select('id, status');
+      AppLogger.info('[cancelSubOrder] orders (legacy) updated: $legacySubResult');
+
+      if ((legacySubResult as List).isEmpty) {
+        throw Exception('orders UPDATE returned 0 rows for id=$restaurantOrderId. Check RLS.');
+      }
+
+      final groupId = legacyRow['order_group_id'] as String? ?? masterOrderId;
+      final legacySiblings = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('status')
+          .eq('order_group_id', groupId);
+
+      final allCancelled = (legacySiblings as List)
+          .every((r) => (r as Map)['status'] == AppConstants.orderCancelled);
+
+      final groupResult = await _supabaseClient
+          .from('order_groups')
+          .update({
+            'status': allCancelled ? AppConstants.orderCancelled : AppConstants.orderPartiallyCancelled,
+            'updated_at': now,
+          })
+          .eq('id', groupId)
+          .select('id, status');
+      AppLogger.info('[cancelSubOrder] order_groups updated: $groupResult');
+
+      AppLogger.info('[cancelSubOrder] SUCCESS (legacy schema)');
+    } catch (e) {
+      AppLogger.error('[cancelSubOrder] FAILED: $e');
+      rethrow;
+    }
+  }
+
   // Broadcast order status update to all stakeholders
   Future<void> broadcastOrderStatusUpdate({
     required String orderId,
@@ -835,15 +1198,14 @@ class OrderService {
     Map<String, String>? data,
   }) async {
     try {
+      final Map<String, dynamic> payload = {'title': title, 'body': body};
+      if (token != null) payload['token'] = token;
+      if (topic != null) payload['topic'] = topic;
+      if (data != null) payload['data'] = data;
+
       await _supabaseClient.functions.invoke(
         'send-fcm-notification',
-        body: {
-          'token': ?token,
-          'topic': ?topic,
-          'title': title,
-          'body': body,
-          'data': ?data,
-        },
+        body: payload,
       );
     } catch (e) {
       AppLogger.error('Error sending push notification: $e');
@@ -894,8 +1256,12 @@ class OrderService {
           .maybeSingle();
       final fcmToken = userRow?['fcm_token'] as String?;
 
+      // IMPORTANT: do NOT include user_id in the data payload.
+      // The send-fcm-notification edge function inserts into the notifications
+      // table only when data.user_id is present. That insert fires
+      // trg_notification_push_fcm (migration 099) which calls the edge function
+      // again — causing a duplicate push. Omitting user_id stops that loop.
       if (fcmToken != null && fcmToken.isNotEmpty) {
-        // Send directly to device token (most reliable)
         await _sendPushNotification(
           token: fcmToken,
           title: title,
@@ -904,11 +1270,9 @@ class OrderService {
             'type': AppConstants.notificationTypeOrderStatus,
             'order_id': orderId,
             'status': status,
-            'user_id': userId,
           },
         );
       } else {
-        // Fallback: send to topic
         await _sendPushNotification(
           topic: 'customer_$userId',
           title: title,
@@ -917,7 +1281,6 @@ class OrderService {
             'type': AppConstants.notificationTypeOrderStatus,
             'order_id': orderId,
             'status': status,
-            'user_id': userId,
           },
         );
       }
@@ -986,6 +1349,47 @@ class OrderService {
       AppLogger.info('Notified ${drivers.length} available drivers');
     } catch (e) {
       AppLogger.error('Error notifying available drivers: $e');
+    }
+  }
+
+  // Notify all available drivers that all stops of a multi-restaurant group are ready
+  Future<void> _notifyAvailableDriversForGroup({
+    required String orderGroupId,
+  }) async {
+    try {
+      AppLogger.info(
+        'Notifying available drivers about ready group: $orderGroupId',
+      );
+
+      final drivers = await _supabaseClient
+          .from(AppConstants.tableDrivers)
+          .select('id')
+          .eq('is_available', true);
+
+      await Future.wait(
+        (drivers as List).map((driver) {
+          final driverId = driver['id'] as String;
+          return _sendPushNotification(
+            topic: 'driver_$driverId',
+            title: 'Multi-Stop Order Ready!',
+            body: 'A multi-restaurant order is ready for all pickups. Tap to accept.',
+            data: {
+              'type': AppConstants.notificationTypeDeliveryUpdate,
+              'order_group_id': orderGroupId,
+              'status': AppConstants.orderReady,
+              'user_id': driverId,
+            },
+          ).catchError((e) {
+            AppLogger.error('Error notifying driver $driverId for group: $e');
+          });
+        }),
+      );
+
+      AppLogger.info(
+        'Notified ${(drivers as List).length} drivers about group $orderGroupId',
+      );
+    } catch (e) {
+      AppLogger.error('Error notifying drivers for group: $e');
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
@@ -48,6 +49,8 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
   final Set<String> _processingIds = {};
   // Track which offer IDs have already triggered a pop-up so we don't re-show
   final Set<String> _shownPopupIds = {};
+  // Soft-decline cooldown: requestId → DateTime when to re-show (5 min cooldown)
+  final Map<String, DateTime> _declinedUntil = {};
 
   @override
   void initState() {
@@ -112,8 +115,10 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
         unawaited(_checkActiveRide(driverId));
         unawaited(_loadTodayEarnings(driverId));
 
+        // Always listen for requests the moment the screen opens — drivers
+        // should see any pending offers immediately regardless of online status.
+        _startListeningForRequests(driverId);
         if (_isOnline) {
-          _startListeningForRequests(driverId);
           _startLocationUpdates(driverId);
         }
       } else {
@@ -224,14 +229,15 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
 
     try {
       if (_isOnline) {
-        // Go offline
+        // Go offline — keep listening for requests so any pending offers
+        // remain visible; just stop sending GPS updates.
         await ref.read(driverOnlineModeProvider.notifier)
             .setMode(DriverOnlineMode.offline, driverId);
-        _stopListeningForRequests();
         _stopLocationUpdates();
         if (mounted) setState(() => _isOnline = false);
       } else {
-        // Go online for ride sharing — get GPS first
+        // Go online — get GPS, update availability, restart listener so
+        // _shownPopupIds is cleared and any queued offers pop up immediately.
         final gps = await _getCurrentGps();
         await ref.read(driverOnlineModeProvider.notifier)
             .setMode(DriverOnlineMode.rideSharing, driverId,
@@ -310,9 +316,27 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final now = DateTime.now();
+
+      // Drop expired cards — but never remove scheduled rides based on expiry;
+      // they must stay visible until the driver explicitly responds.
       final before = _pendingRequests.length;
-      _pendingRequests.removeWhere((o) => o.request.expiresAt.isBefore(now));
-      if (_pendingRequests.length != before) setState(() {});
+      _pendingRequests.removeWhere(
+          (o) => o.ride?.scheduledFor == null && o.request.expiresAt.isBefore(now));
+      final hardExpired = _pendingRequests.length != before;
+
+      // Re-activate any soft-declines whose 5-minute cooldown has passed.
+      // Removing from _shownPopupIds lets the next stream emission re-trigger
+      // the popup automatically.
+      final reactivated = _declinedUntil.entries
+          .where((e) => now.isAfter(e.value))
+          .map((e) => e.key)
+          .toList();
+      for (final id in reactivated) {
+        _declinedUntil.remove(id);
+        _shownPopupIds.remove(id);
+      }
+
+      if (hardExpired || reactivated.isNotEmpty) setState(() {});
     });
   }
 
@@ -320,14 +344,14 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
   /// and feeds them through [_onRequestListUpdate] immediately on screen entry.
   Future<void> _fetchPendingRequestsNow(String driverId) async {
     try {
-      final now = DateTime.now().toUtc().toIso8601String();
-
+      // No expires_at filter here — scheduled rides may have a short expiry
+      // but should remain visible until the driver responds.
+      // Expiry is enforced client-side below, with an exception for scheduled rides.
       final reqRows = await SupabaseConfig.client
           .from('ride_driver_requests')
           .select()
           .eq('driver_id', driverId)
-          .eq('status', 'pending')
-          .gt('expires_at', now)
+          .inFilter('status', ['pending', 'offered'])
           .order('sent_at', ascending: false);
 
       if (!mounted) return;
@@ -363,21 +387,34 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
     }
   }
 
-  void _stopListeningForRequests() {
-    _requestSub?.close();
-    _requestSub = null;
-    _countdownTimer?.cancel();
-    _countdownTimer = null;
-    if (mounted) setState(() => _pendingRequests.clear());
-  }
-
   void _onRequestListUpdate(List<DriverRideOffer> offers) {
     if (!mounted) return;
     final now = DateTime.now();
-    final fresh = offers.where((o) => o.request.expiresAt.isAfter(now)).toList();
+
+    // Remove any soft-decline entries whose 5-minute cooldown has elapsed.
+    // Once removed, those request IDs also leave _shownPopupIds so the popup
+    // fires again when the offer re-appears in the stream.
+    final reactivated = _declinedUntil.entries
+        .where((e) => now.isAfter(e.value))
+        .map((e) => e.key)
+        .toList();
+    for (final id in reactivated) {
+      _declinedUntil.remove(id);
+      _shownPopupIds.remove(id);
+    }
+
+    // Keep non-expired offers. Scheduled rides bypass the expiry check —
+    // they should remain in the list for days until the driver responds.
+    final fresh = offers
+        .where((o) =>
+            o.ride?.scheduledFor != null ||
+            o.request.expiresAt.isAfter(now))
+        .where((o) => !_declinedUntil.containsKey(o.request.id))
+        .toList();
+
     setState(() => _pendingRequests = fresh);
 
-    // Pop-up each new offer that hasn't been shown yet
+    // Pop up each offer that hasn't been shown yet (or was reactivated above).
     for (final offer in fresh) {
       final id = offer.request.id;
       if (!_shownPopupIds.contains(id)) {
@@ -433,15 +470,40 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
           _pendingRequests.removeWhere((o) => o.request.id == reqId);
           _processingIds.remove(reqId);
         });
-        await Navigator.of(context).pushNamed(
-          '/rides/driver/active',
-          arguments: {
-            'rideId': offer.request.rideId,
-            'pickupAddress': offer.ride?.pickupAddress,
-            'destinationAddress': offer.ride?.destinationAddress,
-          },
-        );
-        if (mounted && _driverId != null) unawaited(_checkActiveRide(_driverId!));
+
+        final scheduledFor = offer.ride?.scheduledFor;
+        if (scheduledFor != null) {
+          // Scheduled ride — don't navigate to active screen yet.
+          // Confirm acceptance and invite the driver to view their schedule.
+          final dateStr = DateFormat('EEE, MMM d · h:mm a').format(scheduledFor.toLocal());
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Scheduled ride accepted! Pickup: $dateStr'),
+                backgroundColor: const Color(0xFF166534),
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: 'View Schedule',
+                  textColor: const Color(0xFF86EFAC),
+                  onPressed: () => Navigator.of(context).pushNamed(
+                    '/rides/driver/schedule',
+                    arguments: {'driverId': _driverId},
+                  ),
+                ),
+              ),
+            );
+          }
+        } else {
+          await Navigator.of(context).pushNamed(
+            '/rides/driver/active',
+            arguments: {
+              'rideId': offer.request.rideId,
+              'pickupAddress': offer.ride?.pickupAddress,
+              'destinationAddress': offer.ride?.destinationAddress,
+            },
+          );
+          if (mounted && _driverId != null) unawaited(_checkActiveRide(_driverId!));
+        }
       } else {
         setState(() => _processingIds.remove(reqId));
         if (mounted) {
@@ -451,23 +513,37 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
         }
       }
     } catch (_) {
-      if (mounted) setState(() => _processingIds.remove(reqId));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to accept ride — try again')),
-      );
+      if (mounted) {
+        setState(() => _processingIds.remove(reqId));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to accept ride — try again')),
+        );
+      }
     }
   }
 
-  Future<void> _handleDecline(DriverRideOffer offer) async {
+  String _pickupLabel(DateTime scheduledFor) {
+    final local = scheduledFor.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(local.year, local.month, local.day);
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return 'Today ${DateFormat('h:mm a').format(local)}';
+    if (diff == 1) return 'Tomorrow';
+    return 'In $diff days';
+  }
+
+  void _handleDecline(DriverRideOffer offer) {
     final reqId = offer.request.id;
     if (_processingIds.contains(reqId)) return;
-    setState(() => _pendingRequests.removeWhere((o) => o.request.id == reqId));
-    try {
-      await ref.read(rideServiceProvider).respondToDriverRideRequest(
-        rideDriverRequestId: reqId,
-        accept: false,
-      );
-    } catch (_) {}
+    // Soft-decline: hide the offer for 5 minutes, then let it resurface
+    // automatically. We don't call the reject endpoint so the ride stays
+    // available and re-appears after the cooldown without backend changes.
+    setState(() {
+      _declinedUntil[reqId] =
+          DateTime.now().add(const Duration(minutes: 5));
+      _pendingRequests.removeWhere((o) => o.request.id == reqId);
+    });
   }
 
   // ------------------------------------------------------------------
@@ -497,6 +573,17 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
           centerTitle: true,
           actions: [
             IconButton(
+              tooltip: 'My Schedule',
+              onPressed: _driverId != null
+                  ? () => Navigator.of(context).pushNamed(
+                        '/rides/driver/schedule',
+                        arguments: {'driverId': _driverId},
+                      )
+                  : null,
+              icon: const Icon(Icons.calendar_month_rounded, color: Colors.white),
+            ),
+            IconButton(
+              tooltip: 'Trip History',
               onPressed: _driverId != null
                   ? () => Navigator.of(context).pushNamed(
                         '/rides/driver/trips',
@@ -525,9 +612,9 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                   // Online / Offline toggle
                   SliverToBoxAdapter(child: _buildOnlineToggle()),
 
-                  // Incoming ride requests
-                  if (_isOnline)
-                    SliverToBoxAdapter(child: _buildRequestsSection()),
+                  // Incoming ride requests — always visible so drivers never
+                  // miss an offer even before toggling online.
+                  SliverToBoxAdapter(child: _buildRequestsSection()),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 80)),
                 ],
@@ -807,11 +894,15 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                   ),
                 ),
               Text(
-                _pendingRequests.isEmpty
-                    ? 'Waiting for Ride Requests…'
-                    : 'Incoming Rides (${_pendingRequests.length})',
+                _pendingRequests.isNotEmpty
+                    ? 'Incoming Rides (${_pendingRequests.length})'
+                    : _isOnline
+                        ? 'Waiting for Ride Requests…'
+                        : 'Ride Requests',
                 style: TextStyle(
-                  color: _pendingRequests.isEmpty ? Theme.of(context).colorScheme.onSurfaceVariant : Colors.white,
+                  color: _pendingRequests.isEmpty
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
@@ -836,12 +927,14 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                       color: Theme.of(context).colorScheme.onSurfaceVariant, size: 44),
                   const SizedBox(height: 10),
                   Text(
-                    'No ride requests nearby',
+                    _isOnline ? 'No ride requests nearby' : 'You are offline',
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'New requests will appear here',
+                    _isOnline
+                        ? 'Declined rides reappear after 5 minutes'
+                        : 'Go online to receive new requests',
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                   ),
                 ],
@@ -858,10 +951,12 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
     final request = offer.request;
     final ride = offer.ride;
     final isProcessing = _processingIds.contains(request.id);
+    final isScheduled = ride?.scheduledFor != null;
     final secsLeft = request.secondsUntilExpiry;
-    final isUrgent = secsLeft <= 15;
-    final urgentColor =
-        isUrgent ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
+    final isUrgent = !isScheduled && secsLeft <= 15;
+    final urgentColor = isScheduled
+        ? const Color(0xFF2563EB)
+        : isUrgent ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -882,13 +977,81 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'New Ride Request',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (ride?.isAirportPickup == true || ride?.isAirportDropoff == true) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.flight_rounded, color: Color(0xFF38BDF8), size: 11),
+                                SizedBox(width: 3),
+                                Text(
+                                  'AIRPORT',
+                                  style: TextStyle(
+                                    color: Color(0xFF38BDF8),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                    if (ride?.scheduledFor != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'SCHEDULED',
+                              style: TextStyle(
+                                color: Color(0xFF60A5FA),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        const Text(
+                          'New Ride Request',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (ride?.scheduledFor != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, color: Color(0xFF60A5FA), size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat('EEE, MMM d · h:mm a').format(ride!.scheduledFor!.toLocal()),
+                              style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -899,10 +1062,16 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined, size: 13, color: urgentColor),
+                      Icon(
+                        isScheduled ? Icons.event_rounded : Icons.timer_outlined,
+                        size: 13,
+                        color: urgentColor,
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        '${secsLeft}s',
+                        isScheduled
+                            ? _pickupLabel(ride!.scheduledFor!)
+                            : '${secsLeft}s',
                         style: TextStyle(
                           color: urgentColor,
                           fontSize: 13,
@@ -1149,13 +1318,18 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
   @override
   void initState() {
     super.initState();
-    _secsLeft = widget.offer.request.secondsUntilExpiry.clamp(0, 999);
+    final isScheduled = widget.offer.ride?.scheduledFor != null;
+    // Scheduled rides don't auto-close — the driver should review at their own pace.
+    // For immediate rides use the real expiry countdown.
+    _secsLeft = isScheduled ? 999 : widget.offer.request.secondsUntilExpiry.clamp(0, 999);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _secsLeft = (_secsLeft - 1).clamp(0, 999));
-      if (_secsLeft <= 0) {
-        _timer.cancel();
-        if (mounted) Navigator.of(context).pop();
+      if (!isScheduled) {
+        setState(() => _secsLeft = (_secsLeft - 1).clamp(0, 999));
+        if (_secsLeft <= 0) {
+          _timer.cancel();
+          if (mounted) Navigator.of(context).pop();
+        }
       }
     });
   }
@@ -1166,11 +1340,25 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
     super.dispose();
   }
 
+  String _scheduledLabel(DateTime scheduledFor) {
+    final local = scheduledFor.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(local.year, local.month, local.day);
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return 'Today ${DateFormat('h:mm a').format(local)}';
+    if (diff == 1) return 'Tomorrow';
+    return 'In $diff days';
+  }
+
   @override
   Widget build(BuildContext context) {
     final ride = widget.offer.ride;
-    final isUrgent = _secsLeft <= 15;
-    final urgentColor = isUrgent ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
+    final isScheduled = ride?.scheduledFor != null;
+    final isUrgent = !isScheduled && _secsLeft <= 15;
+    final urgentColor = isScheduled
+        ? const Color(0xFF2563EB)
+        : isUrgent ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
 
     final earning = ride?.driverEarning != null
         ? 'J\$${ride!.driverEarning!.toStringAsFixed(0)}'
@@ -1201,14 +1389,74 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'New Ride Request',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (ride?.isAirportPickup == true || ride?.isAirportDropoff == true)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.flight_rounded, color: Color(0xFF38BDF8), size: 13),
+                            const SizedBox(width: 5),
+                            Text(
+                              ride!.isAirportPickup && ride.isAirportDropoff
+                                  ? 'Airport Pickup & Dropoff'
+                                  : ride.isAirportPickup
+                                      ? 'Airport Pickup'
+                                      : 'Airport Dropoff',
+                              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            if (ride.terminalInfo != null && ride.terminalInfo!.isNotEmpty) ...[
+                              const Text(' · ', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                              Text(ride.terminalInfo!, style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    if (ride?.scheduledFor != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today, color: Color(0xFF60A5FA), size: 12),
+                            const SizedBox(width: 5),
+                            Text(
+                              DateFormat('EEE, MMM d · h:mm a').format(ride!.scheduledFor!.toLocal()),
+                              style: const TextStyle(
+                                color: Color(0xFF60A5FA),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Text(
+                      ride?.scheduledFor != null ? 'Scheduled Ride Request' : 'New Ride Request',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -1219,10 +1467,16 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.timer_outlined, size: 14, color: urgentColor),
+                    Icon(
+                      isScheduled ? Icons.event_rounded : Icons.timer_outlined,
+                      size: 14,
+                      color: urgentColor,
+                    ),
                     const SizedBox(width: 5),
                     Text(
-                      '${_secsLeft}s',
+                      isScheduled
+                          ? _scheduledLabel(ride!.scheduledFor!)
+                          : '${_secsLeft}s',
                       style: TextStyle(
                         color: urgentColor,
                         fontSize: 14,
@@ -1356,7 +1610,10 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    child: const Text('Accept Ride', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    child: Text(
+                      ride?.scheduledFor != null ? 'Accept & Schedule' : 'Accept Ride',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
               ),

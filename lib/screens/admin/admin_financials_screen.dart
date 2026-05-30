@@ -107,7 +107,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'This Month: \$${monthlySales.toStringAsFixed(2)}',
+                        'This Month: ${AppConstants.currencySymbol}${monthlySales.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: Color(0xFFFF8C42),
                           fontSize: 14,
@@ -317,7 +317,7 @@ class _FinancialCard extends StatelessWidget {
                 ),
                 if (subValue != null)
                   Text(
-                    '$subLabel: \$${subValue!.toStringAsFixed(2)}',
+                    '$subLabel: ${AppConstants.currencySymbol}${subValue!.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF9CA3AF),

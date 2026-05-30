@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/user_provider.dart';
@@ -79,7 +79,7 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
             height: 44,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _filterCategories.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),

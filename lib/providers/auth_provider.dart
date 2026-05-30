@@ -181,6 +181,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
           AppLogger.info('[Auth] Null event but currentSession exists — ignoring stale event');
           return;
         }
+        // Poll up to 3 seconds (10 × 300 ms) for the session to come back.
+        // On slow networks the token refresh takes well over 600 ms, which
+        // was the old single-delay guard — not enough on Android resume.
+        for (int i = 0; i < 10; i++) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (SupabaseConfig.client.auth.currentSession != null) {
+            AppLogger.info('[Auth] Null event resolved after ${(i + 1) * 300}ms — ignoring');
+            return;
+          }
+        }
         final previousUser = state.user;
         if (previousUser != null) {
           _unsubscribeFromAllTopics(previousUser);
@@ -223,6 +233,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
           role: meta['role'] as String? ?? 'user',
           createdAt: DateTime.now(),
         );
+      } else {
+        // DB triggers often create users with default 'customer' role.
+        // If auth metadata has a more specific role (set at signup), use it.
+        final supabaseUser = _authService.getCurrentUser();
+        final metaRole = supabaseUser?.userMetadata?['role'] as String?;
+        if ((user.role == 'customer' || user.role == 'user') &&
+            metaRole != null &&
+            metaRole != 'customer' &&
+            metaRole != 'user') {
+          user = user.copyWith(role: metaRole);
+        }
       }
 
       final previousUserId = state.user?.id;
@@ -267,7 +288,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
           } catch (e) {
             final msg = e.toString().toLowerCase();
             if (msg.contains('email_not_confirmed') ||
-                msg.contains('email not confirmed')) {
+                msg.contains('email not confirmed') ||
+                msg.contains('confirm') ||
+                msg.contains('not confirmed') ||
+                msg.contains('unconfirmed') ||
+                msg.contains('verify')) {
               AppLogger.info('Email confirmation required for $email');
               state = state.copyWith(
                 isLoading: false,
@@ -297,6 +322,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
           role: role,
           createdAt: DateTime.now(),
         );
+        // DB triggers can create the user with a default role (e.g. 'customer').
+        // Always honour the role that was explicitly requested at sign-up time.
+        if (user.role != role) {
+          user = user.copyWith(role: role);
+        }
         AppLogger.info('Sign up role: ${user.role}');
         state = state.copyWith(
           isLoading: false,

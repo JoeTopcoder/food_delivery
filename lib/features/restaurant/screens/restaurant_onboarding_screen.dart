@@ -11,6 +11,7 @@ import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
+import '../../../core/utils/responsive.dart';
 
 const _kCuisineTypes = [
   'Caribbean', 'Jamaican', 'American', 'Chinese', 'Indian', 'Italian',
@@ -369,7 +370,12 @@ class _RestaurantOnboardingScreenState
           _StepIndicator(currentStep: displayStep, totalSteps: 5),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                8,
+                Responsive.horizontalPadding(context),
+                32,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -624,7 +630,10 @@ class _RestaurantOnboardingScreenState
               Expanded(
                 child: Text(
                   'Your banking details are encrypted and only used for payout processing.',
-                  style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                  style: TextStyle(
+                    fontSize: Responsive.smallText(context),
+                    color: Colors.blue[800],
+                  ),
                 ),
               ),
             ],
@@ -751,7 +760,7 @@ class _RestaurantOnboardingScreenState
                       text:
                           'I confirm all information is accurate and I agree to the ',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: Responsive.smallText(context),
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       children: [
@@ -795,7 +804,10 @@ class _RestaurantOnboardingScreenState
               Expanded(
                 child: Text(
                   'Your application will be reviewed by our team within 24–48 hours. You will be notified once approved.',
-                  style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+                  style: TextStyle(
+                    fontSize: Responsive.smallText(context),
+                    color: Colors.amber[900],
+                  ),
                 ),
               ),
             ],
@@ -985,7 +997,7 @@ class _RestaurantOnboardingScreenState
           child: Text(
             text,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: Responsive.smallText(context),
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1004,7 +1016,7 @@ class _RestaurantOnboardingScreenState
       text,
       style: TextStyle(
         fontWeight: FontWeight.w600,
-        fontSize: 14,
+        fontSize: Responsive.bodyText(context),
         color: Theme.of(context).colorScheme.onSurface,
       ),
     );
@@ -1062,7 +1074,7 @@ class _StepIndicator extends StatelessWidget {
                       : Text(
                           '$stepNum',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: Responsive.smallText(context),
                             fontWeight: FontWeight.w600,
                             color: active
                                 ? Colors.white
@@ -1079,7 +1091,7 @@ class _StepIndicator extends StatelessWidget {
           Text(
             'Step $currentStep of $totalSteps',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: Responsive.smallText(context),
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1117,7 +1129,7 @@ class _StepHeader extends StatelessWidget {
         Text(
           title,
           style: TextStyle(
-            fontSize: 22,
+            fontSize: Responsive.headingMedium(context),
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.onSurface,
           ),
@@ -1126,7 +1138,7 @@ class _StepHeader extends StatelessWidget {
         Text(
           subtitle,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: Responsive.smallText(context),
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
@@ -1233,7 +1245,7 @@ class _CuisineChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: Responsive.smallText(context),
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
             color: selected
                 ? Colors.white
@@ -1278,7 +1290,7 @@ class _TimePickerTile extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: Responsive.smallText(context),
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -1286,7 +1298,7 @@ class _TimePickerTile extends StatelessWidget {
                   displayTime,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 15,
+                    fontSize: Responsive.bodyText(context),
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -1346,7 +1358,7 @@ class _StoreTypeChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: Responsive.smallText(context),
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 color: selected
                     ? AppTheme.primaryColor
@@ -1394,7 +1406,7 @@ class _ReviewCard extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: Responsive.bodyText(context),
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -1412,7 +1424,7 @@ class _ReviewCard extends StatelessWidget {
                     child: Text(
                       r.$1,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: Responsive.smallText(context),
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -1421,7 +1433,7 @@ class _ReviewCard extends StatelessWidget {
                     child: Text(
                       r.$2,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: Responsive.smallText(context),
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),

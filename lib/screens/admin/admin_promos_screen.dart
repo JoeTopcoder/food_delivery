@@ -224,7 +224,7 @@ class _PromoCard extends ConsumerWidget {
               ),
               if (promo.minOrderAmount != null)
                 _InfoPill(
-                  label: 'Min \$${promo.minOrderAmount!.toStringAsFixed(0)}',
+                  label: 'Min ${AppConstants.currencySymbol}${promo.minOrderAmount!.toStringAsFixed(0)}',
                   icon: Icons.shopping_cart_rounded,
                   color: const Color(0xFFF59E0B),
                 ),
@@ -359,14 +359,14 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         initialValue: _type,
-                        items: const [
-                          DropdownMenuItem(
+                        items: [
+                          const DropdownMenuItem(
                             value: 'percentage',
                             child: Text('Percentage'),
                           ),
                           DropdownMenuItem(
                             value: 'fixed',
-                            child: Text('Fixed \$'),
+                            child: Text('Fixed ${AppConstants.currencySymbol}'),
                           ),
                         ],
                         onChanged: (v) => setState(() => _type = v!),
@@ -384,7 +384,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                         decoration: InputDecoration(
                           labelText: _type == 'percentage'
                               ? '% Value'
-                              : '\$ Value',
+                              : '${AppConstants.currencySymbol} Value',
                           border: const OutlineInputBorder(),
                         ),
                         validator: (v) =>
@@ -402,9 +402,9 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                       child: TextFormField(
                         controller: _minCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Min Order \$ (optional)',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: 'Min Order ${AppConstants.currencySymbol} (optional)',
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ),

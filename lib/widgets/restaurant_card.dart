@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
+import '../core/utils/responsive.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class RestaurantCard extends StatelessWidget {
@@ -16,14 +17,19 @@ class RestaurantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOpen = restaurant.isCurrentlyOpen;
+    final cardPadding = Responsive.cardPadding(context);
+    final spacing = Responsive.spacing(context);
+    final imageHeight = Responsive.restaurantCardAspectRatio(context) > 0.65
+        ? 200
+        : 160;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: EdgeInsets.only(bottom: spacing),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
           border: Border.all(
             color: Theme.of(context).colorScheme.outlineVariant,
             width: 0.5,
@@ -36,50 +42,52 @@ class RestaurantCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(14),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(Responsive.cardRadius(context)),
                   ),
-                  child:
-                      restaurant.imageUrl != null &&
-                          restaurant.imageUrl!.isNotEmpty
+                  child: restaurant.imageUrl != null &&
+                      restaurant.imageUrl!.isNotEmpty
                       ? Image.network(
                           restaurant.imageUrl!,
-                          height: 160,
+                          height: imageHeight.toDouble(),
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _PlaceholderImage(),
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : const _PlaceholderImage(),
+                          errorBuilder: (_, __, ___) =>
+                              _PlaceholderImage(height: imageHeight.toDouble()),
+                          loadingBuilder: (_, child, progress) => progress == null
+                              ? child
+                              : _PlaceholderImage(height: imageHeight.toDouble()),
                         )
-                      : const _PlaceholderImage(),
+                      : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
                 // Rating badge
                 Positioned(
-                  top: 10,
-                  right: 10,
+                  top: spacing * 0.75,
+                  right: spacing * 0.75,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing * 0.5,
+                      vertical: spacing * 0.25,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius:
+                          BorderRadius.circular(Responsive.cardRadius(context) - 2),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.star_rounded,
                           color: Colors.amber,
-                          size: 16,
+                          size: Responsive.isSmallPhone(context) ? 14 : 16,
                         ),
-                        const SizedBox(width: 3),
+                        SizedBox(width: spacing * 0.2),
                         Text(
                           '${restaurant.rating ?? '-'}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 13,
+                            fontSize: Responsive.smallText(context),
                             color: Colors.black87,
                           ),
                         ),
@@ -89,24 +97,25 @@ class RestaurantCard extends StatelessWidget {
                 ),
                 // Open/Closed badge — always shown
                 Positioned(
-                  top: 10,
-                  left: 10,
+                  top: spacing * 0.75,
+                  left: spacing * 0.75,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing * 0.5,
+                      vertical: spacing * 0.25,
                     ),
                     decoration: BoxDecoration(
                       color: isOpen
                           ? AppTheme.successColor
                           : AppTheme.accentColor,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius:
+                          BorderRadius.circular(Responsive.cardRadius(context) - 4),
                     ),
                     child: Text(
                       isOpen ? 'Open Now' : 'Closed',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
+                        fontSize: Responsive.smallText(context) - 1,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -116,7 +125,7 @@ class RestaurantCard extends StatelessWidget {
             ),
             // Info section
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: EdgeInsets.all(cardPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -127,71 +136,74 @@ class RestaurantCard extends StatelessWidget {
                           restaurant.name,
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                            fontSize: Responsive.headingSmall(context),
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      SizedBox(width: spacing * 0.5),
                       // View Menu button
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing * 0.75,
+                          vertical: spacing * 0.4,
                         ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context) - 2),
                         ),
-                        child: const Text(
+                        child: Text(
                           'View Menu',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: Responsive.smallText(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: spacing * 0.4),
                   // Cuisine tags
                   Text(
                     restaurant.cuisineType ?? 'Multi-cuisine',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: Responsive.smallText(context),
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing * 0.5),
                   Row(
                     children: [
                       Icon(
                         Icons.access_time_rounded,
-                        size: 15,
+                        size: Responsive.isSmallPhone(context) ? 13 : 15,
                         color: Colors.grey[700],
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: spacing * 0.2),
                       Flexible(
                         child: Text(
                           restaurant.formattedTodayHours ??
                               '${restaurant.estimatedDeliveryTime ?? 30} min',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize:
+                                Responsive.smallText(context),
                             color: Colors.grey[600],
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: spacing * 0.75),
                       Icon(
                         Icons.delivery_dining_rounded,
-                        size: 15,
+                        size: Responsive.isSmallPhone(context) ? 13 : 15,
                         color: Colors.grey[700],
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: spacing * 0.2),
                       Flexible(
                         child: Text(
                           () {
@@ -203,7 +215,8 @@ class RestaurantCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize:
+                                Responsive.smallText(context),
                             color: Colors.grey[600],
                           ),
                         ),
@@ -221,18 +234,20 @@ class RestaurantCard extends StatelessWidget {
 }
 
 class _PlaceholderImage extends StatelessWidget {
+  final double height;
+
   static final _gradientColors = [
     AppTheme.primaryColor.withValues(alpha: 0.15),
     AppTheme.primaryColor.withValues(alpha: 0.05),
   ];
   static final _iconColor = AppTheme.primaryColor.withValues(alpha: 0.4);
 
-  const _PlaceholderImage();
+  const _PlaceholderImage({this.height = 160});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 160,
+      height: height,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -244,8 +259,12 @@ class _PlaceholderImage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.restaurant_rounded, size: 48, color: _iconColor),
-          const SizedBox(height: 6),
+          Icon(
+            Icons.restaurant_rounded,
+            size: height * 0.25,
+            color: _iconColor,
+          ),
+          SizedBox(height: height * 0.08),
           Text(
             'No image available',
             style: TextStyle(fontSize: 12, color: Colors.grey[700]),

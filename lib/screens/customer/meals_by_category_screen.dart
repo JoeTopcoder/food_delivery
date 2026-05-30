@@ -7,6 +7,7 @@ import '../../services/food/menu_category_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../core/utils/responsive.dart';
 import 'restaurant_detail_screen.dart';
 
 /// Screen shown when a customer taps a category chip on the home screen.
@@ -64,7 +65,7 @@ class MealsByCategoryScreen extends ConsumerWidget {
               );
             }
             return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 14, Responsive.horizontalPadding(context), 24),
               itemCount: meals.length,
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, i) => _MealCard(meal: meals[i], ref: ref),
@@ -240,7 +241,7 @@ class _MealCard extends StatelessWidget {
                       Text(
                         '${AppConstants.currencySymbol}${discounted.toStringAsFixed(2)}',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: Responsive.bodyText(context),
                           fontWeight: FontWeight.w800,
                           color: AppTheme.primaryColor,
                         ),

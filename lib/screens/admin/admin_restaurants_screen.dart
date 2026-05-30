@@ -322,7 +322,7 @@ class _RestaurantList extends StatelessWidget {
                                     icon: Icons.shopping_bag_rounded,
                                     color: const Color(0xFF0EA5E9),
                                     value:
-                                        '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                                        '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '0'}',
                                     label: 'Svc Fee',
                                   ),
                                   const SizedBox(width: 12),
@@ -472,7 +472,7 @@ class _RestaurantList extends StatelessWidget {
                             size: 16,
                           ),
                           label: Text(
-                            'Service Fee: \$${restaurant.serviceFee?.toStringAsFixed(0) ?? '25'}',
+                            'Service Fee: ${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(0) ?? '0'}',
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF0EA5E9),
@@ -663,7 +663,7 @@ class _RestaurantList extends StatelessWidget {
                           _RestDetailItem(
                             label: 'Service Fee',
                             value:
-                                '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(2) ?? '25.00'}',
+                                '${AppConstants.currencySymbol}${restaurant.serviceFee?.toStringAsFixed(2) ?? '0.00'}',
                           ),
                           _RestDetailItem(
                             label: 'Commission Rate',
@@ -836,6 +836,8 @@ class _RestaurantList extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
+              // Capture messenger BEFORE pop/async so it survives list rebuild
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
               try {
                 await ref
@@ -846,23 +848,27 @@ class _RestaurantList extends StatelessWidget {
                 ref.invalidate(rejectedRestaurantsProvider);
                 ref.invalidate(restaurantStatisticsProvider);
                 ref.invalidate(dashboardSummaryProvider);
-                if (context.mounted) {
-                  if (verify) {
-                    AppSnackbar.success(
-                      context,
-                      '"$restaurantName" verified successfully',
-                    );
-                  } else {
-                    AppSnackbar.warning(
-                      context,
-                      '"$restaurantName" rejected successfully',
-                    );
-                  }
-                }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      verify
+                          ? '"$restaurantName" verified successfully'
+                          : '"$restaurantName" rejected successfully',
+                    ),
+                    backgroundColor: verify
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               } catch (e) {
-                if (context.mounted) {
-                  AppSnackbar.error(context, friendlyError(e));
-                }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(friendlyError(e)),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -965,7 +971,7 @@ class _RestaurantList extends StatelessWidget {
   }
 
   void _showServiceFeeDialog(BuildContext context, Restaurant restaurant) {
-    double serviceFee = restaurant.serviceFee ?? 25;
+    double serviceFee = restaurant.serviceFee ?? 0;
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -1022,7 +1028,7 @@ class _RestaurantList extends StatelessWidget {
                   if (context.mounted) {
                     AppSnackbar.success(
                       context,
-                      'Service fee for "${restaurant.name}" set to \$${serviceFee.toStringAsFixed(0)}',
+                      'Service fee for "${restaurant.name}" set to ${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(0)}',
                     );
                   }
                 } catch (e) {

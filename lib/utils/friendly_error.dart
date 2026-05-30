@@ -39,8 +39,25 @@ String friendlyError(Object? error) {
     return 'Enable Google provider in Supabase Auth settings and try again.';
   }
   if (msg.contains('user already registered') ||
-      msg.contains('already been registered')) {
+      msg.contains('already been registered') ||
+      msg.contains('already registered') ||
+      msg.contains('email already')) {
     return 'An account with this email already exists.';
+  }
+  if (msg.contains('rate limit') ||
+      msg.contains('too many requests') ||
+      msg.contains('only request this after') ||
+      msg.contains('for your security')) {
+    return 'Too many attempts. Please wait a moment and try again.';
+  }
+  if (msg.contains('signup') && msg.contains('disabled')) {
+    return 'Sign-ups are currently disabled. Please contact support.';
+  }
+  if (msg.contains('email') && msg.contains('invalid')) {
+    return 'Please enter a valid email address.';
+  }
+  if (msg.contains('database error') || msg.contains('unexpected_failure')) {
+    return 'A server error occurred. Please try again.';
   }
   if (msg.contains('weak password') || msg.contains('password')) {
     if (msg.contains('at least')) {

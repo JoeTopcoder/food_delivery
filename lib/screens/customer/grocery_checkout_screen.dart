@@ -1,10 +1,11 @@
-// ignore_for_file: use_build_context_synchronously
+﻿// ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/user_model.dart';
 import '../../models/address_model.dart';
@@ -242,11 +243,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            padding: EdgeInsets.only(
               bottom: 180,
-              left: 16,
-              right: 16,
+              left: Responsive.horizontalPadding(context),
+              right: Responsive.horizontalPadding(context),
               top: 8,
             ),
             child: Column(
@@ -273,6 +274,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           Expanded(
                             child: Text(
                               storeData[sid]!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -492,9 +495,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     children: [
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletNotifierProvider);
+                          final walletAsync = ref.watch(walletBalanceStreamProvider);
                           final balance =
-                              walletAsync.valueOrNull?.totalAvailable ?? 0;
+                              walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Wallet',
@@ -1017,7 +1020,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
 
                 // ── Order Summary ─────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
@@ -1095,7 +1098,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
             right: 0,
             child: Container(
               color: Theme.of(context).cardColor,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 16),
               child: SafeArea(
                 top: false,
                 child: Column(
@@ -1272,7 +1275,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
 
     if (_selectedPayment == 'wallet') {
       final walletBalance =
-          ref.read(walletNotifierProvider).valueOrNull?.totalAvailable ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
       if (walletBalance < total) {
         AppSnackbar.error(
           context,
@@ -1505,7 +1508,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       ref.read(groceryIsPickupProvider.notifier).state = false;
       // Refresh wallet balance — edge function deducted it server-side.
       if (_selectedPayment == 'wallet') {
-        unawaited(ref.read(walletNotifierProvider.notifier).refresh());
+        ref.invalidate(walletBalanceStreamProvider);
+        ref.invalidate(walletTransactionsStreamProvider);
       }
 
       if (!mounted) return;

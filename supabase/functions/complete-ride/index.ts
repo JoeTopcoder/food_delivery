@@ -18,7 +18,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get auth token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -36,13 +35,11 @@ Deno.serve(async (req) => {
 
     const payload = await req.json() as CompleteRidePayload;
 
-    // Initialize Supabase
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Get ride
     const { data: ride, error: rideError } = await supabase
       .from("ride_requests")
       .select("*")
@@ -56,7 +53,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check authorization: only assigned driver or admin can complete
     const { data: driver } = await supabase
       .from("drivers")
       .select("id, user_id")
@@ -79,7 +75,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Allow completion from ride_started or ride_paused (driver may complete without resuming)
     if (ride.ride_status !== "ride_started" && ride.ride_status !== "ride_paused") {
       return new Response(
         JSON.stringify({
@@ -89,7 +84,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get pricing settings
     const { data: settings } = await supabase
       .from("ride_pricing_settings")
       .select("*")
@@ -97,7 +91,6 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    // Calculate final fare if final distance/duration provided
     let final_fare = ride.estimated_fare;
     if (
       payload.final_distance_km !== undefined &&
@@ -110,7 +103,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Add accrued waiting fee if applicable
     if (ride.waiting_started_at && ride.waiting_fee_per_min) {
       const waitingStartedAt = new Date(ride.waiting_started_at);
       const now = new Date();
@@ -122,19 +114,81 @@ Deno.serve(async (req) => {
     const platform_fee = parseFloat(((final_fare * (settings?.platform_commission_percent || 20)) / 100).toFixed(2));
     const driver_earning = parseFloat((final_fare - platform_fee).toFixed(2));
 
-    // If card payment, capture the authorized payment
+    // ── Stripe capture ────────────────────────────────────────────────────────
     let payment_status = ride.payment_status;
-    if (ride.payment_method === "card" && ride.payment_status === "authorized") {
+
+    if (
+      ride.payment_method === "card" &&
+      ride.payment_status === "authorized" &&
+      ride.stripe_payment_intent_id
+    ) {
       try {
-        // Create a charge from the payment intent
-        // In production, you would confirm the PaymentIntent with the final amount
-        payment_status = "paid";
+        // Always retrieve current status first — the PI may have already been
+        // captured by an earlier flow (e.g. immediate-capture PaymentScreen).
+        const pi = await stripe.paymentIntents.retrieve(ride.stripe_payment_intent_id);
+
+        if (pi.status === "succeeded") {
+          // PI already captured (immediate-capture flow).
+          // If the final fare exceeds what was already charged (e.g. wait fee
+          // accrued), create a supplemental off-session charge for the difference.
+          const alreadyCapturedCents = (pi.amount_received as number) ?? (pi.amount as number) ?? 0;
+          const finalFareCents = Math.round(final_fare * 100);
+
+          if (finalFareCents > alreadyCapturedCents && pi.customer && pi.payment_method) {
+            try {
+              await stripe.paymentIntents.create({
+                amount: finalFareCents - alreadyCapturedCents,
+                currency: (pi.currency as string) ?? "jmd",
+                customer: pi.customer as string,
+                payment_method: pi.payment_method as string,
+                off_session: true,
+                confirm: true,
+                description: `Wait/additional fare — ride ${payload.ride_id}`,
+                metadata: { type: "ride_adjustment", ride_id: payload.ride_id },
+              });
+            } catch (extraErr) {
+              // Log but don't block ride completion if supplemental charge fails.
+              console.warn("Supplemental charge failed:", (extraErr as Error).message);
+            }
+          }
+          payment_status = "paid";
+        } else if (pi.status === "requires_capture") {
+          const authorizedAmount: number = ride.authorized_amount ?? ride.estimated_fare ?? 0;
+          const finalFareCents = Math.round(final_fare * 100);
+          const authorizedCents = Math.round(authorizedAmount * 100);
+
+          // If the final fare exceeds the original authorization, attempt incremental
+          // authorization to raise the cap before capturing.
+          if (finalFareCents > authorizedCents) {
+            try {
+              await stripe.paymentIntents.incrementAuthorization(
+                ride.stripe_payment_intent_id,
+                { amount: finalFareCents }
+              );
+            } catch (incrErr) {
+              // Card or PI doesn't support incremental auth.
+              // Capture up to the originally authorized amount instead.
+              console.warn("Incremental auth failed, capturing authorized amount:", (incrErr as Error).message);
+              final_fare = parseFloat((authorizedCents / 100).toFixed(2));
+            }
+          }
+
+          const captured = await stripe.paymentIntents.capture(
+            ride.stripe_payment_intent_id,
+            { amount_to_capture: Math.round(final_fare * 100) }
+          );
+          payment_status = captured.status === "succeeded" ? "paid" : "authorized";
+        } else {
+          // Cancelled, failed, or unknown — log and treat as paid to not block completion.
+          console.warn("Unexpected PI status at ride completion:", pi.status);
+          payment_status = "paid";
+        }
       } catch (stripeError) {
-        console.error("Stripe charge error:", stripeError);
+        console.error("Stripe capture error:", stripeError);
         return new Response(
           JSON.stringify({
             error: "Failed to capture payment",
-            details: stripeError.message,
+            details: (stripeError as Error).message,
           }),
           { status: 400, headers: corsHeaders }
         );
@@ -144,8 +198,8 @@ Deno.serve(async (req) => {
     } else if (ride.payment_method === "wallet") {
       payment_status = "paid";
     }
+    // ── End Stripe capture ───────────────────────────────────────────────────
 
-    // Update ride to completed
     const { data: updatedRide, error: updateError } = await supabase
       .from("ride_requests")
       .update({
@@ -168,9 +222,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // TODO: Create driver earnings record or update daily earnings
-    // This could be a separate function or table
-
     return new Response(
       JSON.stringify({
         message: "Ride completed successfully",
@@ -190,16 +241,13 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: "Internal server error",
-        details: error.message,
+        details: (error as Error).message,
       }),
       { status: 500, headers: corsHeaders }
     );
   }
 });
 
-/**
- * Calculate final fare based on actual distance and duration
- */
 function calculateFinalFare(
   distance_km: number,
   duration_minutes: number,

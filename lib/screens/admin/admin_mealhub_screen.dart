@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/feature_providers.dart';
@@ -53,12 +54,12 @@ class AdminMealhubScreen extends ConsumerStatefulWidget {
 class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
   bool _saving = false;
 
-  static const _labels = <String, String>{
-    'subscription_basic_price': 'Basic Plan Price (\$)',
+  static Map<String, String> get _labels => {
+    'subscription_basic_price': 'Basic Plan Price (${AppConstants.currencySymbol})',
     'subscription_basic_deliveries': 'Basic Free Deliveries',
-    'subscription_pro_price': 'Pro Plan Price (\$)',
+    'subscription_pro_price': 'Pro Plan Price (${AppConstants.currencySymbol})',
     'subscription_pro_deliveries': 'Pro Free Deliveries',
-    'subscription_min_cart': 'Min Cart for Free Delivery (\$)',
+    'subscription_min_cart': 'Min Cart for Free Delivery (${AppConstants.currencySymbol})',
     'subscription_service_fee_discount': 'Service Fee Discount',
   };
 
@@ -259,6 +260,26 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                       backgroundColor: const Color(0xFF6C63FF),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Meal Plans navigation button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/admin-meal-plans'),
+                    icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+                    label: const Text('Manage Meal Plans'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6C63FF),
+                      side: const BorderSide(color: Color(0xFF6C63FF)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

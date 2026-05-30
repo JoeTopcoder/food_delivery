@@ -153,23 +153,25 @@ class _PackageDeliverySummaryScreenState
               title: 'Payment Method',
               icon: Icons.payment,
               children: [
-                RadioListTile<String>(
-                  value: 'card',
+                RadioGroup<String>(
                   groupValue: _paymentMethod,
                   onChanged: (v) => setState(() => _paymentMethod = v!),
-                  title: const Text('Card'),
-                  secondary: const Icon(Icons.credit_card),
-                  contentPadding: EdgeInsets.zero,
-                  activeColor: const Color(0xFF7C3AED),
-                ),
-                RadioListTile<String>(
-                  value: 'cash',
-                  groupValue: _paymentMethod,
-                  onChanged: (v) => setState(() => _paymentMethod = v!),
-                  title: const Text('Cash on Delivery'),
-                  secondary: const Icon(Icons.money),
-                  contentPadding: EdgeInsets.zero,
-                  activeColor: const Color(0xFF7C3AED),
+                  child: Column(
+                    children: const [
+                      RadioListTile<String>(
+                        value: 'card',
+                        title: Text('Card'),
+                        secondary: Icon(Icons.credit_card),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<String>(
+                        value: 'cash',
+                        title: Text('Cash on Delivery'),
+                        secondary: Icon(Icons.money),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

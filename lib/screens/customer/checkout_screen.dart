@@ -1,10 +1,10 @@
-// ignore_for_file: use_build_context_synchronously
+﻿// ignore_for_file: use_build_context_synchronously
 
 import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../../core/utils/responsive.dart';
 import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
 import '../../models/address_model.dart';
@@ -32,7 +32,6 @@ import '../../providers/recommendation_provider.dart';
 import '../../providers/decision_engine_provider.dart';
 import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
-import 'payment_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -274,12 +273,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(
-              bottom: 180,
-              left: 16,
-              right: 16,
-              top: 8,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            padding: EdgeInsets.only(
+              bottom: Responsive.bottomPaddingForFixedButton(context),
+              left: Responsive.horizontalPadding(context),
+              right: Responsive.horizontalPadding(context),
+              top: Responsive.spacing(context) * 0.5,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,10 +289,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     title: 'Pickup Location',
                     icon: Icons.store_rounded,
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(Responsive.spacingSmall(context)),
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
                         border: Border.all(
                           color: const Color(
                             0xFF10B981,
@@ -315,7 +314,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 Text(
                                   restaurant?.name ?? 'Restaurant',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: Responsive.headingSmall(context),
                                     fontWeight: FontWeight.w600,
                                     color: Theme.of(
                                       context,
@@ -327,7 +326,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   Text(
                                     restaurant!.address!,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: Responsive.smallText(context),
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurfaceVariant,
@@ -385,10 +384,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
                             border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                           ),
                           child: Row(
@@ -403,7 +402,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 child: Text(
                                   deliveryAddress,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: Responsive.smallText(context),
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.onSurfaceVariant,
@@ -462,13 +461,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           if (isClosed) ...[
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(10),
-                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: EdgeInsets.all(Responsive.spacingSmall(context)),
+                              margin: EdgeInsets.only(bottom: Responsive.spacing(context)),
                               decoration: BoxDecoration(
                                 color: AppTheme.accentColor.withValues(
                                   alpha: 0.08,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
                                 border: Border.all(
                                   color: AppTheme.accentColor.withValues(
                                     alpha: 0.3,
@@ -480,7 +479,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 '${restaurant.nextOpenLabel}. '
                                 'Your order will be scheduled.',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: Responsive.smallText(context),
                                   color: AppTheme.accentColor,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -532,9 +531,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       // Wallet payment option
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletNotifierProvider);
+                          final walletAsync = ref.watch(walletBalanceStreamProvider);
                           final walletBalance =
-                              walletAsync.valueOrNull?.totalAvailable ?? 0;
+                              walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Wallet',
@@ -581,10 +580,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               if (verifiedCards.isEmpty) {
                                 return Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
+                                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
                                     border: Border.all(
                                       color: Theme.of(context).colorScheme.outlineVariant,
                                     ),
@@ -608,7 +607,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                       Text(
                                         'Add a card from your Wallet first',
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: Responsive.smallText(context),
                                           color: Colors.grey.shade700,
                                         ),
                                       ),
@@ -712,12 +711,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     children: [
                       if (appliedPromo != null)
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
                           decoration: BoxDecoration(
                             color: const Color(
                               0xFF10B981,
                             ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
                             border: Border.all(
                               color: const Color(
                                 0xFF10B981,
@@ -735,10 +734,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               Expanded(
                                 child: Text(
                                   '"${appliedPromo.code}" — saved \$${promoDiscount.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF10B981),
+                                  style: TextStyle(
+                                    color: const Color(0xFF10B981),
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 13,
+                                    fontSize: Responsive.smallText(context),
                                   ),
                                 ),
                               ),
@@ -829,12 +828,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           children: [
                             Row(
                               children: [
-                                Text(
+                                Flexible(
+                                  child: Text(
                                   'You have ${account.points} pts '
                                   '(= \$${account.redemptionValue.toStringAsFixed(2)})',
                                   style: const TextStyle(fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const Spacer(),
+                                ),
+                                const SizedBox(width: 8),
                                 Switch(
                                   value: redeemPoints > 0,
                                   onChanged: (v) {
@@ -1057,10 +1059,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
                 // ── Order Summary ──────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
                   ),
                   child: Column(
                     children: [
@@ -1155,7 +1157,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             right: 0,
             child: Container(
               color: Theme.of(context).cardColor,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                Responsive.spacingSmall(context),
+                Responsive.horizontalPadding(context),
+                Responsive.spacing(context),
+              ),
               child: SafeArea(
                 top: false,
                 child: Column(
@@ -1177,7 +1184,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           child: Text(
                             'I agree to the MealHub terms and conditions',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: Responsive.smallText(context),
                               color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -1358,7 +1365,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     // Wallet: block order if balance is too low
     if (_selectedPayment == 'wallet') {
       final walletBalance =
-          ref.read(walletNotifierProvider).valueOrNull?.totalAvailable ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
       if (walletBalance < total) {
         AppSnackbar.error(
           context,
@@ -1526,12 +1533,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       // Wallet payment is now handled atomically inside the place-order edge
       // function before the order row is inserted — nothing to do here.
 
-      // ── Stripe: saved card (off-session) or payment sheet ─────────────────
+      // ── Stripe: saved card (off-session) ─────────────────────────────────
       if (_selectedPayment == 'stripe') {
-        final authUser = Supabase.instance.client.auth.currentUser;
-        final email = authUser?.email ?? currentUser?.email ?? '';
-        final name = currentUser?.name ?? 'Customer';
-
         final savedCard = _selectedSavedCard;
         final pmId = savedCard?.stripePaymentMethodId;
 
@@ -1573,63 +1576,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             return;
           }
         } else {
-          // ── No saved card — open branded custom PaymentScreen ───────────────
-          final restaurantObj2 = ref
-              .read(restaurantByIdProvider(restaurantId))
-              .valueOrNull;
-          final result = await Navigator.push<Map<String, dynamic>>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PaymentScreen(
-                orderId: order.id,
-                amount: verifiedTotal,
-                currency: AppConstants.currencyCode,
-                customerEmail: email,
-                customerName: name,
-                restaurantName: restaurantObj2?.name,
-                itemCount: cart.length,
-              ),
-            ),
-          );
-
+          // No saved card — prompt user to add one; cancel this draft order.
+          setState(() => _placingOrder = false);
+          final cleaned = await paymentService
+              .cleanupUnpaidOrder(order.id)
+              .timeout(const Duration(seconds: 10), onTimeout: () => false);
+          if (!cleaned) await _deleteOrder(order.id);
           if (!mounted) return;
-
-          if (result == null || result['status'] != 'paid') {
-            // PaymentScreen returned null/non-paid.  Give the webhook a brief
-            // window in case it already confirmed (e.g. payment succeeded but
-            // the sheet auto-dismissed before our handler ran).
-            if (await _isOrderPaid(order.id)) {
-              // Webhook already confirmed payment — fall through to success.
-              AppLogger.info('Order ${order.id}: webhook pre-confirmed, continuing');
-            } else {
-              // Genuine cancel or failure.  Delete the draft order so it never
-              // lingers in the system, then tell the user.
-              setState(() => _placingOrder = false);
-              final cleaned = await paymentService
-                  .cleanupUnpaidOrder(order.id)
-                  .timeout(const Duration(seconds: 10), onTimeout: () => false);
-              if (!cleaned) await _deleteOrder(order.id);
-              if (!mounted) return;
-              AppSnackbar.warning(
-                context,
-                'Payment was cancelled. Your order was not placed.',
-              );
-              return;
-            }
-          } else {
-            // PaymentSheet reported success.  The order is still in 'draft'
-            // until stripe-webhook fires and sets status = 'pending'.
-            // Poll for up to 30 s (15 × 2 s); proceed regardless so the user
-            // is not stuck if the webhook is delayed — it will still complete.
-            final activated = await _waitForOrderActivation(order.id);
-            if (!activated) {
-              AppLogger.info(
-                'Order ${order.id}: payment received, webhook pending — proceeding',
-              );
-            }
-          }
-
-          AppLogger.info('Order ${order.id} paid via custom payment screen');
+          AppSnackbar.warning(
+            context,
+            'Please add a payment card from Profile → Payment Methods to pay by card.',
+          );
+          return;
         }
       }
 
@@ -1643,7 +1601,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       ref.read(isPickupProvider.notifier).state = false;
       // Refresh wallet balance — edge function deducted it server-side.
       if (_selectedPayment == 'wallet') {
-        unawaited(ref.read(walletNotifierProvider.notifier).refresh());
+        ref.invalidate(walletBalanceStreamProvider);
+        ref.invalidate(walletTransactionsStreamProvider);
       }
 
       if (!mounted) return;
@@ -1762,53 +1721,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     } catch (_) {
       // Best-effort cleanup – don't block the user.
     }
-  }
-
-  /// Check whether an order has actually been paid (webhook may have flipped
-  /// the row to `completed` even if our WebView returned cancelled). Polls
-  /// up to [attempts] times with [interval] gaps to give the webhook /
-  /// response handler time to land.
-  Future<bool> _isOrderPaid(
-    String orderId, {
-    int attempts = 3,
-    Duration interval = const Duration(seconds: 1),
-  }) async {
-    final svc = ref.read(paymentServiceProvider);
-    for (var i = 0; i < attempts; i++) {
-      try {
-        final status = await svc.getOrderPaymentStatus(orderId);
-        if (status == AppConstants.paymentCompleted) return true;
-      } catch (_) {}
-      if (i < attempts - 1) await Future.delayed(interval);
-    }
-    return false;
-  }
-
-  /// After the Stripe PaymentSheet reports success, wait for the webhook to
-  /// activate the order (status = 'pending', payment_status = 'completed').
-  /// Returns true as soon as the order is active, or false after [attempts]
-  /// × [interval] if the webhook is delayed (caller handles the timeout case).
-  Future<bool> _waitForOrderActivation(
-    String orderId, {
-    int attempts = 15,
-    Duration interval = const Duration(seconds: 2),
-  }) async {
-    for (var i = 0; i < attempts; i++) {
-      try {
-        final row = await SupabaseConfig.client
-            .from('orders')
-            .select('status, payment_status')
-            .eq('id', orderId)
-            .maybeSingle();
-        if (row != null &&
-            row['payment_status'] == 'completed' &&
-            row['status'] != 'draft') {
-          return true;
-        }
-      } catch (_) {}
-      if (i < attempts - 1) await Future.delayed(interval);
-    }
-    return false;
   }
 }
 
@@ -1940,10 +1852,13 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.spacingSmall(context),
+        vertical: Responsive.spacingSmall(context),
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
       ),
       child: Column(
@@ -1957,7 +1872,7 @@ class _Section extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 13,
+                  fontSize: Responsive.smallText(context),
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -1979,8 +1894,11 @@ class _AddressChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 8, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: EdgeInsets.only(right: Responsive.spacing(context) * 0.5, bottom: Responsive.spacing(context) * 0.5),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.spacingSmall(context),
+        vertical: Responsive.spacingSmall(context) * 0.5,
+      ),
       decoration: BoxDecoration(
         color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
@@ -1991,7 +1909,7 @@ class _AddressChip extends StatelessWidget {
       child: Text(
         address.label,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: Responsive.smallText(context),
           fontWeight: FontWeight.w600,
           color: isSelected
               ? Colors.white
@@ -2022,12 +1940,12 @@ class _TimeChip extends StatelessWidget {
       child: Opacity(
         opacity: disabled ? 0.4 : 1.0,
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
           decoration: BoxDecoration(
             color: selected
                 ? AppTheme.primaryColor.withValues(alpha: 0.08)
                 : Theme.of(context).colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
             border: Border.all(
               color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
               width: selected ? 1.5 : 1,
@@ -2040,7 +1958,7 @@ class _TimeChip extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: Responsive.smallText(context),
                   color: selected
                       ? AppTheme.primaryColor
                       : Theme.of(context).colorScheme.onSurface,
@@ -2049,7 +1967,7 @@ class _TimeChip extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(fontSize: Responsive.bodyText(context) * 0.75, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -2080,12 +1998,15 @@ class _PaymentTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.spacingSmall(context),
+          vertical: Responsive.spacingSmall(context) * 0.75,
+        ),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
               : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
           border: Border.all(
             color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
@@ -2118,7 +2039,7 @@ class _PaymentTile extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.bodyText(context),
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? Theme.of(context).colorScheme.onSurface
@@ -2130,7 +2051,7 @@ class _PaymentTile extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: Responsive.smallText(context),
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -2177,12 +2098,15 @@ class _SavedCardTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.spacingSmall(context),
+          vertical: Responsive.spacingSmall(context),
+        ),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
               : Theme.of(context).colorScheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
           border: Border.all(
             color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
@@ -2222,7 +2146,7 @@ class _SavedCardTile extends StatelessWidget {
                   Text(
                     card.maskedNumber,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: Responsive.bodyText(context),
                       fontWeight: FontWeight.w600,
                       color: Theme.of(context).colorScheme.onSurface,
                       letterSpacing: 1.2,
@@ -2231,7 +2155,7 @@ class _SavedCardTile extends StatelessWidget {
                   Text(
                     card.cardholderName,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: Responsive.smallText(context),
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     maxLines: 1,
@@ -2330,7 +2254,7 @@ class _SummaryRow extends StatelessWidget {
               label,
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
-                fontSize: isBold ? 15 : 13,
+                fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
                 color: Theme.of(
                   context,
                 ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
@@ -2343,7 +2267,7 @@ class _SummaryRow extends StatelessWidget {
             value,
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              fontSize: isBold ? 15 : 13,
+              fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
               color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),

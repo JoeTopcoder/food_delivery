@@ -14,6 +14,7 @@ import '../../widgets/smart_home_widgets.dart';
 import 'grocery_store_detail_screen.dart';
 import 'grocery_category_products_screen.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 
 class GroceryScreen extends ConsumerStatefulWidget {
   const GroceryScreen({super.key});
@@ -57,7 +58,12 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
             // ── Header ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: EdgeInsets.fromLTRB(
+                  Responsive.horizontalPadding(context),
+                  16,
+                  Responsive.horizontalPadding(context),
+                  0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -67,7 +73,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                           child: Text(
                             'Grocery',
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: Responsive.headingLarge(context),
                               fontWeight: FontWeight.w800,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
@@ -80,7 +86,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     Text(
                       'Fresh groceries delivered to your door',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: Responsive.bodyText(context),
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -88,15 +94,26 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     // Search bar
                     TextField(
                       onChanged: _onSearchChanged,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search groceries...',
-                        prefixIcon: const Icon(Icons.search),
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 12,
                         ),
@@ -223,11 +240,16 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                padding: EdgeInsets.fromLTRB(
+                  Responsive.horizontalPadding(context),
+                  12,
+                  Responsive.horizontalPadding(context),
+                  8,
+                ),
                 child: Text(
                   _searchQuery.isEmpty ? 'Grocery Stores Near You' : 'Stores',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: Responsive.headingMedium(context),
                     fontWeight: FontWeight.w700,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
@@ -255,7 +277,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                                 ? 'No grocery stores available yet'
                                 : 'No stores found for "$_searchQuery"',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: Responsive.headingSmall(context),
                               color: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
@@ -267,7 +289,9 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                   );
                 }
                 return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.horizontalPadding(context),
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => RepaintBoundary(
@@ -311,11 +335,16 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            12,
+            Responsive.horizontalPadding(context),
+            8,
+          ),
           child: Text(
             'Products',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: Responsive.headingMedium(context),
               fontWeight: FontWeight.w700,
               color: Theme.of(context).colorScheme.onSurface,
             ),
@@ -333,19 +362,24 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                 ),
                 child: Text(
                   'No products found for "$_searchQuery"',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: Responsive.bodyText(context),
+                    color: Colors.grey[700],
+                  ),
                 ),
               ),
             );
           }
           return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.62,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: Responsive.gridColumns(context),
+                childAspectRatio: Responsive.productCardAspectRatio(context),
+                crossAxisSpacing: Responsive.gridSpacing(context),
+                mainAxisSpacing: Responsive.gridSpacing(context),
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => RepaintBoundary(
@@ -397,9 +431,12 @@ class _SearchProductCard extends ConsumerWidget {
           : null,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+            width: 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,7 +528,7 @@ class _SearchProductCard extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -548,7 +585,9 @@ class _SearchProductCard extends ConsumerWidget {
                                       width: 26,
                                       height: 26,
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[200],
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Icon(
@@ -656,13 +695,15 @@ class _SearchProductCard extends ConsumerWidget {
     );
   }
 
-  Widget _placeholder() => Container(
-    color: Colors.grey[100],
-    child: Center(
-      child: Icon(
-        Icons.shopping_bag_outlined,
-        size: 36,
-        color: Colors.grey[300],
+  Widget _placeholder() => Builder(
+    builder: (context) => Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Icon(
+          Icons.shopping_bag_outlined,
+          size: 36,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
     ),
   );

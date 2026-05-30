@@ -752,7 +752,7 @@ class _EditConfigDialogState extends ConsumerState<_EditConfigDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _ConfigField(
-              label: 'Point Value (\$)',
+              label: 'Point Value (${AppConstants.currencySymbol})',
               controller: _pointValueCtrl,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -760,7 +760,7 @@ class _EditConfigDialogState extends ConsumerState<_EditConfigDialog> {
             ),
             const SizedBox(height: 12),
             _ConfigField(
-              label: 'Points per \$100 spent',
+              label: 'Points per ${AppConstants.currencySymbol}100 spent',
               controller: _per100Ctrl,
               keyboardType: TextInputType.number,
             ),

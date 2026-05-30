@@ -6,6 +6,7 @@ import '../../models/restaurant_model.dart';
 import 'restaurant_detail_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
@@ -32,9 +33,9 @@ class FavoritesScreen extends ConsumerWidget {
                     color: Colors.grey.shade700,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'No favorites yet',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -47,7 +48,7 @@ class FavoritesScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(Responsive.cardPadding(context)),
             itemCount: favorites.length,
             itemBuilder: (context, index) {
               final fav = favorites[index];
@@ -74,7 +75,7 @@ class FavoritesScreen extends ConsumerWidget {
                     );
                   },
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(Responsive.cardPadding(context)),
                     child: Row(
                       children: [
                         // Restaurant image
@@ -98,8 +99,8 @@ class FavoritesScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 restaurant.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
+                                style: TextStyle(
+                                  fontSize: Responsive.headingSmall(context),
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 1,

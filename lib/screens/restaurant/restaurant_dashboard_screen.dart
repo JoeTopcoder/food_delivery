@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
 import '../../utils/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
@@ -245,7 +246,7 @@ class _RestaurantDashboardScreenState
             onRefresh: _refresh,
             color: AppTheme.primaryColor,
             child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               slivers: [
                 // ── Hero Header ──────────────────────────────────────
                 SliverToBoxAdapter(
@@ -270,19 +271,48 @@ class _RestaurantDashboardScreenState
                                   width: 48,
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppTheme.primaryColor,
-                                        Color(0xFFFF8C5A),
-                                      ],
-                                    ),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Icon(
-                                    Icons.storefront_rounded,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: restaurant.imageUrl != null &&
+                                          restaurant.imageUrl!.isNotEmpty
+                                      ? Image.network(
+                                          restaurant.imageUrl!,
+                                          width: 48,
+                                          height: 48,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      AppTheme.primaryColor,
+                                                      Color(0xFFFF8C5A),
+                                                    ],
+                                                  ),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.storefront_rounded,
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                        )
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                AppTheme.primaryColor,
+                                                Color(0xFFFF8C5A),
+                                              ],
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.storefront_rounded,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                        ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -292,12 +322,14 @@ class _RestaurantDashboardScreenState
                                     children: [
                                       Text(
                                         'Welcome, ${authState.user!.name?.split(' ').first ?? 'User'}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 20,
+                                          fontSize: Responsive.headingMedium(context),
                                           fontWeight: FontWeight.w700,
                                           letterSpacing: -0.3,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
@@ -333,8 +365,8 @@ class _RestaurantDashboardScreenState
                             const SizedBox(height: 20),
                             // ── Status toggle banner ──
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: Responsive.horizontalPadding(context),
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
@@ -459,7 +491,7 @@ class _RestaurantDashboardScreenState
                   child: Transform.translate(
                     offset: const Offset(0, -16),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                       child: ordersAsync.when(
                         loading: () => const SizedBox(height: 100),
                         error: (_, _) => const SizedBox(height: 100),
@@ -520,7 +552,7 @@ class _RestaurantDashboardScreenState
                 // ── Revenue banner ───────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                     child: ordersAsync.when(
                       loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),
@@ -629,11 +661,11 @@ class _RestaurantDashboardScreenState
                 // ── Quick Actions ────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                     child: Text(
                       'Quick Actions',
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: Responsive.headingSmall(context),
                         fontWeight: FontWeight.w700,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -643,7 +675,7 @@ class _RestaurantDashboardScreenState
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final w = constraints.maxWidth;
@@ -771,16 +803,18 @@ class _RestaurantDashboardScreenState
                 // ── Recent Orders ────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                     child: Row(
                       children: [
                         Text(
                           'Recent Orders',
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: Responsive.headingSmall(context),
                             fontWeight: FontWeight.w700,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const Spacer(),
                         GestureDetector(
@@ -803,7 +837,7 @@ class _RestaurantDashboardScreenState
                 const SliverToBoxAdapter(child: SizedBox(height: 10)),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                     child: ordersAsync.when(
                       loading: () => const Center(
                         child: Padding(
@@ -897,9 +931,9 @@ class _RestaurantDashboardScreenState
               const SizedBox(height: 24),
               Text(
                 isRejected ? 'Application Rejected' : 'Complete Your Profile',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: Responsive.headingLarge(context),
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
@@ -1163,7 +1197,7 @@ class _RestaurantDashboardScreenState
                   child: Text(
                     'Create Your Restaurant',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: Responsive.headingLarge(context),
                       fontWeight: FontWeight.w800,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -1564,9 +1598,11 @@ class _RecentOrderTile extends StatelessWidget {
                   'Order #${order.id.toString().substring(0, 8)}',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: Responsive.bodyText(context),
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(

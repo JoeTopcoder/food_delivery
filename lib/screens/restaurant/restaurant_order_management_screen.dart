@@ -4,10 +4,14 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/order_model.dart';
+import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
+import '../../core/utils/responsive.dart';
+import '../../config/supabase_config.dart';
 
 class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
   const RestaurantOrderManagementScreen({super.key});
@@ -25,13 +29,15 @@ class _RestaurantOrderManagementScreenState
   TabController? _groceryStatusTabController;
 
   TabController get topTabController =>
-      _topTabController ??= TabController(length: 2, vsync: this);
+      _topTabController ??= TabController(length: 3, vsync: this);
+  // Default to index 1 (Preparing) — orders are auto-approved so Pending is always empty.
   TabController get foodStatusTabController => _foodStatusTabController ??=
-      TabController(length: _statusTabs.length, vsync: this);
+      TabController(length: _statusTabs.length, vsync: this, initialIndex: 1);
   TabController get groceryStatusTabController =>
       _groceryStatusTabController ??= TabController(
         length: _statusTabs.length,
         vsync: this,
+        initialIndex: 1,
       );
 
   // Tabs the restaurant owner cares about
@@ -105,13 +111,17 @@ class _RestaurantOrderManagementScreenState
           tabs: const [
             Tab(icon: Icon(Icons.restaurant), text: 'Food'),
             Tab(icon: Icon(Icons.local_grocery_store), text: 'Grocery'),
+            Tab(icon: Icon(Icons.store_mall_directory_rounded), text: 'Group'),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh orders',
-            onPressed: () => ref.invalidate(ownerAllOrdersProvider(ownerId)),
+            onPressed: () {
+              ref.invalidate(ownerAllOrdersProvider(ownerId));
+              ref.invalidate(ownerGroupOrdersProvider(ownerId));
+            },
           ),
         ],
       ),
@@ -158,6 +168,7 @@ class _RestaurantOrderManagementScreenState
                     ownerId: ownerId,
                     isGrocery: true,
                   ),
+                  _GroupOrdersSection(ownerId: ownerId),
                 ],
               );
             },
@@ -293,7 +304,7 @@ class _OrderListView extends ConsumerWidget {
         ref.invalidate(ownerAllOrdersProvider(ownerId));
       },
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(Responsive.cardPadding(context)),
         itemCount: orders.length,
         itemBuilder: (context, index) {
           return _OrderCard(
@@ -380,7 +391,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(Responsive.cardPadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -393,10 +404,10 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     children: [
                       Flexible(
                         child: Text(
-                          'Order #${order.id.substring(0, 8).toUpperCase()}',
-                          style: const TextStyle(
+                          'Order #${order.restaurantOrderNumber ?? order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: Responsive.headingSmall(context),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -435,6 +446,38 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                           ),
                         ),
                       ],
+                      if (order.isMultiRestaurant) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.store_mall_directory_rounded,
+                                size: 12,
+                                color: Colors.deepOrange,
+                              ),
+                              SizedBox(width: 3),
+                              Text(
+                                'MULTI',
+                                style: TextStyle(
+                                  color: Colors.deepOrange,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -452,7 +495,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     style: TextStyle(
                       color: _statusColor(order.status),
                       fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                      fontSize: Responsive.smallText(context),
                     ),
                   ),
                 ),
@@ -566,9 +609,9 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                 Expanded(
                   child: Text(
                     'Total: \$${order.totalAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: Responsive.headingSmall(context),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1009,6 +1052,354 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Group Orders tab — shows restaurant_orders from master_orders (new schema)
+// =============================================================================
+
+class _GroupOrdersSection extends ConsumerWidget {
+  final String ownerId;
+  const _GroupOrdersSection({required this.ownerId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(restaurantOrdersRealtimeProvider(ownerId));
+    final ordersAsync = ref.watch(ownerGroupOrdersProvider(ownerId));
+
+    return ordersAsync.when(
+      loading: () => const AppLoadingIndicator(message: 'Loading group orders…'),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(ownerGroupOrdersProvider(ownerId)),
+      ),
+      data: (orders) {
+        if (orders.isEmpty) {
+          return const AppEmptyState(
+            icon: Icons.store_mall_directory_rounded,
+            title: 'No group orders yet',
+            subtitle: 'Multi-restaurant orders will appear here',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: () async => ref.invalidate(ownerGroupOrdersProvider(ownerId)),
+          child: ListView.builder(
+            padding: EdgeInsets.all(Responsive.cardPadding(context)),
+            itemCount: orders.length,
+            itemBuilder: (_, i) => _GroupOrderCard(ro: orders[i], ownerId: ownerId),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GroupOrderCard extends ConsumerStatefulWidget {
+  final RestaurantOrder ro;
+  final String ownerId;
+  const _GroupOrderCard({required this.ro, required this.ownerId});
+
+  @override
+  ConsumerState<_GroupOrderCard> createState() => _GroupOrderCardState();
+}
+
+class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
+  bool _updating = false;
+
+  static Color _statusColor(String status) {
+    switch (status) {
+      case 'ready':     return const Color(0xFF8B5CF6);
+      case 'preparing': return const Color(0xFFF59E0B);
+      case 'accepted':  return const Color(0xFF3B82F6);
+      case 'cancelled': return Colors.red;
+      default:          return const Color(0xFF9CA3AF);
+    }
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    try {
+      final now = DateTime.now().toIso8601String();
+      final patch = <String, dynamic>{'status': newStatus, 'updated_at': now};
+      if (newStatus == 'accepted')  patch['confirmed_at']  = now;
+      if (newStatus == 'preparing') patch['preparing_at']  = now;
+      if (newStatus == 'ready')     patch['ready_at']      = now;
+      if (newStatus == 'cancelled') patch['cancelled_at']  = now;
+
+      await SupabaseConfig.client
+          .from('restaurant_orders')
+          .update(patch)
+          .eq('id', widget.ro.id);
+
+      ref.invalidate(ownerGroupOrdersProvider(widget.ownerId));
+    } catch (e) {
+      AppLogger.error('_GroupOrderCard._updateStatus: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ro       = widget.ro;
+    final color    = _statusColor(ro.status);
+    final currency = AppConstants.currencySymbol;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color:        Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            decoration: BoxDecoration(
+              color:        color.withValues(alpha: 0.07),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order #${ro.restaurantOrderNumber ?? ro.id.substring(0, 8).toUpperCase()}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Text(
+                        DateFormat('MMM d · h:mm a').format(ro.createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Multi badge
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color:        Colors.deepOrange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('MULTI',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.deepOrange)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color:        color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    ro.status.replaceAll('_', ' ').toUpperCase(),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Delivery info ────────────────────────────────────────────────
+          if (ro.deliveryAddress != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF6B7280)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      ro.deliveryAddress!,
+                      style: TextStyle(fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (ro.contactlessDelivery)
+                    Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color:        const Color(0xFF6366F1).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text('Contactless',
+                          style: TextStyle(fontSize: 9, color: Color(0xFF6366F1), fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
+            ),
+
+          // ── Items ────────────────────────────────────────────────────────
+          if (ro.items != null && ro.items!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: ro.items!.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Text('${item.quantity}×',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(item.itemName,
+                              style: const TextStyle(fontSize: 13),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Text('$currency${item.subtotal.toStringAsFixed(0)}',
+                            style: TextStyle(fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+          // ── Subtotal + notes ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+            child: Row(
+              children: [
+                Text('Subtotal: $currency${ro.subtotal.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                if (ro.notes != null && ro.notes!.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Note: ${ro.notes}',
+                        style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Action buttons ───────────────────────────────────────────────
+          if (ro.status != 'cancelled' && ro.status != 'ready')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+              child: _updating
+                  ? const Center(child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: CircularProgressIndicator(strokeWidth: 2)))
+                  : Wrap(
+                      spacing: 8, runSpacing: 6,
+                      children: [
+                        if (ro.status == 'pending')
+                          ElevatedButton.icon(
+                            onPressed: () => _updateStatus('accepted'),
+                            icon: const Icon(Icons.check_circle_outline, size: 15),
+                            label: const Text('Accept'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        if (ro.status == 'accepted')
+                          ElevatedButton.icon(
+                            onPressed: () => _updateStatus('preparing'),
+                            icon: const Icon(Icons.restaurant_menu, size: 15),
+                            label: const Text('Preparing'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        if (ro.status == 'preparing')
+                          ElevatedButton.icon(
+                            onPressed: () => _updateStatus('ready'),
+                            icon: const Icon(Icons.done_all, size: 15),
+                            label: const Text('Ready for Pickup'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B5CF6),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        if (ro.status == 'pending' || ro.status == 'accepted')
+                          OutlinedButton.icon(
+                            onPressed: () => _confirmCancel(context),
+                            icon: const Icon(Icons.cancel_outlined, size: 15),
+                            label: const Text('Cancel'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                      ],
+                    ),
+            )
+          else if (ro.status == 'ready')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const SizedBox(width: 6),
+                  const Text('Ready for pickup',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13,
+                        color: Color(0xFF8B5CF6),
+                      )),
+                ],
+              ),
+            )
+          else
+            const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancel(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel this restaurant\'s order?'),
+        content: const Text(
+          'This will cancel only your restaurant\'s portion. '
+          'Other restaurants in this group order are not affected.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('No')),
+          TextButton(
+            onPressed: () { Navigator.pop(ctx); _updateStatus('cancelled'); },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),

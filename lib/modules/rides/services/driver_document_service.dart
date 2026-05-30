@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import '../models/driver_document_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show FileOptions, SupabaseClient, Supabase;
 
 class UploadDriverDocumentParams {
   final String driverId;
@@ -28,10 +31,26 @@ class DriverDocumentService {
   }
 
   Future<void> uploadDocument(UploadDriverDocumentParams params) async {
-    // This is a placeholder for actual upload logic (e.g., Supabase Storage)
-    // You would upload the file, get the URL, then insert a record
-    // For now, just simulate success
-    await Future.delayed(const Duration(milliseconds: 500));
-    // TODO: Implement actual upload logic
+    final file = File(params.filePath);
+    final bytes = await file.readAsBytes();
+    final extension = params.filePath.split('.').last.toLowerCase();
+    final filePath =
+        '${params.driverId}/${params.documentType}/${DateTime.now().millisecondsSinceEpoch}.$extension';
+
+    await _client.storage
+        .from('driver-documents')
+        .uploadBinary(filePath, bytes, fileOptions: FileOptions(upsert: true));
+
+    final publicUrl = _client.storage
+        .from('driver-documents')
+        .getPublicUrl(filePath);
+
+    await _client.from('driver_documents').insert({
+      'driver_id': params.driverId,
+      'type': params.documentType,
+      'url': publicUrl,
+      'is_verified': false,
+      'uploaded_at': DateTime.now().toIso8601String(),
+    });
   }
 }

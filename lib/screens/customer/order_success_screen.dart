@@ -9,6 +9,7 @@ class OrderSuccessScreen extends StatefulWidget {
   final String? deliveryOtp;
   final bool isPickup;
   final String? receiptNumber;
+  final bool isMultiRestaurant;
   const OrderSuccessScreen({
     super.key,
     required this.orderId,
@@ -16,6 +17,7 @@ class OrderSuccessScreen extends StatefulWidget {
     this.deliveryOtp,
     this.isPickup = false,
     this.receiptNumber,
+    this.isMultiRestaurant = false,
   });
 
   @override
@@ -144,7 +146,9 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            Row(
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: widget.deliveryOtp!
                                   .split('')
@@ -177,6 +181,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                   )
                                   .toList(),
                             ),
+                            ),
                             const SizedBox(height: 8),
                             const Text(
                               'Share this PIN with the driver for contactless delivery',
@@ -195,10 +200,17 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pushReplacementNamed(
-                            '/order-tracking',
-                            arguments: widget.orderId,
-                          );
+                          if (widget.isMultiRestaurant) {
+                            Navigator.of(context).pushReplacementNamed(
+                              '/multi-order-detail',
+                              arguments: widget.orderId,
+                            );
+                          } else {
+                            Navigator.of(context).pushReplacementNamed(
+                              '/order-tracking',
+                              arguments: widget.orderId,
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,

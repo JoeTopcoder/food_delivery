@@ -8,16 +8,62 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
-import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/config/supabase_config.dart';
-import 'package:food_driver/screens/customer/payment_screen.dart';
+import 'package:food_driver/config/app_constants.dart';
+import 'package:food_driver/providers/feature_providers.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
+import 'package:food_driver/providers/wallet_provider.dart';
 
 const _kBlue = Color(0xFF2563EB);
 const _kRed = Color(0xFFEF4444);
 
 const _kDefaultPickup = LatLng(18.0060, -76.7964);
-const _kDefaultDest = LatLng(18.0144, -76.7814);
+
+
+// ---------------------------------------------------------------------------
+// Jamaica airports
+// ---------------------------------------------------------------------------
+
+class _Airport {
+  final String code;
+  final String name;
+  final String address;
+  final LatLng latLng;
+  const _Airport({required this.code, required this.name, required this.address, required this.latLng});
+
+  factory _Airport.fromJson(Map<String, dynamic> json) => _Airport(
+    code: json['code'] as String,
+    name: json['name'] as String,
+    address: (json['address'] as String?)?.isNotEmpty == true
+        ? json['address'] as String
+        : '${json['name']}, ${json['city']}',
+    latLng: LatLng(
+      (json['latitude'] as num).toDouble(),
+      (json['longitude'] as num).toDouble(),
+    ),
+  );
+}
+
+const _kJamaicaAirports = [
+  _Airport(
+    code: 'KIN',
+    name: 'Norman Manley International',
+    address: 'Norman Manley International Airport, Kingston',
+    latLng: LatLng(17.9357, -76.7875),
+  ),
+  _Airport(
+    code: 'MBJ',
+    name: 'Sangster International',
+    address: 'Sangster International Airport, Montego Bay',
+    latLng: LatLng(18.5037, -77.9133),
+  ),
+  _Airport(
+    code: 'OCJ',
+    name: 'Ian Fleming International',
+    address: 'Ian Fleming International Airport, Ocho Rios',
+    latLng: LatLng(18.4049, -77.1002),
+  ),
+];
 
 // ---------------------------------------------------------------------------
 // Place suggestion model
@@ -34,38 +80,97 @@ class _PlaceSuggestion {
   });
 }
 
-/// Builds a street-level address from Nominatim address components.
-/// Falls back to the first 3 comma-parts of display_name if components missing.
+/// Builds a lot-accurate address from Nominatim data.
+/// Priority: OSM feature name (parcel/lot) → extratags ref → house_number → road → locality.
+/// e.g. "Lot 14, Birch Tree Hill Road, George Town"
 String _buildExactAddress(
   Map<String, dynamic> addressObj,
-  String displayName,
-) {
+  String displayName, {
+  Map<String, dynamic>? extratags,
+  String? featureName,
+}) {
   final a = addressObj;
-  final parts = <String>[];
+  String s(String key) => (a[key] as String? ?? '').trim();
+  String e(String key) => (extratags?[key] as String? ?? '').trim();
 
-  // Street-level
-  final houseNumber = a['house_number'] as String?;
-  final road = a['road'] as String?
-      ?? a['pedestrian'] as String?
-      ?? a['footway'] as String?
-      ?? a['path'] as String?;
-  if (road != null) {
-    parts.add(houseNumber != null ? '$houseNumber $road' : road);
+  // Lot / parcel: OSM feature name → extratags ref → addr:housenumber → house_number
+  // Only use featureName as a lot prefix when it is genuinely distinct from the
+  // road name — if they are the same string Nominatim is just echoing the road
+  // name and using it would produce "Lindsay Crescent, Lindsay Crescent".
+  final road0 = (a['road'] as String? ?? '').trim();
+  final rawFeature = (featureName?.trim() ?? '');
+  final lotFromName = (rawFeature.isNotEmpty &&
+          rawFeature.toLowerCase() != road0.toLowerCase())
+      ? rawFeature
+      : '';
+  final lotFromRef = e('ref');
+  String houseNumber = e('addr:housenumber').isNotEmpty
+      ? e('addr:housenumber')
+      : s('house_number');
+
+  // Fallback: if Nominatim returned a road-level result without house_number,
+  // check whether display_name starts with a number/lot pattern.
+  // e.g. "15, Main Street, …" or "Lot 14, Orange Crescent, …"
+  if (houseNumber.isEmpty && lotFromName.isEmpty && lotFromRef.isEmpty) {
+    final firstSeg = displayName.split(',').first.trim();
+    if (RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(firstSeg)) {
+      houseNumber = firstSeg;
+    } else if (RegExp(r'^[Ll]ot\s+[0-9A-Za-z]+$').hasMatch(firstSeg)) {
+      houseNumber = firstSeg;
+    }
   }
 
-  // Sub-locality / neighbourhood
-  final suburb = a['suburb'] as String?
-      ?? a['quarter'] as String?
-      ?? a['neighbourhood'] as String?
-      ?? a['hamlet'] as String?;
-  if (suburb != null && suburb != parts.lastOrNull) parts.add(suburb);
+  final lotPart = lotFromName.isNotEmpty
+      ? lotFromName
+      : lotFromRef.isNotEmpty
+          ? 'Lot $lotFromRef'
+          : houseNumber;
 
-  // City / town
-  final city = a['city'] as String?
-      ?? a['town'] as String?
-      ?? a['village'] as String?
-      ?? a['municipality'] as String?;
-  if (city != null && city != parts.lastOrNull) parts.add(city);
+  // Road
+  final road = s('road').isNotEmpty
+      ? s('road')
+      : s('pedestrian').isNotEmpty
+          ? s('pedestrian')
+          : s('footway').isNotEmpty
+              ? s('footway')
+              : s('path');
+
+  // Sub-locality
+  final suburb = s('neighbourhood').isNotEmpty
+      ? s('neighbourhood')
+      : s('suburb').isNotEmpty
+          ? s('suburb')
+          : s('quarter').isNotEmpty
+              ? s('quarter')
+              : s('hamlet');
+
+  // City
+  final city = s('city').isNotEmpty
+      ? s('city')
+      : s('town').isNotEmpty
+          ? s('town')
+          : s('village').isNotEmpty
+              ? s('village')
+              : s('municipality');
+
+  // Skip suburb when it is already embedded in the road name
+  // e.g. road="Lindsay Crescent", suburb="Lindsay" → don't add "Lindsay" again
+  // Join number to road with a space ("12 Lindsay Crescent"),
+  // but named lots/parcels use a comma ("Lot 14, Main Street").
+  final isPlainNumber = RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(lotPart);
+  final streetPart = lotPart.isNotEmpty && road.isNotEmpty
+      ? (isPlainNumber ? '$lotPart $road' : '$lotPart, $road')
+      : lotPart.isNotEmpty
+          ? lotPart
+          : road;
+
+  final parts = <String>[];
+  if (streetPart.isNotEmpty) parts.add(streetPart);
+  final suburbRedundant = suburb.isEmpty ||
+      suburb == road ||
+      road.toLowerCase().contains(suburb.toLowerCase());
+  if (!suburbRedundant && suburb != parts.lastOrNull) parts.add(suburb);
+  if (city.isNotEmpty && city != parts.lastOrNull) parts.add(city);
 
   if (parts.isNotEmpty) return parts.join(', ');
 
@@ -85,15 +190,11 @@ class RideBookingScreen extends ConsumerStatefulWidget {
 }
 
 class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
-  final _pickupController = TextEditingController(
-    text: 'Half Way Tree, Kingston',
-  );
-  final _destinationController = TextEditingController(
-    text: 'Sovereign Centre, Kingston',
-  );
+  final _pickupController = TextEditingController();
+  final _destinationController = TextEditingController();
 
   LatLng _pickupLatLng = _kDefaultPickup;
-  LatLng? _destinationLatLng = _kDefaultDest;
+  LatLng? _destinationLatLng;
 
   // Suggestions
   List<_PlaceSuggestion> _suggestions = [];
@@ -106,6 +207,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
   Map<String, dynamic>? _fareData;
   bool _isLoadingFare = false;
   bool _isConfirming = false;
+  String _selectedPaymentMethod = 'card'; // 'card' | 'wallet' | 'cash'
   bool _isGeocodingPickup = false;
   bool _isGeocodingDest = false;
   String? _error;
@@ -123,6 +225,11 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
 
   // Scheduled ride
   DateTime? _scheduledFor;
+
+  // Airport
+  _Airport? _pickupAirport;
+  _Airport? _dropoffAirport;
+  final _terminalController = TextEditingController();
 
   @override
   void initState() {
@@ -159,6 +266,104 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
   }
 
   void _clearSchedule() => setState(() => _scheduledFor = null);
+
+  // ── Airport selection ─────────────────────────────────────────────────────
+
+  Future<void> _pickAirport(String field) async {
+    final dbRows = ref.read(airportsProvider).valueOrNull;
+    final airports = dbRows != null && dbRows.isNotEmpty
+        ? dbRows.map(_Airport.fromJson).toList()
+        : List<_Airport>.from(_kJamaicaAirports);
+
+    final selected = await showModalBottomSheet<_Airport>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              field == 'pickup' ? 'Pickup from Airport' : 'Drop off at Airport',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...airports.map((a) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: _kBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.flight_rounded, color: _kBlue, size: 22),
+              ),
+              title: Text(a.name, style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
+              subtitle: Text(a.code, style: const TextStyle(color: _kBlue, fontSize: 12, fontWeight: FontWeight.bold)),
+              onTap: () => Navigator.of(ctx).pop(a),
+            )),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _fareData = null;
+      if (field == 'pickup') {
+        _pickupAirport = selected;
+        _pickupLatLng = selected.latLng;
+        _pickupController.text = selected.address;
+      } else {
+        _dropoffAirport = selected;
+        _destinationLatLng = selected.latLng;
+        _destinationController.text = selected.address;
+      }
+    });
+    _calculateFare();
+  }
+
+  void _clearPickupAirport() {
+    setState(() { _pickupAirport = null; _fareData = null; });
+  }
+
+  void _clearDropoffAirport() {
+    setState(() { _dropoffAirport = null; _fareData = null; });
+  }
+
+  Future<String?> _getDefaultSavedCardId() async {
+    final userId = SupabaseConfig.client.auth.currentUser?.id;
+    if (userId == null) return null;
+    try {
+      final rows = await SupabaseConfig.client
+          .from('saved_cards')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+      if (rows.isNotEmpty) {
+        return rows.first['id'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   /// Silently checks GPS country so address searches return local results.
   /// Falls back to 'jm' (Jamaica) if permission denied or GPS unavailable.
@@ -213,6 +418,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
     _suggestionDebounce?.cancel();
     _pickupController.dispose();
     _destinationController.dispose();
+    _terminalController.dispose();
     super.dispose();
   }
 
@@ -261,12 +467,15 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       'format': 'json',
       'limit': '8',
       'addressdetails': '1',
+      'extratags': '1',
+      'namedetails': '1',
+      'zoom': '18', // building-level detail — maximises house_number in response
     };
     if (countryCode != null) params['countrycodes'] = countryCode;
 
     final uri = Uri.https('nominatim.openstreetmap.org', '/search', params);
     final resp = await http.get(uri, headers: {
-      'User-Agent': 'MealHub/1.0 (applizonecentralja@gmail.com)',
+      'User-Agent': 'sevendash.app',
       'Accept-Language': 'en',
     }).timeout(const Duration(seconds: 8));
 
@@ -275,9 +484,13 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
     return data.map((e) {
       final display = e['display_name'] as String;
       final addressObj = (e['address'] as Map<String, dynamic>?) ?? {};
+      final extratags = e['extratags'] as Map<String, dynamic>?;
+      final namedetails = e['namedetails'] as Map<String, dynamic>?;
+      final featureName = namedetails?['name'] as String?;
       return _PlaceSuggestion(
         displayName: display,
-        exactAddress: _buildExactAddress(addressObj, display),
+        exactAddress: _buildExactAddress(addressObj, display,
+            extratags: extratags, featureName: featureName),
         latLng: LatLng(
           double.parse(e['lat'] as String),
           double.parse(e['lon'] as String),
@@ -285,6 +498,12 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       );
     }).toList();
   }
+
+  // Matches a leading lot/house-number prefix in a typed query, e.g.:
+  //   "1b Lindsay Crescent"  →  group(1)="1b"
+  //   "Lot 14 Main Street"   →  group(1)="Lot 14"
+  static final _leadingNumRe =
+      RegExp(r'^([Ll]ot\s+[0-9A-Za-z]+|[0-9]+[A-Za-z]?)\s+', caseSensitive: false);
 
   Future<void> _fetchSuggestions(String query, String field) async {
     if (!mounted) return;
@@ -299,6 +518,34 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       // Jamaica has limited OSM data — fall back to global search if no results
       if (results.isEmpty) {
         results = await _nominatimSearch(query);
+      }
+
+      // Deduplicate by exactAddress (Nominatim can return multiple objects
+      // for the same road — e.g. road + named place — that resolve identically).
+      final seen = <String>{};
+      results = results.where((r) => seen.add(r.exactAddress)).toList();
+
+      // If the user typed a leading number/lot that Nominatim dropped (road-level
+      // match, no building data), inject it back as the prefix so the selection
+      // field shows exactly what they typed, e.g. "1b Lindsay Crescent, Half Way Tree".
+      final numMatch = _leadingNumRe.firstMatch(query.trim());
+      if (numMatch != null && results.isNotEmpty) {
+        final prefix = numMatch.group(1)!;
+        results = results.map((r) {
+          final alreadyHas = r.exactAddress
+              .toLowerCase()
+              .startsWith(prefix.toLowerCase());
+          if (alreadyHas) return r;
+          final isPlain = RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(prefix);
+          final newAddr = isPlain
+              ? '$prefix ${r.exactAddress}'
+              : '$prefix, ${r.exactAddress}';
+          return _PlaceSuggestion(
+            exactAddress: newAddr,
+            displayName: r.displayName,
+            latLng: r.latLng,
+          );
+        }).toList();
       }
 
       if (!mounted) return;
@@ -457,7 +704,8 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       }
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: Duration(seconds: 15),
         ),
       );
       if (!mounted) return;
@@ -470,23 +718,39 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           'lat': pos.latitude.toString(),
           'lon': pos.longitude.toString(),
           'format': 'json',
+          'addressdetails': '1',
+          'namedetails': '1',
+          'extratags': '1',
+          'zoom': '19',
         });
         final resp = await http
             .get(
               uri,
-              headers: {
-                'User-Agent': 'MealHub/1.0 (applizonecentralja@gmail.com)',
-              },
+              headers: {'User-Agent': 'sevendash.app'},
             )
-            .timeout(const Duration(seconds: 6));
+            .timeout(const Duration(seconds: 12));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body) as Map<String, dynamic>;
-          final display = data['display_name'] as String?;
-          final address = data['address'] as Map<String, dynamic>?;
-          if (display != null) {
-            label = _buildExactAddress(address ?? {}, display);
+          // Nominatim returns {"error": "..."} with 200 when no result found
+          if (!data.containsKey('error')) {
+            final display = data['display_name'] as String? ?? '';
+            final addressObj = (data['address'] as Map<String, dynamic>?) ?? {};
+            final extratags = data['extratags'] as Map<String, dynamic>?;
+            // For /reverse, house_number may live at top-level 'house_number'
+            // OR inside extratags as 'addr:housenumber'. Inject it into addressObj
+            // so _buildExactAddress picks it up via s('house_number').
+            final topHouseNum = data['house_number'] as String?;
+            if (topHouseNum != null && topHouseNum.isNotEmpty) {
+              addressObj['house_number'] = topHouseNum;
+            }
+            final featureName = data['name'] as String?;
+            final built = _buildExactAddress(addressObj, display,
+                extratags: extratags, featureName: featureName);
+            // Only replace label when we got a real address back
+            if (built.isNotEmpty) label = built;
           }
           // Update search country so subsequent suggestions match user's location
+          final address = data['address'] as Map<String, dynamic>?;
           final code = address?['country_code'] as String?;
           if (code != null && mounted) {
             setState(() => _searchCountryCode = code.toLowerCase());
@@ -586,40 +850,55 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       final distanceKm = (_fareData!['distance_km'] as num?)?.toDouble() ?? 6.2;
       final durationMinutes =
           (_fareData!['estimated_duration_minutes'] as num?)?.toInt() ?? 18;
-      final estimatedFare =
+      final baseFare =
           (_fareData!['estimated_fare'] as num?)?.toDouble() ?? 12.40;
+      final isAirport = _pickupAirport != null || _dropoffAirport != null;
+      final surcharge = isAirport ? AppConstants.airportSurchargeJmd : 0.0;
+      final estimatedFare = baseFare + surcharge;
       final platformFee =
           (_fareData!['platform_fee'] as num?)?.toDouble() ??
-          estimatedFare * 0.10;
+          baseFare * 0.10;
 
       final user = SupabaseConfig.client.auth.currentUser;
       if (user == null)
         throw Exception('You must be logged in to book a ride.');
 
-      // For immediate rides, collect payment via Stripe now.
-      // Scheduled rides defer payment to when the driver is dispatched.
-      if (_scheduledFor == null) {
-        final ridePaymentId =
-            'ride_${DateTime.now().millisecondsSinceEpoch}';
-        final paymentResult = await Navigator.push<Map<String, dynamic>>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentScreen(
-              orderId: ridePaymentId,
-              amount: estimatedFare,
-              currency: AppConstants.currencyCode,
-              customerEmail: user.email,
-              customerName:
-                  user.userMetadata?['full_name'] as String? ??
-                  user.email ??
-                  '',
-              restaurantName: 'Ride Payment',
-              type: 'ride',
-            ),
-          ),
-        );
-        if (paymentResult == null || paymentResult['status'] != 'paid') {
-          if (mounted) setState(() => _isConfirming = false);
+      // Wallet: verify balance before hitting the edge function
+      if (_selectedPaymentMethod == 'wallet') {
+        final walletBalance =
+            ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
+        if (walletBalance < estimatedFare) {
+          if (mounted) {
+            setState(() => _isConfirming = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Insufficient wallet balance '
+                  '(${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}). '
+                  'Top up or choose another payment method.',
+                ),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // Card: look up the user's saved card silently (no payment UI shown)
+      String? savedCardId;
+      if (_selectedPaymentMethod == 'card' && _scheduledFor == null) {
+        savedCardId = await _getDefaultSavedCardId();
+        if (savedCardId == null) {
+          if (mounted) {
+            setState(() => _isConfirming = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No payment card found. Please add one from Profile → Payment Methods.',
+                ),
+              ),
+            );
+          }
           return;
         }
       }
@@ -635,9 +914,18 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
         estimatedDurationMinutes: durationMinutes,
         estimatedFare: estimatedFare,
         platformFee: platformFee,
-        paymentMethod: 'card',
-        savedCardId: null,
+        paymentMethod: _selectedPaymentMethod == 'card' && _scheduledFor != null
+            ? 'cash'
+            : _selectedPaymentMethod,
+        savedCardId: savedCardId,
+        stripePaymentIntentId: null,
         scheduledFor: _scheduledFor,
+        isAirportPickup: _pickupAirport != null,
+        isAirportDropoff: _dropoffAirport != null,
+        terminalInfo: _terminalController.text.trim().isEmpty
+            ? null
+            : _terminalController.text.trim(),
+        airportSurcharge: isAirport ? AppConstants.airportSurchargeJmd : null,
       );
 
       final result = await ref.read(createRideRequestProvider(params).future);
@@ -700,6 +988,16 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       onUseMyLocation: _useCurrentLocation,
     );
 
+    final airportBar = _AirportBar(
+      pickupAirport: _pickupAirport,
+      dropoffAirport: _dropoffAirport,
+      terminalController: _terminalController,
+      onPickupAirport: () => _pickAirport('pickup'),
+      onDropoffAirport: () => _pickAirport('dropoff'),
+      onClearPickup: _clearPickupAirport,
+      onClearDropoff: _clearDropoffAirport,
+    );
+
     // While searching: show only input + full-height suggestions list.
     // Map and bottom card are hidden — they would overflow on small screens
     // and are irrelevant while the user is still typing an address.
@@ -714,6 +1012,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
             child: Column(
               children: [
                 inputCard,
+                airportBar,
                 Expanded(
                   child: _SuggestionsCard(
                     suggestions: _suggestions,
@@ -742,6 +1041,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           child: Column(
             children: [
               inputCard,
+              airportBar,
 
               // ── Error banner ─────────────────────────────────────
               if (_error != null)
@@ -777,6 +1077,10 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
                 isLoadingFare: _isLoadingFare,
                 isConfirming: _isConfirming,
                 scheduledFor: _scheduledFor,
+                isAirport: _pickupAirport != null || _dropoffAirport != null,
+                selectedPaymentMethod: _selectedPaymentMethod,
+                onPaymentMethodChanged: (m) =>
+                    setState(() => _selectedPaymentMethod = m),
                 onCalculate: _calculateFare,
                 onConfirm: _confirmRide,
                 onRecalculate: _calculateFare,
@@ -1298,6 +1602,9 @@ class _BottomCard extends StatelessWidget {
   final bool isLoadingFare;
   final bool isConfirming;
   final DateTime? scheduledFor;
+  final bool isAirport;
+  final String selectedPaymentMethod;
+  final ValueChanged<String> onPaymentMethodChanged;
   final VoidCallback onCalculate;
   final VoidCallback onConfirm;
   final VoidCallback onRecalculate;
@@ -1308,12 +1615,15 @@ class _BottomCard extends StatelessWidget {
     required this.fareData,
     required this.isLoadingFare,
     required this.isConfirming,
+    required this.selectedPaymentMethod,
+    required this.onPaymentMethodChanged,
     required this.onCalculate,
     required this.onConfirm,
     required this.onRecalculate,
     required this.onPickSchedule,
     required this.onClearSchedule,
     this.scheduledFor,
+    this.isAirport = false,
   });
 
   @override
@@ -1338,6 +1648,9 @@ class _BottomCard extends StatelessWidget {
               fareData: fareData!,
               isConfirming: isConfirming,
               scheduledFor: scheduledFor,
+              isAirport: isAirport,
+              selectedPaymentMethod: selectedPaymentMethod,
+              onPaymentMethodChanged: onPaymentMethodChanged,
               onConfirm: onConfirm,
               onRecalculate: onRecalculate,
               onPickSchedule: onPickSchedule,
@@ -1397,10 +1710,13 @@ class _NoFareContent extends StatelessWidget {
   }
 }
 
-class _FareContent extends StatelessWidget {
+class _FareContent extends ConsumerWidget {
   final Map<String, dynamic> fareData;
   final bool isConfirming;
   final DateTime? scheduledFor;
+  final bool isAirport;
+  final String selectedPaymentMethod;
+  final ValueChanged<String> onPaymentMethodChanged;
   final VoidCallback onConfirm;
   final VoidCallback onRecalculate;
   final VoidCallback onPickSchedule;
@@ -1409,23 +1725,28 @@ class _FareContent extends StatelessWidget {
   const _FareContent({
     required this.fareData,
     required this.isConfirming,
+    required this.selectedPaymentMethod,
+    required this.onPaymentMethodChanged,
     required this.onConfirm,
     required this.onRecalculate,
     required this.onPickSchedule,
     required this.onClearSchedule,
     this.scheduledFor,
+    this.isAirport = false,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final walletBalance =
+        ref.watch(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0.0;
     final distanceKm = (fareData['distance_km'] as num?)?.toDouble() ?? 0.0;
     final distanceMiles =
         (fareData['distance_miles'] as num?)?.toDouble() ??
         distanceKm / 1.60934;
     final durationMinutes =
         (fareData['estimated_duration_minutes'] as num?)?.toInt() ?? 0;
-    final estimatedFare =
-        (fareData['estimated_fare'] as num?)?.toDouble() ?? 0.0;
+    final baseFare = (fareData['estimated_fare'] as num?)?.toDouble() ?? 0.0;
+    final estimatedFare = baseFare + (isAirport ? AppConstants.airportSurchargeJmd : 0.0);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1442,10 +1763,37 @@ class _FareContent extends StatelessWidget {
             _StatDivider(),
             _StatItem(
               label: 'Fare',
-              value: 'J\$${estimatedFare.toStringAsFixed(0)}',
+              value: '${AppConstants.currencySymbol}${estimatedFare.toStringAsFixed(2)}',
             ),
           ],
         ),
+        if (isAirport) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _kBlue.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _kBlue.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.flight_rounded, color: _kBlue, size: 15),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Airport surcharge',
+                    style: TextStyle(fontSize: 12, color: _kBlue, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Text(
+                  '+J\$${AppConstants.airportSurchargeJmd.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 13, color: _kBlue, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         const Divider(height: 1),
         const SizedBox(height: 10),
@@ -1512,41 +1860,46 @@ class _FareContent extends StatelessWidget {
         const SizedBox(height: 10),
         const Divider(height: 1),
         const SizedBox(height: 12),
+        // Payment method selector
         Row(
           children: [
-            Icon(Icons.credit_card, size: 20, color: Theme.of(context).colorScheme.onSurface),
-            const SizedBox(width: 8),
-            Text(
-              'Card payment',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: _PayMethodChip(
+                icon: Icons.credit_card,
+                label: 'Card',
+                selected: selectedPaymentMethod == 'card',
+                onTap: () => onPaymentMethodChanged('card'),
               ),
             ),
             const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _kBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'Stripe',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: _kBlue,
-                ),
+            Expanded(
+              flex: 2,
+              child: _PayMethodChip(
+                icon: Icons.account_balance_wallet_rounded,
+                label: walletBalance > 0
+                    ? 'Wallet (${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)})'
+                    : 'Wallet',
+                selected: selectedPaymentMethod == 'wallet',
+                enabled: walletBalance > 0,
+                onTap: () => onPaymentMethodChanged('wallet'),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _PayMethodChip(
+                icon: Icons.payments_outlined,
+                label: 'Cash',
+                selected: selectedPaymentMethod == 'cash',
+                onTap: () => onPaymentMethodChanged('cash'),
+              ),
+            ),
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: onRecalculate,
               child: const Text(
                 'Recalculate',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   color: _kBlue,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1579,7 +1932,11 @@ class _FareContent extends StatelessWidget {
                     ),
                   )
                 : Text(
-                    scheduledFor != null ? 'Schedule Ride' : 'Confirm Ride',
+                    scheduledFor != null
+                        ? 'Schedule Ride'
+                        : isAirport
+                            ? 'Confirm Airport Ride'
+                            : 'Confirm Ride',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -1622,5 +1979,211 @@ class _StatDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(width: 1, height: 32, color: Theme.of(context).colorScheme.outlineVariant);
+  }
+}
+
+class _PayMethodChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PayMethodChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? _kBlue : Theme.of(context).colorScheme.onSurfaceVariant;
+    final bg = selected
+        ? _kBlue.withValues(alpha: 0.1)
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.4,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? _kBlue : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Airport quick-select bar + terminal field
+// ---------------------------------------------------------------------------
+
+class _AirportBar extends StatelessWidget {
+  final _Airport? pickupAirport;
+  final _Airport? dropoffAirport;
+  final TextEditingController terminalController;
+  final VoidCallback onPickupAirport;
+  final VoidCallback onDropoffAirport;
+  final VoidCallback onClearPickup;
+  final VoidCallback onClearDropoff;
+
+  const _AirportBar({
+    required this.pickupAirport,
+    required this.dropoffAirport,
+    required this.terminalController,
+    required this.onPickupAirport,
+    required this.onDropoffAirport,
+    required this.onClearPickup,
+    required this.onClearDropoff,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAirport = pickupAirport != null || dropoffAirport != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Quick-select chips
+          Row(
+            children: [
+              _AirportChip(
+                label: pickupAirport != null
+                    ? '✈ ${pickupAirport!.code} Pickup'
+                    : '✈ Airport Pickup',
+                active: pickupAirport != null,
+                onTap: onPickupAirport,
+                onClear: pickupAirport != null ? onClearPickup : null,
+              ),
+              const SizedBox(width: 8),
+              _AirportChip(
+                label: dropoffAirport != null
+                    ? '✈ ${dropoffAirport!.code} Dropoff'
+                    : '✈ Airport Dropoff',
+                active: dropoffAirport != null,
+                onTap: onDropoffAirport,
+                onClear: dropoffAirport != null ? onClearDropoff : null,
+              ),
+            ],
+          ),
+          // Terminal / flight number field — shown only when an airport is selected
+          if (hasAirport) ...[
+            const SizedBox(height: 8),
+            Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: _kBlue.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _kBlue.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.confirmation_number_outlined, color: _kBlue, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: terminalController,
+                      style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
+                      decoration: const InputDecoration(
+                        hintText: 'Terminal / Flight number (optional)',
+                        hintStyle: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AirportChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _AirportChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? _kBlue.withValues(alpha: 0.12)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? _kBlue.withValues(alpha: 0.5) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? _kBlue : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (onClear != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onClear,
+                child: Icon(Icons.close, size: 14, color: active ? _kBlue : Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

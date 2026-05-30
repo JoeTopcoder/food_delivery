@@ -172,6 +172,41 @@ final deliveryFeeProvider = FutureProvider.autoDispose
       return result;
     });
 
+// ── Multi-restaurant feature flags (read from app_config) ───
+final multiRestaurantEnabledProvider = FutureProvider<bool>((ref) async {
+  ref.watch(configVersionProvider);
+  final client = SupabaseConfig.client;
+  final row = await client
+      .from('app_config')
+      .select('value')
+      .eq('key', 'enable_multi_restaurant_orders')
+      .maybeSingle();
+  final val = row?['value'] as String?;
+  return val == 'true' || val == '1';
+});
+
+final maxRestaurantsPerOrderProvider = FutureProvider<int>((ref) async {
+  ref.watch(configVersionProvider);
+  final client = SupabaseConfig.client;
+  final row = await client
+      .from('app_config')
+      .select('value')
+      .eq('key', 'max_restaurants_per_order')
+      .maybeSingle();
+  return int.tryParse(row?['value'] as String? ?? '') ?? 2;
+});
+
+final extraStopFeeProvider = FutureProvider<double>((ref) async {
+  ref.watch(configVersionProvider);
+  final client = SupabaseConfig.client;
+  final row = await client
+      .from('app_config')
+      .select('value')
+      .eq('key', 'extra_stop_fee')
+      .maybeSingle();
+  return double.tryParse(row?['value'] as String? ?? '') ?? 2.0;
+});
+
 // ── Data Providers ──────────────────────────────────────────
 
 // Refunds
@@ -338,4 +373,48 @@ final surgeMultiplierProvider = FutureProvider.autoDispose.family<double, String
   return ref
       .watch(surgeServiceProvider)
       .getSurgeMultiplier(latitude: lat, longitude: lng);
+});
+
+// ── Maintenance mode ─────────────────────────────────────────────────────────
+
+/// Returns true when the admin has enabled maintenance mode in app_config.
+/// Re-evaluates in real time whenever any app_config row changes (via
+/// [configVersionProvider] which is bumped by [appConfigRealtimeProvider]).
+final maintenanceModeProvider = Provider<bool>((ref) {
+  ref.watch(configVersionProvider); // re-read when admin changes any config
+  return AppConstants.maintenanceMode;
+});
+
+// ── Airports ────────────────────────────────────────────────────────────────
+
+/// Active airports from the DB — used for airport pickup/dropoff in ride booking.
+/// Falls back to an empty list on error; the screen uses hardcoded constants as fallback.
+final airportsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  ref.keepAlive();
+  final rows = await SupabaseConfig.client
+      .from('airports')
+      .select('code, name, city, address, latitude, longitude, surcharge, terminals')
+      .eq('is_active', true)
+      .order('sort_order');
+  return (rows as List).cast<Map<String, dynamic>>();
+});
+
+// ── Feature flags ────────────────────────────────────────────────────────────
+
+/// Feature flags from the DB as `Map<String, bool>` keyed by flag name.
+/// Empty map means all features are considered enabled (fail-open).
+/// Admin can toggle any feature without an app release.
+final featureFlagsProvider = FutureProvider.autoDispose<Map<String, bool>>((ref) async {
+  ref.keepAlive();
+  try {
+    final rows = await SupabaseConfig.client
+        .from('feature_flags')
+        .select('name, enabled');
+    return {
+      for (final r in rows as List)
+        r['name'] as String: r['enabled'] as bool? ?? true,
+    };
+  } catch (_) {
+    return {}; // fail-open: treat all features as enabled
+  }
 });

@@ -85,6 +85,62 @@ final deliveryHistoryProvider = FutureProvider.family
       return driverService.getDeliveryHistory(driverId);
     });
 
+/// Active multi-restaurant delivery tasks for a driver.
+/// Returns tasks with status 'assigned' or 'in_progress', with all stops.
+final activeDeliveryTasksProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, driverId) async {
+      final rows = await SupabaseConfig.client
+          .from('delivery_tasks')
+          .select('''
+            id, order_group_id, delivery_status, driver_earning,
+            total_distance_km, estimated_duration_minutes,
+            delivery_stops(
+              id, stop_type, sequence_number, status, address,
+              latitude, longitude, restaurant_id, order_id,
+              arrived_at, completed_at
+            ),
+            order_groups(customer_id, delivery_address)
+          ''')
+          .eq('driver_id', driverId)
+          .inFilter('delivery_status', ['assigned', 'in_progress'])
+          .order('created_at');
+      return (rows as List).cast<Map<String, dynamic>>();
+    });
+
+/// Realtime listener for delivery_tasks — invalidates activeDeliveryTasksProvider
+/// whenever the driver's task is inserted or updated (e.g. newly assigned).
+final deliveryTaskRealtimeProvider =
+    Provider.autoDispose.family<void, String>((ref, driverId) {
+  final channel = SupabaseConfig.client
+      .channel('driver_tasks_$driverId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'delivery_tasks',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'driver_id',
+          value: driverId,
+        ),
+        callback: (payload) {
+          AppLogger.info('Realtime: delivery task change for driver $driverId');
+          ref.invalidate(activeDeliveryTasksProvider(driverId));
+          // Only show a local notification on INSERT (new assignment)
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            NotificationService().showNotification(
+              title: 'New Multi-Stop Delivery! 🛵',
+              body: 'You have been assigned a multi-restaurant delivery.',
+              data: {'type': 'new_multi_delivery'},
+            );
+            NotificationService.onNewOrderReceived?.call();
+          }
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() => SupabaseConfig.client.removeChannel(channel));
+});
+
 /// Realtime listener that auto-refreshes driver earnings data.
 /// Watches:
 /// - `drivers` table for profile changes (cash_float, total_paid_out, rating)

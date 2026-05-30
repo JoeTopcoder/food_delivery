@@ -57,9 +57,25 @@ final realtimeServiceProvider = Provider<RealtimeService>((ref) {
 class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   NotificationNotifier() : super([]);
 
-  /// Add notification — skips duplicates by id
+  /// Add notification — skips duplicates by id, and deduplicates same-type
+  /// same-order notifications that arrive within 30 s of each other (caused
+  /// by per-row DB triggers firing during a bulk multi-restaurant cancel).
   void addNotification(AppNotification notification) {
     if (state.any((n) => n.id == notification.id)) return;
+
+    final orderId = notification.data['order_id'] as String? ??
+        notification.data['master_order_id'] as String? ?? '';
+    if (orderId.isNotEmpty) {
+      final cutoff = DateTime.now().subtract(const Duration(seconds: 30));
+      final duplicate = state.any((n) {
+        if (n.type != notification.type) return false;
+        final nOrder = n.data['order_id'] as String? ??
+            n.data['master_order_id'] as String? ?? '';
+        return nOrder == orderId && n.timestamp.isAfter(cutoff);
+      });
+      if (duplicate) return;
+    }
+
     state = [notification, ...state];
   }
 

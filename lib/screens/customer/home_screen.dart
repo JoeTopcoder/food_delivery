@@ -23,6 +23,7 @@ import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
 import 'meals_by_category_screen.dart';
 import 'grocery_screen.dart';
+import '../../core/utils/responsive.dart';
 
 /// Emits the current peak-hour status every 30 seconds so the UI updates
 /// in real time when a peak window starts or ends.
@@ -515,6 +516,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           SliverAppBar(
             floating: true,
             elevation: 0,
+            automaticallyImplyLeading: false,
             title: Row(
               children: [
                 Container(
@@ -531,12 +533,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  'MealHub',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
+                Flexible(
+                  child: Text(
+                    'MealHub',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Consumer(
@@ -644,7 +649,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             child: GestureDetector(
               onTap: () => Navigator.pushNamed(context, '/address-book'),
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 7,
@@ -702,7 +707,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           // Search bar + Taxi button
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
               child: search_bar.CustomSearchBar(
                 hintText: 'Search for restaurant or food',
                 onChanged: (q) {
@@ -737,8 +742,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             // Browse by Category (right below banners)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
                   vertical: 4,
                 ),
                 child: Text(
@@ -764,11 +769,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           : _fallbackCategories;
                       return ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                         addAutomaticKeepAlives: false,
                         addRepaintBoundaries: false,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
                           vertical: 4,
                         ),
                         itemCount: categories.length,
@@ -805,10 +810,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                                     width: 46,
                                     height: 46,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey.shade50,
+                                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.grey.shade200,
+                                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                                         width: 1,
                                       ),
                                     ),
@@ -848,12 +853,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             // Quick Services row
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                    child: Text(
                       'More Services',
                       style: TextStyle(
                         fontSize: 15,
@@ -861,36 +866,47 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: _ServiceCard(
-                            icon: Icons.directions_car,
-                            label: 'Book a Ride',
-                            color: const Color(0xFF1E40AF),
-                            onTap: () =>
-                                Navigator.pushNamed(context, '/ride-home'),
+                        _ServiceCard(
+                          icon: Icons.directions_car,
+                          label: 'Book a Ride',
+                          color: const Color(0xFF1E40AF),
+                          onTap: () => Navigator.pushNamed(context, '/ride-home'),
+                        ),
+                        const SizedBox(width: 12),
+                        _ServiceCard(
+                          icon: Icons.local_grocery_store,
+                          label: 'Grocery',
+                          color: const Color(0xFF059669),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const GroceryScreen()),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(
-                          child: _ServiceCard(
-                            icon: Icons.local_grocery_store,
-                            label: 'Grocery',
-                            color: const Color(0xFF059669),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const GroceryScreen(),
-                              ),
-                            ),
-                          ),
+                        _ServiceCard(
+                          icon: Icons.local_car_wash,
+                          label: 'Car Services',
+                          color: const Color(0xFF7C3AED),
+                          onTap: () => Navigator.pushNamed(context, '/car-services'),
+                        ),
+                        const SizedBox(width: 12),
+                        _ServiceCard(
+                          icon: Icons.local_laundry_service_rounded,
+                          label: 'Laundry',
+                          color: const Color(0xFF0F4C81),
+                          onTap: () => Navigator.pushNamed(context, '/laundry'),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
@@ -940,14 +956,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
                   vertical: 8,
                 ),
                 child: Text(
                   'All Restaurants',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: Responsive.headingMedium(context),
                     fontWeight: FontWeight.w700,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
@@ -959,7 +975,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               data: (restaurants) {
                 final display = restaurants.take(15).toList();
                 return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final r = display[index];
@@ -985,8 +1001,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
                   vertical: 12,
                 ),
                 child: SizedBox(
@@ -1026,10 +1042,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-          child: const Text(
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
+          child: Text(
             'Search Results',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.w700),
           ),
         ),
       ),
@@ -1041,7 +1057,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             );
           }
           return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final r = restaurants[index];
@@ -1135,14 +1151,16 @@ class _HorizontalRestaurantRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: Responsive.headingMedium(context),
                     fontWeight: FontWeight.w700,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
@@ -1176,9 +1194,9 @@ class _HorizontalRestaurantRow extends StatelessWidget {
           height: 230,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             addAutomaticKeepAlives: false,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
             itemCount: restaurants.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
@@ -1223,7 +1241,7 @@ class _RestaurantSectionViewAllScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 32),
         itemCount: restaurants.length,
         itemBuilder: (context, i) {
           final r = restaurants[i];
@@ -1265,9 +1283,9 @@ class _CompactRestaurantCard extends StatelessWidget {
       child: Container(
         width: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2), width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -1297,7 +1315,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                   : _placeholder(),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(Responsive.cardPadding(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1307,7 +1325,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: Responsive.bodyText(context),
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
@@ -1492,7 +1510,7 @@ class _DynamicBannerCarouselState
                     decoration: BoxDecoration(
                       color: _currentPage == i
                           ? AppTheme.primaryColor
-                          : Colors.grey.shade300,
+                          : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -1527,7 +1545,7 @@ class _DynamicBannerCarouselState
         }
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
+        margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
@@ -1852,8 +1870,8 @@ class _AdPopupDialog extends StatelessWidget {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.onSurface,
+                          foregroundColor: Theme.of(context).colorScheme.surface,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -1947,13 +1965,15 @@ class _ServiceCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        width: 150,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 34,
@@ -1965,17 +1985,18 @@ class _ServiceCard extends StatelessWidget {
               child: Icon(icon, color: Colors.white, size: 18),
             ),
             const SizedBox(width: 10),
-            Expanded(
+            Flexible(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                  fontSize: 13,
                   color: color,
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 11, color: color),
           ],
         ),
       ),

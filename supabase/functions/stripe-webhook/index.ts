@@ -85,13 +85,17 @@ async function verifySignature(
 }
 
 // ── payment_intent.succeeded ──────────────────────────────────────────────────
-// This is the ONLY path that activates a card order. It:
+// Handles both food order and ride payment confirmations.
+//
+// For orders (metadata.type = "order"):
 //   1. Upserts the payment record (idempotent via transaction_id)
 //   2. Sets payment_status = 'completed' on the order
-//   3. Sets status = 'pending' (activates the order — makes it visible to restaurant/driver)
-//   4. Sets finalized_at and stores payment_intent_id
-//   5. DB triggers then fire restaurant / admin / driver FCM notifications
-//   6. Sends receipt email
+//   3. Activates the order for restaurant/driver
+//   4. Sends receipt email
+//
+// For rides (metadata.type = "ride"):
+//   Stripe fires payment_intent.succeeded on capture (not on the initial
+//   manual-capture authorization). We mark the ride payment_status = "paid".
 async function onSucceeded(
   db: ReturnType<typeof createClient>,
   pi: Record<string, unknown>
@@ -104,6 +108,23 @@ async function onSucceeded(
   const amountReceived = ((pi.amount_received as number) ?? (pi.amount as number) ?? 0) / 100;
   const currency = ((pi.currency as string) ?? "usd").toUpperCase();
   const now = new Date().toISOString();
+
+  // ── Ride payment captured ─────────────────────────────────────────────────
+  if (txnType === "ride") {
+    const { data: rideRow } = await db
+      .from("ride_requests")
+      .select("id, payment_status")
+      .eq("stripe_payment_intent_id", piId)
+      .maybeSingle();
+
+    if (rideRow && rideRow.payment_status !== "paid") {
+      await db
+        .from("ride_requests")
+        .update({ payment_status: "paid", updated_at: now })
+        .eq("id", rideRow.id);
+    }
+    return;
+  }
 
   // Idempotency guard: if this PI already completed, do nothing.
   const { data: existing } = await db
@@ -194,6 +215,7 @@ async function onSucceeded(
 
 // ── payment_intent.payment_failed ─────────────────────────────────────────────
 // Order stays in 'draft' status — NOT visible to restaurant or driver.
+// For rides: marks the ride payment as failed.
 async function onFailed(
   db: ReturnType<typeof createClient>,
   pi: Record<string, unknown>
@@ -205,6 +227,22 @@ async function onFailed(
   const lastError = pi.last_payment_error as Record<string, unknown> | null;
   const errorMsg = (lastError?.message as string) ?? "Payment failed";
   const now = new Date().toISOString();
+
+  if (txnType === "ride") {
+    const { data: rideRow } = await db
+      .from("ride_requests")
+      .select("id, payment_status")
+      .eq("stripe_payment_intent_id", piId)
+      .maybeSingle();
+
+    if (rideRow) {
+      await db
+        .from("ride_requests")
+        .update({ payment_status: "failed", updated_at: now })
+        .eq("id", rideRow.id);
+    }
+    return;
+  }
 
   if (txnType === "order" && orderId) {
     await db
@@ -228,6 +266,7 @@ async function onFailed(
 
 // ── payment_intent.canceled ───────────────────────────────────────────────────
 // Order stays in 'draft' — NOT visible to restaurant or driver.
+// For rides: marks the authorization as cancelled (no charge — pre-driver cancel).
 async function onCanceled(
   db: ReturnType<typeof createClient>,
   pi: Record<string, unknown>
@@ -237,6 +276,22 @@ async function onCanceled(
   const orderId = meta["order_id"] ?? "";
   const txnType = meta["type"] ?? "order";
   const now = new Date().toISOString();
+
+  if (txnType === "ride") {
+    const { data: rideRow } = await db
+      .from("ride_requests")
+      .select("id, payment_status")
+      .eq("stripe_payment_intent_id", piId)
+      .maybeSingle();
+
+    if (rideRow && rideRow.payment_status !== "paid") {
+      await db
+        .from("ride_requests")
+        .update({ payment_status: "cancelled", updated_at: now })
+        .eq("id", rideRow.id);
+    }
+    return;
+  }
 
   if (txnType === "order" && orderId) {
     await db

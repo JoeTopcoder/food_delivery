@@ -1,4 +1,4 @@
-// driver_wallet_screen.dart — Full Stripe Connect wallet screen
+﻿// driver_wallet_screen.dart — Full Stripe Connect wallet screen
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -17,6 +17,7 @@ import '../../utils/safe_state_mixin.dart';
 import '../../config/app_constants.dart';
 import 'driver_kyc_screen.dart';
 import 'driver_payout_methods_screen.dart';
+import '../../core/utils/responsive.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -264,7 +265,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
           ref.invalidate(payoutHistoryProvider(driver.id));
         },
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           slivers: [
             SliverAppBar(
               floating: true,
@@ -276,7 +277,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Balance card
@@ -389,11 +390,11 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
                   const SizedBox(height: 24),
 
                   // Payout history
-                  const Text(
+                  Text(
                     'Transaction History',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: Responsive.headingSmall(context),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -558,7 +559,7 @@ class _StripeAccountCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(Responsive.cardPadding(context)),
       decoration: BoxDecoration(
         color: _cardBg,
         borderRadius: BorderRadius.circular(16),
@@ -574,12 +575,12 @@ class _StripeAccountCard extends StatelessWidget {
                 size: 20,
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Payout Account',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: Responsive.bodyText(context),
                 ),
               ),
               const Spacer(),
@@ -844,11 +845,11 @@ class _PayoutMethodsSummary extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
+      Text(
         'Payout Methods',
         style: TextStyle(
           color: Colors.white,
-          fontSize: 15,
+          fontSize: Responsive.headingSmall(context),
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -877,9 +878,11 @@ class _PayoutMethodsSummary extends StatelessWidget {
                       m.isCard
                           ? '${m.brand ?? 'Card'} •••• ${m.last4}'
                           : '${m.bankName ?? 'Bank'} •••• ${m.last4}',
-                      style: const TextStyle(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: Responsive.bodyText(context),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1028,10 +1031,12 @@ class _PayoutTile extends StatelessWidget {
               children: [
                 Text(
                   '${payout.payoutType == 'instant' ? 'Instant' : 'Standard'} Payout',
-                  style: const TextStyle(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: Responsive.bodyText(context),
                   ),
                 ),
                 Text(
@@ -1051,10 +1056,12 @@ class _PayoutTile extends StatelessWidget {
           ),
           Text(
             fmt.format(payout.amount),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: c,
               fontWeight: FontWeight.bold,
-              fontSize: 15,
+              fontSize: Responsive.headingSmall(context),
             ),
           ),
         ],

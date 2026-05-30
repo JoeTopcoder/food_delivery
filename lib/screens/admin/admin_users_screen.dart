@@ -304,8 +304,15 @@ class _UserCard extends StatelessWidget {
       case 'customer':
       case 'user':
         return 'Customer';
+      case 'service_provider':
+        return 'Service Provider';
+      case 'admin':
+        return 'Admin';
       default:
-        return user.role[0].toUpperCase() + user.role.substring(1);
+        return user.role
+            .split('_')
+            .map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : w)
+            .join(' ');
     }
   }
 

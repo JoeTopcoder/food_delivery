@@ -18,8 +18,46 @@ class AppSnackbar {
     String? actionLabel,
     VoidCallback? onAction,
   }) {
-    final config = _SnackConfig.of(type);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    _showSnackBar(
+      ScaffoldMessenger.of(context),
+      message: message,
+      type: type,
+      duration: duration,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      isDark: isDark,
+    );
+  }
+
+  static void showViaMessenger(
+    ScaffoldMessengerState messenger, {
+    required String message,
+    AppSnackbarType type = AppSnackbarType.info,
+    Duration duration = const Duration(seconds: 3),
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    _showSnackBar(
+      messenger,
+      message: message,
+      type: type,
+      duration: duration,
+      actionLabel: actionLabel,
+      onAction: onAction,
+    );
+  }
+
+  static void _showSnackBar(
+    ScaffoldMessengerState messenger, {
+    required String message,
+    AppSnackbarType type = AppSnackbarType.info,
+    Duration duration = const Duration(seconds: 3),
+    String? actionLabel,
+    VoidCallback? onAction,
+    bool isDark = false,
+  }) {
+    final config = _SnackConfig.of(type);
     final snackBg = isDark ? const Color(0xFF1F2937) : Colors.white;
     final msgColor = isDark
         ? Colors.white.withValues(alpha: 0.85)
@@ -27,7 +65,7 @@ class AppSnackbar {
     final dismissBg = isDark ? const Color(0xFF374151) : Colors.grey.shade200;
     final dismissIcon = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
-    ScaffoldMessenger.of(context)
+    messenger
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
@@ -35,7 +73,6 @@ class AppSnackbar {
             padding: const EdgeInsets.all(4),
             child: Row(
               children: [
-                // Accent bar + icon
                 Container(
                   width: 44,
                   height: 44,
@@ -46,7 +83,6 @@ class AppSnackbar {
                   child: Icon(config.icon, color: config.color, size: 22),
                 ),
                 const SizedBox(width: 14),
-                // Title + message
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -76,10 +112,8 @@ class AppSnackbar {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Dismiss button
                 GestureDetector(
-                  onTap: () =>
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+                  onTap: () => messenger.hideCurrentSnackBar(),
                   child: Container(
                     width: 28,
                     height: 28,
@@ -122,7 +156,7 @@ class AppSnackbar {
       );
   }
 
-  /// Shorthand helpers
+  /// Context-based shorthand helpers
   static void success(BuildContext context, String message) =>
       show(context, message: message, type: AppSnackbarType.success);
 
@@ -142,6 +176,16 @@ class AppSnackbar {
 
   static void info(BuildContext context, String message) =>
       show(context, message: message, type: AppSnackbarType.info);
+
+  /// Messenger-based shorthand helpers (use when context may be stale after await)
+  static void successMessenger(ScaffoldMessengerState messenger, String message) =>
+      showViaMessenger(messenger, message: message, type: AppSnackbarType.success);
+
+  static void errorMessenger(ScaffoldMessengerState messenger, String message) =>
+      showViaMessenger(messenger, message: message, type: AppSnackbarType.error, duration: const Duration(seconds: 5));
+
+  static void warningMessenger(ScaffoldMessengerState messenger, String message) =>
+      showViaMessenger(messenger, message: message, type: AppSnackbarType.warning, duration: const Duration(seconds: 4));
 }
 
 class _SnackConfig {

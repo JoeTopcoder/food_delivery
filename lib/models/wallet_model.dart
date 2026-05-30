@@ -2,30 +2,41 @@ class Wallet {
   final String userId;
   final double balance;
   final double cashbackBalance;
+  final double reservedBalance;
+  final double debtBalance;
   final DateTime updatedAt;
 
   Wallet({
     required this.userId,
     this.balance = 0,
     this.cashbackBalance = 0,
+    this.reservedBalance = 0,
+    this.debtBalance = 0,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
   double get totalAvailable => balance + cashbackBalance;
 
+  /// Spendable balance — deducts both active holds and any outstanding admin debt
+  double get availableBalance =>
+      (balance - reservedBalance - debtBalance).clamp(0.0, double.infinity);
+
+  bool get hasDebt => debtBalance > 0;
+
   factory Wallet.fromJson(Map<String, dynamic> json) {
     return Wallet(
-      userId: json['user_id'] as String,
-      balance: (json['balance'] as num?)?.toDouble() ?? 0,
+      userId:          json['user_id'] as String,
+      balance:         (json['balance']          as num?)?.toDouble() ?? 0,
       cashbackBalance: (json['cashback_balance'] as num?)?.toDouble() ?? 0,
+      reservedBalance: (json['reserved_balance'] as num?)?.toDouble() ?? 0,
+      debtBalance:     (json['debt_balance']     as num?)?.toDouble() ?? 0,
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : DateTime.now(),
     );
   }
 
-  factory Wallet.empty(String userId) =>
-      Wallet(userId: userId, balance: 0, cashbackBalance: 0);
+  factory Wallet.empty(String userId) => Wallet(userId: userId);
 }
 
 class WalletTransaction {

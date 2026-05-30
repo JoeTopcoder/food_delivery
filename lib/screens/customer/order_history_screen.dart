@@ -4,6 +4,7 @@ import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/order_model.dart';
+import '../../models/master_order_model.dart';
 import '../../models/menu_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -18,6 +19,7 @@ import '../../widgets/order_countdown_timer.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../utils/context_extensions.dart';
 import '../../widgets/ai_fab.dart';
 
@@ -30,19 +32,27 @@ class OrderHistoryScreen extends ConsumerWidget {
     if (userId == null) {
       return const Scaffold(body: Center(child: Text('Not signed in')));
     }
-    final ordersAsync = ref.watch(userOrdersProvider(userId));
 
-    // Activate real-time subscription for instant cancel/status updates
+    // Single-restaurant orders (existing table)
+    final ordersAsync = ref.watch(userOrdersProvider(userId));
+    // Multi-restaurant master orders (new table)
+    final masterOrdersAsync = ref.watch(customerMasterOrdersProvider(userId));
+
+    // Real-time subscriptions
     ref.watch(customerOrderRealtimeProvider(userId));
+    ref.watch(masterOrderRealtimeProvider(userId));
+
+    // Merge both async states — master orders failure is non-fatal
+    final isLoading = ordersAsync.isLoading || masterOrdersAsync.isLoading;
+    final hasError  = ordersAsync.hasError;
+
+    final activeOrderId = ordersAsync.valueOrNull
+        ?.where((o) => o.status != 'delivered' && o.status != 'cancelled')
+        .firstOrNull
+        ?.id;
 
     return Scaffold(
-      floatingActionButton: AiFab(
-        role: 'customer',
-        orderId: ordersAsync.valueOrNull
-            ?.where((o) => o.status != 'delivered' && o.status != 'cancelled')
-            .firstOrNull
-            ?.id,
-      ),
+      floatingActionButton: AiFab(role: 'customer', orderId: activeOrderId),
       appBar: AppBar(
         title: Text(
           context.l10n.orderHistory,
@@ -50,29 +60,278 @@ class OrderHistoryScreen extends ConsumerWidget {
         ),
         elevation: 0,
       ),
-      body: ordersAsync.when(
-        loading: () => const AppLoadingIndicator(),
-        error: (e, _) => AppErrorState(
-          message: friendlyError(e),
-          onRetry: () => ref.invalidate(userOrdersProvider(userId)),
-        ),
-        data: (orders) {
-          if (orders.isEmpty) {
-            return const AppEmptyState(
-              icon: Icons.receipt_long_rounded,
-              title: 'No orders yet',
-              subtitle: 'Your completed orders will appear here',
-            );
-          }
-          return ListView.builder(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
+      body: isLoading
+          ? const AppLoadingIndicator()
+          : hasError
+              ? AppErrorState(
+                  message: friendlyError(
+                    ordersAsync.error ?? masterOrdersAsync.error ?? 'Unknown error',
+                  ),
+                  onRetry: () {
+                    ref.invalidate(userOrdersProvider(userId));
+                    ref.invalidate(customerMasterOrdersProvider(userId));
+                  },
+                )
+              : _buildMergedList(
+                  context,
+                  singleOrders:  ordersAsync.valueOrNull ?? [],
+                  masterOrders:  masterOrdersAsync.valueOrNull ?? [],
+                  userId:        userId,
+                  ref:           ref,
+                ),
+    );
+  }
+
+  Widget _buildMergedList(
+    BuildContext context, {
+    required List<Order> singleOrders,
+    required List<MasterOrder> masterOrders,
+    required String userId,
+    required WidgetRef ref,
+  }) {
+    // Unified timeline entry
+    final entries = <_HistoryEntry>[];
+
+    // Collect master order IDs so we can skip their sub-orders below
+    final masterOrderIds = masterOrders.map((m) => m.id).toSet();
+
+    for (final o in singleOrders) {
+      // Skip sub-orders that belong to a master order — they'll appear under the master card
+      if (o.isMultiRestaurant &&
+          (o.orderGroupId != null && masterOrderIds.contains(o.orderGroupId))) {
+        continue;
+      }
+      entries.add(_HistoryEntry(orderedAt: o.orderedAt, single: o));
+    }
+    for (final m in masterOrders) {
+      entries.add(_HistoryEntry(orderedAt: m.createdAt, master: m));
+    }
+
+    entries.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
+
+    if (entries.isEmpty) {
+      return const AppEmptyState(
+        icon: Icons.receipt_long_rounded,
+        title: 'No orders yet',
+        subtitle: 'Your completed orders will appear here',
+      );
+    }
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      padding: EdgeInsets.fromLTRB(
+        Responsive.horizontalPadding(context), 16,
+        Responsive.horizontalPadding(context), 24,
+      ),
+      itemCount: entries.length,
+      itemBuilder: (_, i) {
+        final e = entries[i];
+        if (e.master != null) {
+          return _MasterOrderCard(masterOrder: e.master!, userId: userId);
+        }
+        return _OrderCard(order: e.single!);
+      },
+    );
+  }
+}
+
+// ─── Unified timeline entry ───────────────────────────────────────────────────
+
+class _HistoryEntry {
+  final DateTime orderedAt;
+  final Order? single;
+  final MasterOrder? master;
+  const _HistoryEntry({required this.orderedAt, this.single, this.master});
+}
+
+// ─── Master Order Card (multi-restaurant) ─────────────────────────────────────
+
+class _MasterOrderCard extends StatelessWidget {
+  final MasterOrder masterOrder;
+  final String userId;
+  const _MasterOrderCard({required this.masterOrder, required this.userId});
+
+  static String _masterStatusLabel(String status) {
+    switch (status) {
+      case 'partially_cancelled': return 'PART CANCELLED';
+      case 'out_for_delivery':    return 'DELIVERING';
+      case 'ready_for_pickup':    return 'READY';
+      default: return status.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  Color get _statusColor {
+    switch (masterOrder.status) {
+      case 'delivered':            return const Color(0xFF10B981);
+      case 'cancelled':
+      case 'partially_cancelled':  return Colors.red;
+      case 'out_for_delivery':     return const Color(0xFF6366F1);
+      case 'ready_for_pickup':     return const Color(0xFF8B5CF6);
+      case 'preparing':            return const Color(0xFFF59E0B);
+      case 'accepted':             return const Color(0xFF3B82F6);
+      default:                     return AppTheme.primaryColor;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt      = DateFormat('MMM d, y · h:mm a');
+    final currency = AppConstants.currencySymbol;
+    final color    = _statusColor;
+    final isActive = masterOrder.isActive;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color:        Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            child: Row(
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color:        color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _masterStatusLabel(masterOrder.status),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Multi badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color:        Colors.deepOrange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.store_mall_directory_rounded, size: 11, color: Colors.deepOrange),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${masterOrder.restaurantCount} restaurants',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.deepOrange),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '#${masterOrder.masterOrderNumber ?? masterOrder.id.substring(0, 8).toUpperCase()}',
+                  style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            itemCount: orders.length,
-            itemBuilder: (_, i) => _OrderCard(order: orders[i]),
-          );
-        },
+          ),
+
+          // ── Amount + date ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$currency${masterOrder.totalAmount.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: Responsive.headingLarge(context),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    fmt.format(masterOrder.createdAt),
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Per-restaurant summary chips ─────────────────────────────────
+          if (masterOrder.restaurantOrders != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Wrap(
+                spacing: 6, runSpacing: 4,
+                children: masterOrder.restaurantOrders!.map((ro) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color:        Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      ro.restaurantName ?? 'Restaurant ${ro.sequenceInGroup}',
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+          // ── Actions ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              spacing: 8, runSpacing: 8,
+              children: [
+                if (isActive)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context, '/multi-order-detail',
+                      arguments: masterOrder.id,
+                    ),
+                    icon: const Icon(Icons.info_outline_rounded, size: 15),
+                    label: const Text('View Details'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6366F1),
+                      side: const BorderSide(color: Color(0xFF6366F1)),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                if (!isActive)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context, '/multi-order-detail',
+                      arguments: masterOrder.id,
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 15),
+                    label: const Text('View Receipt'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF004E89),
+                      side: const BorderSide(color: Color(0xFF004E89)),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -106,7 +365,7 @@ class _OrderCard extends ConsumerWidget {
     final isDelivered = order.status == 'delivered';
     final isCancelled = order.status == 'cancelled';
     final isActive = !isDelivered && !isCancelled;
-    final isPending = order.status == 'pending' || order.status == 'confirmed';
+    final isPending = const {'draft', 'pending', 'confirmed', 'accepted', 'preparing'}.contains(order.status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -181,7 +440,7 @@ class _OrderCard extends ConsumerWidget {
                 Text(
                   '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: Responsive.headingLarge(context),
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
@@ -220,6 +479,7 @@ class _OrderCard extends ConsumerWidget {
                       ),
                       child: Text(
                         '${item.itemName} ×${item.quantity}',
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurface,
@@ -338,11 +598,22 @@ class _OrderCard extends ConsumerWidget {
               children: [
                 if (isActive)
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.pushNamed(
-                      context,
-                      '/order-tracking',
-                      arguments: order.id,
-                    ),
+                    onPressed: () {
+                      if (order.isMultiRestaurant && order.orderGroupId != null) {
+                        // Legacy group orders: navigate to tracking which merges items
+                        Navigator.pushNamed(
+                          context,
+                          '/order-tracking',
+                          arguments: order.id,
+                        );
+                      } else {
+                        Navigator.pushNamed(
+                          context,
+                          '/order-tracking',
+                          arguments: order.id,
+                        );
+                      }
+                    },
                     icon: const Icon(Icons.location_on_rounded, size: 15),
                     label: const Text('Track'),
                     style: OutlinedButton.styleFrom(
@@ -776,7 +1047,7 @@ class _OrderCard extends ConsumerWidget {
               child: Text(
                 'MealHub',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: Responsive.headingLarge(context),
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
                 ),
@@ -801,6 +1072,7 @@ class _OrderCard extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         '${item.quantity}x ${item.itemName}',
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -916,9 +1188,10 @@ class _OrderCard extends ConsumerWidget {
   }
 
   void _confirmCancel(BuildContext context, WidgetRef ref, Order order) {
-    String selectedRefundMethod = 'original';
-    final isCardPayment = order.paymentMethod == 'card';
-    final isCashPayment = order.paymentMethod == 'cash';
+    final isCardPayment   = order.paymentMethod == 'card';
+    final isCashPayment   = order.paymentMethod == 'cash';
+    final isWalletPayment = order.paymentMethod == 'wallet';
+    String selectedRefundMethod = isWalletPayment ? 'wallet' : 'original';
 
     showDialog(
       context: context,
@@ -965,6 +1238,12 @@ class _OrderCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+              ] else if (isWalletPayment) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Your refund will be returned to your wallet balance.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ] else if (isCashPayment) ...[
                 const SizedBox(height: 12),
                 const Text(
@@ -989,7 +1268,9 @@ class _OrderCard extends ConsumerWidget {
                         order.id,
                         refundMethod: isCardPayment
                             ? selectedRefundMethod
-                            : null,
+                            : isWalletPayment
+                                ? 'wallet'
+                                : null,
                       );
                   final userId = ref.read(currentUserIdProvider);
                   if (userId != null) {
@@ -1020,17 +1301,13 @@ class _OrderCard extends ConsumerWidget {
                   if (context.mounted) {
                     String message;
                     if (isCashPayment) {
-                      message =
-                          'Order cancelled. Cash payment has no refund transfer.';
-                    } else if (refund > 0 && refundMethod == 'wallet') {
-                      message =
-                          'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.';
+                      message = 'Order cancelled. Cash payment has no refund transfer.';
+                    } else if (refund > 0 && (refundMethod == 'wallet' || isWalletPayment)) {
+                      message = 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to your wallet.';
                     } else if (isCardPayment && refund > 0) {
-                      message =
-                          'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
+                      message = 'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
                     } else if (penalty > 0) {
-                      message =
-                          'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.';
+                      message = 'Order cancelled. \$${penalty.toStringAsFixed(2)} cancellation fee applied.';
                     } else {
                       message = 'Order cancelled successfully';
                     }
@@ -1182,9 +1459,9 @@ class _ReportIssueSheetState extends ConsumerState<_ReportIssueSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Report an Issue',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: Responsive.headingSmall(context)),
             ),
             const SizedBox(height: 14),
             Wrap(

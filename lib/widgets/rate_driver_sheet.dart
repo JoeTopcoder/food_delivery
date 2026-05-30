@@ -253,6 +253,8 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final orderService = ref.read(orderServiceProvider);
@@ -270,7 +272,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
         final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
 
         // Close the bottom sheet before presenting Stripe Payment Sheet
-        Navigator.of(context).pop();
+        navigator.pop();
 
         final result = await paymentService.presentStripePaymentSheet(
           orderId: widget.order.id,
@@ -289,13 +291,13 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
 
         if (mounted) {
           if (result != null) {
-            AppSnackbar.success(
-              context,
+            AppSnackbar.successMessenger(
+              messenger,
               'Driver rated! Tip of \$${_tipAmount.toStringAsFixed(0)} sent',
             );
           } else {
-            AppSnackbar.warning(
-              context,
+            AppSnackbar.warningMessenger(
+              messenger,
               'Driver rated! Tip payment was cancelled',
             );
           }
@@ -304,12 +306,12 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(true);
-        AppSnackbar.success(context, 'Driver rated! Thank you');
+        navigator.pop(true);
+        AppSnackbar.successMessenger(messenger, 'Driver rated! Thank you');
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
+        AppSnackbar.errorMessenger(messenger, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

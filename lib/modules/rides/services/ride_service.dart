@@ -129,7 +129,12 @@ class RideService {
     required double platformFee,
     required String paymentMethod,
     String? savedCardId,
+    String? stripePaymentIntentId,
     DateTime? scheduledFor,
+    bool isAirportPickup = false,
+    bool isAirportDropoff = false,
+    String? terminalInfo,
+    double? airportSurcharge,
   }) async {
     try {
       final token = await _freshToken();
@@ -147,7 +152,12 @@ class RideService {
         'platform_fee': platformFee,
         'payment_method': paymentMethod,
         'saved_card_id': savedCardId,
+        if (stripePaymentIntentId != null) 'stripe_payment_intent_id': stripePaymentIntentId,
         if (scheduledFor != null) 'scheduled_for': scheduledFor.toIso8601String(),
+        if (isAirportPickup) 'is_airport_pickup': true,
+        if (isAirportDropoff) 'is_airport_dropoff': true,
+        if (terminalInfo != null && terminalInfo.isNotEmpty) 'terminal_info': terminalInfo,
+        if (airportSurcharge != null) 'airport_surcharge': airportSurcharge,
       };
 
       final response = await _supabase.functions.invoke(
@@ -219,6 +229,25 @@ class RideService {
           .toList();
     } catch (e) {
       AppLogger.error('Error fetching driver rides', e);
+      rethrow;
+    }
+  }
+
+  Future<List<RideRequest>> getDriverRideHistory(String driverId) async {
+    try {
+      final response = await _supabase
+          .from('ride_requests')
+          .select()
+          .eq('driver_id', driverId)
+          .inFilter('ride_status', ['ride_completed', 'cancelled', 'failed'])
+          .order('requested_at', ascending: false)
+          .limit(200);
+
+      return (response as List<dynamic>)
+          .map((r) => RideRequest.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      AppLogger.error('Error fetching driver ride history', e);
       rethrow;
     }
   }
@@ -327,15 +356,90 @@ class RideService {
     int? finalDurationMinutes,
   }) async {
     try {
-      final result = await _supabase.rpc('complete_ride_rpc', params: {
-        'p_ride_id': rideId,
-        if (finalDistanceKm != null) 'p_final_distance_km': finalDistanceKm,
-        if (finalDurationMinutes != null)
-          'p_final_duration_minutes': finalDurationMinutes.toDouble(),
-      });
-      return (result as Map<String, dynamic>?) ?? {'message': 'Ride completed'};
+      final token = await _freshToken();
+      final body = <String, dynamic>{'ride_id': rideId};
+      if (finalDistanceKm != null) body['final_distance_km'] = finalDistanceKm;
+      if (finalDurationMinutes != null) body['final_duration_minutes'] = finalDurationMinutes;
+
+      final response = await _supabase.functions.invoke(
+        'complete-ride',
+        body: body,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      await _requireOk(response, label: 'Failed to complete ride');
+      return (response.data as Map<String, dynamic>?) ?? {'message': 'Ride completed'};
     } catch (e) {
       AppLogger.error('Error completing ride', e);
+      rethrow;
+    }
+  }
+
+  /// Cancels a ride, handling Stripe payment release or cancellation-fee capture
+  /// for card payments server-side via the update-ride-status edge function.
+  /// Scheduled rides are cancelled directly in the DB because the edge function
+  /// does not allow the scheduled→cancelled transition.
+  Future<Map<String, dynamic>> cancelRide({required String rideId}) async {
+    try {
+      // Check current status first — scheduled rides can't go through the edge function.
+      final rideRow = await _supabase
+          .from('ride_requests')
+          .select('ride_status')
+          .eq('id', rideId)
+          .single();
+      final currentStatus = rideRow['ride_status'] as String?;
+
+      if (currentStatus == 'scheduled') {
+        // Fetch full ride to check payment method before cancelling
+        final fullRide = await _supabase
+            .from('ride_requests')
+            .select('payment_method, payment_status, estimated_fare, customer_id')
+            .eq('id', rideId)
+            .single();
+
+        await _supabase.from('ride_requests').update({
+          'ride_status': 'cancelled',
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', rideId);
+        // Release the assigned driver so they are not left with a ghost booking.
+        await _supabase.from('ride_driver_requests').update({
+          'status': 'cancelled',
+          'responded_at': DateTime.now().toIso8601String(),
+        }).eq('ride_id', rideId).inFilter('status', ['accepted', 'offered']);
+
+        // Refund wallet if applicable — scheduled rides have no cancellation fee
+        if (fullRide['payment_method'] == 'wallet' &&
+            fullRide['payment_status'] == 'paid') {
+          final fare = (fullRide['estimated_fare'] as num?)?.toDouble() ?? 0.0;
+          if (fare > 0) {
+            try {
+              await _supabase.rpc('wallet_credit', params: {
+                'p_user_id':     fullRide['customer_id'],
+                'p_amount':      fare,
+                'p_description': 'Ride refund — scheduled ride cancelled',
+              });
+              await _supabase.from('ride_requests').update({
+                'payment_status': 'refunded',
+              }).eq('id', rideId);
+            } catch (e) {
+              AppLogger.error('Wallet refund failed for scheduled ride $rideId', e);
+            }
+          }
+        }
+
+        return {'message': 'Scheduled ride cancelled'};
+      }
+
+      final token = await _freshToken();
+      final response = await _supabase.functions.invoke(
+        'update-ride-status',
+        body: {'ride_id': rideId, 'new_status': 'cancelled'},
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      await _requireOk(response, label: 'Failed to cancel ride');
+      return (response.data as Map<String, dynamic>?) ?? {'message': 'Ride cancelled'};
+    } catch (e) {
+      AppLogger.error('Error cancelling ride', e);
       rethrow;
     }
   }
@@ -529,6 +633,35 @@ class RideService {
     }
   }
 
+  Future<RidePricingSettings> updatePricingSettings(RidePricingSettings s) async {
+    try {
+      final response = await _supabase
+          .from('ride_pricing_settings')
+          .update({
+            'base_fare': s.baseFare,
+            'per_km_rate': s.perKmRate,
+            'per_minute_rate': s.perMinuteRate,
+            'minimum_fare': s.minimumFare,
+            'platform_commission_percent': s.platformCommissionPercent,
+            'surge_multiplier': s.surgeMultiplier,
+            'max_search_radius_km': s.maxSearchRadiusKm,
+            'driver_request_timeout_seconds': s.driverRequestTimeoutSeconds,
+            'waiting_fee_per_min': s.waitingFeePerMin,
+            'card_auth_buffer_percent': s.cardAuthBufferPercent,
+            'cash_enabled': s.cashEnabled,
+            'card_enabled': s.cardEnabled,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', s.id)
+          .select()
+          .single();
+      return RidePricingSettings.fromJson(response);
+    } catch (e) {
+      AppLogger.error('Error updating pricing settings', e);
+      rethrow;
+    }
+  }
+
   // ====================================================================
   // RIDE DRIVER REQUESTS
   // ====================================================================
@@ -648,7 +781,9 @@ class RideService {
         .eq('driver_id', driverId)
         .map((events) => events
             .map((e) => RideDriverRequest.fromJson(e))
-            .where((r) => r.status == RideDriverRequestStatus.pending)
+            .where((r) =>
+                r.status == RideDriverRequestStatus.pending ||
+                r.status == RideDriverRequestStatus.offered)
             .toList());
   }
 
@@ -787,6 +922,45 @@ class RideService {
       return RideRequest.fromJson(list.first as Map<String, dynamic>);
     } catch (e) {
       AppLogger.error('Error fetching active ride for driver', e);
+      rethrow;
+    }
+  }
+
+  /// Streams the driver's accepted scheduled rides, sorted by pickup time.
+  Stream<List<RideRequest>> streamDriverScheduledRides(String driverId) {
+    return _supabase
+        .from('ride_requests')
+        .stream(primaryKey: ['id'])
+        .eq('driver_id', driverId)
+        .map((rows) => (rows as List<dynamic>)
+            .map((r) => RideRequest.fromJson(r as Map<String, dynamic>))
+            .where((r) =>
+                r.rideStatus == RideStatus.scheduled &&
+                r.scheduledFor != null &&
+                r.scheduledFor!.isAfter(DateTime.now()))
+            .toList()
+          ..sort((a, b) => a.scheduledFor!.compareTo(b.scheduledFor!)));
+  }
+
+  /// Driver backs out of an accepted scheduled ride.
+  /// Resets the ride so the customer's system can find a replacement driver.
+  Future<void> cancelDriverScheduledRide({
+    required String rideId,
+    required String driverId,
+  }) async {
+    try {
+      await _supabase.from('ride_requests').update({
+        'driver_id': null,
+        'accepted_at': null,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', rideId).eq('driver_id', driverId);
+
+      await _supabase.from('ride_driver_requests').update({
+        'status': 'cancelled',
+        'responded_at': DateTime.now().toIso8601String(),
+      }).eq('ride_id', rideId).eq('driver_id', driverId).eq('status', 'accepted');
+    } catch (e) {
+      AppLogger.error('Error cancelling driver scheduled ride', e);
       rethrow;
     }
   }

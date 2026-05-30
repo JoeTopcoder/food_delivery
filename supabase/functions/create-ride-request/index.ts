@@ -19,6 +19,8 @@ interface CreateRideRequestPayload {
   platform_fee: number;
   payment_method: "card" | "cash" | "wallet";
   saved_card_id?: string;
+  // PI already authorized via Payment Sheet (preferred path)
+  stripe_payment_intent_id?: string;
   scheduled_for?: string;
 }
 
@@ -39,13 +41,29 @@ function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const _adminClient = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+);
+
+async function notifyUser(userId: string, title: string, body: string, data: Record<string, string>) {
+  try {
+    const { data: user } = await _adminClient.from("users").select("fcm_token").eq("id", userId).maybeSingle();
+    if (!user?.fcm_token) return;
+    await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-fcm-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      body: JSON.stringify({ token: user.fcm_token, title, body, data }),
+    });
+  } catch { /* non-critical */ }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Get auth token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -57,20 +75,17 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const payload = await req.json() as CreateRideRequestPayload;
 
-    // Decode JWT manually (no server re-validation)
     const jwtParts = token.split(".");
     const decodedPayload = JSON.parse(
       atob(jwtParts[1])
     ) as { sub: string; email: string };
     const customer_id = decodedPayload.sub;
 
-    // Initialize Supabase
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Get customer user — accept any non-admin, non-driver role
     const { data: customer, error: customerError } = await supabase
       .from("users")
       .select("id, email, role")
@@ -84,7 +99,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Block admin and driver-only accounts from booking rides as customers
     if (customer.role === "admin" || customer.role === "driver") {
       return new Response(
         JSON.stringify({ error: "This account cannot book rides as a customer" }),
@@ -92,7 +106,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get pricing settings
     const { data: settings } = await supabase
       .from("ride_pricing_settings")
       .select("*")
@@ -100,23 +113,91 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    // Determine if this is a scheduled ride (future-dated)
     const isScheduled = !!payload.scheduled_for &&
       new Date(payload.scheduled_for) > new Date();
 
-    // Payment is pre-collected via Stripe Payment Sheet for immediate rides.
-    // Scheduled rides defer payment to dispatch time.
+    // ── Payment handling ─────────────────────────────────────────────────────
+    // Four paths:
+    //   1. stripe_payment_intent_id provided → Payment Sheet already authorized.
+    //   2. saved_card_id provided → create off-session PI.
+    //   3. wallet → deduct from wallet, mark "paid".
+    //   4. cash → no payment now; payment_status stays "pending".
     let payment_status = "pending";
-    const payment_intent_id: string | null = null;
+    let stripe_payment_intent_id: string | null = payload.stripe_payment_intent_id ?? null;
+    let authorized_amount: number | null = null;
 
-    if (!isScheduled && payload.payment_method === "card") {
+    // Path 3 — wallet payment
+    if (payload.payment_method === "wallet") {
+      const { error: walletErr } = await supabase.rpc("wallet_deduct", {
+        p_user_id:    customer_id,
+        p_amount:     payload.estimated_fare,
+        p_description: `Ride payment`,
+      });
+      if (walletErr) {
+        const isInsufficient = (walletErr.message ?? "").toLowerCase().includes("insufficient");
+        return new Response(
+          JSON.stringify({ error: isInsufficient ? "Insufficient wallet balance" : walletErr.message }),
+          { status: 402, headers: corsHeaders }
+        );
+      }
       payment_status = "paid";
     }
 
-    // Generate a 6-digit PIN for OTP verification when starting the ride
+    if (!isScheduled && payload.payment_method === "card") {
+      if (stripe_payment_intent_id) {
+        // Path 1: PI already created via Payment Sheet — just record it.
+        authorized_amount = payload.estimated_fare;
+        payment_status = "authorized";
+      } else if (payload.saved_card_id) {
+        // Path 2: Off-session booking with a saved card.
+        const { data: card } = await supabase
+          .from("saved_cards")
+          .select("stripe_payment_method_id, stripe_customer_id")
+          .eq("id", payload.saved_card_id)
+          .single();
+
+        if (!card?.stripe_payment_method_id || !card?.stripe_customer_id) {
+          return new Response(
+            JSON.stringify({ error: "Invalid saved card — Stripe payment method not found" }),
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        const bufferPct = (settings?.card_auth_buffer_percent as number) ?? 50;
+        authorized_amount = parseFloat((payload.estimated_fare * (1 + bufferPct / 100)).toFixed(2));
+        const authorizedCents = Math.round(authorized_amount * 100);
+
+        try {
+          const pi = await stripe.paymentIntents.create({
+            amount: authorizedCents,
+            currency: "jmd",
+            customer: card.stripe_customer_id,
+            payment_method: card.stripe_payment_method_id,
+            capture_method: "manual",
+            confirm: true,
+            off_session: true,
+            description: `Ride authorization — customer ${customer_id}`,
+            metadata: { type: "ride", user_id: customer_id },
+          });
+          stripe_payment_intent_id = pi.id;
+          payment_status = "authorized";
+        } catch (stripeErr) {
+          console.error("Stripe authorization failed:", stripeErr);
+          return new Response(
+            JSON.stringify({
+              error: "Payment authorization failed",
+              details: (stripeErr as Error).message,
+            }),
+            { status: 402, headers: corsHeaders }
+          );
+        }
+      }
+      // Path 3: no PI and no saved card → leave payment_status as "pending"
+    }
+    // ── End Stripe payment handling ───────────────────────────────────────────
+
     const ride_pin = String(Math.floor(100000 + Math.random() * 900000));
 
-    // Create ride request
     const { data: rideRequest, error: rideError } = await supabase
       .from("ride_requests")
       .insert({
@@ -136,6 +217,9 @@ Deno.serve(async (req) => {
           (1 - (settings?.platform_commission_percent || 20) / 100),
         payment_status,
         payment_method: payload.payment_method,
+        saved_card_id: payload.saved_card_id ?? null,
+        stripe_payment_intent_id,
+        authorized_amount,
         ride_status: isScheduled ? "scheduled" : "searching_driver",
         scheduled_for: payload.scheduled_for ?? null,
         ride_pin,
@@ -145,6 +229,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (rideError || !rideRequest) {
+      // If ride insert fails but we already authorized a Stripe PI, cancel it
+      if (stripe_payment_intent_id) {
+        await stripe.paymentIntents.cancel(stripe_payment_intent_id).catch(() => {});
+      }
       console.error("Error creating ride request:", rideError);
       return new Response(
         JSON.stringify({ error: "Failed to create ride request" }),
@@ -152,9 +240,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Update PI metadata to include ride_id now that we have it
+    if (stripe_payment_intent_id) {
+      await stripe.paymentIntents.update(stripe_payment_intent_id, {
+        metadata: { type: "ride", user_id: customer_id, ride_id: rideRequest.id },
+      }).catch(() => {}); // non-critical
+    }
+
     // ── Driver dispatch ─────────────────────────────────────────────────────
-    // Skip dispatch for scheduled rides — drivers are notified at activation time.
     if (isScheduled) {
+      await notifyUser(customer_id, '🕐 Ride Scheduled!', `Your ride has been scheduled. We'll find you a driver closer to your pickup time.`, {
+        type: 'ride_scheduled', ride_id: rideRequest.id,
+      });
       return new Response(
         JSON.stringify({
           ride_id: rideRequest.id,
@@ -167,7 +264,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Query all online, approved, ride-capable drivers who have a known location.
     const { data: candidateDrivers, error: driversError } = await supabase
       .from("drivers")
       .select("id, current_lat, current_lng")
@@ -179,7 +275,6 @@ Deno.serve(async (req) => {
       .in("service_type", ["ride_sharing", "both"]);
 
     if (driversError) {
-      // Non-fatal: ride was created successfully; log and continue.
       console.error("Error fetching candidate drivers:", driversError);
     }
 
@@ -190,7 +285,6 @@ Deno.serve(async (req) => {
     let driverRequestsSent = 0;
 
     if (candidateDrivers && candidateDrivers.length > 0) {
-      // Filter by Haversine distance and take the 5 closest.
       const nearbyDrivers = candidateDrivers
         .map((driver) => ({
           ...driver,
@@ -232,12 +326,16 @@ Deno.serve(async (req) => {
     }
     // ── End driver dispatch ──────────────────────────────────────────────────
 
+    await notifyUser(customer_id, '🚗 Ride Requested!', 'We\'re searching for a nearby driver. You\'ll be notified when one accepts.', {
+      type: 'ride_requested', ride_id: rideRequest.id,
+    });
+
     return new Response(
       JSON.stringify({
         ride_id: rideRequest.id,
         status: "searching_driver",
         payment_status,
-        payment_intent_id,
+        stripe_payment_intent_id,
         driver_requests_sent: driverRequestsSent,
         message: "Ride request created, searching for drivers...",
       }),
@@ -251,7 +349,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: "Internal server error",
-        details: error.message,
+        details: (error as Error).message,
       }),
       { status: 500, headers: corsHeaders }
     );

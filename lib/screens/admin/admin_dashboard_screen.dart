@@ -8,6 +8,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../shared/ai_voice_screen.dart';
+import '../../core/utils/responsive.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -47,7 +48,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         onRefresh: _refresh,
         color: AppTheme.primaryColor,
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           slivers: [
             // ── Hero Header ───────────────────────────────────────────────
             SliverToBoxAdapter(
@@ -93,12 +94,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 children: [
                                   Text(
                                     'Welcome back, ${currentUser?.name?.split(' ').first ?? 'Admin'}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 20,
+                                      fontSize: Responsive.headingMedium(context),
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: -0.3,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -283,7 +286,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        'This Month: \$${monthlyRevenue.toStringAsFixed(0)}',
+                                        'This Month: ${AppConstants.currencySymbol}${monthlyRevenue.toStringAsFixed(0)}',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 13,
@@ -301,7 +304,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // ── KPI metrics ────────────────────────────────────
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                         child: Row(
                           children: [
                             _KpiCard(
@@ -354,7 +357,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if ((restaurants['pending'] ?? 0) > 0 ||
                           (drivers['pending'] ?? 0) > 0) ...[
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -398,6 +401,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         '${drivers['pending'] ?? 0} drivers & ${restaurants['pending'] ?? 0} restaurants pending',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Color(0xFFC2410C),
@@ -415,20 +420,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // ── Quick Actions ──────────────────────────────────
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: const Text(
+                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        child: Text(
                           'Quick Actions',
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: Responsive.headingSmall(context),
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            color: const Color(0xFF0F172A),
                             letterSpacing: -0.3,
                           ),
                         ),
                       ),
                       const SizedBox(height: 10),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                         child: Row(
                           children: [
                             Expanded(
@@ -573,6 +578,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-mealhub'),
+                          ),
+                          _GridAction(
+                            icon: Icons.restaurant_menu_rounded,
+                            label: 'Meal Plans',
+                            color: const Color(0xFF0891B2),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-meal-plans'),
                           ),
                           _GridAction(
                             icon: Icons.inventory_2_rounded,
@@ -850,8 +863,10 @@ class _KpiCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: color,
                     letterSpacing: -0.3,
@@ -860,6 +875,8 @@ class _KpiCard extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
@@ -921,8 +938,10 @@ class _QuickAction extends StatelessWidget {
                 style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: Responsive.bodyText(context),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -945,15 +964,17 @@ class _CategoryRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 15,
+            style: TextStyle(
+              fontSize: Responsive.bodyText(context),
               fontWeight: FontWeight.w700,
-              color: Color(0xFF475569),
+              color: const Color(0xFF475569),
               letterSpacing: -0.2,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(height: 10),
@@ -961,7 +982,7 @@ class _CategoryRow extends StatelessWidget {
           height: 56,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
             itemCount: children.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => children[i],
@@ -1018,8 +1039,10 @@ class _GridAction extends StatelessWidget {
                 style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: Responsive.bodyText(context),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1145,7 +1168,7 @@ class _CreateUserSheetState extends ConsumerState<_CreateUserSheet> {
                     ? 'Create Driver Account'
                     : 'Create Restaurant Account',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: Responsive.headingMedium(context),
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),

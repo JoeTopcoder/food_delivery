@@ -15,6 +15,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -56,7 +57,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
             ),
             body: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -74,11 +75,11 @@ class AvailableOrdersScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       "You're Offline",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: Responsive.headingMedium(context),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -86,7 +87,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
                     Text(
                       'Go online from the dashboard to see and accept delivery orders.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      style: TextStyle(color: Colors.grey[700], fontSize: Responsive.bodyText(context)),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
@@ -142,7 +143,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
             ),
             body: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -160,11 +161,11 @@ class AvailableOrdersScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Food Delivery Disabled',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: Responsive.headingMedium(context),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -172,7 +173,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
                     Text(
                       'Enable Food Delivery in Active Services on your dashboard to receive orders.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      style: TextStyle(color: Colors.grey[500], fontSize: Responsive.bodyText(context)),
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
@@ -256,7 +257,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
                   itemCount: orders.length,
                   itemBuilder: (context, index) => _OrderCard(
                     order: orders[index],
@@ -902,7 +903,7 @@ class _OrderCard extends ConsumerWidget {
         ),
         content: Text(
           'You will be assigned to pick up from the restaurant and deliver to the customer.',
-          style: TextStyle(color: Colors.grey[700], fontSize: 14),
+          style: TextStyle(color: Colors.grey[700], fontSize: Responsive.bodyText(context)),
         ),
         actions: [
           TextButton(

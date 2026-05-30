@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import '../features/auth/screens/auth_launch_gate_screen.dart';
+import '../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import '../screens/driver/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
@@ -456,6 +456,16 @@ class _RoleConfig {
           subtitle: 'Manage your kitchen',
           loadingText: 'Loading orders...',
         );
+      case 'service_provider':
+        return const _RoleConfig(
+          gradientStart: Color(0xFF0F4C3A),
+          gradientEnd: Color(0xFF0D9488),
+          iconColor: Color(0xFF14B8A6),
+          icon: Icons.car_repair_rounded,
+          title: 'Provider Portal',
+          subtitle: 'Manage your car service business',
+          loadingText: 'Loading your dashboard...',
+        );
       default: // customer
         return const _RoleConfig(
           gradientStart: Color(0xFF581C87),
@@ -535,10 +545,24 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   }
 
   Future<void> _initialize() async {
-    // Minimum branded splash; FCM init runs in parallel and doesn't block nav.
     await Future.wait([
       Future.delayed(const Duration(milliseconds: 600)),
-      _doPermissionsAndAuth(),
+      _doPermissionsAndAuth().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          // Safety net: if auth check hangs, navigate to login screen.
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const AuthLaunchGateScreen(),
+                transitionsBuilder: (_, anim, __, child) =>
+                    FadeTransition(opacity: anim, child: child),
+                transitionDuration: const Duration(milliseconds: 500),
+              ),
+            );
+          }
+        },
+      ),
     ]);
   }
 
@@ -547,15 +571,26 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     // so it never blocks navigation. The service sets itself up in the background.
     unawaited(NotificationService().initialize());
 
-    // Location — request once if not yet granted
-    final locPerm = await Geolocator.checkPermission();
-    if (locPerm == LocationPermission.denied) {
-      await Geolocator.requestPermission();
-    }
-
-    // Auth — Supabase restores session from secure storage automatically
     if (!mounted) return;
-    final auth = ref.read(authNotifierProvider);
+
+    // After a process kill / cold start Supabase may still be restoring the
+    // session from secure storage. Read once and, if still loading, wait for
+    // the provider to settle before deciding where to navigate. This prevents
+    // sending the user through an unnecessary AuthLaunchGateScreen spinner.
+    var auth = ref.read(authNotifierProvider);
+    if (auth.isLoading) {
+      final completer = Completer<void>();
+      final sub = ref.listenManual<AuthState>(
+        authNotifierProvider,
+        (_, next) {
+          if (!next.isLoading && !completer.isCompleted) completer.complete();
+        },
+      );
+      await completer.future.timeout(const Duration(seconds: 4), onTimeout: () {});
+      sub.close();
+      if (!mounted) return;
+      auth = ref.read(authNotifierProvider);
+    }
 
     Widget destination;
     if (auth.isAuthenticated) {
@@ -584,6 +619,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
           destination = const RoleGuard(
             allowedRoles: ['admin'],
             child: AdminDashboardScreen(),
+          );
+          break;
+        case 'service_provider':
+          destination = const RoleGuard(
+            allowedRoles: ['service_provider'],
+            child: CarServiceProviderDashboardScreen(),
           );
           break;
         default:

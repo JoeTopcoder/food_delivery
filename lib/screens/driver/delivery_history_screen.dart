@@ -8,6 +8,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class DeliveryHistoryScreen extends ConsumerWidget {
   const DeliveryHistoryScreen({super.key});
@@ -39,7 +40,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             slivers: [
               SliverAppBar(
                 pinned: true,
@@ -67,7 +68,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                   }
 
                   return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final delivery = deliveries[index];
@@ -113,9 +114,11 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         'Order #${delivery.id.substring(0, 8).toUpperCase()}',
-                                        style: const TextStyle(
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          fontSize: 14,
+                                          fontSize: Responsive.bodyText(context),
                                           color: Colors.white,
                                         ),
                                       ),
@@ -170,10 +173,12 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                 // Amount
                                 Text(
                                   '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: Responsive.headingSmall(context),
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF22C55E),
+                                    color: const Color(0xFF22C55E),
                                   ),
                                 ),
                               ],

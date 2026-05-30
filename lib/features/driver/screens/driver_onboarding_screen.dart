@@ -1,5 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../features/auth/models/onboarding_role.dart';
 import '../../../features/auth/providers/onboarding_provider.dart';
@@ -7,9 +10,13 @@ import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
 import '../../../features/auth/widgets/social_auth_panel.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../config/supabase_config.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/friendly_error.dart';
+import '../../../core/utils/responsive.dart';
+import '../../../modules/rides/services/driver_document_service.dart';
+import '../../../modules/rides/providers/driver_document_provider.dart';
 
 class DriverOnboardingScreen extends ConsumerStatefulWidget {
   const DriverOnboardingScreen({super.key});
@@ -33,7 +40,11 @@ class _DriverOnboardingScreenState
   bool _loading = false;
   bool _googleLoading = false;
   bool _appleLoading = false;
-  bool _docsUploaded = false;
+  String? _selectedVehicleType;
+
+  final _picker = ImagePicker();
+  final Map<String, File?> _docFiles = {'license': null, 'registration': null};
+  final Set<String> _uploadedDocTypes = {};
 
   bool get _isBusy => _loading || _googleLoading || _appleLoading;
 
@@ -158,12 +169,19 @@ class _DriverOnboardingScreenState
 
     await ref.read(roleProvider.notifier).setRole(OnboardingRole.driver);
     try {
+      // user.name may be null right after sign-up (before refreshUser);
+      // fall back to what the user typed in the sign-up form.
+      final nameToSave = (user.name != null && user.name!.isNotEmpty)
+          ? user.name
+          : _signUpName.text.trim().isNotEmpty
+          ? _signUpName.text.trim()
+          : null;
       await ref
           .read(onboardingServiceProvider)
           .saveDriverProfile(
             userId: user.id,
             email: user.email,
-            name: user.name,
+            name: nameToSave,
           );
     } catch (e) {
       AppLogger.error('Driver profile sync failed: $e');
@@ -213,7 +231,7 @@ class _DriverOnboardingScreenState
   }
 
   Future<void> _saveVehicle() async {
-    if (_vehicleType.text.trim().isEmpty) {
+    if (_selectedVehicleType == null) {
       AppSnackbar.error(context, 'Please select a vehicle type.');
       return;
     }
@@ -221,6 +239,7 @@ class _DriverOnboardingScreenState
       AppSnackbar.error(context, 'Please enter your license plate number.');
       return;
     }
+    _vehicleType.text = _selectedVehicleType!;
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
@@ -248,10 +267,64 @@ class _DriverOnboardingScreenState
     }
   }
 
-  Future<void> _finish({required bool uploadedDocs}) async {
+  Future<void> _pickDocFile(String type) async {
+    final source = await showModalBottomSheet<ImageSource?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+    if (picked == null) return;
+    setState(() => _docFiles[type] = File(picked.path));
+  }
+
+  Future<void> _finish() async {
     setState(() => _loading = true);
     try {
       final userId = ref.read(onboardingServiceProvider).currentUserId;
+
+      // Upload any selected document files
+      if (userId != null) {
+        for (final entry in _docFiles.entries) {
+          final file = entry.value;
+          if (file == null) continue;
+          try {
+            await ref
+                .read(driverDocumentServiceProvider)
+                .uploadDocument(
+                  UploadDriverDocumentParams(
+                    driverId: userId,
+                    documentType: entry.key,
+                    filePath: file.path,
+                  ),
+                );
+            _uploadedDocTypes.add(entry.key);
+          } catch (e) {
+            AppLogger.error('Doc upload failed for ${entry.key}: $e');
+          }
+        }
+      }
+
       if (userId != null) {
         await ref
             .read(onboardingServiceProvider)
@@ -266,8 +339,19 @@ class _DriverOnboardingScreenState
               licensePlate: _plate.text.trim().isEmpty
                   ? null
                   : _plate.text.trim(),
-              documentsUploaded: uploadedDocs,
+              documentsUploaded: _uploadedDocTypes.isNotEmpty,
             );
+      }
+
+      if (userId != null) {
+        try {
+          await SupabaseConfig.client
+              .from('drivers')
+              .update({'driver_status': 'pending_review'})
+              .eq('user_id', userId);
+        } catch (e) {
+          AppLogger.error('Failed to set pending_review status: $e');
+        }
       }
 
       await ref
@@ -275,8 +359,6 @@ class _DriverOnboardingScreenState
           .setStep(5);
 
       if (!mounted) return;
-      // If not yet authenticated (email confirmation pending), send to sign-in.
-      // The migration 104 trigger will create their profile on first sign-in.
       final isAuth = ref.read(authNotifierProvider).isAuthenticated;
       if (!isAuth) {
         Navigator.of(context).pushReplacementNamed('/signin/driver');
@@ -311,11 +393,17 @@ class _DriverOnboardingScreenState
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.horizontalPadding(context),
+          vertical: Responsive.cardPadding(context),
+        ),
         children: [
-          const Text(
+          Text(
             'Start earning fast',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: Responsive.headingLarge(context),
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text('Step ${step.clamp(0, 4) + 1} of 5'),
@@ -339,8 +427,8 @@ class _DriverOnboardingScreenState
                   Expanded(
                     child: Text(
                       'Check your email to confirm your account. You can finish setup now.',
-                      style: const TextStyle(
-                        fontSize: 13,
+                      style: TextStyle(
+                        fontSize: Responsive.smallText(context),
                         color: Color(0xFF856404),
                       ),
                     ),
@@ -432,9 +520,7 @@ class _DriverOnboardingScreenState
 
           if (step == 3) ...[
             DropdownButtonFormField<String>(
-              initialValue: _vehicleType.text.isEmpty
-                  ? null
-                  : _vehicleType.text,
+              initialValue: _selectedVehicleType,
               decoration: const InputDecoration(labelText: 'Vehicle type *'),
               items: const [
                 DropdownMenuItem(
@@ -444,9 +530,7 @@ class _DriverOnboardingScreenState
                 DropdownMenuItem(value: 'car', child: Text('Car')),
                 DropdownMenuItem(value: 'scooter', child: Text('Scooter')),
               ],
-              onChanged: (v) {
-                if (v != null) _vehicleType.text = v;
-              },
+              onChanged: (v) => setState(() => _selectedVehicleType = v),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -469,29 +553,54 @@ class _DriverOnboardingScreenState
           ],
 
           if (step >= 4) ...[
-            const Text(
-              'Upload your documents',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
             Text(
-              'Check the box once you have uploaded your ID and any required documents.',
-              style: TextStyle(color: Colors.grey[700]),
+              'Upload Documents',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.headingSmall(context),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Upload your Driver\'s ID and vehicle registration. You can also skip and submit later.',
+              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+
+            // Driver's ID / License card
+            _DocUploadTile(
+              label: "Driver's ID / License",
+              icon: Icons.badge_outlined,
+              file: _docFiles['license'],
+              uploaded: _uploadedDocTypes.contains('license'),
+              disabled: _loading,
+              onPick: () => _pickDocFile('license'),
+              onRemove: () => setState(() {
+                _docFiles['license'] = null;
+                _uploadedDocTypes.remove('license');
+              }),
             ),
             const SizedBox(height: 12),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('I have uploaded my documents'),
-              value: _docsUploaded,
-              onChanged: (v) => setState(() => _docsUploaded = v ?? false),
+
+            // Vehicle Registration card
+            _DocUploadTile(
+              label: 'Vehicle Registration',
+              icon: Icons.directions_car_outlined,
+              file: _docFiles['registration'],
+              uploaded: _uploadedDocTypes.contains('registration'),
+              disabled: _loading,
+              onPick: () => _pickDocFile('registration'),
+              onRemove: () => setState(() {
+                _docFiles['registration'] = null;
+                _uploadedDocTypes.remove('registration');
+              }),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+
             ElevatedButton(
-              onPressed: _loading
-                  ? null
-                  : () => _finish(uploadedDocs: _docsUploaded),
+              onPressed: _loading ? null : _finish,
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(50),
               ),
               child: _loading
                   ? const SizedBox(
@@ -499,12 +608,15 @@ class _DriverOnboardingScreenState
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Create Driver'),
+                  : const Text('Submit Application'),
             ),
             const SizedBox(height: 12),
             Text(
-              'Status: Pending approval. Limited mode remains available until approval.',
-              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+              'Your application will be reviewed before you can start delivering.',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: Responsive.smallText(context),
+              ),
             ),
           ],
 
@@ -523,6 +635,125 @@ class _DriverOnboardingScreenState
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Document Upload Tile ─────────────────────────────────────────────────────
+
+class _DocUploadTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final File? file;
+  final bool uploaded;
+  final bool disabled;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  const _DocUploadTile({
+    required this.label,
+    required this.icon,
+    required this.file,
+    required this.uploaded,
+    required this.disabled,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasFile = file != null;
+    final statusColor = uploaded
+        ? const Color(0xFF10B981)
+        : hasFile
+        ? const Color(0xFFF59E0B)
+        : Colors.grey[400]!;
+    final statusLabel = uploaded
+        ? 'Uploaded'
+        : hasFile
+        ? 'Ready to upload'
+        : 'Not selected';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasFile
+              ? statusColor.withValues(alpha: 0.4)
+              : Theme.of(context).colorScheme.outlineVariant,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: statusColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hasFile
+                      ? file!.path.split(RegExp(r'[/\\]')).last
+                      : statusLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: hasFile
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : Colors.grey[500],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (hasFile)
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              color: Colors.grey[500],
+              tooltip: 'Remove',
+              onPressed: disabled ? null : onRemove,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          const SizedBox(width: 4),
+          TextButton.icon(
+            onPressed: disabled ? null : onPick,
+            icon: Icon(
+              hasFile ? Icons.refresh_rounded : Icons.upload_rounded,
+              size: 16,
+            ),
+            label: Text(hasFile ? 'Change' : 'Upload'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+          ),
         ],
       ),
     );

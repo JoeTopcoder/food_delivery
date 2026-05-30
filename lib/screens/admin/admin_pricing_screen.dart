@@ -86,28 +86,29 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
   String _selectedCurrencyCode = AppConstants.currencyCode;
 
   // Friendly labels for config keys
-  static const _labels = <String, String>{
-    'delivery_base_fee': 'Base Fee (\$)',
-    'delivery_per_mile_fee': 'Per-Mile Fee (\$)',
-    'delivery_per_mile_fee_peak': 'Per-Mile Fee – Peak (\$)',
+  // labels and hints are built dynamically so they pick up AppConstants.currencySymbol
+  static Map<String, String> get _labels => {
+    'delivery_base_fee': 'Base Fee (${AppConstants.currencySymbol})',
+    'delivery_per_mile_fee': 'Per-Mile Fee (${AppConstants.currencySymbol})',
+    'delivery_per_mile_fee_peak': 'Per-Mile Fee – Peak (${AppConstants.currencySymbol})',
     'delivery_base_miles': 'Included Miles (free range)',
     'delivery_max_km': 'Maximum Delivery Distance (km)',
     'delivery_surge_multiplier': 'Global Surge Multiplier',
     'driver_pay_percent': 'Driver Pay %',
-    'min_delivery_fee': 'Minimum Delivery Fee (\$)',
-    'default_delivery_fee': 'Default Flat Fee (\$)',
-    'driver_bonus_per_order': 'Driver Bonus Per Order (\$)',
-    'peak_addon_fee': 'Peak Hour Add-on (\$)',
+    'min_delivery_fee': 'Minimum Delivery Fee (${AppConstants.currencySymbol})',
+    'default_delivery_fee': 'Default Flat Fee (${AppConstants.currencySymbol})',
+    'driver_bonus_per_order': 'Driver Bonus Per Order (${AppConstants.currencySymbol})',
+    'peak_addon_fee': 'Peak Hour Add-on (${AppConstants.currencySymbol})',
     'peak_hours_start': 'Peak Hours Start (Lunch)',
     'peak_hours_end': 'Peak Hours End (Lunch)',
     'peak_hours_start_2': 'Peak Hours Start (Dinner)',
     'peak_hours_end_2': 'Peak Hours End (Dinner)',
   };
 
-  static const _hints = <String, String>{
+  static Map<String, String> get _hints => {
     'delivery_base_fee': 'Charged for the first N miles',
-    'delivery_per_mile_fee': '\$2.00/mi standard rate',
-    'delivery_per_mile_fee_peak': '\$2.50/mi during peak hours',
+    'delivery_per_mile_fee': '${AppConstants.currencySymbol}2.00/mi standard rate',
+    'delivery_per_mile_fee_peak': '${AppConstants.currencySymbol}2.50/mi during peak hours',
     'delivery_base_miles': 'Miles included in the base fee',
     'delivery_max_km': 'Orders beyond this distance are rejected',
     'delivery_surge_multiplier': '1.0 = no surge; 1.5 = 50 % premium',
@@ -488,7 +489,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'fee = max( (\$$baseFee + extra_km × \$$perKm) × $surge , \$$minFee )',
+            'fee = max( (${AppConstants.currencySymbol}$baseFee + extra_km × ${AppConstants.currencySymbol}$perKm) × $surge , ${AppConstants.currencySymbol}$minFee )',
             style: const TextStyle(
               fontFamily: 'monospace',
               fontSize: 12,
@@ -622,7 +623,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
                   controller: _controllers['card_verification_charge_min'],
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Min (\$)',
+                    labelText: 'Min (${AppConstants.currencySymbol})',
                     prefixIcon: const Icon(Icons.arrow_downward_rounded),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     filled: true,
@@ -643,7 +644,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
                   controller: _controllers['card_verification_charge_max'],
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Max (\$)',
+                    labelText: 'Max (${AppConstants.currencySymbol})',
                     prefixIcon: const Icon(Icons.arrow_upward_rounded),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     filled: true,

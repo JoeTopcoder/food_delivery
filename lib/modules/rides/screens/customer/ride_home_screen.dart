@@ -29,6 +29,9 @@ class RideHomeScreen extends ConsumerWidget {
         (ref.watch(rideHistoryStreamProvider(userId)).valueOrNull?.isNotEmpty ??
             false);
 
+    final hasActiveRide = userId != null &&
+        ref.watch(activeCustomerRideStreamProvider(userId)).valueOrNull != null;
+
     final promoEnabled = AppConstants.ridePromoFirstRideEnabled;
 
     return Scaffold(
@@ -51,13 +54,16 @@ class RideHomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
+                        Flexible(
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Hello, $firstName 👋',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
@@ -74,11 +80,46 @@ class RideHomeScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        CircleAvatar(
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          child: const Icon(
-                            Icons.notifications_outlined,
-                            color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () {
+                            if (userId == null) return;
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => _RideNotificationSheet(userId: userId),
+                            );
+                          },
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (hasActiveRide)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: _kRed,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF1E3A5F),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
@@ -623,6 +664,8 @@ class _RideTile extends StatelessWidget {
                   ),
                   child: Text(
                     statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
                       color: statusColor,
@@ -737,6 +780,254 @@ class _FirstRideBanner extends StatelessWidget {
     );
   }
 }
+
+// ── Ride Notification Sheet ────────────────────────────────────────────────────
+
+class _RideNotificationSheet extends ConsumerWidget {
+  final String userId;
+  const _RideNotificationSheet({required this.userId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(rideHistoryStreamProvider(userId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1F2937) : Colors.white;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications_outlined, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ride Notifications',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: historyAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const Center(child: Text('Could not load notifications')),
+                data: (rides) {
+                  final events = _buildEvents(rides);
+                  if (events.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.notifications_off_outlined,
+                              size: 48,
+                              color: Theme.of(context).colorScheme.outlineVariant),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No notifications yet',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: events.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
+                    itemBuilder: (_, i) => _NotificationTile(event: events[i]),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_RideEvent> _buildEvents(List<RideRequest> rides) {
+    final events = <_RideEvent>[];
+    for (final ride in rides) {
+      final route =
+          '${ride.pickupAddress.split(',').first.trim()} → ${ride.destinationAddress.split(',').first.trim()}';
+
+      if (ride.driverArrivedAt != null) {
+        events.add(_RideEvent(
+          icon: Icons.location_on_rounded,
+          color: _kAmber,
+          title: 'Driver arrived at pickup',
+          body: route,
+          time: ride.driverArrivedAt!,
+        ));
+      }
+      if (ride.startedAt != null) {
+        events.add(_RideEvent(
+          icon: Icons.directions_car_rounded,
+          color: _kBlue,
+          title: 'Your ride started',
+          body: route,
+          time: ride.startedAt!,
+        ));
+      }
+      if (ride.completedAt != null) {
+        events.add(_RideEvent(
+          icon: Icons.check_circle_outline_rounded,
+          color: _kGreen,
+          title: 'Ride completed',
+          body: route,
+          time: ride.completedAt!,
+        ));
+      }
+      if (ride.rideStatus == RideStatus.cancelled) {
+        events.add(_RideEvent(
+          icon: Icons.cancel_outlined,
+          color: _kRed,
+          title: 'Ride cancelled',
+          body: route,
+          time: ride.updatedAt,
+        ));
+      }
+      if (ride.acceptedAt != null &&
+          ride.rideStatus != RideStatus.cancelled &&
+          ride.rideStatus != RideStatus.failed) {
+        events.add(_RideEvent(
+          icon: Icons.person_pin_circle_rounded,
+          color: _kBlue,
+          title: 'Driver assigned to your ride',
+          body: route,
+          time: ride.acceptedAt!,
+        ));
+      }
+    }
+    events.sort((a, b) => b.time.compareTo(a.time));
+    return events;
+  }
+}
+
+class _RideEvent {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+  final DateTime time;
+
+  const _RideEvent({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+    required this.time,
+  });
+}
+
+class _NotificationTile extends StatelessWidget {
+  final _RideEvent event;
+  const _NotificationTile({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final timeAgo = _formatTimeAgo(event.time);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: event.color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(event.icon, color: event.color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  event.body,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            timeAgo,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    return DateFormat('MMM d').format(time);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Promo banners
+// ---------------------------------------------------------------------------
 
 class _ReturningRiderBanner extends StatelessWidget {
   final String title;

@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { Stripe } from "https://esm.sh/stripe@13.0.0";
+
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
+  apiVersion: "2023-10-16",
+});
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   requested: ["searching_driver", "cancelled"],
@@ -14,7 +19,6 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   failed: [],
 };
 
-// J$ per minute waiting fee rate
 const WAITING_FEE_PER_MIN = 75.0;
 
 interface UpdateRideStatusPayload {
@@ -57,7 +61,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Fetch ride
     const { data: ride, error: rideError } = await supabase
       .from("ride_requests")
       .select("*")
@@ -71,7 +74,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Authorization: customer = whoever booked this ride, driver = the assigned driver
     const { data: driver } = await supabase
       .from("drivers")
       .select("id")
@@ -81,8 +83,6 @@ Deno.serve(async (req) => {
     const isCustomer = ride.customer_id === user_id;
     const isDriver =
       ride.driver_id != null && driver?.id === ride.driver_id;
-
-    // Also allow any driver to set start_waiting / status before they are formally assigned
     const isAnyDriver = driver != null;
 
     const { data: userRow } = await supabase
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── start_waiting: driver triggers waiting fee after grace period ─────────
+    // ── start_waiting ─────────────────────────────────────────────────────────
     if (payload.start_waiting === true) {
       if (!isDriver && !isAdmin) {
         return new Response(
@@ -147,8 +147,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate ride PIN only on initial start (driver_arrived → ride_started),
-    // not on resume (ride_paused → ride_started).
     if (
       payload.new_status === "ride_started" &&
       ride.ride_status === "driver_arrived"
@@ -163,7 +161,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Build update payload
     const updateData: Record<string, unknown> = {
       ride_status: payload.new_status,
     };
@@ -174,27 +171,28 @@ Deno.serve(async (req) => {
       updateData.driver_arrived_at = new Date().toISOString();
     } else if (payload.new_status === "ride_started") {
       updateData.started_at = new Date().toISOString();
-      updateData.pause_reason = null; // clear on resume
+      updateData.pause_reason = null;
     } else if (payload.new_status === "ride_paused") {
       updateData.pause_reason = payload.pause_reason ?? null;
+      updateData.paused_at = new Date().toISOString();
     } else if (payload.new_status === "ride_completed") {
       updateData.completed_at = new Date().toISOString();
     } else if (payload.new_status === "cancelled") {
       if (isCustomer) {
         updateData.cancelled_by = "customer";
-        // Charge cancellation fee if driver was already assigned
+
         const chargeableStatuses = [
           "driver_assigned",
           "driver_arriving",
           "driver_arrived",
           "ride_started",
         ];
+
         if (chargeableStatuses.includes(ride.ride_status)) {
           const baseFee: number =
             ride.driver_earning ??
             (ride.estimated_fare ? ride.estimated_fare * 0.8 : 0);
 
-          // Add accrued waiting fee if applicable
           let waitingExtra = 0;
           if (ride.waiting_started_at) {
             const waitingMs =
@@ -213,6 +211,59 @@ Deno.serve(async (req) => {
       } else if (isAdmin) {
         updateData.cancelled_by = "admin";
       }
+
+      // ── Stripe payment handling for cancellation ──────────────────────────
+      // Only applies to card payments that have an authorized Stripe PI.
+      if (
+        ride.payment_method === "card" &&
+        ride.payment_status === "authorized" &&
+        ride.stripe_payment_intent_id
+      ) {
+        const cancellationFee = (updateData.cancellation_fee as number) ?? 0;
+
+        try {
+          if (cancellationFee > 0) {
+            // Partial capture — charge only the cancellation fee
+            await stripe.paymentIntents.capture(ride.stripe_payment_intent_id, {
+              amount_to_capture: Math.round(cancellationFee * 100),
+            });
+            updateData.payment_status = "paid";
+          } else {
+            // No charge — release the full authorization
+            await stripe.paymentIntents.cancel(ride.stripe_payment_intent_id);
+            updateData.payment_status = "cancelled";
+          }
+        } catch (stripeErr) {
+          // Don't block the ride cancellation if Stripe call fails.
+          // payment_status stays "authorized" for manual review.
+          console.error("Stripe cancellation payment error:", stripeErr);
+        }
+      }
+
+      // ── Wallet refund for cancellation ───────────────────────────────────
+      if (ride.payment_method === "wallet" && ride.payment_status === "paid") {
+        const cancellationFee = (updateData.cancellation_fee as number) ?? 0;
+        const refundAmount = parseFloat(
+          Math.max(0, (ride.estimated_fare ?? 0) - cancellationFee).toFixed(2)
+        );
+        if (refundAmount > 0) {
+          const { error: refundErr } = await supabase.rpc("wallet_credit", {
+            p_user_id:     ride.customer_id,
+            p_amount:      refundAmount,
+            p_description: cancellationFee > 0
+              ? `Ride refund (cancellation fee $${cancellationFee.toFixed(2)} deducted)`
+              : "Ride refund — cancelled before pickup",
+          });
+          if (refundErr) {
+            console.error("Wallet refund error:", refundErr.message);
+          } else {
+            updateData.payment_status = "refunded";
+          }
+        } else {
+          updateData.payment_status = "paid";
+        }
+      }
+      // ── End wallet refund ─────────────────────────────────────────────────
     }
 
     const { data: updatedRide, error: updateError } = await supabase
@@ -230,7 +281,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Log driver location if provided
     if (
       payload.latitude !== undefined &&
       payload.longitude !== undefined
@@ -250,7 +300,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error updating ride status:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: error.message }),
+      JSON.stringify({ error: "Internal server error", details: (error as Error).message }),
       { status: 500, headers: corsHeaders }
     );
   }

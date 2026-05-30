@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../core/utils/responsive.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -68,11 +69,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final userId = ref.read(currentUserIdProvider) ?? '';
     if (userId.isEmpty) return;
     final svc = ref.read(chatServiceProvider);
-    if (_isRide) {
-      svc.markRideRead(widget.rideId!, userId);
-    } else {
-      svc.markRead(widget.orderId!, userId);
-    }
+    svc.markRead(
+      orderId: widget.orderId,
+      rideId: widget.rideId,
+      readerId: userId,
+    );
   }
 
   void _onTextChanged(String _) {
@@ -94,21 +95,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       service.setTyping(_conversationId!, false);
     }
     _typingTimer?.cancel();
-    if (_isRide) {
-      await service.sendRideMessage(
-        rideId: widget.rideId!,
-        senderId: userId,
-        senderRole: role,
-        message: text,
-      );
-    } else {
-      await service.sendMessage(
-        orderId: widget.orderId!,
-        senderId: userId,
-        senderRole: role,
-        message: text,
-      );
-    }
+    await service.sendMessage(
+      orderId: widget.orderId,
+      rideId: widget.rideId,
+      senderId: userId,
+      senderRole: role,
+      message: text,
+    );
     _scrollDown();
     if (_conversationId == null) _loadConversation();
   }
@@ -159,24 +152,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final userId = ref.watch(currentUserIdProvider) ?? '';
     final role = ref.watch(currentUserProvider)?.role ?? 'user';
-    final msgsAsync = _isRide
-        ? ref.watch(rideMessagesProvider(widget.rideId!))
-        : ref.watch(chatMessagesProvider(widget.orderId!));
+    final key = (orderId: widget.orderId, rideId: widget.rideId);
+    final msgsAsync = ref.watch(chatMessagesProvider(key));
 
     // Auto-scroll to bottom when new messages arrive
-    if (_isRide) {
-      ref.listen(rideMessagesProvider(widget.rideId!), (prev, next) {
-        final oldLen = prev?.valueOrNull?.length ?? 0;
-        final newLen = next.valueOrNull?.length ?? 0;
-        if (newLen > oldLen) _scrollDown();
-      });
-    } else {
-      ref.listen(chatMessagesProvider(widget.orderId!), (prev, next) {
-        final oldLen = prev?.valueOrNull?.length ?? 0;
-        final newLen = next.valueOrNull?.length ?? 0;
-        if (newLen > oldLen) _scrollDown();
-      });
-    }
+    ref.listen(chatMessagesProvider(key), (prev, next) {
+      final oldLen = prev?.valueOrNull?.length ?? 0;
+      final newLen = next.valueOrNull?.length ?? 0;
+      if (newLen > oldLen) _scrollDown();
+    });
 
     _markReadOnce();
 
@@ -193,11 +177,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             Text(
               widget.otherPartyName,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: Responsive.headingSmall(context),
                 color: Colors.white,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               subtitle,
@@ -229,9 +215,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               error: (e, _) => AppErrorState(
                 message: 'Connection lost',
                 icon: Icons.wifi_off_rounded,
-                onRetry: () => _isRide
-                    ? ref.invalidate(rideMessagesProvider(widget.rideId!))
-                    : ref.invalidate(chatMessagesProvider(widget.orderId!)),
+                onRetry: () => ref.invalidate(chatMessagesProvider(key)),
               ),
               data: (msgs) {
                 if (msgs.isEmpty) {
@@ -244,7 +228,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return ListView.builder(
                   controller: _scroll,
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 16, Responsive.horizontalPadding(context), 8),
                   itemCount: msgs.length,
                   itemBuilder: (_, i) {
                     final msg = msgs[i];

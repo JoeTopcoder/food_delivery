@@ -99,8 +99,19 @@ class _CompanyCard extends StatelessWidget {
                 child: company.logoUrl != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(company.logoUrl!,
-                            fit: BoxFit.cover),
+                        child: Image.network(
+                          company.logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 56,
+                            height: 56,
+                            color: Colors.grey[200],
+                            child: const Icon(
+                                Icons.image_not_supported_outlined,
+                                color: Colors.grey),
+                          ),
+                        ),
                       )
                     : const Icon(Icons.local_shipping,
                         color: Color(0xFF7C3AED), size: 28),

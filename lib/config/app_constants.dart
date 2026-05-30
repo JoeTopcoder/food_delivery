@@ -45,6 +45,7 @@
   static const String roleRestaurant = 'restaurant';
   static const String roleDriver = 'driver';
   static const String roleAdmin = 'admin';
+  static const String roleServiceProvider = 'service_provider';
 
   // Order Status
   static const String orderPending = 'pending';
@@ -55,6 +56,7 @@
   static const String orderOnTheWay = 'on_the_way';
   static const String orderDelivered = 'delivered';
   static const String orderCancelled = 'cancelled';
+  static const String orderPartiallyCancelled = 'partially_cancelled';
 
   // Payment Status
   static const String paymentPending = 'pending';
@@ -81,6 +83,27 @@
   static const String tableAiRecommendations = 'ai_recommendations';
   static const String tableUserCoupons = 'user_coupons';
   static const String tableRestaurantEmbeddings = 'restaurant_embeddings';
+  // Multi-restaurant order tables
+  static const String tableMasterOrders = 'master_orders';
+  static const String tableRestaurantOrders = 'restaurant_orders';
+  static const String tableRestaurantOrderItems = 'restaurant_order_items';
+
+  // Laundry Module Tables
+  static const String tableLaundryProviders       = 'laundry_providers';
+  static const String tableLaundryServices        = 'laundry_services';
+  static const String tableLaundryProviderServices = 'laundry_provider_services';
+  static const String tableLaundryPricing         = 'laundry_pricing';
+  static const String tableLaundryBookings        = 'laundry_bookings';
+  static const String tableLaundryBookingItems    = 'laundry_booking_items';
+  static const String tableLaundryStatusHistory   = 'laundry_status_history';
+  static const String tableLaundryPhotos          = 'laundry_photos';
+  static const String tableLaundryWeights         = 'laundry_weights';
+  static const String tableLaundryDriverAssignments = 'laundry_driver_assignments';
+  static const String tableLaundryReviews         = 'laundry_reviews';
+  static const String tableLaundryDisputes        = 'laundry_disputes';
+
+  // Laundry Role
+  static const String roleLaundryProvider = 'laundry_provider';
 
   // Notification Types
   static const String notificationTypeNewOrder = 'new_order';
@@ -119,15 +142,17 @@
 
   // ── Business Constants (defaults — overridden from app_config table) ──────
 
-  // Fees (in USD)
-  static double taxRate = 0.0; // No income tax in Cayman Islands
-  static double platformServiceFeeRate =
-      0.05; // 5% platform service fee on subtotal
+  // Fees
+  static double taxRate = 0.0;
+  static bool taxEnabled = false;
+  static double platformServiceFeeRate = 0.05;
+  static double platformCommissionCap = 0.85;
   static double defaultDeliveryFee = 5.0;
   static double pickupServiceFee = 2.0;
   static double driverFeePerDelivery = 5.0;
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;
+  static double bankTransferFeePercent = 0;
   static double cardVerificationChargeMin = 0;
   static double cardVerificationChargeMax = 3;
 
@@ -158,8 +183,23 @@
   // Driver pay ($1.50/mile compliance)
   static double driverRatePerMile = 1.50;
   static double driverRatePerKm = 0.93; // $1.50/mi ÷ 1.609
+  static double driverRatePerMinute = 0.15;
+  static double driverWaitPayPerMinute = 0.20;
   static double driverMinBasePay = 3.0;
+  static double driverEarningsFloor = 20.0;
+  static double driverBoostAmount = 0.0;
   static const double kmToMiles = 0.621371;
+
+  // Driver order stacking
+  static int driverMaxStackOrders = 3;
+  static double driverStackDistanceKm = 2.0;
+  static int driverStackMaxDelay = 10;
+  static double driverStackMinIncrease = 0.30;
+
+  // Driver tiers (score thresholds 0–100)
+  static int driverTierSilverScore = 60;
+  static int driverTierGoldScore = 75;
+  static int driverTierEliteScore = 90;
 
   // Peak hour pricing
   static double peakAddonFee = 1.0;
@@ -189,6 +229,12 @@
 
   // Commission
   static double defaultCommissionRate = 0.15;
+  static double restaurantCommissionPct = 0.15;
+
+  // Car Services
+  static double carServiceMobileFee = 15.00;
+  static double carServicePlatformFeePct = 0.20;
+  static double carServiceServiceFee = 2.50;
 
   // Tips (in USD)
   static List<double> presetTips = [2, 5, 10, 20];
@@ -201,8 +247,22 @@
   static double subscriptionMinCart = 15.0;
   static double subscriptionServiceFeeDiscount = 0.50;
 
+  // Ride sharing — overridden from app_config table at startup
+  static double airportSurchargeJmd = 1500.0;
+  static int rideBookingAdvanceDays = 30;
+  static int scheduledRideBufferHours = 1;
+  static int rideDriverOfferTimeoutSecs = 90;
+  static double rideMaxSearchRadiusKm = 30.0;
+  static int rideDriverSchedAdvanceHours = 72;
+
+  // Support contact — overridden from app_config table at startup
+  static String supportPhone = '';
+  static String supportEmail = '';
+  static String supportWhatsApp = '';
+
   // System
   static int orderAssignmentCutoffMinutes = 30;
+  static bool maintenanceMode = false;
 
   /// Canonical food categories surfaced on the customer home screen.
   /// Restaurants should tag their menu items with one of these names so they

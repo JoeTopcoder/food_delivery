@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -6,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_model.dart';
 import '../utils/app_logger.dart';
@@ -85,6 +87,11 @@ class NotificationService {
 
   bool _initialized = false;
 
+  /// Dedup map: tracks (type_orderId) → last-seen timestamp.
+  /// Prevents bursts of identical notifications caused by per-row DB triggers
+  /// firing when a bulk cancel updates multiple restaurant_orders rows.
+  final Map<String, DateTime> _recentNotifKeys = {};
+
   /// Global navigator key — set from main.dart so notifications can navigate
   static GlobalKey<NavigatorState>? navigatorKey;
 
@@ -145,20 +152,34 @@ class NotificationService {
       return;
     }
     try {
-      // Check existing permission before requesting to avoid re-prompting
-      // every time the app opens (once the user has responded, don't ask again)
-      final existingSettings = await _messaging.getNotificationSettings();
+      // On Android 13+, POST_NOTIFICATIONS is a runtime permission that
+      // defaults to denied on fresh install. firebase_messaging returns
+      // AuthorizationStatus.denied (not notDetermined) for unasked Android
+      // permissions, so we use permission_handler to reliably prompt the user.
+      if (!kIsWeb && Platform.isAndroid) {
+        final status = await Permission.notification.status;
+        if (!status.isGranted) {
+          await Permission.notification.request();
+        }
+      }
+
+      // iOS: use firebase_messaging's requestPermission for APNs registration.
       final NotificationSettings settings;
-      if (existingSettings.authorizationStatus ==
-          AuthorizationStatus.notDetermined) {
-        settings = await _messaging.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
-          provisional: false,
-        );
+      if (!kIsWeb && !Platform.isAndroid) {
+        final existingSettings = await _messaging.getNotificationSettings();
+        if (existingSettings.authorizationStatus ==
+            AuthorizationStatus.notDetermined) {
+          settings = await _messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+        } else {
+          settings = existingSettings;
+        }
       } else {
-        settings = existingSettings;
+        settings = await _messaging.getNotificationSettings();
       }
       AppLogger.info(
         'Notification permission: ${settings.authorizationStatus}',
@@ -218,7 +239,7 @@ class NotificationService {
       }
 
       // Save FCM token to Supabase user profile
-      await _saveFCMToken();
+      await saveFCMToken();
 
       // Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
@@ -276,8 +297,9 @@ class NotificationService {
     }
   }
 
-  /// Save FCM token to Supabase
-  Future<void> _saveFCMToken() async {
+  /// Save FCM token to Supabase — call this after login to ensure the token
+  /// is persisted for the authenticated user (initialize() runs before auth).
+  Future<void> saveFCMToken() async {
     final token = await getFCMToken();
     if (token != null) {
       await _saveTokenToSupabase(token);
@@ -298,6 +320,31 @@ class NotificationService {
     } catch (e) {
       AppLogger.error('Error saving FCM token: $e');
     }
+  }
+
+  /// Returns true if this notification should be suppressed because an
+  /// identical one (same type + same order) was already shown within 30 s.
+  bool _isDuplicate(String? type, Map<String, dynamic> data) {
+    if (type == null) return false;
+    final orderId = data['order_id'] as String? ??
+        data['master_order_id'] as String? ?? '';
+    if (orderId.isEmpty) return false;
+
+    final key = '${type}_$orderId';
+    final now = DateTime.now();
+
+    // Remove stale entries
+    _recentNotifKeys.removeWhere(
+      (k, v) => now.difference(v).inSeconds > 60,
+    );
+
+    if (_recentNotifKeys.containsKey(key) &&
+        now.difference(_recentNotifKeys[key]!).inSeconds < 30) {
+      AppLogger.info('Dedup: suppressing duplicate $key');
+      return true;
+    }
+    _recentNotifKeys[key] = now;
+    return false;
   }
 
   /// Handle foreground messages — show local notification
@@ -325,19 +372,18 @@ class NotificationService {
       return;
     }
 
-    if (notification != null) {
-      showNotification(
-        title: notification.title ?? 'Food Driver',
-        body: notification.body ?? '',
-        data: message.data,
-      );
+    // Suppress duplicates — DB row-level triggers can fire once per updated
+    // restaurant_order row, flooding the user when a multi-order is cancelled.
+    if (_isDuplicate(type, message.data)) return;
+
+    // Show a local notification — fall back to data fields when the FCM
+    // message has no notification block (data-only messages from edge functions).
+    final title = notification?.title ?? message.data['title'] as String? ?? '7Dash';
+    final body  = notification?.body  ?? message.data['body']  as String? ?? '';
+    if (title.isNotEmpty || body.isNotEmpty) {
+      showNotification(title: title, body: body, data: message.data);
     }
-    handleNotificationByType(
-      type,
-      notification?.title ?? '',
-      notification?.body ?? '',
-      message.data,
-    );
+    handleNotificationByType(type, title, body, message.data);
   }
 
   /// Handle when a notification opens the app

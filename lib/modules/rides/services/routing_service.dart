@@ -7,9 +7,20 @@ import 'package:http/http.dart' as http;
 /// This provides actual road-based routing instead of straight-line distances.
 class RoutingService {
   /// OSRM demo server endpoint (free, no API key required)
-  /// For production, consider self-hosting OSRM or using a commercial service
   static const String _osrmBaseUrl =
       'https://router.project-osrm.org/route/v1/driving';
+
+  /// In-memory route cache — keyed by rounded start+end coords so small GPS
+  /// jitter doesn't bypass the cache.  Cleared when the service is disposed.
+  final Map<String, RouteResult> _cache = {};
+
+  String _cacheKey(LatLng start, LatLng end) {
+    // Round to 4 decimal places (~11 m precision) to hit cache on minor jitter
+    String r(double v) => v.toStringAsFixed(4);
+    return '${r(start.latitude)},${r(start.longitude)}-${r(end.latitude)},${r(end.longitude)}';
+  }
+
+  void clearCache() => _cache.clear();
 
   /// Get driving route between two points.
   /// Returns a list of LatLng points representing the actual driving route.
@@ -24,6 +35,9 @@ class RoutingService {
     required LatLng end,
     bool alternatives = false,
   }) async {
+    final key = _cacheKey(start, end);
+    if (_cache.containsKey(key)) return _cache[key]!;
+
     try {
       // OSRM uses {longitude},{latitude} format
       final String url =
@@ -50,7 +64,9 @@ class RoutingService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        return _parseRouteResponse(data);
+        final result = _parseRouteResponse(data);
+        _cache[key] = result;
+        return result;
       } else {
         throw RoutingException('Failed to get route: ${response.statusCode}');
       }

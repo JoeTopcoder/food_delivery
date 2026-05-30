@@ -94,11 +94,13 @@ class OnboardingService {
       'updated_at': DateTime.now().toIso8601String(),
     };
     if (phone != null) userPayload['phone'] = phone;
-    if (name != null && name.isNotEmpty) userPayload['name'] = name;
+    // name is NOT NULL — always provide a value; fall back to email prefix or userId.
+    final effectiveEmail = (email != null && email.isNotEmpty) ? email : null;
+    userPayload['name'] = (name != null && name.isNotEmpty)
+        ? name
+        : effectiveEmail?.split('@').first ?? 'Driver';
     // email is NOT NULL in base schema — use a placeholder for OTP (phone-only) users.
-    userPayload['email'] = (email != null && email.isNotEmpty)
-        ? email
-        : '$userId@otp.fooddriver.app';
+    userPayload['email'] = effectiveEmail ?? '$userId@otp.fooddriver.app';
 
     // Try full upsert; fall back to minimal if extended columns not yet migrated.
     try {
@@ -358,6 +360,109 @@ class OnboardingService {
         try {
           await _client.from('menu_items').insert(rows);
         } catch (_) {}
+      }
+    }
+  }
+
+  Future<void> saveServiceProviderDraft({
+    required String userId,
+    required String businessName,
+    String? ownerName,
+    String? businessPhone,
+    String? businessEmail,
+    String? businessType,
+    String? bio,
+    bool mobileServiceAvailable = false,
+    bool pickupDropoffAvailable = false,
+    double serviceAreaRadiusKm = 10.0,
+    String? baseLocationAddress,
+    String? email,
+    String? phone,
+    bool submitted = false,
+  }) async {
+    try {
+      await ensureUserRecord(
+        userId: userId,
+        role: OnboardingRole.serviceProvider,
+        phone: phone,
+        email: email,
+        name: ownerName ?? businessName,
+        onboardingCompleted: submitted,
+      );
+    } catch (e) {
+      AppLogger.warning('ensureUserRecord (service_provider) failed: $e');
+    }
+
+    final now = DateTime.now().toIso8601String();
+
+    // Minimal columns that must exist in any schema version.
+    final basePayload = <String, dynamic>{
+      'user_id': userId,
+      'business_name': businessName.isNotEmpty ? businessName : 'My Car Service',
+      'updated_at': now,
+    };
+    if (ownerName != null && ownerName.isNotEmpty) basePayload['owner_name'] = ownerName;
+    if (businessPhone != null && businessPhone.isNotEmpty) basePayload['business_phone'] = businessPhone;
+    if (businessEmail != null && businessEmail.isNotEmpty) basePayload['business_email'] = businessEmail;
+    if (businessType != null && businessType.isNotEmpty) basePayload['business_type'] = businessType;
+    if (bio != null && bio.isNotEmpty) basePayload['bio'] = bio;
+    if (baseLocationAddress != null && baseLocationAddress.isNotEmpty) basePayload['base_location_address'] = baseLocationAddress;
+
+    // Extended columns that may not exist on older schema versions.
+    final extendedPayload = Map<String, dynamic>.from(basePayload)
+      ..addAll({
+        'is_active': false,
+        'is_verified': false,
+        'is_approved': false,
+        'is_suspended': false,
+        'approval_status': 'pending',
+        'rating': 0.0,
+        'total_reviews': 0,
+        'total_bookings': 0,
+        'stripe_payouts_enabled': false,
+        'service_area_radius_km': serviceAreaRadiusKm,
+        'mobile_service_available': mobileServiceAvailable,
+        'pickup_dropoff_available': pickupDropoffAvailable,
+      });
+
+    String? providerId;
+    try {
+      final existing = await _client
+          .from('car_service_providers')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+      providerId = existing?['id'] as String?;
+    } catch (e) {
+      AppLogger.warning('Provider lookup failed: $e');
+    }
+
+    Future<void> writeProvider(Map<String, dynamic> data) async {
+      final payload = Map<String, dynamic>.from(data);
+      if (providerId != null) {
+        await _client
+            .from('car_service_providers')
+            .update(payload)
+            .eq('id', providerId);
+      } else {
+        payload['created_at'] = now;
+        await _client.from('car_service_providers').insert(payload);
+      }
+    }
+
+    try {
+      await writeProvider(extendedPayload);
+    } catch (e) {
+      AppLogger.warning(
+        'Extended provider write failed (${e.runtimeType}); retrying with base payload: $e',
+      );
+      try {
+        await writeProvider(basePayload);
+      } catch (e2) {
+        // Even the minimal write failed. The user's account and role are
+        // already correct — log and let them proceed to the dashboard.
+        AppLogger.error('Base provider write also failed: $e2');
       }
     }
   }

@@ -11,6 +11,7 @@ import '../../services/food/menu_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../../core/utils/responsive.dart';
 
 class MenuManagementScreen extends ConsumerStatefulWidget {
   const MenuManagementScreen({super.key});
@@ -103,7 +104,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
               final categories = grouped.keys.toList();
 
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(Responsive.cardPadding(context)),
                 itemCount: categories.length,
                 itemBuilder: (context, catIndex) {
                   final category = categories[catIndex];
@@ -124,10 +125,12 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                         ),
                         child: Text(
                           category,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontSize: Responsive.headingSmall(context),
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(height: 4),

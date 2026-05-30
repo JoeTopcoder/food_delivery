@@ -5,6 +5,7 @@ import '../../providers/earning_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../config/app_constants.dart';
 
 class AdminEarningsScreen extends ConsumerStatefulWidget {
   const AdminEarningsScreen({super.key});
@@ -63,7 +64,7 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Amount (\$)',
+                labelText: 'Amount (${AppConstants.currencySymbol})',
                 hintText: 'e.g. 5.00',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -109,7 +110,7 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
                 if (mounted) {
                   AppSnackbar.success(
                     context,
-                    'Credited \$${amount.toStringAsFixed(2)}',
+                    'Credited ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)}',
                   );
                   ref.invalidate(allEarningAccountsProvider);
                 }
@@ -212,7 +213,7 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
                           children: [
                             _SummaryTile(
                               label: 'Total Paid Out',
-                              value: '\$${totalEarned.toStringAsFixed(2)}',
+                              value: '${AppConstants.currencySymbol}${totalEarned.toStringAsFixed(2)}',
                               icon: Icons.payments_outlined,
                             ),
                             _SummaryTile(
@@ -269,19 +270,19 @@ class _AdminEarningsScreenState extends ConsumerState<AdminEarningsScreen> {
                             children: [
                               _ConfigChip(
                                 'Direct',
-                                '\$${EarningConfig.directOrderRate}',
+                                '${AppConstants.currencySymbol}${EarningConfig.directOrderRate}',
                               ),
                               _ConfigChip(
                                 'Indirect',
-                                '\$${EarningConfig.indirectOrderRate}',
+                                '${AppConstants.currencySymbol}${EarningConfig.indirectOrderRate}',
                               ),
                               _ConfigChip(
                                 'Signup',
-                                '\$${EarningConfig.referrerSignupBonus}',
+                                '${AppConstants.currencySymbol}${EarningConfig.referrerSignupBonus}',
                               ),
                               _ConfigChip(
                                 'Monthly Cap',
-                                '\$${EarningConfig.monthlyCap.toInt()}',
+                                '${AppConstants.currencySymbol}${EarningConfig.monthlyCap.toInt()}',
                               ),
                               _ConfigChip(
                                 'Expiry',
@@ -488,7 +489,7 @@ class _AccountTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${a.totalDirectRefs} refs · ${a.totalOrdersGenerated} orders · \$${a.monthlyEarned.toStringAsFixed(2)} this mo',
+                  '${a.totalDirectRefs} refs · ${a.totalOrdersGenerated} orders · ${AppConstants.currencySymbol}${a.monthlyEarned.toStringAsFixed(2)} this mo',
                   style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
               ],
@@ -499,7 +500,7 @@ class _AccountTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\$${a.totalEarned.toStringAsFixed(2)}',
+                '${AppConstants.currencySymbol}${a.totalEarned.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,

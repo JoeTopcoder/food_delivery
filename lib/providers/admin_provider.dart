@@ -109,6 +109,14 @@ final pendingDriversProvider = riverpod_pkg.FutureProvider.autoDispose<List<Driv
   return adminService.getPendingDrivers();
 });
 
+/// Approved drivers provider
+final approvedDriversProvider = riverpod_pkg.FutureProvider.autoDispose<List<Driver>>((
+  ref,
+) async {
+  final adminService = ref.watch(adminServiceProvider);
+  return adminService.getApprovedDrivers();
+});
+
 /// Rejected drivers provider
 final rejectedDriversProvider = riverpod_pkg.FutureProvider.autoDispose<List<Driver>>((
   ref,
@@ -245,6 +253,8 @@ final adminPendingRealtimeProvider = riverpod_pkg.Provider.autoDispose<void>((
     );
     ref.invalidate(dashboardSummaryProvider);
     ref.invalidate(pendingDriversProvider);
+    ref.invalidate(approvedDriversProvider);
+    ref.invalidate(rejectedDriversProvider);
     ref.invalidate(driverStatisticsProvider);
   }
 

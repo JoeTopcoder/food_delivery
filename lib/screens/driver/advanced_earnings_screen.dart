@@ -72,7 +72,7 @@ class _AdvancedEarningsScreenState
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [
           SliverAppBar(
             pinned: true,

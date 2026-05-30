@@ -8,6 +8,7 @@ import '../../providers/notification_provider.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/context_extensions.dart';
+import '../../core/utils/responsive.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -177,7 +178,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           : notifications.isEmpty
           ? const _EmptyNotifications()
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 24),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final n = notifications[index];
@@ -314,6 +315,8 @@ class _NotifCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             notification.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontWeight: notification.isRead
                                   ? FontWeight.w500
@@ -389,7 +392,7 @@ class _EmptyNotifications extends StatelessWidget {
           Text(
             'All caught up!',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: Responsive.headingMedium(context),
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.onSurface,
             ),
@@ -399,7 +402,7 @@ class _EmptyNotifications extends StatelessWidget {
             'No notifications yet.\nYour order updates will appear here.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: Responsive.bodyText(context),
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),

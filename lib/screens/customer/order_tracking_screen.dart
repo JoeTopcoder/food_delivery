@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../../core/utils/responsive.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
+import '../../modules/rides/services/routing_service.dart';
 import '../../models/order_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -84,7 +88,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       );
     }
 
-    final orderAsync = ref.watch(orderByIdProvider(orderId));
+    final orderAsync = ref.watch(orderByIdOrGroupIdProvider(orderId));
     return orderAsync.when(
       data: (order) {
         if (order == null) {
@@ -293,9 +297,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       liveOrder.userRating == null)
                     _RateButton(order: liveOrder),
 
-                  // Cancel order (only pending or confirmed — not yet preparing)
-                  if (liveOrder.status == 'pending' ||
-                      liveOrder.status == 'confirmed') ...[
+                  // Cancel order
+                  if (const {
+                    'draft',
+                    'pending',
+                    'confirmed',
+                    'accepted',
+                    'preparing',
+                  }.contains(liveOrder.status)) ...[
                     const SizedBox(height: 8),
                     _CancelOrderButton(
                       orderId: order.id,
@@ -345,10 +354,7 @@ class _DriverInfoCard extends ConsumerWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
         ],
       ),
       child: Row(
@@ -359,8 +365,9 @@ class _DriverInfoCard extends ConsumerWidget {
               return CircleAvatar(
                 radius: 24,
                 backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.12),
-                backgroundImage:
-                    imageUrl != null ? NetworkImage(imageUrl) : null,
+                backgroundImage: imageUrl != null
+                    ? NetworkImage(imageUrl)
+                    : null,
                 child: imageUrl == null
                     ? Icon(
                         Icons.person_rounded,
@@ -401,6 +408,8 @@ class _DriverInfoCard extends ConsumerWidget {
                 infoAsync.when(
                   data: (info) => Text(
                     info['name'] ?? 'Driver',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -544,7 +553,7 @@ class _StatusBanner extends StatelessWidget {
 
 // ─── Live Map ─────────────────────────────────────────────────────────────────
 
-class _LiveMap extends StatelessWidget {
+class _LiveMap extends StatefulWidget {
   final Map<String, dynamic>? driverLocation;
   final double? deliveryLat;
   final double? deliveryLng;
@@ -558,11 +567,77 @@ class _LiveMap extends StatelessWidget {
   });
 
   @override
+  State<_LiveMap> createState() => _LiveMapState();
+}
+
+class _LiveMapState extends State<_LiveMap> {
+  final _routing = RoutingService();
+  List<LatLng> _routePoints = [];
+  String? _eta;
+  LatLng? _lastDriverPos;
+  bool _fetching = false;
+
+  @override
+  void didUpdateWidget(_LiveMap old) {
+    super.didUpdateWidget(old);
+    final lat = (widget.driverLocation?['latitude'] as num?)?.toDouble();
+    final lng = (widget.driverLocation?['longitude'] as num?)?.toDouble();
+    if (lat == null || lng == null) return;
+    final newPos = LatLng(lat, lng);
+
+    // Only refetch route when driver moves >30 m
+    if (_lastDriverPos != null) {
+      final moved = const Distance().as(
+        LengthUnit.Meter,
+        _lastDriverPos!,
+        newPos,
+      );
+      if (moved < 30 && _routePoints.isNotEmpty) {
+        // Still pan the map to follow driver
+        widget.mapController.move(newPos, widget.mapController.camera.zoom);
+        return;
+      }
+    }
+    _lastDriverPos = newPos;
+    _fetchRoute(newPos);
+  }
+
+  Future<void> _fetchRoute(LatLng driver) async {
+    final dLat = widget.deliveryLat;
+    final dLng = widget.deliveryLng;
+    if (dLat == null || dLng == null || _fetching) return;
+    _fetching = true;
+    try {
+      final result = await _routing.getDrivingRoute(
+        start: driver,
+        end: LatLng(dLat, dLng),
+      );
+      if (!mounted) return;
+      setState(() {
+        _routePoints = result.routePoints;
+        _eta = result.estimatedTimeText;
+      });
+      _fitBounds(driver, LatLng(dLat, dLng));
+    } catch (_) {
+      // Route unavailable — map still shows markers
+    } finally {
+      _fetching = false;
+    }
+  }
+
+  void _fitBounds(LatLng a, LatLng b) {
+    final bounds = LatLngBounds.fromPoints([a, b]);
+    widget.mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final driverLat =
-        (driverLocation?['latitude'] as num?)?.toDouble() ?? 19.2869;
+        (widget.driverLocation?['latitude'] as num?)?.toDouble() ?? 19.2869;
     final driverLng =
-        (driverLocation?['longitude'] as num?)?.toDouble() ?? -81.3812;
+        (widget.driverLocation?['longitude'] as num?)?.toDouble() ?? -81.3812;
     final driverPos = LatLng(driverLat, driverLng);
 
     final markers = <Marker>[
@@ -592,10 +667,10 @@ class _LiveMap extends StatelessWidget {
       ),
     ];
 
-    if (deliveryLat != null && deliveryLng != null) {
+    if (widget.deliveryLat != null && widget.deliveryLng != null) {
       markers.add(
         Marker(
-          point: LatLng(deliveryLat!, deliveryLng!),
+          point: LatLng(widget.deliveryLat!, widget.deliveryLng!),
           width: 44,
           height: 44,
           child: Container(
@@ -620,17 +695,29 @@ class _LiveMap extends StatelessWidget {
       child: Stack(
         children: [
           FlutterMap(
-            mapController: mapController,
+            mapController: widget.mapController,
             options: MapOptions(initialCenter: driverPos, initialZoom: 14),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),
+              if (_routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 4,
+                      color: const Color(0xFF6366F1),
+                    ),
+                  ],
+                ),
               MarkerLayer(markers: markers),
             ],
           ),
+          // Live badge
           Positioned(
             top: 8,
             right: 8,
@@ -670,6 +757,47 @@ class _LiveMap extends StatelessWidget {
               ),
             ),
           ),
+          // ETA badge
+          if (_eta != null)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 14,
+                      color: Color(0xFF6366F1),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _eta!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6366F1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -874,7 +1002,10 @@ class _OrderDetailsCard extends StatelessWidget {
               ),
             ),
           ),
-          Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 20),
+          Divider(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            height: 20,
+          ),
           _Row(
             context.l10n.subtotal,
             '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
@@ -885,23 +1016,26 @@ class _OrderDetailsCard extends StatelessWidget {
                 ? 'FREE'
                 : '${AppConstants.currencySymbol}${order.deliveryFee.toStringAsFixed(2)}',
           ),
-          Builder(builder: (context) {
-            // Service fee = total - subtotal - delivery - tax - tip + discount
-            final serviceFee = (order.totalAmount -
-                    order.subtotal -
-                    order.deliveryFee -
-                    (order.taxAmount ?? 0) -
-                    (order.driverTip ?? 0) +
-                    (order.discount ?? 0))
-                .clamp(0.0, double.infinity);
-            if (serviceFee > 0.01) {
-              return _Row(
-                'Service Fee',
-                '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(2)}',
-              );
-            }
-            return const SizedBox.shrink();
-          }),
+          Builder(
+            builder: (context) {
+              // Service fee = total - subtotal - delivery - tax - tip + discount
+              final serviceFee =
+                  (order.totalAmount -
+                          order.subtotal -
+                          order.deliveryFee -
+                          (order.taxAmount ?? 0) -
+                          (order.driverTip ?? 0) +
+                          (order.discount ?? 0))
+                      .clamp(0.0, double.infinity);
+              if (serviceFee > 0.01) {
+                return _Row(
+                  'Service Fee',
+                  '${AppConstants.currencySymbol}${serviceFee.toStringAsFixed(2)}',
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           if (order.taxAmount != null && order.taxAmount! > 0)
             _Row(
               context.l10n.tax,
@@ -1217,9 +1351,10 @@ class _CancelOrderButton extends ConsumerWidget {
   }
 
   void _confirmCancel(BuildContext context, WidgetRef ref) {
-    String selectedRefundMethod = 'original';
     final isCardPayment = paymentMethod == 'card';
     final isCashPayment = paymentMethod == 'cash';
+    final isWalletPayment = paymentMethod == 'wallet';
+    String selectedRefundMethod = isWalletPayment ? 'wallet' : 'original';
 
     showDialog(
       context: context,
@@ -1266,6 +1401,12 @@ class _CancelOrderButton extends ConsumerWidget {
                     ],
                   ),
                 ),
+              ] else if (isWalletPayment) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Your refund will be returned to your wallet balance.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ] else if (isCashPayment) ...[
                 const SizedBox(height: 12),
                 const Text(
@@ -1290,6 +1431,8 @@ class _CancelOrderButton extends ConsumerWidget {
                         orderId,
                         refundMethod: isCardPayment
                             ? selectedRefundMethod
+                            : isWalletPayment
+                            ? 'wallet'
                             : null,
                       );
                   ref.invalidate(userOrdersProvider);
@@ -1321,15 +1464,16 @@ class _CancelOrderButton extends ConsumerWidget {
                     if (isCashPayment) {
                       message =
                           'Order cancelled. Cash payment has no refund transfer.';
-                    } else if (refund > 0 && refundMethod == 'wallet') {
+                    } else if (refund > 0 &&
+                        (refundMethod == 'wallet' || isWalletPayment)) {
                       message =
-                          'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to wallet.';
+                          'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to your wallet.';
                     } else if (isCardPayment && refund > 0) {
                       message =
                           'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
                     } else if (penalty > 0) {
                       message =
-                          'Order cancelled. \$${penalty.toStringAsFixed(2)} fee applied.';
+                          'Order cancelled. \$${penalty.toStringAsFixed(2)} cancellation fee applied.';
                     } else {
                       message = 'Order cancelled';
                     }
@@ -1510,9 +1654,12 @@ class _ReportIssueSheetState extends ConsumerState<_ReportIssueSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Report an Issue',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.headingSmall(context),
+              ),
             ),
             const SizedBox(height: 14),
             // Issue type chips

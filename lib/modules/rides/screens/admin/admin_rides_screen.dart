@@ -35,12 +35,12 @@ final _ridesOverviewProvider =
 
   final revenueRes = await client
       .from('ride_requests')
-      .select('fare_amount')
+      .select('final_fare,estimated_fare')
       .eq('ride_status', 'completed')
       .gte('completed_at', todayMidnight);
   double revenueToday = 0.0;
   for (final row in (revenueRes as List)) {
-    revenueToday += ((row['fare_amount'] as num?) ?? 0).toDouble();
+    revenueToday += (((row['final_fare'] ?? row['estimated_fare']) as num?) ?? 0).toDouble();
   }
 
   final recentActiveRes = await client
@@ -492,7 +492,7 @@ class _RideRow extends StatelessWidget {
                 _DetailRow(label: 'Pickup', value: ride['pickup_address'] as String? ?? '—'),
                 _DetailRow(label: 'Destination', value: ride['destination_address'] as String? ?? '—'),
                 _DetailRow(label: 'Driver ID', value: _shortId(ride['driver_id'] as String?)),
-                _DetailRow(label: 'Fare', value: 'J\$${((ride['fare_amount'] as num?) ?? 0).toStringAsFixed(2)}'),
+                _DetailRow(label: 'Fare', value: 'J\$${(((ride['final_fare'] ?? ride['estimated_fare']) as num?) ?? 0).toStringAsFixed(2)}'),
                 _DetailRow(label: 'Payment', value: ride['payment_status'] as String? ?? '—'),
                 if (ride['accepted_at'] != null)
                   _DetailRow(label: 'Accepted', value: _formatDate(ride['accepted_at'] as String?)),

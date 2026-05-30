@@ -27,6 +27,18 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 
+async function notifyUser(userId: string, title: string, body: string, data: Record<string, string>) {
+  try {
+    const { data: user } = await admin.from("users").select("fcm_token").eq("id", userId).maybeSingle();
+    if (!user?.fcm_token) return;
+    await fetch(`${supabaseUrl}/functions/v1/send-fcm-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceRoleKey}` },
+      body: JSON.stringify({ token: user.fcm_token, title, body, data }),
+    });
+  } catch { /* non-critical */ }
+}
+
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -207,11 +219,12 @@ Deno.serve(async (request) => {
     }
 
     // ── 4. Wallet payment gate (atomic — must succeed before order is created) ──
+    // wallet_deduct has no order_id FK so it safely runs before the order row exists.
     if (isWalletPayment) {
-      const { error: walletErr } = await admin.rpc("wallet_pay", {
-        p_user_id: userId,
-        p_amount: totalAmount,
-        p_order_id: orderId,
+      const { error: walletErr } = await admin.rpc("wallet_deduct", {
+        p_user_id:     userId,
+        p_amount:      totalAmount,
+        p_description: `Food order payment`,
       });
       if (walletErr) {
         const msg = walletErr.message ?? "Wallet payment failed";
@@ -316,7 +329,12 @@ Deno.serve(async (request) => {
       }).catch(() => {});
     }
 
-    // ── 7. Return the created order ──────────────────────────────────────
+    // ── 7. Notify customer ───────────────────────────────────────────────
+    await notifyUser(userId, '🍽️ Order Placed!', `Your order #${receiptNumber} has been received and is being prepared.`, {
+      type: 'order_placed', order_id: orderId, receipt_number: receiptNumber,
+    });
+
+    // ── 8. Return the created order ──────────────────────────────────────
     return json({
       success: true,
       order: {

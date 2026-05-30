@@ -241,7 +241,7 @@ class _RideRow extends StatelessWidget {
                 _DetailRow(label: 'Driver ID', value: _shortId(ride['driver_id'] as String?)),
                 _DetailRow(
                   label: 'Fare',
-                  value: 'J\$${((ride['fare_amount'] as num?) ?? 0).toStringAsFixed(2)}',
+                  value: 'J\$${(((ride['final_fare'] ?? ride['estimated_fare']) as num?) ?? 0).toStringAsFixed(2)}',
                 ),
                 _DetailRow(label: 'Payment', value: ride['payment_status'] as String? ?? '—'),
                 if (ride['accepted_at'] != null)
