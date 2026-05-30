@@ -442,7 +442,7 @@ class LaundryService {
     // 1. Read booking BEFORE cancelling to capture amounts for refund
     final bookingRow = await _supabase
         .from('laundry_bookings')
-        .select('reserved_amount, pickup_fee, customer_id')
+        .select('reserved_amount, pickup_fee, customer_id, booking_number')
         .eq('id', bookingId)
         .eq('customer_id', _uid)
         .maybeSingle();
@@ -459,13 +459,12 @@ class LaundryService {
 
     if (bookingRow == null) return;
 
-    final customerId = (bookingRow['customer_id'] as String?) ?? _uid;
-    final reserved   = (bookingRow['reserved_amount'] as num?)?.toDouble() ?? 0.0;
-    final pickupFee  = (bookingRow['pickup_fee']     as num?)?.toDouble() ?? 0.0;
+    final customerId    = (bookingRow['customer_id']    as String?) ?? _uid;
+    final reserved      = (bookingRow['reserved_amount'] as num?)?.toDouble() ?? 0.0;
+    final pickupFee     = (bookingRow['pickup_fee']      as num?)?.toDouble() ?? 0.0;
+    final bookingNumber = (bookingRow['booking_number']  as String?) ?? bookingId;
 
     // Refund = reserved_amount if set, otherwise fall back to pickup_fee.
-    // Never skip because reserved_amount is 0 — the reservation RPC may have
-    // failed silently during booking creation while the pickup_fee was still charged.
     final refundAmount = reserved > 0 ? reserved : pickupFee;
     if (refundAmount <= 0) return;
 
@@ -479,12 +478,13 @@ class LaundryService {
       AppLogger.error('releaseReservation RPC failed, using direct fallback: $e');
     }
 
-    // 4. Direct fallback — always runs if RPC unavailable or fails
+    // 4. Direct fallback — runs if RPC unavailable or fails
     if (!rpcOk) {
       await _directRefundWallet(
-        customerId:   customerId,
-        bookingId:    bookingId,
-        refundAmount: refundAmount,
+        customerId:    customerId,
+        bookingId:     bookingId,
+        bookingNumber: bookingNumber,
+        refundAmount:  refundAmount,
       );
     }
   }
@@ -494,6 +494,7 @@ class LaundryService {
   Future<void> _directRefundWallet({
     required String customerId,
     required String bookingId,
+    required String bookingNumber,
     required double refundAmount,
   }) async {
     try {
@@ -521,14 +522,13 @@ class LaundryService {
         'updated_at':       DateTime.now().toIso8601String(),
       }).eq('user_id', customerId);
 
-      // order_id FK references orders, not laundry_bookings — store NULL and
-      // embed the booking ID in the description for traceability.
+      // order_id FK references orders, not laundry_bookings — store NULL.
       await _supabase.from('wallet_transactions').insert({
         'user_id':     customerId,
         'amount':      refundAmount,
         'type':        'refund',
         'status':      'completed',
-        'description': 'Laundry booking cancelled — refund [laundry:$bookingId]',
+        'description': 'Laundry $bookingNumber cancelled — refund [laundry:$bookingId]',
         'order_id':    null,
       });
 
