@@ -521,13 +521,15 @@ class LaundryService {
         'updated_at':       DateTime.now().toIso8601String(),
       }).eq('user_id', customerId);
 
+      // order_id FK references orders, not laundry_bookings — store NULL and
+      // embed the booking ID in the description for traceability.
       await _supabase.from('wallet_transactions').insert({
         'user_id':     customerId,
         'amount':      refundAmount,
         'type':        'refund',
         'status':      'completed',
-        'description': 'Laundry booking cancelled — refund',
-        'order_id':    bookingId,
+        'description': 'Laundry booking cancelled — refund [laundry:$bookingId]',
+        'order_id':    null,
       });
 
       AppLogger.info(
