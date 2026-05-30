@@ -272,10 +272,14 @@ class _OrderActionsSheetState extends ConsumerState<_OrderActionsSheet> {
   }
 
   Future<void> _doWeighIn() async {
-    final kg    = double.tryParse(_weightCtrl.text);
-    final price = double.tryParse(_priceCtrl.text);
-    if (kg == null || price == null) {
-      AppSnackbar.warning(context, 'Enter valid weight and price');
+    final kg    = double.tryParse(_weightCtrl.text.trim());
+    final price = double.tryParse(_priceCtrl.text.trim());
+    if (kg == null || kg <= 0) {
+      AppSnackbar.warning(context, 'Enter a valid weight greater than 0');
+      return;
+    }
+    if (price == null || price <= 0) {
+      AppSnackbar.warning(context, 'Enter a valid price greater than 0');
       return;
     }
     setState(() => _loading = true);
