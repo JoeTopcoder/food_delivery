@@ -718,22 +718,30 @@ class _CustomerResultView extends StatelessWidget {
                 title: 'Wallet',
                 icon: Icons.account_balance_wallet_rounded,
                 rows: [
-                  _InfoRow('Balance',
-                      '${AppConstants.currencySymbol}${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
-                  _InfoRow('Reserved (on hold)',
-                      '${AppConstants.currencySymbol}${(wallet['reserved_balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}'),
+                  _InfoRow(
+                    'Balance',
+                    '${AppConstants.currencySymbol}${(wallet['balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  ),
+                  _InfoRow(
+                    'Reserved (on hold)',
+                    '${AppConstants.currencySymbol}${(wallet['reserved_balance'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                  ),
                   if (((wallet['debt_balance'] as num?)?.toDouble() ?? 0) > 0)
-                    _InfoRow('Outstanding Debt',
-                        '−${AppConstants.currencySymbol}${(wallet['debt_balance'] as num).toStringAsFixed(2)}',
-                        valueColor: Colors.red),
-                  _InfoRow('Available',
-                      '${AppConstants.currencySymbol}${(() {
-                        final b = (wallet['balance'] as num?)?.toDouble() ?? 0;
-                        final r = (wallet['reserved_balance'] as num?)?.toDouble() ?? 0;
-                        final d = (wallet['debt_balance'] as num?)?.toDouble() ?? 0;
-                        return (b - r - d).clamp(0.0, double.infinity).toStringAsFixed(2);
-                      })()}',
-                      valueColor: AppTheme.successColor),
+                    _InfoRow(
+                      'Outstanding Debt',
+                      '−${AppConstants.currencySymbol}${(wallet['debt_balance'] as num).toStringAsFixed(2)}',
+                      valueColor: Colors.red,
+                    ),
+                  _InfoRow(
+                    'Available',
+                    '${AppConstants.currencySymbol}${(() {
+                      final b = (wallet['balance'] as num?)?.toDouble() ?? 0;
+                      final r = (wallet['reserved_balance'] as num?)?.toDouble() ?? 0;
+                      final d = (wallet['debt_balance'] as num?)?.toDouble() ?? 0;
+                      return (b - r - d).clamp(0.0, double.infinity).toStringAsFixed(2);
+                    })()}',
+                    valueColor: AppTheme.successColor,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -965,7 +973,8 @@ class _InfoSection extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: row.valueColor ??
+                        color:
+                            row.valueColor ??
                             Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
@@ -1142,20 +1151,24 @@ class _WalletAdjustButton extends ConsumerWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         icon: const Icon(Icons.tune_rounded, size: 18),
-        label: const Text('Adjust Wallet Balance',
-            style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Adjust Wallet Balance',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppTheme.primaryColor,
           side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 10),
         ),
         onPressed: () => showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           builder: (_) => _WalletAdjustSheet(
             userId: userId,
             customerName: customerName,
@@ -1187,8 +1200,8 @@ class _WalletAdjustSheet extends ConsumerStatefulWidget {
 
 class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
   final _amountCtrl = TextEditingController();
-  final _descCtrl   = TextEditingController();
-  bool _isDebt  = false; // false = credit (+), true = debt (-)
+  final _descCtrl = TextEditingController();
+  bool _isDebt = false; // false = credit (+), true = debt (-)
   bool _loading = false;
 
   @override
@@ -1214,19 +1227,22 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
       final adminId = SupabaseConfig.client.auth.currentUser?.id ?? '';
       final adjustedAmount = _isDebt ? -amount : amount;
 
-      await SupabaseConfig.client.rpc('admin_wallet_adjust', params: {
-        'p_user_id':     widget.userId,
-        'p_amount':      adjustedAmount,
-        'p_description': _descCtrl.text.trim(),
-        'p_admin_id':    adminId,
-      });
+      await SupabaseConfig.client.rpc(
+        'admin_wallet_adjust',
+        params: {
+          'p_user_id': widget.userId,
+          'p_amount': adjustedAmount,
+          'p_description': _descCtrl.text.trim(),
+          'p_admin_id': adminId,
+        },
+      );
 
       if (mounted) {
         AppSnackbar.success(
           context,
           _isDebt
               ? 'Debt of ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} recorded — '
-                'will clear on next top-up'
+                    'will clear on next top-up'
               : 'Credit of ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
         );
         widget.onDone();
@@ -1244,7 +1260,9 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 20,
+        left: 20,
+        right: 20,
+        top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: Column(
@@ -1254,7 +1272,8 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
           // Handle
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
@@ -1263,13 +1282,15 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
             ),
           ),
 
-          Text('Wallet Adjustment',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800, fontSize: 18)),
+          Text(
+            'Wallet Adjustment',
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          ),
           const SizedBox(height: 4),
-          Text(widget.customerName,
-              style: TextStyle(
-                  fontSize: 13, color: Colors.grey.shade600)),
+          Text(
+            widget.customerName,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 20),
 
           // Credit / Debt toggle
@@ -1294,20 +1315,20 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_circle_rounded,
-                              size: 16,
-                              color: !_isDebt
-                                  ? Colors.white
-                                  : Colors.grey),
+                          Icon(
+                            Icons.add_circle_rounded,
+                            size: 16,
+                            color: !_isDebt ? Colors.white : Colors.grey,
+                          ),
                           const SizedBox(width: 6),
-                          Text('Credit (add funds)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: !_isDebt
-                                    ? Colors.white
-                                    : Colors.grey,
-                              )),
+                          Text(
+                            'Credit (add funds)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: !_isDebt ? Colors.white : Colors.grey,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1327,19 +1348,20 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.remove_circle_rounded,
-                              size: 16,
-                              color:
-                                  _isDebt ? Colors.white : Colors.grey),
+                          Icon(
+                            Icons.remove_circle_rounded,
+                            size: 16,
+                            color: _isDebt ? Colors.white : Colors.grey,
+                          ),
                           const SizedBox(width: 6),
-                          Text('Debt (next top-up)',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: _isDebt
-                                    ? Colors.white
-                                    : Colors.grey,
-                              )),
+                          Text(
+                            'Debt (next top-up)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _isDebt ? Colors.white : Colors.grey,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1354,15 +1376,17 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
           // Amount field
           TextField(
             controller: _amountCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: 'Amount',
               prefixText: c,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -1375,9 +1399,12 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
               labelText: 'Reason / Description',
               hintText: 'e.g. Compensation for service issue',
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
 
@@ -1393,16 +1420,20 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
-                      color: Colors.orange.shade700, size: 18),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.orange.shade700,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Debt will NOT reduce the customer\'s balance now. '
                       'It will be auto-deducted from their next wallet top-up.',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade800),
+                        fontSize: 12,
+                        color: Colors.orange.shade800,
+                      ),
                     ),
                   ),
                 ],
@@ -1418,24 +1449,33 @@ class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
             child: ElevatedButton(
               onPressed: _loading ? null : _apply,
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _isDebt ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                backgroundColor: _isDebt
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFF10B981),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: _loading
                   ? const SizedBox(
-                      width: 22, height: 22,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
                   : Text(
                       _isDebt
                           ? 'Record Debt (clears on next top-up)'
                           : 'Add Credit to Wallet',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15)),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
             ),
           ),
         ],

@@ -475,7 +475,8 @@ class _StatusTimeline extends StatelessWidget {
             final status = e.value;
             // currentIdx == -1 when status is cancelled/disputed (not in list).
             // In that case show no step as active and nothing as done.
-            final done = currentIdx >= 0 &&
+            final done =
+                currentIdx >= 0 &&
                 (idx < currentIdx ||
                     booking.status == LaundryBookingStatus.completed);
             final active = currentIdx >= 0 && idx == currentIdx;
