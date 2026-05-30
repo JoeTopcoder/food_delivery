@@ -447,13 +447,14 @@ class LaundryService {
         .eq('customer_id', _uid)
         .maybeSingle();
 
-    // 2. Mark booking cancelled, zero out the DB reservation record
+    // 2. Mark booking cancelled — do NOT zero reserved_amount here;
+    // the releaseReservation RPC reads it to compute the refund and zeroes it
+    // itself after a successful wallet update.
     await _supabase.from('laundry_bookings').update({
       'status':              'cancelled',
       'cancellation_reason': reason,
       'cancelled_by':        'customer',
       'cancelled_at':        DateTime.now().toIso8601String(),
-      'reserved_amount':     0,
     }).eq('id', bookingId).eq('customer_id', _uid);
 
     if (bookingRow == null) return;
