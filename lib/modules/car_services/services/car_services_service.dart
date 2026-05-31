@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
 import '../models/index.dart';
+import '../../../services/loyalty_service.dart';
+import '../../../utils/app_logger.dart';
 
 // Re-export so screens only need one service import
 export 'customer_vehicle_service.dart';
@@ -483,6 +485,29 @@ class CarServicesService {
           .from('car_service_bookings')
           .update(data)
           .eq('id', bookingId);
+
+      // Award loyalty points when booking is completed
+      if (status == 'completed') {
+        try {
+          final row = await _supabase
+              .from('car_service_bookings')
+              .select('customer_id, total_price')
+              .eq('id', bookingId)
+              .maybeSingle();
+          final custId = row?['customer_id'] as String?;
+          final total  = (row?['total_price'] as num?)?.toDouble() ?? 0.0;
+          if (custId != null && total > 0) {
+            await LoyaltyService(_supabase).earnPoints(
+              userId:      custId,
+              orderId:     bookingId,
+              orderTotal:  total,
+              description: 'Earned from car service',
+            );
+          }
+        } catch (e) {
+          AppLogger.error('Car service loyalty points failed: $e');
+        }
+      }
     } catch (e) {
       rethrow;
     }
