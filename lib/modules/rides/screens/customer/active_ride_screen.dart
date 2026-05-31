@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:food_driver/services/loyalty_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -49,6 +50,7 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
   Map<String, dynamic>? _driverInfo;
   String? _lastFetchedDriverId;
   int _mapRebuildKey = 0;
+  bool _pointsAwarded = false; // guard so we only award once per ride
 
   // Timer used to refresh the waiting fee display every second
   Timer? _tickTimer;
@@ -316,6 +318,26 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
   Widget build(BuildContext context) {
     final rideStreamAsync = ref.watch(rideStatusStreamProvider(widget.rideId));
     final locationAsync = ref.watch(rideLocationStreamProvider(widget.rideId));
+
+    // Award loyalty points exactly once when the ride reaches completed status
+    ref.listen<AsyncValue<RideRequest?>>(rideStatusStreamProvider(widget.rideId),
+        (_, next) {
+      final ride = next.valueOrNull;
+      if (!_pointsAwarded &&
+          ride?.rideStatus == RideStatus.rideCompleted &&
+          ride?.estimatedFare != null) {
+        _pointsAwarded = true;
+        final userId = SupabaseConfig.client.auth.currentUser?.id;
+        if (userId != null) {
+          LoyaltyService(SupabaseConfig.client).earnPoints(
+            userId:      userId,
+            orderId:     widget.rideId,
+            orderTotal:  ride!.estimatedFare!,
+            description: 'Earned from ride',
+          );
+        }
+      }
+    });
 
     final ride = rideStreamAsync.valueOrNull;
 

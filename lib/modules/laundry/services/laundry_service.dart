@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/index.dart';
 import '../../../utils/app_logger.dart';
+import '../../../services/loyalty_service.dart';
 
 class LaundryInsufficientBalanceException implements Exception {
   final double required;
@@ -621,7 +622,25 @@ class LaundryService {
     // Settle financials when booking completes (releases reservation, splits commission)
     if (status == LaundryBookingStatus.completed) {
       try {
-        await settleBooking(bookingId);
+        final result = await settleBooking(bookingId);
+        // Award loyalty points to the customer based on amount charged
+        final charged = (result['charged'] as num?)?.toDouble() ?? 0.0;
+        if (charged > 0) {
+          final bookingRow = await _supabase
+              .from('laundry_bookings')
+              .select('customer_id')
+              .eq('id', bookingId)
+              .maybeSingle();
+          final custId = bookingRow?['customer_id'] as String?;
+          if (custId != null) {
+            await LoyaltyService(_supabase).earnPoints(
+              userId:      custId,
+              orderId:     bookingId,
+              orderTotal:  charged,
+              description: 'Earned from laundry service',
+            );
+          }
+        }
       } catch (e) {
         AppLogger.error('settleBooking failed for $bookingId: $e');
       }

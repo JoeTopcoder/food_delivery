@@ -52,6 +52,7 @@ class LoyaltyService {
     required String userId,
     required String orderId,
     required double orderTotal,
+    String description = 'Earned from order',
   }) async {
     try {
       final pts = computeEarnedPoints(orderTotal);
@@ -63,7 +64,7 @@ class LoyaltyService {
           'p_points': pts,
           'p_order_id': orderId,
           'p_type': 'earn',
-          'p_description': 'Earned from order',
+          'p_description': description,
         },
       );
     } catch (e) {
