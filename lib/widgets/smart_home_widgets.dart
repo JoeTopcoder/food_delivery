@@ -416,24 +416,29 @@ class SmartRecommendationSection extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 230,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: recommendations.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final rec = recommendations[index];
-              return RepaintBoundary(
-                child: _SmartRestaurantCard(
-                  rec: rec,
-                  onTap: () => onTap?.call(rec),
-                ),
-              );
-            },
-          ),
-        ),
+        LayoutBuilder(builder: (context, _) {
+          final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(155.0, 195.0);
+          final listH = (cardW * 1.38).clamp(210.0, 265.0);
+          return SizedBox(
+            height: listH,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: recommendations.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final rec = recommendations[index];
+                return RepaintBoundary(
+                  child: _SmartRestaurantCard(
+                    rec: rec,
+                    cardWidth: cardW,
+                    onTap: () => onTap?.call(rec),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
         const SizedBox(height: 8),
       ],
     );
@@ -443,15 +448,20 @@ class SmartRecommendationSection extends StatelessWidget {
 class _SmartRestaurantCard extends StatelessWidget {
   final SmartRecommendation rec;
   final VoidCallback? onTap;
+  final double cardWidth;
 
-  const _SmartRestaurantCard({required this.rec, this.onTap});
+  const _SmartRestaurantCard({
+    required this.rec,
+    required this.cardWidth,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 180,
+        width: cardWidth,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
@@ -483,8 +493,8 @@ class _SmartRestaurantCard extends StatelessWidget {
               child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
                   ? Image.network(
                       rec.imageUrl!,
-                      height: 110,
-                      width: 180,
+                      height: cardWidth * 0.61,
+                      width: cardWidth,
                       fit: BoxFit.cover,
                       cacheWidth: 360,
                       errorBuilder: (_, _, _) => _imagePlaceholder(),
@@ -621,8 +631,8 @@ class _SmartRestaurantCard extends StatelessWidget {
   );
 
   Widget _imagePlaceholder() => Container(
-    height: 110,
-    width: 180,
+    height: cardWidth * 0.61,
+    width: cardWidth,
     decoration: BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -762,22 +772,25 @@ class _SmartSectionsLoading extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(
-          height: 230,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 3,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (_, _) => Container(
-              width: 180,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
+        LayoutBuilder(builder: (context, _) {
+          final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(155.0, 195.0);
+          return SizedBox(
+            height: (cardW * 1.38).clamp(210.0, 265.0),
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 3,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (_, _) => Container(
+                width: cardW,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }

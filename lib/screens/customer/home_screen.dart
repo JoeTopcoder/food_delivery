@@ -1494,8 +1494,8 @@ class _DynamicBannerCarouselState
 
         return Column(
           children: [
-            SizedBox(
-              height: 118,
+            AspectRatio(
+              aspectRatio: 16 / 6,
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: banners.length,
@@ -1619,6 +1619,8 @@ class _DynamicBannerCarouselState
                 children: [
                   Text(
                     banner.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
