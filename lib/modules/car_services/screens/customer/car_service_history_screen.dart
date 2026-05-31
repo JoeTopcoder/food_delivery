@@ -57,6 +57,15 @@ class _CarServiceHistoryScreenState
             backgroundColor: _kBlueDark,
             foregroundColor: Colors.white,
             elevation: 0,
+            centerTitle: false,
+            title: const Text(
+              'Service History',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -66,26 +75,13 @@ class _CarServiceHistoryScreenState
                     colors: [_kBlueDark, _kBlue],
                   ),
                 ),
-                child: SafeArea(
+                child: const Align(
+                  alignment: Alignment.bottomLeft,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Service History',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Your past car care bookings',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
-                        ),
-                      ],
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Text(
+                      'Your past car care bookings',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ),
                 ),
