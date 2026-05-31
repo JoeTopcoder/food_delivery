@@ -133,8 +133,10 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
               child: categoriesAsync.when(
                 data: (categories) {
                   if (categories.isEmpty) return const SizedBox.shrink();
-                  return SizedBox(
-                    height: 100,
+                  return LayoutBuilder(builder: (context, _) {
+                    final catH = (MediaQuery.of(context).size.height * 0.13).clamp(95.0, 115.0);
+                    return SizedBox(
+                    height: catH,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -194,7 +196,8 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                         );
                       },
                     ),
-                  );
+                  );      // SizedBox
+                  });     // LayoutBuilder
                 },
                 loading: () => const SizedBox(
                   height: 100,
