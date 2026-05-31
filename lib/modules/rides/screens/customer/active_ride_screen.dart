@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -365,7 +366,26 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
               formatMmSs: _formatMmSs,
               onCall: _callDriver,
               onChat: _openChat,
-              onShare: () {},
+              onShare: () {
+                final r = ref
+                    .read(rideStatusStreamProvider(widget.rideId))
+                    .valueOrNull;
+                final driverName =
+                    _driverInfo?['name'] as String? ?? 'My Driver';
+                final pickup = r?.pickupAddress ?? '';
+                final dest   = r?.destinationAddress ?? '';
+                final fare   = r != null && r.estimatedFare != null
+                    ? 'J\$${r.estimatedFare!.toStringAsFixed(0)}'
+                    : '';
+                final msg = StringBuffer()
+                  ..writeln('🚗 I\'m on a ride with 7Dash!')
+                  ..writeln('Driver: $driverName');
+                if (pickup.isNotEmpty) msg.writeln('📍 From: $pickup');
+                if (dest.isNotEmpty)   msg.writeln('🏁 To: $dest');
+                if (fare.isNotEmpty)   msg.writeln('💳 Fare: $fare');
+                msg.write('\nBook rides on 7Dash 👉 https://sevendash.app');
+                Share.share(msg.toString());
+              },
               onCancel: _cancelRide,
               onViewHistory: () => Navigator.pushReplacementNamed(
                 context,

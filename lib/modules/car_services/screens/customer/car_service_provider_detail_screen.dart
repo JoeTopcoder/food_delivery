@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:food_driver/modules/car_services/models/car_service_offering.dart';
 import 'package:food_driver/modules/car_services/models/car_service_provider.dart';
 import 'package:food_driver/modules/car_services/models/car_service_provider_image.dart';
@@ -24,11 +25,34 @@ class _CarServiceProviderDetailScreenState
     extends ConsumerState<CarServiceProviderDetailScreen> {
   final _pageCtrl = PageController();
   int _currentPage = 0;
+  bool _isFav = false;
 
   @override
   void dispose() {
     _pageCtrl.dispose();
     super.dispose();
+  }
+
+  void _share(CarServiceProvider provider) {
+    final rating  = provider.rating.toStringAsFixed(1);
+    final address = provider.baseLocationAddress ?? '';
+    final msg = StringBuffer()
+      ..writeln('🚗 ${provider.businessName}')
+      ..writeln('⭐ $rating stars');
+    if (address.isNotEmpty) msg.writeln('📍 $address');
+    msg.write('\nBook car services on 7Dash 👉 https://sevendash.app');
+    Share.share(msg.toString(), subject: provider.businessName);
+  }
+
+  void _toggleFav(CarServiceProvider provider) {
+    setState(() => _isFav = !_isFav);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_isFav
+          ? '❤️ ${provider.businessName} added to favourites'
+          : '${provider.businessName} removed from favourites'),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   @override
@@ -100,11 +124,14 @@ class _CarServiceProviderDetailScreenState
             actions: [
               IconButton(
                 icon: const Icon(Icons.share_outlined),
-                onPressed: () {},
+                onPressed: () => _share(provider),
               ),
               IconButton(
-                icon: const Icon(Icons.favorite_border_rounded),
-                onPressed: () {},
+                icon: Icon(
+                  _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: _isFav ? Colors.red : null,
+                ),
+                onPressed: () => _toggleFav(provider),
               ),
             ],
           ),
