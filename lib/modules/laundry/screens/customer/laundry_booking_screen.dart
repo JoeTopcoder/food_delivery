@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/index.dart';
 import '../../providers/laundry_providers.dart';
+import '../../../../models/address_model.dart';
+import '../../../../providers/address_provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/wallet_provider.dart';
 import '../../../../utils/app_theme.dart';
@@ -34,7 +36,7 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
   final _pickupAddrCtrl = TextEditingController();
   final _returnAddrCtrl = TextEditingController();
   bool _sameAddress = true;
-  String? _savedAddress;
+  UserAddress? _selectedPickupAddress;
 
   // Step 3 — Schedule
   DateTime? _pickupDate;
@@ -56,13 +58,16 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill pickup address from customer profile on first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = ref.read(currentUserProvider);
-      final addr = user?.address ?? '';
-      if (addr.isNotEmpty) {
-        setState(() => _savedAddress = addr);
-        _pickupAddrCtrl.text = addr;
+    // Load the customer's default saved address on first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userId = ref.read(currentUserIdProvider);
+      if (userId == null) return;
+      final defaultAddr = await ref.read(defaultAddressProvider(userId).future);
+      if (defaultAddr != null && mounted) {
+        setState(() {
+          _selectedPickupAddress = defaultAddr;
+          _pickupAddrCtrl.text = defaultAddr.address;
+        });
       }
     });
   }
@@ -256,13 +261,17 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
       final returnAddr = _sameAddress ? _pickupAddrCtrl.text : _returnAddrCtrl.text;
       final user       = ref.read(currentUserProvider);
 
+      // Prefer coordinates from the selected saved address; fall back to user profile
+      final pickupLat = _selectedPickupAddress?.latitude ?? user?.latitude;
+      final pickupLng = _selectedPickupAddress?.longitude ?? user?.longitude;
+
       // 3. Create booking in DB
       AppLogger.info('[Booking] calling createBooking…');
       final booking = await svc.createBooking(
         providerId:        widget.provider.id,
         pickupAddress:     _pickupAddrCtrl.text,
-        pickupLat:         user?.latitude,
-        pickupLng:         user?.longitude,
+        pickupLat:         pickupLat,
+        pickupLng:         pickupLng,
         returnAddress:     returnAddr,
         pickupDate:        _pickupDate!,
         pickupTimeSlot:    _pickupSlot!,
@@ -359,16 +368,15 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
                   }),
                 ),
                 _AddressPage(
-                  pickupCtrl:    _pickupAddrCtrl,
-                  returnCtrl:    _returnAddrCtrl,
-                  sameAddress:   _sameAddress,
-                  savedAddress:  _savedAddress,
-                  onSameChanged: (v) => setState(() => _sameAddress = v),
-                  onUseSaved:    () {
-                    if (_savedAddress != null) {
-                      setState(() => _pickupAddrCtrl.text = _savedAddress!);
-                    }
-                  },
+                  pickupCtrl:       _pickupAddrCtrl,
+                  returnCtrl:       _returnAddrCtrl,
+                  sameAddress:      _sameAddress,
+                  selectedAddress:  _selectedPickupAddress,
+                  onSameChanged:    (v) => setState(() => _sameAddress = v),
+                  onAddressSelected: (addr) => setState(() {
+                    _selectedPickupAddress = addr;
+                    _pickupAddrCtrl.text   = addr.address;
+                  }),
                 ),
                 _SchedulePage(
                   pickupDate:    _pickupDate,
@@ -552,25 +560,38 @@ class _ServicesPage extends ConsumerWidget {
 // Step 2 — Address
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _AddressPage extends StatelessWidget {
+class _AddressPage extends ConsumerWidget {
   final TextEditingController pickupCtrl;
   final TextEditingController returnCtrl;
   final bool sameAddress;
-  final String? savedAddress;
+  final UserAddress? selectedAddress;
   final ValueChanged<bool> onSameChanged;
-  final VoidCallback onUseSaved;
+  final ValueChanged<UserAddress> onAddressSelected;
 
   const _AddressPage({
     required this.pickupCtrl,
     required this.returnCtrl,
     required this.sameAddress,
-    this.savedAddress,
+    required this.selectedAddress,
     required this.onSameChanged,
-    required this.onUseSaved,
+    required this.onAddressSelected,
   });
 
+  IconData _labelIcon(String label) {
+    switch (label.toLowerCase()) {
+      case 'work':   return Icons.work_rounded;
+      case 'other':  return Icons.location_on_rounded;
+      default:       return Icons.home_rounded;
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userId       = ref.watch(currentUserIdProvider);
+    final addressAsync = userId != null
+        ? ref.watch(userAddressesProvider(userId))
+        : null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -579,29 +600,122 @@ class _AddressPage extends StatelessWidget {
           _SectionTitle('Pickup Address'),
           const SizedBox(height: 12),
 
-          // Saved address tile (pre-selected by default)
-          if (savedAddress != null) ...[
-            _SavedAddressTile(address: savedAddress!, onUse: onUseSaved),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Expanded(child: Divider()),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'or use a different address',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                  ),
-                ),
-                const Expanded(child: Divider()),
-              ],
+          // Saved address chips from the customer's address book
+          if (addressAsync != null)
+            addressAsync.when(
+              loading: () => const SizedBox(
+                height: 40,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (addresses) {
+                if (addresses.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: addresses.map((addr) {
+                          final isSelected = selectedAddress?.id == addr.id;
+                          return GestureDetector(
+                            onTap: () => onAddressSelected(addr),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? _kBlue
+                                    : _kBlue.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? _kBlue
+                                      : _kBlue.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _labelIcon(addr.label),
+                                    size: 16,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : _kBlue,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        addr.label,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : _kBlue,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 160,
+                                        child: Text(
+                                          addr.address,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isSelected
+                                                ? Colors.white70
+                                                : Colors.grey.shade600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: Colors.white, size: 16),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'or type a different address',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500),
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 12),
-          ],
 
           _AddrField(
             controller: pickupCtrl,
-            hint: savedAddress != null
+            hint: selectedAddress != null
                 ? 'Override pickup address…'
                 : 'Where should we pick up your laundry?',
           ),
@@ -610,8 +724,10 @@ class _AddressPage extends StatelessWidget {
           SwitchListTile.adaptive(
             value: sameAddress,
             onChanged: onSameChanged,
-            title: const Text('Return to same address', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Drop off clean laundry at the pickup address'),
+            title: const Text('Return to same address',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text(
+                'Drop off clean laundry at the pickup address'),
             contentPadding: EdgeInsets.zero,
             activeTrackColor: _kBlue,
           ),
@@ -620,66 +736,11 @@ class _AddressPage extends StatelessWidget {
             const SizedBox(height: 16),
             _SectionTitle('Return Address'),
             const SizedBox(height: 8),
-            _AddrField(controller: returnCtrl, hint: 'Where should we return your clean laundry?'),
+            _AddrField(
+                controller: returnCtrl,
+                hint: 'Where should we return your clean laundry?'),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _SavedAddressTile extends StatelessWidget {
-  final String address;
-  final VoidCallback onUse;
-  const _SavedAddressTile({required this.address, required this.onUse});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onUse,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _kBlue.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBlue.withValues(alpha: 0.35), width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: _kBlue.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.home_rounded, color: _kBlue, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your Saved Address',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 12,
-                      color: _kBlue, letterSpacing: 0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    address,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.check_circle_rounded, color: _kBlue, size: 22),
-          ],
-        ),
       ),
     );
   }
