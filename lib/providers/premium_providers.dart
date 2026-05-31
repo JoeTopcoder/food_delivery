@@ -56,6 +56,26 @@ final isFavoriteProvider =
       return service.isFavorite(params.$1, params.$2);
     });
 
+final favoriteLaundryProvidersProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, userId) async {
+  final rows = await Supabase.instance.client
+      .from('user_favorite_laundry_providers')
+      .select('provider_id, laundry_providers(id, business_name, rating, address, logo_url, banner_url)')
+      .eq('user_id', userId)
+      .order('created_at', ascending: false);
+  return (rows as List).cast<Map<String, dynamic>>();
+});
+
+final favoriteCarProvidersProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, userId) async {
+  final rows = await Supabase.instance.client
+      .from('user_favorite_car_providers')
+      .select('provider_id, car_service_providers(id, business_name, rating, base_location_address, profile_image_url)')
+      .eq('user_id', userId)
+      .order('created_at', ascending: false);
+  return (rows as List).cast<Map<String, dynamic>>();
+});
+
 // ==================== DRIVER LEADERBOARD ====================
 
 final driverLeaderboardProvider =
