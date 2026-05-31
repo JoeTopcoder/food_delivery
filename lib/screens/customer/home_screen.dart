@@ -1280,8 +1280,13 @@ class _CompactRestaurantCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 180,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardW = constraints.maxWidth.isInfinite
+              ? (MediaQuery.of(context).size.width * 0.48).clamp(160.0, 200.0)
+              : constraints.maxWidth;
+          return Container(
+        width: cardW,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
@@ -1306,7 +1311,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                   ? Image.network(
                       restaurant.imageUrl!,
                       height: 110,
-                      width: 180,
+                      width: cardW,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _placeholder(),
                       loadingBuilder: (_, child, progress) =>
@@ -1378,11 +1383,15 @@ class _CompactRestaurantCard extends StatelessWidget {
                         color: Colors.grey[700],
                       ),
                       const SizedBox(width: 3),
-                      Text(
-                        '${restaurant.estimatedDeliveryTime ?? 30} min',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      Flexible(
+                        child: Text(
+                          '${restaurant.estimatedDeliveryTime ?? 30} min',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
@@ -1392,13 +1401,14 @@ class _CompactRestaurantCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );  // Container
+        },  // LayoutBuilder builder
+      ),  // LayoutBuilder
+    );  // GestureDetector
   }
 
   Widget _placeholder() => Container(
     height: 110,
-    width: 180,
     decoration: BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -1498,20 +1508,23 @@ class _DynamicBannerCarouselState
             ),
             if (banners.length > 1) ...[
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  banners.length,
-                  (i) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: _currentPage == i ? 20 : 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: _currentPage == i
-                          ? AppTheme.primaryColor
-                          : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(3),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    banners.length,
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: _currentPage == i ? 20 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _currentPage == i
+                            ? AppTheme.primaryColor
+                            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
                   ),
                 ),
@@ -1965,7 +1978,7 @@ class _ServiceCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 150,
+        width: (MediaQuery.of(context).size.width * 0.38).clamp(130.0, 160.0),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
