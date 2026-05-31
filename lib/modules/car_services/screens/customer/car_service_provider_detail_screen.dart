@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:food_driver/modules/car_services/models/car_service_offering.dart';
 import 'package:food_driver/modules/car_services/models/car_service_provider.dart';
 import 'package:food_driver/modules/car_services/models/car_service_provider_image.dart';
@@ -26,11 +27,36 @@ class _CarServiceProviderDetailScreenState
   final _pageCtrl = PageController();
   int _currentPage = 0;
   bool _isFav = false;
+  bool _favLoading = false;
+
+  static final _db = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider =
+          ModalRoute.of(context)!.settings.arguments as CarServiceProvider;
+      _loadFav(provider.id);
+    });
+  }
 
   @override
   void dispose() {
     _pageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadFav(String providerId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final row = await _db
+        .from('user_favorite_car_providers')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('provider_id', providerId)
+        .maybeSingle();
+    if (mounted) setState(() => _isFav = row != null);
   }
 
   void _share(CarServiceProvider provider) {
@@ -44,15 +70,43 @@ class _CarServiceProviderDetailScreenState
     Share.share(msg.toString(), subject: provider.businessName);
   }
 
-  void _toggleFav(CarServiceProvider provider) {
-    setState(() => _isFav = !_isFav);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(_isFav
-          ? '❤️ ${provider.businessName} added to favourites'
-          : '${provider.businessName} removed from favourites'),
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-    ));
+  Future<void> _toggleFav(CarServiceProvider provider) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null || _favLoading) return;
+    setState(() => _favLoading = true);
+    try {
+      if (_isFav) {
+        await _db
+            .from('user_favorite_car_providers')
+            .delete()
+            .eq('user_id', uid)
+            .eq('provider_id', provider.id);
+      } else {
+        await _db.from('user_favorite_car_providers').upsert({
+          'user_id':     uid,
+          'provider_id': provider.id,
+        }, onConflict: 'user_id,provider_id');
+      }
+      if (mounted) {
+        setState(() => _isFav = !_isFav);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_isFav
+              ? '❤️ ${provider.businessName} saved to favourites'
+              : '${provider.businessName} removed from favourites'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not update favourites. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _favLoading = false);
+    }
   }
 
   @override
@@ -127,11 +181,20 @@ class _CarServiceProviderDetailScreenState
                 onPressed: () => _share(provider),
               ),
               IconButton(
-                icon: Icon(
-                  _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: _isFav ? Colors.red : null,
-                ),
-                onPressed: () => _toggleFav(provider),
+                icon: _favLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : Icon(
+                        _isFav
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: _isFav ? Colors.red : null,
+                      ),
+                onPressed: _favLoading ? null : () => _toggleFav(provider),
               ),
             ],
           ),

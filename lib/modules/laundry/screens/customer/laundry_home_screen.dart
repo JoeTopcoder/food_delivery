@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/index.dart';
 import '../../providers/laundry_providers.dart';
 import '../../../../utils/app_theme.dart';
@@ -450,16 +452,83 @@ class _CategoryBar extends StatelessWidget {
 // Provider Card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ProviderCard extends StatelessWidget {
+class _ProviderCard extends ConsumerStatefulWidget {
   final LaundryProvider provider;
   final VoidCallback onTap;
 
   const _ProviderCard({required this.provider, required this.onTap});
 
   @override
+  ConsumerState<_ProviderCard> createState() => _ProviderCardState();
+}
+
+class _ProviderCardState extends ConsumerState<_ProviderCard> {
+  bool _isFav = false;
+  bool _favLoading = false;
+
+  static final _db = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFav();
+  }
+
+  Future<void> _loadFav() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final row = await _db
+        .from('user_favorite_laundry_providers')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('provider_id', widget.provider.id)
+        .maybeSingle();
+    if (mounted) setState(() => _isFav = row != null);
+  }
+
+  Future<void> _toggleFav() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null || _favLoading) return;
+    setState(() => _favLoading = true);
+    try {
+      if (_isFav) {
+        await _db
+            .from('user_favorite_laundry_providers')
+            .delete()
+            .eq('user_id', uid)
+            .eq('provider_id', widget.provider.id);
+      } else {
+        await _db.from('user_favorite_laundry_providers').upsert({
+          'user_id':     uid,
+          'provider_id': widget.provider.id,
+        }, onConflict: 'user_id,provider_id');
+      }
+      if (mounted) setState(() => _isFav = !_isFav);
+    } catch (_) {
+      // silently fail — icon snaps back
+    } finally {
+      if (mounted) setState(() => _favLoading = false);
+    }
+  }
+
+  void _share() {
+    final p       = widget.provider;
+    final rating  = p.rating > 0 ? '⭐ ${p.rating.toStringAsFixed(1)}' : '';
+    final address = p.address ?? '';
+    final msg = StringBuffer()
+      ..writeln('👕 ${p.businessName}');
+    if (rating.isNotEmpty)  msg.writeln(rating);
+    if (address.isNotEmpty) msg.writeln('📍 $address');
+    msg.write('\nBook laundry pickup on 7Dash 👉 https://sevendash.app');
+    Share.share(msg.toString(), subject: p.businessName);
+  }
+
+  LaundryProvider get provider => widget.provider;
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
@@ -631,6 +700,48 @@ class _ProviderCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // Share button
+                      GestureDetector(
+                        onTap: _share,
+                        child: Container(
+                          width: 34, height: 34,
+                          decoration: BoxDecoration(
+                            color: _kBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.share_rounded,
+                              color: _kBlue, size: 17),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Favourite button
+                      GestureDetector(
+                        onTap: _favLoading ? null : _toggleFav,
+                        child: Container(
+                          width: 34, height: 34,
+                          decoration: BoxDecoration(
+                            color: _isFav
+                                ? Colors.red.withValues(alpha: 0.1)
+                                : _kBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: _favLoading
+                              ? const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: _kBlue),
+                                )
+                              : Icon(
+                                  _isFav
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: _isFav ? Colors.red : _kBlue,
+                                  size: 17,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Book button
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 7),
