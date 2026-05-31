@@ -46,7 +46,9 @@ class _CustomerProfileScreenState
               _HeroHeader(
                 currentUser:  currentUser,
                 onEditPhoto:  () => _pickAndUploadPhoto(context, ref, currentUser),
-                onBack:       () => Navigator.pop(context),
+                onBack: () {
+                  if (Navigator.canPop(context)) Navigator.pop(context);
+                },
               ),
 
               // ── Stats card ───────────────────────────────────────
