@@ -4,6 +4,7 @@ import 'package:food_driver/modules/car_services/models/car_service_category.dar
 import 'package:food_driver/modules/car_services/models/car_service_provider.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
 import 'package:food_driver/utils/app_logger.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _kBlue = Color(0xFF1D4ED8);
 const _kBlueDark = Color(0xFF1E3A8A);
@@ -306,22 +307,73 @@ class _Chip extends StatelessWidget {
 
 // ── Provider card ──────────────────────────────────────────────────────────────
 
-class _ProviderCard extends StatelessWidget {
+class _ProviderCard extends ConsumerStatefulWidget {
   final CarServiceProvider provider;
-
   const _ProviderCard({required this.provider});
+
+  @override
+  ConsumerState<_ProviderCard> createState() => _ProviderCardState();
+}
+
+class _ProviderCardState extends ConsumerState<_ProviderCard> {
+  bool _isFav = false;
+  bool _favLoading = false;
+
+  static final _db = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFav();
+  }
+
+  Future<void> _loadFav() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final row = await _db
+        .from('user_favorite_car_providers')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('provider_id', widget.provider.id)
+        .maybeSingle();
+    if (mounted) setState(() => _isFav = row != null);
+  }
+
+  Future<void> _toggleFav() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null || _favLoading) return;
+    setState(() => _favLoading = true);
+    try {
+      if (_isFav) {
+        await _db
+            .from('user_favorite_car_providers')
+            .delete()
+            .eq('user_id', uid)
+            .eq('provider_id', widget.provider.id);
+      } else {
+        await _db.from('user_favorite_car_providers').upsert({
+          'user_id':     uid,
+          'provider_id': widget.provider.id,
+        }, onConflict: 'user_id,provider_id');
+      }
+      if (mounted) setState(() => _isFav = !_isFav);
+    } catch (_) {
+      // silently fail
+    } finally {
+      if (mounted) setState(() => _favLoading = false);
+    }
+  }
 
   double? get _startingPrice {
     final active =
-        provider.offerings?.where((o) => o.isActive).toList() ?? [];
+        widget.provider.offerings?.where((o) => o.isActive).toList() ?? [];
     if (active.isEmpty) return null;
-    return active
-        .map((o) => o.basePrice)
-        .reduce((a, b) => a < b ? a : b);
+    return active.map((o) => o.basePrice).reduce((a, b) => a < b ? a : b);
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = widget.provider;
     final price = _startingPrice;
 
     return GestureDetector(
@@ -451,13 +503,33 @@ class _ProviderCard extends StatelessWidget {
 
             // Heart + arrow
             Padding(
-              padding: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.only(right: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.favorite_border_rounded,
-                      size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  const SizedBox(height: 36),
+                  GestureDetector(
+                    onTap: _favLoading ? null : _toggleFav,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: _favLoading
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: _kBlue),
+                            )
+                          : Icon(
+                              _isFav
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              size: 20,
+                              color: _isFav
+                                  ? Colors.red
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Icon(Icons.chevron_right_rounded,
                       color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ],
