@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import '../../models/index.dart';
 import '../../providers/laundry_providers.dart';
 import '../../../../models/address_model.dart';
@@ -37,6 +40,9 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
   final _returnAddrCtrl = TextEditingController();
   bool _sameAddress = true;
   UserAddress? _selectedPickupAddress;
+  // lat/lng from a Nominatim search result (overrides saved-address coords)
+  double? _nominatimPickupLat;
+  double? _nominatimPickupLng;
 
   // Step 3 — Schedule
   DateTime? _pickupDate;
@@ -261,9 +267,9 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
       final returnAddr = _sameAddress ? _pickupAddrCtrl.text : _returnAddrCtrl.text;
       final user       = ref.read(currentUserProvider);
 
-      // Prefer coordinates from the selected saved address; fall back to user profile
-      final pickupLat = _selectedPickupAddress?.latitude ?? user?.latitude;
-      final pickupLng = _selectedPickupAddress?.longitude ?? user?.longitude;
+      // Nominatim search result takes priority, then saved address, then profile
+      final pickupLat = _nominatimPickupLat ?? _selectedPickupAddress?.latitude ?? user?.latitude;
+      final pickupLng = _nominatimPickupLng ?? _selectedPickupAddress?.longitude ?? user?.longitude;
 
       // 3. Create booking in DB
       AppLogger.info('[Booking] calling createBooking…');
@@ -374,8 +380,15 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
                   selectedAddress:  _selectedPickupAddress,
                   onSameChanged:    (v) => setState(() => _sameAddress = v),
                   onAddressSelected: (addr) => setState(() {
-                    _selectedPickupAddress = addr;
-                    _pickupAddrCtrl.text   = addr.address;
+                    _selectedPickupAddress  = addr;
+                    _pickupAddrCtrl.text    = addr.address;
+                    _nominatimPickupLat     = null;
+                    _nominatimPickupLng     = null;
+                  }),
+                  onPickupResult: (lat, lng) => setState(() {
+                    _nominatimPickupLat    = lat;
+                    _nominatimPickupLng    = lng;
+                    _selectedPickupAddress = null; // typed result overrides chip
                   }),
                 ),
                 _SchedulePage(
@@ -590,6 +603,7 @@ class _AddressPage extends ConsumerWidget {
   final UserAddress? selectedAddress;
   final ValueChanged<bool> onSameChanged;
   final ValueChanged<UserAddress> onAddressSelected;
+  final void Function(double lat, double lng) onPickupResult;
 
   const _AddressPage({
     required this.pickupCtrl,
@@ -598,6 +612,7 @@ class _AddressPage extends ConsumerWidget {
     required this.selectedAddress,
     required this.onSameChanged,
     required this.onAddressSelected,
+    required this.onPickupResult,
   });
 
   IconData _labelIcon(String label) {
@@ -741,6 +756,7 @@ class _AddressPage extends ConsumerWidget {
             hint: selectedAddress != null
                 ? 'Override pickup address…'
                 : 'Where should we pick up your laundry?',
+            onResult: onPickupResult,
           ),
 
           const SizedBox(height: 20),
@@ -760,8 +776,9 @@ class _AddressPage extends ConsumerWidget {
             _SectionTitle('Return Address'),
             const SizedBox(height: 8),
             _AddrField(
-                controller: returnCtrl,
-                hint: 'Where should we return your clean laundry?'),
+              controller: returnCtrl,
+              hint: 'Where should we return your clean laundry?',
+            ),
           ],
         ],
       ),
@@ -1791,21 +1808,289 @@ class _SectionTitle extends StatelessWidget {
       );
 }
 
-class _AddrField extends StatelessWidget {
+// ── Nominatim address search helpers ─────────────────────────────────────────
+
+class _PlaceSuggestion {
+  final String exactAddress;
+  final String displayName;
+  final double lat;
+  final double lng;
+  const _PlaceSuggestion({
+    required this.exactAddress,
+    required this.displayName,
+    required this.lat,
+    required this.lng,
+  });
+}
+
+String _buildExactAddress(
+  Map<String, dynamic> a,
+  String displayName, {
+  Map<String, dynamic>? extratags,
+  String? featureName,
+}) {
+  String s(String k) => (a[k] as String? ?? '').trim();
+  String e(String k) => (extratags?[k] as String? ?? '').trim();
+
+  final road0      = s('road');
+  final rawFeature = featureName?.trim() ?? '';
+  final lotFromName = rawFeature.isNotEmpty &&
+          rawFeature.toLowerCase() != road0.toLowerCase()
+      ? rawFeature
+      : '';
+  final lotFromRef = e('ref');
+  String houseNumber =
+      e('addr:housenumber').isNotEmpty ? e('addr:housenumber') : s('house_number');
+
+  if (houseNumber.isEmpty && lotFromName.isEmpty && lotFromRef.isEmpty) {
+    final firstSeg = displayName.split(',').first.trim();
+    if (RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(firstSeg) ||
+        RegExp(r'^[Ll]ot\s+[0-9A-Za-z]+$').hasMatch(firstSeg)) {
+      houseNumber = firstSeg;
+    }
+  }
+
+  final lotPart = lotFromName.isNotEmpty
+      ? lotFromName
+      : lotFromRef.isNotEmpty
+          ? 'Lot $lotFromRef'
+          : houseNumber;
+
+  final road = s('road').isNotEmpty
+      ? s('road')
+      : s('pedestrian').isNotEmpty
+          ? s('pedestrian')
+          : s('footway').isNotEmpty
+              ? s('footway')
+              : s('path');
+
+  final suburb = s('neighbourhood').isNotEmpty
+      ? s('neighbourhood')
+      : s('suburb').isNotEmpty
+          ? s('suburb')
+          : s('quarter').isNotEmpty
+              ? s('quarter')
+              : s('hamlet');
+
+  final city = s('city').isNotEmpty
+      ? s('city')
+      : s('town').isNotEmpty
+          ? s('town')
+          : s('village').isNotEmpty
+              ? s('village')
+              : s('municipality');
+
+  final isPlainNumber = RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(lotPart);
+  final streetPart = lotPart.isNotEmpty && road.isNotEmpty
+      ? (isPlainNumber ? '$lotPart $road' : '$lotPart, $road')
+      : lotPart.isNotEmpty
+          ? lotPart
+          : road;
+
+  final parts = <String>[];
+  if (streetPart.isNotEmpty) parts.add(streetPart);
+  final suburbRedundant = suburb.isEmpty ||
+      suburb == road ||
+      road.toLowerCase().contains(suburb.toLowerCase());
+  if (!suburbRedundant && suburb != parts.lastOrNull) parts.add(suburb);
+  if (city.isNotEmpty && city != parts.lastOrNull) parts.add(city);
+  if (parts.isNotEmpty) return parts.join(', ');
+
+  return displayName.split(',').take(3).map((p) => p.trim()).join(', ');
+}
+
+// ── Address search field with Nominatim autocomplete ─────────────────────────
+
+class _AddrField extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
-  const _AddrField({required this.controller, required this.hint});
+  /// Called when the user selects a Nominatim suggestion — gives lat/lng.
+  final void Function(double lat, double lng)? onResult;
+
+  const _AddrField({
+    required this.controller,
+    required this.hint,
+    this.onResult,
+  });
 
   @override
-  Widget build(BuildContext context) => TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: const Icon(Icons.location_on_outlined),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
+  State<_AddrField> createState() => _AddrFieldState();
+}
+
+class _AddrFieldState extends State<_AddrField> {
+  List<_PlaceSuggestion> _suggestions = [];
+  bool _loading = false;
+  bool _noResults = false;
+  Timer? _debounce;
+  static final _numRe =
+      RegExp(r'^([Ll]ot\s+[0-9A-Za-z]+|[0-9]+[A-Za-z]?)\s+', caseSensitive: false);
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  Future<List<_PlaceSuggestion>> _search(String query,
+      {String? countryCode}) async {
+    final params = <String, String>{
+      'q': query.trim(),
+      'format': 'json',
+      'limit': '8',
+      'addressdetails': '1',
+      'extratags': '1',
+      'namedetails': '1',
+      'zoom': '18',
+    };
+    if (countryCode != null) params['countrycodes'] = countryCode;
+    final uri = Uri.https('nominatim.openstreetmap.org', '/search', params);
+    final resp = await http.get(uri, headers: {
+      'User-Agent': 'sevendash.app',
+      'Accept-Language': 'en',
+    }).timeout(const Duration(seconds: 8));
+    if (resp.statusCode != 200) return [];
+    final data = jsonDecode(resp.body) as List<dynamic>;
+    return data.map((e) {
+      final display    = e['display_name'] as String;
+      final addressObj = (e['address'] as Map<String, dynamic>?) ?? {};
+      final extratags  = e['extratags'] as Map<String, dynamic>?;
+      final namedetails = e['namedetails'] as Map<String, dynamic>?;
+      return _PlaceSuggestion(
+        displayName:  display,
+        exactAddress: _buildExactAddress(addressObj, display,
+            extratags: extratags,
+            featureName: namedetails?['name'] as String?),
+        lat: double.parse(e['lat'] as String),
+        lng: double.parse(e['lon'] as String),
       );
+    }).toList();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    if (value.trim().length < 3) {
+      setState(() { _suggestions = []; _noResults = false; });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 450), () async {
+      if (!mounted) return;
+      setState(() { _loading = true; _noResults = false; });
+      try {
+        var results = await _search(value, countryCode: 'jm');
+        if (results.isEmpty) results = await _search(value);
+
+        final seen = <String>{};
+        results = results.where((r) => seen.add(r.exactAddress)).toList();
+
+        final numMatch = _numRe.firstMatch(value.trim());
+        if (numMatch != null && results.isNotEmpty) {
+          final prefix = numMatch.group(1)!;
+          final isPlain = RegExp(r'^[0-9]+[A-Za-z]?$').hasMatch(prefix);
+          results = results.map((r) {
+            if (r.exactAddress.toLowerCase().startsWith(prefix.toLowerCase())) return r;
+            final newAddr = isPlain ? '$prefix ${r.exactAddress}' : '$prefix, ${r.exactAddress}';
+            return _PlaceSuggestion(
+              exactAddress: newAddr,
+              displayName:  r.displayName,
+              lat: r.lat,
+              lng: r.lng,
+            );
+          }).toList();
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _suggestions = results;
+          _loading     = false;
+          _noResults   = results.isEmpty;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() { _suggestions = []; _loading = false; _noResults = false; });
+      }
+    });
+  }
+
+  void _select(_PlaceSuggestion s) {
+    _debounce?.cancel();
+    widget.controller.text = s.exactAddress;
+    setState(() { _suggestions = []; _noResults = false; });
+    widget.onResult?.call(s.lat, s.lng);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: widget.controller,
+          onChanged: _onChanged,
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            suffixIcon: _loading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2)))
+                : null,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+        ),
+        if (_noResults)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text('No results found',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+          ),
+        if (_suggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2)),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _suggestions.length,
+              separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: Theme.of(context).colorScheme.outlineVariant),
+              itemBuilder: (ctx, i) {
+                final s = _suggestions[i];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.location_on_outlined,
+                      size: 18, color: _kBlue),
+                  title: Text(s.exactAddress,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: Text(s.displayName,
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  onTap: () => _select(s),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _InputField extends StatelessWidget {
