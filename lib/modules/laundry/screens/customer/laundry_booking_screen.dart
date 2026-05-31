@@ -381,7 +381,30 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
                 _SchedulePage(
                   pickupDate:    _pickupDate,
                   pickupSlot:    _pickupSlot,
-                  onDateChanged: (d) => setState(() => _pickupDate = d),
+                  onDateChanged: (d) {
+                    setState(() {
+                      _pickupDate = d;
+                      // Clear a previously-selected slot if it's now in the past
+                      // (e.g. user switches from tomorrow back to today)
+                      if (_pickupSlot != null) {
+                        final now   = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final sel   = DateTime(d.year, d.month, d.day);
+                        if (sel == today) {
+                          final startStr = _pickupSlot!.split('–').first.trim();
+                          final parts    = startStr.split(':');
+                          if (parts.length >= 2) {
+                            final slotStart = DateTime(
+                              now.year, now.month, now.day,
+                              int.tryParse(parts[0]) ?? 0,
+                              int.tryParse(parts[1]) ?? 0,
+                            );
+                            if (now.isAfter(slotStart)) _pickupSlot = null;
+                          }
+                        }
+                      }
+                    });
+                  },
                   onSlotChanged: (s) => setState(() => _pickupSlot = s),
                   timeSlots:     _timeSlots,
                 ),
@@ -765,6 +788,26 @@ class _SchedulePage extends StatelessWidget {
     required this.timeSlots,
   });
 
+  /// Returns true when [slot] (e.g. "09:00 – 11:00") has already started
+  /// and [date] is today. Tomorrow or later → always false (never past).
+  bool _isSlotPast(String slot, DateTime? date) {
+    if (date == null) return false;
+    final now = DateTime.now();
+    // Only apply the check when the selected date is today
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = DateTime(date.year, date.month, date.day);
+    if (selected != today) return false;
+
+    // Parse start hour/minute from "HH:MM – HH:MM"
+    final startStr = slot.split('–').first.trim(); // e.g. "09:00"
+    final parts = startStr.split(':');
+    if (parts.length < 2) return false;
+    final hour   = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    final slotStart = DateTime(now.year, now.month, now.day, hour, minute);
+    return now.isAfter(slotStart);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -830,21 +873,38 @@ class _SchedulePage extends StatelessWidget {
             spacing: 10, runSpacing: 10,
             children: timeSlots.map((slot) {
               final isSelected = slot == pickupSlot;
+              final isPast     = _isSlotPast(slot, pickupDate);
+
               return GestureDetector(
-                onTap: () => onSlotChanged(slot),
+                onTap: isPast ? null : () => onSlotChanged(slot),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? _kBlue : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: isPast
+                        ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                        : isSelected
+                            ? _kBlue
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: isSelected ? _kBlue : Colors.transparent),
+                    border: Border.all(
+                        color: isPast
+                            ? Colors.transparent
+                            : isSelected
+                                ? _kBlue
+                                : Colors.transparent),
                   ),
                   child: Text(
                     slot,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w600, fontSize: 13,
+                      color: isPast
+                          ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)
+                          : isSelected
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      decoration: isPast ? TextDecoration.lineThrough : null,
                     ),
                   ),
                 ),
