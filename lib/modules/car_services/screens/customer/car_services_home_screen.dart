@@ -41,11 +41,20 @@ class _CarServicesHomeScreenState extends ConsumerState<CarServicesHomeScreen> {
         slivers: [
           // ── Header ────────────────────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 120,
+            expandedHeight: 110,
             pinned: true,
             backgroundColor: _kBlueDark,
             foregroundColor: Colors.white,
             elevation: 0,
+            centerTitle: false,
+            title: const Text(
+              'Car Wash Providers',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -55,28 +64,13 @@ class _CarServicesHomeScreenState extends ConsumerState<CarServicesHomeScreen> {
                     colors: [_kBlueDark, _kBlue],
                   ),
                 ),
-                child: SafeArea(
+                child: const Align(
+                  alignment: Alignment.bottomLeft,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Car Wash Providers',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Professional car care at your doorstep',
-                          style:
-                              TextStyle(color: Colors.white70, fontSize: 13),
-                        ),
-                      ],
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
+                    child: Text(
+                      'Professional car care at your doorstep',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ),
                 ),
