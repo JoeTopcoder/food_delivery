@@ -46,9 +46,6 @@ class _CustomerProfileScreenState
               _HeroHeader(
                 currentUser:  currentUser,
                 onEditPhoto:  () => _pickAndUploadPhoto(context, ref, currentUser),
-                onBack: () {
-                  if (Navigator.canPop(context)) Navigator.pop(context);
-                },
               ),
 
               // ── Stats card ───────────────────────────────────────
@@ -379,12 +376,10 @@ class _CustomerProfileScreenState
 class _HeroHeader extends StatelessWidget {
   final dynamic currentUser;
   final VoidCallback onEditPhoto;
-  final VoidCallback onBack;
 
   const _HeroHeader({
     required this.currentUser,
     required this.onEditPhoto,
-    required this.onBack,
   });
 
   static String _initials(String? name) {
@@ -422,14 +417,6 @@ class _HeroHeader extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: onBack,
-                  ),
                   const Expanded(
                     child: Text(
                       'My Profile',
