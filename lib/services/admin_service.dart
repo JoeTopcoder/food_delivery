@@ -684,27 +684,108 @@ class AdminService {
     }
   }
 
-  /// Get dashboard summary
+  /// Get dashboard summary — covers all modules (food, rides, laundry, car services)
   Future<Map<String, dynamic>> getDashboardSummary() async {
     try {
       AppLogger.info('Fetching dashboard summary');
 
-      final userStats = await getUserStatistics();
-      final restaurantStats = await getRestaurantStatistics();
-      final driverStats = await getDriverStatistics();
-      final orderStats = await getOrderStatistics();
-      final revenueStats = await getRevenueStatistics();
+      // Fetch all module stats in parallel for speed
+      final results = await Future.wait([
+        getUserStatistics(),
+        getRestaurantStatistics(),
+        getDriverStatistics(),
+        getOrderStatistics(),
+        getRevenueStatistics(),
+        _getLaundrySummary(),
+        _getCarServiceSummary(),
+        _getRideSummary(),
+      ]);
 
       return {
-        'users': userStats,
-        'restaurants': restaurantStats,
-        'drivers': driverStats,
-        'orders': orderStats,
-        'revenue': revenueStats,
+        'users': results[0],
+        'restaurants': results[1],
+        'drivers': results[2],
+        'orders': results[3],
+        'revenue': results[4],
+        'laundry': results[5],
+        'car_services': results[6],
+        'rides': results[7],
         'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (e) {
       AppLogger.error('Error fetching dashboard summary: $e');
+      return {};
+    }
+  }
+
+  // Use plain .select('status') — no .count() to avoid PostgrestResponse
+  // type ambiguity. Only the minimal 'status' column is fetched for counting.
+  Future<Map<String, dynamic>> _getLaundrySummary() async {
+    try {
+      final results = await Future.wait([
+        _supabaseClient.from('laundry_bookings').select('status'),
+        _supabaseClient.from('laundry_providers').select('status'),
+      ]);
+      final bookings = results[0] as List;
+      final providers = results[1] as List;
+      const terminal = {'completed', 'cancelled', 'disputed'};
+      return {
+        'total_bookings': bookings.length,
+        'active_bookings': bookings
+            .where((r) => !terminal.contains((r as Map)['status']))
+            .length,
+        'total_providers': providers.length,
+        'pending_providers': providers
+            .where((r) => (r as Map)['status'] == 'pending')
+            .length,
+      };
+    } catch (e) {
+      AppLogger.error('_getLaundrySummary error: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> _getCarServiceSummary() async {
+    try {
+      final results = await Future.wait([
+        _supabaseClient.from('car_service_bookings').select('status'),
+        _supabaseClient
+            .from('car_service_providers')
+            .select('is_verified, is_active'),
+      ]);
+      final bookings = results[0] as List;
+      final providers = results[1] as List;
+      return {
+        'total_bookings': bookings.length,
+        'active_bookings': bookings
+            .where((r) => !{'completed', 'cancelled'}
+                .contains((r as Map)['status']))
+            .length,
+        'total_providers': providers.length,
+        'pending_providers': providers
+            .where((r) => (r as Map)['is_verified'] == false)
+            .length,
+      };
+    } catch (e) {
+      AppLogger.error('_getCarServiceSummary error: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> _getRideSummary() async {
+    try {
+      final rows =
+          await _supabaseClient.from('ride_requests').select('ride_status');
+      final all = rows as List;
+      return {
+        'total_rides': all.length,
+        'active_rides': all
+            .where((r) => !{'ride_completed', 'cancelled'}
+                .contains((r as Map)['ride_status']))
+            .length,
+      };
+    } catch (e) {
+      AppLogger.error('_getRideSummary error: $e');
       return {};
     }
   }

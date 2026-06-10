@@ -48,7 +48,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -101,11 +102,12 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
                 onTap: () =>
                     _continueAs(context, ref, OnboardingRole.serviceProvider),
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
               TextButton(
                 onPressed: () => Navigator.of(context).pushNamed('/signin'),
                 child: const Text('Already have an account? Sign in'),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),

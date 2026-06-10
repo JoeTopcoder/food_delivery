@@ -1051,10 +1051,16 @@ class _OrderDetailsCard extends StatelessWidget {
               'Discount',
               '−${AppConstants.currencySymbol}${order.discount!.toStringAsFixed(2)}',
             ),
+          if (order.outstandingDebtCharged > 0)
+            _Row(
+              'Outstanding Balance',
+              '+${AppConstants.currencySymbol}${order.outstandingDebtCharged.toStringAsFixed(2)}',
+              valueColor: const Color(0xFFEA580C),
+            ),
           const SizedBox(height: 4),
           _Row(
-            'Total',
-            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+            'Total Charged',
+            '${AppConstants.currencySymbol}${(order.totalAmount + order.outstandingDebtCharged).toStringAsFixed(2)}',
             bold: true,
           ),
         ],
@@ -1082,7 +1088,8 @@ class _Row extends StatelessWidget {
   final String label;
   final String value;
   final bool bold;
-  const _Row(this.label, this.value, {this.bold = false});
+  final Color? valueColor;
+  const _Row(this.label, this.value, {this.bold = false, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -1109,7 +1116,7 @@ class _Row extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

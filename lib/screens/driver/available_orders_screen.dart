@@ -254,9 +254,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
                 backgroundColor: const Color(0xFF1E2030),
                 onRefresh: () async => ref.invalidate(availableOrdersProvider),
                 child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
                   itemCount: orders.length,
                   itemBuilder: (context, index) => _OrderCard(

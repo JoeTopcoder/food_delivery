@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -379,7 +380,7 @@ class _GroceryStoreBody extends ConsumerWidget {
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            cacheExtent: 500,
+            scrollCacheExtent: const ScrollCacheExtent.pixels(500),
             padding: const EdgeInsets.all(16),
             itemCount: categories.length,
             itemBuilder: (context, catIndex) {

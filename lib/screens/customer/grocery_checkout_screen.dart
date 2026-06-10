@@ -28,6 +28,7 @@ import 'dart:async' show unawaited;
 import '../../utils/friendly_error.dart';
 import '../../utils/safe_state_mixin.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../widgets/outstanding_debt_banner.dart';
 import 'order_success_screen.dart';
 import 'payment_screen.dart';
 
@@ -218,6 +219,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                 tax)
             .clamp(activeFee, double.infinity);
     final total = orderTotal + _driverTip;
+    final outstandingDebt = ref.watch(outstandingDebtProvider);
+    final grandTotal = total + outstandingDebt;
 
     final deliveryAddress =
         selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
@@ -666,6 +669,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                 ),
                 const SizedBox(height: 8),
 
+                OutstandingDebtBanner(debtAmount: outstandingDebt),
                 // ── AI-Assigned Promo Banner ───────────────────────────
                 if (currentUserId != null)
                   _AiPromoBanner(userId: currentUserId, subtotal: subtotal),
@@ -1078,10 +1082,16 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
+                      if (outstandingDebt > 0)
+                        _SummaryRow(
+                          'Outstanding Balance',
+                          '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFFEA580C),
+                        ),
                       Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
                       _SummaryRow(
                         'Total',
-                        '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                     ],
@@ -1167,6 +1177,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                   loyaltyDiscount: loyaltyDiscount,
                                   driverTip: isPickup ? 0 : _driverTip,
                                   isPickup: isPickup,
+                                  outstandingDebt: outstandingDebt,
                                 )
                               : null,
                           style: ElevatedButton.styleFrom(
@@ -1190,8 +1201,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                 )
                               : Text(
                                   _selectedPayment == 'stripe'
-                                      ? 'Pay Now — \$${total.toStringAsFixed(2)}'
-                                      : '${isPickup ? "Place Pickup Order" : "Place Grocery Order"} — \$${total.toStringAsFixed(2)}',
+                                      ? 'Pay Now — \$${grandTotal.toStringAsFixed(2)}'
+                                      : '${isPickup ? "Place Pickup Order" : "Place Grocery Order"} — \$${grandTotal.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -1270,13 +1281,16 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     required double loyaltyDiscount,
     required double driverTip,
     required bool isPickup,
+    double outstandingDebt = 0,
   }) async {
     if (_placingOrder) return;
+
+    final grandTotal = total + outstandingDebt;
 
     if (_selectedPayment == 'wallet') {
       final walletBalance =
           ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
-      if (walletBalance < total) {
+      if (walletBalance < grandTotal) {
         AppSnackbar.error(
           context,
           'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). Top up or choose another payment method.',
@@ -1424,7 +1438,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
           try {
             final ok = await paymentService.chargeWithSavedCard(
               orderId: orderIds.first,
-              amount: runningTotal,
+              amount: runningTotal + outstandingDebt,
               paymentMethodId: pmId,
             );
             if (!mounted) return;
@@ -1551,6 +1565,31 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
               orderTotal: runningTotal,
             );
           } catch (_) {}
+
+          if (outstandingDebt > 0) {
+            try {
+              if (_selectedPayment == 'wallet') {
+                await SupabaseConfig.client.rpc(
+                  'wallet_deduct',
+                  params: {
+                    'p_user_id': userId,
+                    'p_amount': outstandingDebt,
+                    'p_description': 'Outstanding balance charged at checkout',
+                  },
+                );
+              }
+              await SupabaseConfig.client.rpc(
+                'checkout_clear_debt_direct',
+                params: {
+                  'p_user_id': userId,
+                  'p_amount': outstandingDebt,
+                  'p_reference': orderIds.first,
+                },
+              );
+              ref.invalidate(walletBalanceStreamProvider);
+              ref.invalidate(walletTransactionsStreamProvider);
+            } catch (_) {}
+          }
           if (subscriptionUsedOnAnyOrder) {
             ref.invalidate(activeSubscriptionProvider);
           }

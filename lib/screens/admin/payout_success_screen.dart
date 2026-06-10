@@ -26,8 +26,17 @@ class PayoutSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF0FDF4),
       body: SafeArea(
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
             // ── Top space + animated check ─────────────────────
             const Spacer(flex: 2),
             const _AnimatedCheck(),
@@ -186,6 +195,9 @@ class PayoutSuccessScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+          ),
         ),
       ),
     );

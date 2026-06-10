@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:food_driver/utils/app_logger.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -399,7 +400,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'MealHub/1.0 (applizonecentralja@gmail.com)',
+              'User-Agent': 'MealHub/1.0 (support@mealhubcayman.com)',
             },
           )
           .timeout(const Duration(seconds: 6));
@@ -608,7 +609,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'MealHub/1.0 (applizonecentralja@gmail.com)',
+              'User-Agent': 'MealHub/1.0 (support@mealhubcayman.com)',
               'Accept-Language': 'en',
             },
           )
@@ -795,7 +796,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       setState(() {
         _routePoints = [_pickupLatLng, _destinationLatLng!];
       });
-      debugPrint('Routing failed, using fallback: $e');
+      AppLogger.warning('Routing failed, using fallback: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingRoute = false);

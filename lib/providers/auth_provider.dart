@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/supabase_config.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/cache_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../utils/app_logger.dart';
@@ -133,6 +134,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         case 'admin':
           futures.add(_notificationService.subscribeToTopic('admins'));
           break;
+        case 'laundry_provider':
+          futures.add(
+            _notificationService.subscribeToTopic(
+              'laundry_provider_${user.id}',
+            ),
+          );
+          break;
+        case 'service_provider':
+          futures.add(
+            _notificationService.subscribeToTopic(
+              'service_provider_${user.id}',
+            ),
+          );
+          break;
       }
       await Future.wait(futures);
       AppLogger.info('Subscribed to FCM topics for role: ${user.role}');
@@ -149,6 +164,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _notificationService.unsubscribeFromTopic('driver_${user.id}'),
         _notificationService.unsubscribeFromTopic('restaurant_${user.id}'),
         _notificationService.unsubscribeFromTopic('admins'),
+        _notificationService.unsubscribeFromTopic(
+          'laundry_provider_${user.id}',
+        ),
+        _notificationService.unsubscribeFromTopic(
+          'service_provider_${user.id}',
+        ),
       ]);
     } catch (e) {
       AppLogger.error('Error unsubscribing from FCM topics: $e');
@@ -221,6 +242,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String userId, {
     String? fallbackEmail,
   }) async {
+    const cacheBox = 'user_profile';
+
+    // Serve cached profile immediately so the app opens without waiting for DB.
+    try {
+      final raw = await CacheService.get(cacheBox, userId);
+      if (raw != null) {
+        final cached = User.fromJson(Map<String, dynamic>.from(raw as Map));
+        if (state.user?.id != cached.id) {
+          state = state.copyWith(
+            isLoading: false,
+            user: cached,
+            isAuthenticated: true,
+            error: null,
+          );
+          _subscribeToUserTopics(cached);
+        } else {
+          state = state.copyWith(isLoading: false);
+        }
+      }
+    } catch (_) {}
+
+    // Fetch fresh profile from DB in the background (or block if no cache yet).
     try {
       User? user = await _userService.getUserById(userId);
       if (user == null) {
@@ -246,6 +289,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
+      // Persist fresh profile for next launch.
+      unawaited(CacheService.put(cacheBox, userId, user.toJson(), ttlSeconds: 3600));
+
       final previousUserId = state.user?.id;
       state = state.copyWith(
         isLoading: false,
@@ -259,7 +305,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } catch (e) {
       AppLogger.error('Error hydrating auth user: $e');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      // Only show error if we have no cached user to fall back on.
+      if (state.user == null) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 

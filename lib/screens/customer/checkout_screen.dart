@@ -28,6 +28,7 @@ import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../widgets/outstanding_debt_banner.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/decision_engine_provider.dart';
 import '../../utils/app_logger.dart';
@@ -241,6 +242,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 tax)
             .clamp(activeFee, double.infinity);
     final total = orderTotal + _driverTip;
+    final outstandingDebt = ref.watch(outstandingDebtProvider);
+    final grandTotal = total + outstandingDebt;
 
     final deliveryAddress =
         selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
@@ -699,6 +702,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 const SizedBox(height: 8),
 
                 // ── AI-Assigned Promo Banner ──────────────────────
+                OutstandingDebtBanner(debtAmount: outstandingDebt),
                 if (currentUserId != null)
                   _AiPromoBanner(userId: currentUserId, subtotal: subtotal),
 
@@ -1137,10 +1141,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
+                      if (outstandingDebt > 0)
+                        _SummaryRow(
+                          'Outstanding Balance',
+                          '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFFEA580C),
+                        ),
                       Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
                       _SummaryRow(
                         'Total',
-                        '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                     ],
@@ -1233,6 +1243,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   driverTip: isPickup ? 0 : _driverTip,
                                   isPickup: isPickup,
                                   pickupFee: isPickup ? pickupServiceFee : null,
+                                  outstandingDebt: outstandingDebt,
                                 )
                               : null,
                           style: ElevatedButton.styleFrom(
@@ -1256,9 +1267,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 )
                               : Text(
                                   () {
-                                    final amt = total.toStringAsFixed(2);
-                                    // All card (Stripe) paths are Pay Now \u2014
-                                    // order only activates after payment confirmed.
+                                    final amt = grandTotal.toStringAsFixed(2);
                                     if (_selectedPayment == 'stripe') {
                                       return 'Pay Now \u2014 \$$amt';
                                     }
@@ -1352,25 +1361,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required double driverTip,
     bool isPickup = false,
     double? pickupFee,
+    double outstandingDebt = 0,
   }) async {
-    if (_placingOrder) {
-      return;
-    }
+    if (_placingOrder) return;
 
-    if (_selectedPayment == 'card') {
-      // Stripe handles card input natively via Payment Sheet
-      // No need to pre-select a saved card or enter CVC
-    }
+    final grandTotal = total + outstandingDebt;
 
-    // Wallet: block order if balance is too low
+    // Wallet: block order if balance is too low (must cover order + outstanding debt)
     if (_selectedPayment == 'wallet') {
       final walletBalance =
           ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
-      if (walletBalance < total) {
+      if (walletBalance < grandTotal) {
         AppSnackbar.error(
           context,
           'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
-          'Top up \$${(total - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
+          'Top up \$${(grandTotal - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
         );
         return;
       }
@@ -1544,7 +1549,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
           try {
             final ok = await paymentService.chargeWithSavedCard(
               orderId: order.id,
-              amount: verifiedTotal,
+              amount: verifiedTotal + outstandingDebt,
               paymentMethodId: pmId,
             );
             if (!mounted) return;
@@ -1652,6 +1657,39 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   orderTotal: total,
                 );
           } catch (_) {}
+
+          // Clear any outstanding admin debt now that payment succeeded.
+          // For wallet payments the edge function only deducted the order total,
+          // so we must separately deduct the debt from the wallet balance first.
+          if (outstandingDebt > 0) {
+            try {
+              if (_selectedPayment == 'wallet') {
+                await SupabaseConfig.client.rpc(
+                  'wallet_deduct',
+                  params: {
+                    'p_user_id': userId,
+                    'p_amount': outstandingDebt,
+                    'p_description': 'Outstanding balance charged at checkout',
+                  },
+                );
+              }
+              await SupabaseConfig.client.rpc(
+                'checkout_clear_debt_direct',
+                params: {
+                  'p_user_id': userId,
+                  'p_amount': outstandingDebt,
+                  'p_reference': order.id,
+                },
+              );
+              // Record how much debt was charged on the order so the receipt matches
+              await SupabaseConfig.client
+                  .from('orders')
+                  .update({'outstanding_debt_charged': outstandingDebt})
+                  .eq('id', order.id);
+              ref.invalidate(walletBalanceStreamProvider);
+              ref.invalidate(walletTransactionsStreamProvider);
+            } catch (_) {}
+          }
 
           // Consume subscription delivery
           final currentSub = ref.read(activeSubscriptionProvider).valueOrNull;

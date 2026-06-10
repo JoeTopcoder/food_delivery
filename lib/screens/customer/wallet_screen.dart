@@ -595,7 +595,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           const SizedBox(height: 3),
                           Text(
                             '${AppConstants.currencySymbol}${walletAsync.valueOrNull!.debtBalance.toStringAsFixed(2)} '
-                            'will be automatically deducted from your next top-up.',
+                            'will be added to your next order and cleared at checkout.',
                             style: TextStyle(
                                 fontSize: 12, color: Colors.orange.shade700),
                           ),
@@ -773,7 +773,7 @@ class _WalletCard extends StatelessWidget {
           if ((wallet?.debtBalance ?? 0) > 0) ...[
             const SizedBox(height: 4),
             Text(
-              '${AppConstants.currencySymbol}${wallet!.debtBalance.toStringAsFixed(2)} outstanding — clears on next top-up',
+              '${AppConstants.currencySymbol}${wallet!.debtBalance.toStringAsFixed(2)} outstanding — cleared at checkout',
               style: TextStyle(
                 color: Colors.orange.shade200,
                 fontSize: 12,

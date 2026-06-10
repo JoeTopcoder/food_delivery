@@ -6,6 +6,7 @@ import '../../models/index.dart';
 import '../../providers/car_services_providers.dart';
 import 'service_provider_status_screen.dart';
 import 'package:food_driver/utils/app_logger.dart';
+import 'package:food_driver/utils/friendly_error.dart';
 
 const _kBlue = Color(0xFF1D4ED8);
 const _kBlueDark = Color(0xFF1E3A8A);
@@ -41,7 +42,7 @@ class _CarServiceProviderDashboardScreenState
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 12),
-                Text('Could not load profile.\n$e',
+                Text('Could not load profile.\n${friendlyError(e)}',
                     textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -255,7 +256,7 @@ class _DashboardBody extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child:
-                    Text('Failed to load bookings: $e'),
+                    Text('Failed to load bookings: ${friendlyError(e)}'),
               ),
             ),
             data: (bookings) {

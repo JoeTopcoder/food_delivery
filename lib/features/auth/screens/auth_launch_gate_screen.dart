@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,6 +58,16 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
 
     if (auth.isAuthenticated) {
       final role = auth.user?.role;
+
+      // On web only admin access is allowed.
+      if (kIsWeb && role != 'admin') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(authNotifierProvider.notifier).signOut();
+        });
+        return const _WebAdminOnlyScreen();
+      }
+
       switch (role) {
         case 'customer':
         case 'user':
@@ -85,15 +96,22 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
             child: CarServiceProviderDashboardScreen(),
           );
         default:
-          // Unknown / null role — sign out immediately and return to role
-          // selection so an unrecognised role can NEVER silently see any
-          // home screen.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             ref.read(authNotifierProvider.notifier).signOut();
           });
-          return const RoleSelectionScreen();
+          return kIsWeb ? const _WebAdminOnlyScreen() : const RoleSelectionScreen();
       }
+    }
+
+    // Not authenticated — on web navigate to the sign-in route so SignInScreen
+    // renders as a proper route (with full context: theme, l10n, navigator).
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/signin');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final roleIntentAsync = ref.watch(roleProvider);
@@ -110,6 +128,40 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (_, __) => const RoleSelectionScreen(),
+    );
+  }
+}
+
+class _WebAdminOnlyScreen extends StatelessWidget {
+  const _WebAdminOnlyScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.admin_panel_settings_rounded,
+                size: 64, color: Color(0xFF7C3AED)),
+            const SizedBox(height: 24),
+            const Text(
+              'Admin Access Only',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This web portal is restricted to administrators.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
+              child: const Text('Back to Sign In'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

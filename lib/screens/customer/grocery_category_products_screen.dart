@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
@@ -135,7 +136,7 @@ class _GroceryCategoryProductsScreenState
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
-                  cacheExtent: 500,
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(500),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                   ).copyWith(bottom: 16),

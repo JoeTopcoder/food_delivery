@@ -105,7 +105,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       case 1:
         return ['pending'];
       case 2:
-        return ['confirmed', 'preparing', 'ready', 'picked_up', 'on_the_way'];
+        return ['confirmed', 'preparing', 'ready', 'picked_up', 'out_for_delivery'];
       case 3:
         return ['delivered'];
       case 4:
@@ -581,7 +581,7 @@ class _OrderCard extends StatelessWidget {
         return const Color(0xFF6366F1);
       case 'ready':
       case 'picked_up':
-      case 'on_the_way':
+      case 'out_for_delivery':
         return const Color(0xFF3B82F6);
       case 'delivered':
         return const Color(0xFF10B981);
@@ -603,7 +603,7 @@ class _OrderCard extends StatelessWidget {
       case 'ready':
         return Icons.takeout_dining_rounded;
       case 'picked_up':
-      case 'on_the_way':
+      case 'out_for_delivery':
         return Icons.delivery_dining_rounded;
       case 'delivered':
         return Icons.check_circle_rounded;
@@ -649,8 +649,8 @@ class _UpdateStatusButton extends StatelessWidget {
       case 'ready':
         return 'picked_up';
       case 'picked_up':
-        return 'on_the_way';
-      case 'on_the_way':
+        return 'out_for_delivery';
+      case 'out_for_delivery':
         return 'delivered';
       default:
         return null;
@@ -667,8 +667,8 @@ class _UpdateStatusButton extends StatelessWidget {
         return 'Ready';
       case 'picked_up':
         return 'Picked Up';
-      case 'on_the_way':
-        return 'On the Way';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
       case 'delivered':
         return 'Delivered';
       default:
@@ -762,22 +762,37 @@ class _UpdateStatusButton extends StatelessWidget {
     if (confirmed != true) return;
 
     try {
-      final updates = <String, dynamic>{
-        'status': newStatus,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      };
-      if (newStatus == 'confirmed') {
-        updates['confirmed_at'] = DateTime.now().toUtc().toIso8601String();
-      } else if (newStatus == 'delivered') {
-        updates['completed_at'] = DateTime.now().toUtc().toIso8601String();
-      } else if (newStatus == 'cancelled') {
-        updates['cancelled_at'] = DateTime.now().toUtc().toIso8601String();
+      if (newStatus == 'delivered') {
+        // Route through the Edge Function so driver stats, cash float,
+        // customer notification and referral earnings all fire correctly.
+        final res = await SupabaseConfig.client.functions.invoke(
+          'complete-delivery',
+          body: {'order_id': orderId},
+        );
+        if (res.status != 200) {
+          final err = (res.data is Map ? res.data['error'] : null)
+              ?? 'Failed to mark as delivered (${res.status})';
+          throw Exception(err);
+        }
+        final data = res.data as Map?;
+        if (data?['success'] != true) {
+          throw Exception(data?['error'] ?? 'Delivery completion failed');
+        }
+      } else {
+        final updates = <String, dynamic>{
+          'status': newStatus,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        if (newStatus == 'confirmed') {
+          updates['confirmed_at'] = DateTime.now().toUtc().toIso8601String();
+        } else if (newStatus == 'cancelled') {
+          updates['cancelled_at'] = DateTime.now().toUtc().toIso8601String();
+        }
+        await SupabaseConfig.client
+            .from('orders')
+            .update(updates)
+            .eq('id', orderId);
       }
-
-      await SupabaseConfig.client
-          .from('orders')
-          .update(updates)
-          .eq('id', orderId);
 
       await onUpdated();
       if (context.mounted) {

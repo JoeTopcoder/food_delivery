@@ -6,6 +6,7 @@ import '../../models/user_model.dart' as user_models;
 import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'admin_wallet_adjust_sheet.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -129,11 +130,14 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   TextField(
                     controller: _searchCtrl,
                     onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search by name or email…',
-                      hintStyle: const TextStyle(
-                        color: Color(0xFF9CA3AF),
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14,
                       ),
                       prefixIcon: Icon(
@@ -143,10 +147,10 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       ),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
                                 size: 18,
-                                color: Color(0xFF9CA3AF),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               onPressed: () {
                                 _searchCtrl.clear();
@@ -155,7 +159,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -251,6 +255,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                         user: user,
                         onDetails: () => _showUserDetails(user),
                         onBanToggle: () => _toggleBan(user),
+                        onWalletAdjust: () => AdminWalletAdjustSheet.show(
+                          context,
+                          userId: user.id,
+                          customerName: user.name ?? user.email ?? 'User',
+                        ),
                       );
                     },
                   );
@@ -279,11 +288,13 @@ class _UserCard extends StatelessWidget {
   final user_models.User user;
   final VoidCallback onDetails;
   final VoidCallback onBanToggle;
+  final VoidCallback onWalletAdjust;
 
   const _UserCard({
     required this.user,
     required this.onDetails,
     required this.onBanToggle,
+    required this.onWalletAdjust,
   });
 
   Color get _roleColor {
@@ -451,6 +462,8 @@ class _UserCard extends StatelessWidget {
                 onSelected: (action) {
                   if (action == 'details') {
                     onDetails();
+                  } else if (action == 'wallet') {
+                    onWalletAdjust();
                   } else {
                     onBanToggle();
                   }
@@ -463,6 +476,18 @@ class _UserCard extends StatelessWidget {
                         Icon(Icons.info_outline, size: 18),
                         SizedBox(width: 8),
                         Text('View Details'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'wallet',
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_rounded,
+                            size: 18, color: Color(0xFF10B981)),
+                        SizedBox(width: 8),
+                        Text('Adjust Wallet',
+                            style: TextStyle(color: Color(0xFF10B981))),
                       ],
                     ),
                   ),

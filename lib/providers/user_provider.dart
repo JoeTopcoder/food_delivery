@@ -308,69 +308,110 @@ final masterOrderDetailProvider = FutureProvider.family
           .maybeSingle();
 
       if (moRow != null) {
-        // Flat query for restaurant_orders (no nested join)
+        // ── Batch fetch: 1 query per resource type (eliminates N+1) ─────────
         final roRows = await SupabaseConfig.client
             .from('restaurant_orders')
             .select('*')
             .eq('master_order_id', masterOrderId)
             .order('sequence_in_group', ascending: true);
 
-        final restaurantOrders = <RestaurantOrder>[];
-        for (final ro in roRows as List) {
-          final roId = ro['id'] as String;
-          final restaurantId = ro['restaurant_id'] as String;
+        final roList = roRows as List;
+        if (roList.isEmpty) {
+          // Master order exists but has no sub-orders — return with empty list.
+          return MasterOrder(
+            id: masterOrderId,
+            customerId: moRow['customer_id'] as String? ?? '',
+            masterOrderNumber: moRow['master_order_number'] as String?,
+            status: moRow['status'] as String? ?? 'pending',
+            deliveryAddress: moRow['delivery_address'] as String? ?? '',
+            paymentMethod: moRow['payment_method'] as String? ?? 'stripe',
+            paymentStatus: moRow['payment_status'] as String? ?? 'pending',
+            subtotal: (moRow['subtotal'] as num?)?.toDouble() ?? 0,
+            deliveryFee: (moRow['delivery_fee'] as num?)?.toDouble() ?? 0,
+            totalAmount: (moRow['total_amount'] as num?)?.toDouble() ?? 0,
+            createdAt: DateTime.parse(moRow['created_at'] as String),
+            restaurantOrders: [],
+          );
+        }
 
-          // Restaurant name
-          final restRow = await SupabaseConfig.client
+        final roIds = roList.map((r) => (r as Map)['id'] as String).toList();
+        final restaurantIds = roList
+            .map((r) => (r as Map)['restaurant_id'] as String)
+            .toSet()
+            .toList();
+
+        // 3 parallel batch queries instead of N×M sequential queries
+        final batchResults = await Future.wait([
+          SupabaseConfig.client
               .from('restaurants')
-              .select('name')
-              .eq('id', restaurantId)
-              .maybeSingle();
-          final restaurantName = restRow?['name'] as String?;
-
-          // Items for this restaurant_order
-          final itemRows = await SupabaseConfig.client
+              .select('id, name')
+              .inFilter('id', restaurantIds),
+          SupabaseConfig.client
               .from('restaurant_order_items')
               .select('*')
-              .eq('restaurant_order_id', roId);
-
-          final items = <RestaurantOrderItem>[];
-          for (final it in itemRows as List) {
-            final itemId = it['id'] as String;
-            final sideRows = await SupabaseConfig.client
-                .from('restaurant_order_item_sides')
-                .select('*')
-                .eq('restaurant_order_item_id', itemId);
-
-            items.add(
-              RestaurantOrderItem(
-                id: itemId,
-                restaurantOrderId: roId,
-                menuItemId: it['menu_item_id'] as String?,
-                itemName: it['item_name'] as String? ?? '',
-                price: (it['price'] as num?)?.toDouble() ?? 0,
-                quantity: (it['quantity'] as num?)?.toInt() ?? 1,
-                notes: it['notes'] as String?,
-                sides: (sideRows as List)
-                    .map(
-                      (s) => RestaurantOrderItemSide(
-                        id: s['id'] as String? ?? '',
-                        restaurantOrderItemId: itemId,
-                        sideName: s['side_name'] as String? ?? '',
-                        sidePrice: (s['side_price'] as num?)?.toDouble() ?? 0,
-                      ),
-                    )
-                    .toList(),
+              .inFilter('restaurant_order_id', roIds),
+          SupabaseConfig.client
+              .from('restaurant_order_item_sides')
+              .select('*')
+              .inFilter(
+                'restaurant_order_item_id',
+                // Placeholder list if roIds empty — IN clause needs at least 1 value
+                roIds.isNotEmpty ? roIds : ['_none_'],
               ),
-            );
-          }
+        ]);
 
+        // Build look-up maps for O(1) access
+        final restaurantNameMap = <String, String>{
+          for (final r in batchResults[0] as List)
+            (r as Map)['id'] as String: r['name'] as String? ?? '',
+        };
+
+        // All sides keyed by restaurant_order_item_id
+        final sidesByItemId = <String, List<RestaurantOrderItemSide>>{};
+        for (final s in batchResults[2] as List) {
+          final sm = s as Map;
+          final itemId = sm['restaurant_order_item_id'] as String;
+          sidesByItemId.putIfAbsent(itemId, () => []).add(
+            RestaurantOrderItemSide(
+              id: sm['id'] as String? ?? '',
+              restaurantOrderItemId: itemId,
+              sideName: sm['side_name'] as String? ?? '',
+              sidePrice: (sm['side_price'] as num?)?.toDouble() ?? 0,
+            ),
+          );
+        }
+
+        // All items keyed by restaurant_order_id
+        final itemsByRoId = <String, List<RestaurantOrderItem>>{};
+        for (final it in batchResults[1] as List) {
+          final im = it as Map;
+          final itemId = im['id'] as String;
+          final roId = im['restaurant_order_id'] as String;
+          itemsByRoId.putIfAbsent(roId, () => []).add(
+            RestaurantOrderItem(
+              id: itemId,
+              restaurantOrderId: roId,
+              menuItemId: im['menu_item_id'] as String?,
+              itemName: im['item_name'] as String? ?? '',
+              price: (im['price'] as num?)?.toDouble() ?? 0,
+              quantity: (im['quantity'] as num?)?.toInt() ?? 1,
+              notes: im['notes'] as String?,
+              sides: sidesByItemId[itemId] ?? [],
+            ),
+          );
+        }
+
+        // Assemble RestaurantOrder objects from the look-up maps
+        final restaurantOrders = <RestaurantOrder>[];
+        for (final ro in roList) {
+          final roId = (ro as Map)['id'] as String;
+          final restaurantId = ro['restaurant_id'] as String;
           restaurantOrders.add(
             RestaurantOrder(
               id: roId,
               masterOrderId: masterOrderId,
               restaurantId: restaurantId,
-              restaurantName: restaurantName,
+              restaurantName: restaurantNameMap[restaurantId],
               restaurantOrderNumber: ro['restaurant_order_number'] as String?,
               status: ro['status'] as String? ?? 'pending',
               subtotal: (ro['subtotal'] as num?)?.toDouble() ?? 0,
@@ -383,7 +424,7 @@ final masterOrderDetailProvider = FutureProvider.family
               pickupStatus: ro['pickup_status'] as String? ?? 'pending',
               notes: ro['notes'] as String?,
               createdAt: DateTime.parse(ro['created_at'] as String),
-              items: items,
+              items: itemsByRoId[roId] ?? [],
               deliveryAddress: moRow['delivery_address'] as String?,
               contactlessDelivery:
                   moRow['contactless_delivery'] as bool? ?? false,

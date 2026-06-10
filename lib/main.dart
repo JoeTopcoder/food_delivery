@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,6 +85,7 @@ import 'screens/admin/admin_contract_screen_v2.dart';
 import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
 import 'screens/admin/admin_pricing_screen.dart';
+import 'screens/admin/admin_services_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/splash_screen.dart';
 import 'screens/maintenance_screen.dart';
@@ -105,6 +107,7 @@ import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
 import 'screens/admin/admin_loyalty_screen.dart';
 import 'screens/admin/admin_earnings_screen.dart';
+import 'screens/admin/admin_platform_earnings_screen.dart';
 import 'screens/admin/admin_mealhub_screen.dart';
 import 'screens/admin/admin_meal_plans_screen.dart';
 import 'screens/admin/admin_shipping_companies_screen.dart';
@@ -156,6 +159,7 @@ import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/cache_service.dart';
 import 'providers/feature_providers.dart';
+import 'firebase_options.dart';
 
 void main() {
   runZonedGuarded(
@@ -168,18 +172,32 @@ void main() {
       ]);
 
       // Keep only the minimum boot dependencies on the critical path.
+      // On web, pass explicit options so Firebase doesn't depend on a JS
+      // script timing race. On Android/iOS, options=null reads from the
+      // platform config files (google-services.json / GoogleService-Info.plist).
       await Future.wait([
-        Firebase.initializeApp(),
+        Firebase.initializeApp(
+          options: kIsWeb ? DefaultFirebaseOptions.web : null,
+        ),
         SupabaseConfig.initialize(),
         CacheService.init(),
       ]);
 
       // Initialize Stripe (non-blocking — don't await applySettings)
-      final stripeKey = AppConstants.stripePublishableKey;
-      if (stripeKey.isNotEmpty) {
-        Stripe.publishableKey = stripeKey;
-        Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
-        Stripe.instance.applySettings().catchError((_) {});
+      // flutter_stripe has no web support; skip entirely on web.
+      if (!kIsWeb) {
+        final stripeKey = AppConstants.stripePublishableKey;
+        if (kReleaseMode && AppConstants.stripeIsTestMode) {
+          throw StateError(
+            'PRODUCTION BUILD ERROR: Stripe test keys detected. '
+            'Pass live keys via --dart-define STRIPE_PK=pk_live_... STRIPE_RK=rk_live_...',
+          );
+        }
+        if (stripeKey.isNotEmpty) {
+          Stripe.publishableKey = stripeKey;
+          Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+          Stripe.instance.applySettings().catchError((_) {});
+        }
       }
       AppLogger.info(
         '[Main] After config load — defaultDeliveryFee=${AppConstants.defaultDeliveryFee}, baseFee=${AppConstants.deliveryBaseFee}',
@@ -194,10 +212,11 @@ void main() {
         );
       };
 
-      // Replace the default red crash widget with a calm fallback so a broken
-      // subtree never produces a white or red screen in release builds.
+      // Replace the default red crash widget — show the real exception in
+      // debug/web so we can diagnose it; hide in release on non-web.
       ErrorWidget.builder = (FlutterErrorDetails details) {
         AppLogger.error('[ErrorWidget] ${details.exception}');
+        final msg = details.exception.toString();
         return Material(
           color: Colors.white,
           child: SafeArea(
@@ -218,8 +237,8 @@ void main() {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Go back and try again.',
+                  SelectableText(
+                    msg,
                     style: TextStyle(color: Colors.grey),
                     textAlign: TextAlign.center,
                   ),
@@ -332,44 +351,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         });
       }
 
-      // Subscribe to role-specific FCM topics when authenticated
+      // FCM topic subscriptions/unsubscriptions are handled inside AuthNotifier
+      // (_subscribeToUserTopics / _unsubscribeFromAllTopics) — don't duplicate here.
+      // Only save the FCM token on auth events (token may not be available at init).
       if (next.isAuthenticated) {
-        final role = next.user?.role;
-        final userId = next.user?.id;
-
-        // Save FCM token now that we have an authenticated user.
-        // initialize() fires before login so the first save attempt has no user.
         unawaited(NotificationService().saveFCMToken());
-
-        if (role == 'driver') {
-          NotificationService().subscribeToTopic(
-            AppConstants.fcmTopicAvailableDrivers,
-          );
-        } else if (role == 'restaurant') {
-          NotificationService().subscribeToTopic(
-            AppConstants.fcmTopicAllRestaurants,
-          );
-        } else if (role == 'admin') {
-          NotificationService().subscribeToTopic(AppConstants.fcmTopicAdmins);
-        }
-        // All users (especially customers) subscribe to their personal topic
-        if (userId != null) {
-          NotificationService().subscribeToTopic('customer_$userId');
-        }
-      }
-      // Unsubscribe when signing out
-      if (isSignedOut) {
-        final userId = previous?.user?.id;
-        NotificationService().unsubscribeFromTopic(
-          AppConstants.fcmTopicAvailableDrivers,
-        );
-        NotificationService().unsubscribeFromTopic(
-          AppConstants.fcmTopicAllRestaurants,
-        );
-        NotificationService().unsubscribeFromTopic(AppConstants.fcmTopicAdmins);
-        if (userId != null) {
-          NotificationService().unsubscribeFromTopic('customer_$userId');
-        }
       }
     });
   }
@@ -895,6 +881,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminEarningsScreen(),
                 ),
               );
+            case '/admin-platform-earnings':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPlatformEarningsScreen(),
+                ),
+              );
             case '/admin-orders':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -1083,6 +1076,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminPricingScreen(),
+                ),
+              );
+            case '/admin-services':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminServicesScreen(),
                 ),
               );
             case '/wallet':
@@ -1279,20 +1279,29 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               );
             case '/laundry/provider-detail':
               return MaterialPageRoute(
-                builder: (_) => LaundryBookingScreen(
-                  provider: settings.arguments as dynamic,
+                builder: (_) => RoleGuard(
+                  allowedRoles: const ['user', 'customer'],
+                  child: LaundryBookingScreen(
+                    provider: settings.arguments as dynamic,
+                  ),
                 ),
               );
             case '/laundry/book':
               return MaterialPageRoute(
-                builder: (_) => LaundryBookingScreen(
-                  provider: settings.arguments as dynamic,
+                builder: (_) => RoleGuard(
+                  allowedRoles: const ['user', 'customer'],
+                  child: LaundryBookingScreen(
+                    provider: settings.arguments as dynamic,
+                  ),
                 ),
               );
             case '/laundry/tracking':
               final bookingId = settings.arguments as String;
               return MaterialPageRoute(
-                builder: (_) => LaundryTrackingScreen(bookingId: bookingId),
+                builder: (_) => RoleGuard(
+                  allowedRoles: const ['user', 'customer'],
+                  child: LaundryTrackingScreen(bookingId: bookingId),
+                ),
               );
             case '/laundry/history':
               return MaterialPageRoute(
@@ -1305,7 +1314,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             // ── Laundry – Provider ────────────────────────────────────
             case '/laundry/provider-onboarding':
               return MaterialPageRoute(
-                builder: (_) => const LaundryProviderOnboardingScreen(),
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['laundry_provider', 'admin'],
+                  child: LaundryProviderOnboardingScreen(),
+                ),
               );
             case '/laundry/provider-dashboard':
               return MaterialPageRoute(
@@ -1457,17 +1469,23 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             // ── Package Delivery ──────────────────────────────────────
             case '/packages':
               return MaterialPageRoute(
-                builder: (_) => const ShippingCompanyScreen(),
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: ShippingCompanyScreen(),
+                ),
               );
             case '/packages/driver/request':
               final req = settings.arguments as PackageDeliveryRequest;
               return MaterialPageRoute(
-                builder: (ctx) => Scaffold(
-                  backgroundColor: Colors.black54,
-                  body: Center(
-                    child: PackageRequestCard(
-                      request: req,
-                      onDismiss: () => Navigator.pop(ctx),
+                builder: (ctx) => RoleGuard(
+                  allowedRoles: const ['driver'],
+                  child: Scaffold(
+                    backgroundColor: Colors.black54,
+                    body: Center(
+                      child: PackageRequestCard(
+                        request: req,
+                        onDismiss: () => Navigator.pop(ctx),
+                      ),
                     ),
                   ),
                 ),

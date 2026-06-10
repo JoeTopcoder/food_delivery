@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/menu_model.dart';
@@ -72,7 +73,7 @@ class _GroceryStoreDetailScreenState
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
-      cacheExtent: 600,
+      scrollCacheExtent: const ScrollCacheExtent.pixels(600),
       slivers: [
         // ── App bar with store image ────────────────────────────────
         SliverAppBar(

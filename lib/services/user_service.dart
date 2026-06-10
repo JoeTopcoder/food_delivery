@@ -18,9 +18,14 @@ class UserService {
 
       final response = await _supabaseClient
           .from(AppConstants.tableUsers)
-          .select()
+          .select(
+            'id, email, name, phone, profile_image_url, role, '
+            'onboarding_completed, address, latitude, longitude, '
+            'is_active, referral_code, referred_by, created_at, updated_at',
+          )
           .eq('id', userId)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 8));
 
       final user = User.fromJson(response);
       AppLogger.info('User fetched successfully');

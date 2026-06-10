@@ -105,6 +105,8 @@ class Order {
   final bool isMultiRestaurant;
   final int? sequenceInGroup;
   final String? restaurantOrderNumber;
+  @JsonKey(defaultValue: 0)
+  final double outstandingDebtCharged;
 
   Order({
     required this.id,
@@ -159,6 +161,7 @@ class Order {
     this.isMultiRestaurant = false,
     this.sequenceInGroup,
     this.restaurantOrderNumber,
+    this.outstandingDebtCharged = 0,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -217,6 +220,7 @@ class Order {
     bool? isMultiRestaurant,
     int? sequenceInGroup,
     String? restaurantOrderNumber,
+    double? outstandingDebtCharged,
   }) {
     return Order(
       id: id ?? this.id,
@@ -271,6 +275,7 @@ class Order {
       isMultiRestaurant: isMultiRestaurant ?? this.isMultiRestaurant,
       sequenceInGroup: sequenceInGroup ?? this.sequenceInGroup,
       restaurantOrderNumber: restaurantOrderNumber ?? this.restaurantOrderNumber,
+      outstandingDebtCharged: outstandingDebtCharged ?? this.outstandingDebtCharged,
     );
   }
 }

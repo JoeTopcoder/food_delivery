@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS wallet_adjustments (
 
 ALTER TABLE wallet_adjustments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "admins_all_adjustments" ON wallet_adjustments;
 CREATE POLICY "admins_all_adjustments" ON wallet_adjustments
   FOR ALL USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "users_read_own_adjustments" ON wallet_adjustments;
 CREATE POLICY "users_read_own_adjustments" ON wallet_adjustments
   FOR SELECT USING (user_id = auth.uid());
 
