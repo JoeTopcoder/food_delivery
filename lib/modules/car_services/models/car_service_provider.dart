@@ -88,8 +88,8 @@ class CarServiceProvider {
 
     return CarServiceProvider(
       id: map['id'] as String,
-      userId: map['user_id'] as String,
-      businessName: map['business_name'] as String,
+      userId: map['user_id'] as String? ?? '',
+      businessName: map['business_name'] as String? ?? 'Unknown',
       ownerName: map['owner_name'] as String?,
       bio: map['bio'] as String?,
       profileImageUrl: map['profile_image_url'] as String?,
@@ -114,8 +114,8 @@ class CarServiceProvider {
       baseLocationLng: parseDouble(map['base_location_lng']),
       baseLocationAddress: map['base_location_address'] as String?,
       stripePayoutsEnabled: map['stripe_payouts_enabled'] as bool? ?? false,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(map['updated_at'] as String? ?? '') ?? DateTime.now(),
       offerings: offerings,
       images: images,
     );

@@ -9,7 +9,6 @@ import '../../../../utils/app_feedback_widgets.dart';
 import '../../../../utils/friendly_error.dart';
 import '../../../../config/app_constants.dart';
 
-const _kNavy = Color(0xFF0B3D6B);
 const _kBlue = Color(0xFF1565C0);
 
 class LaundryTrackingScreen extends ConsumerStatefulWidget {
@@ -81,7 +80,7 @@ class _LaundryTrackingScreenState extends ConsumerState<LaundryTrackingScreen> {
             onRefresh: () async =>
                 ref.invalidate(laundryBookingDetailProvider(widget.bookingId)),
             child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

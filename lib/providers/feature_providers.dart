@@ -65,6 +65,22 @@ final appConfigRealtimeProvider = Provider<void>((ref) {
   ref.onDispose(() => client.removeChannel(channel));
 });
 
+// ── Service on/off toggle provider ─────────────────────────
+/// Returns whether a service is enabled.  Re-evaluates whenever the admin
+/// changes app_config (configVersionProvider bumps).
+/// Keys: 'food', 'grocery', 'rides', 'laundry', 'car_service'
+final serviceEnabledProvider = Provider.family<bool, String>((ref, key) {
+  ref.watch(configVersionProvider); // re-run on any config change
+  switch (key) {
+    case 'food':        return AppConstants.serviceFoodEnabled;
+    case 'grocery':     return AppConstants.serviceGroceryEnabled;
+    case 'rides':       return AppConstants.serviceRidesEnabled;
+    case 'laundry':     return AppConstants.serviceLaundryEnabled;
+    case 'car_service': return AppConstants.serviceCarServiceEnabled;
+    default:            return true;
+  }
+});
+
 // ── Service Providers ───────────────────────────────────────
 final refundServiceProvider = Provider<RefundService>(
   (ref) => RefundService(SupabaseConfig.client),

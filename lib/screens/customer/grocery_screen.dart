@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/banner_model.dart' as app;
 import '../../models/menu_model.dart';
@@ -53,7 +54,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          cacheExtent: 500,
+          scrollCacheExtent: const ScrollCacheExtent.pixels(500),
           slivers: [
             // ── Header ──────────────────────────────────────────────
             SliverToBoxAdapter(
@@ -133,71 +134,76 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
               child: categoriesAsync.when(
                 data: (categories) {
                   if (categories.isEmpty) return const SizedBox.shrink();
-                  return LayoutBuilder(builder: (context, _) {
-                    final catH = (MediaQuery.of(context).size.height * 0.13).clamp(95.0, 115.0);
-                    return SizedBox(
-                    height: catH,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: categories.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        final cat = categories[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => GroceryCategoryProductsScreen(
-                                  categoryName: cat.name,
-                                  categoryIcon: cat.icon,
-                                ),
+                  return LayoutBuilder(
+                    builder: (context, _) {
+                      final catH = (MediaQuery.of(context).size.height * 0.13)
+                          .clamp(95.0, 115.0);
+                      return SizedBox(
+                        height: catH,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: categories.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final cat = categories[index];
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        GroceryCategoryProductsScreen(
+                                          categoryName: cat.name,
+                                          categoryIcon: cat.icon,
+                                        ),
+                                  ),
+                                );
+                              },
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        cat.icon ?? '🛒',
+                                        style: const TextStyle(fontSize: 28),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  SizedBox(
+                                    width: 70,
+                                    child: Text(
+                                      cat.name,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           },
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cat.icon ?? '🛒',
-                                    style: const TextStyle(fontSize: 28),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                width: 70,
-                                child: Text(
-                                  cat.name,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  );      // SizedBox
-                  });     // LayoutBuilder
+                        ),
+                      ); // SizedBox
+                    },
+                  ); // LayoutBuilder
                 },
                 loading: () => const SizedBox(
                   height: 100,

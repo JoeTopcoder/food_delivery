@@ -57,127 +57,23 @@ class LaundryService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Future<List<LaundryProvider>> getActiveProviders({String? query}) async {
-    try {
-      var q = _supabase
-          .from('laundry_providers')
-          .select('*, laundry_pricing(*), laundry_provider_services(*, laundry_services(*))')
-          .eq('is_active', true)
-          .eq('status', 'active');
+    var q = _supabase
+        .from('laundry_providers')
+        .select(
+          '*, laundry_pricing(*), laundry_provider_services(*, laundry_services(*))',
+        )
+        .eq('is_active', true)
+        .eq('status', 'active');
 
-      if (query != null && query.isNotEmpty) {
-        q = q.ilike('business_name', '%$query%');
-      }
-
-      final rows = await q.order('rating', ascending: false).limit(50);
-      final live = (rows as List)
-          .map((r) => LaundryProvider.fromMap(r as Map<String, dynamic>))
-          .toList();
-
-      // Fall back to demo data until the DB migration is run
-      if (live.isEmpty) return _demoProviders(query);
-      return live;
-    } catch (e) {
-      AppLogger.error('getActiveProviders: $e');
-      return _demoProviders(query);
+    if (query != null && query.isNotEmpty) {
+      q = q.ilike('business_name', '%$query%');
     }
-  }
 
-  /// Four sample providers shown while the DB table is being set up.
-  List<LaundryProvider> _demoProviders(String? query) {
-    final all = [
-      LaundryProvider(
-        id: 'demo-1', userId: 'demo',
-        businessName: 'FreshWave Laundry',
-        description: 'Premium wash & fold with same-day express options. '
-            'We handle everything from everyday clothes to delicates with care.',
-        address: '14 Harbour Drive, George Town',
-        rating: 4.8, reviewCount: 127,
-        isActive: true, isVerified: true,
-        status: LaundryProviderStatus.active,
-        createdAt: DateTime.now(),
-        pricing: LaundryPricing(id: 'p1', providerId: 'demo-1',
-            pickupFee: 2.50, deliveryFee: 2.50, minOrderFee: 10),
-        services: [
-          _demoSvc('demo-1', 'Wash & Fold',     3.50, 24),
-          _demoSvc('demo-1', 'Ironing',         2.00, 6),
-          _demoSvc('demo-1', 'Express Laundry', 5.00, 2),
-          _demoSvc('demo-1', 'Bedding Cleaning',4.00, 24),
-        ],
-      ),
-      LaundryProvider(
-        id: 'demo-2', userId: 'demo',
-        businessName: 'SpinCycle Pro',
-        description: 'Industrial-grade cleaning for homes and businesses. '
-            'Specialising in bedding, uniforms and bulk laundry at competitive rates.',
-        address: '8 Eastern Avenue, Bodden Town',
-        rating: 4.5, reviewCount: 89,
-        isActive: true, isVerified: true,
-        status: LaundryProviderStatus.active,
-        createdAt: DateTime.now(),
-        pricing: LaundryPricing(id: 'p2', providerId: 'demo-2',
-            pickupFee: 0, deliveryFee: 0, minOrderFee: 15),
-        services: [
-          _demoSvc('demo-2', 'Wash & Fold',     2.80, 24),
-          _demoSvc('demo-2', 'Uniform Cleaning',3.00, 12),
-          _demoSvc('demo-2', 'Bedding Cleaning',3.50, 24),
-        ],
-      ),
-      LaundryProvider(
-        id: 'demo-3', userId: 'demo',
-        businessName: 'Crystal Clean',
-        description: 'Eco-friendly dry cleaning and delicates specialist. '
-            'All garments treated with biodegradable solvents.',
-        address: '22 West Bay Road, Seven Mile Beach',
-        rating: 4.9, reviewCount: 214,
-        isActive: true, isVerified: true,
-        status: LaundryProviderStatus.active,
-        createdAt: DateTime.now(),
-        pricing: LaundryPricing(id: 'p3', providerId: 'demo-3',
-            pickupFee: 3, deliveryFee: 3, minOrderFee: 20),
-        services: [
-          _demoSvc('demo-3', 'Dry Cleaning',     0, 48),
-          _demoSvc('demo-3', 'Delicates Cleaning', 4.50, 36),
-          _demoSvc('demo-3', 'Wash & Fold',      4.00, 24),
-          _demoSvc('demo-3', 'Ironing',          3.00, 8),
-        ],
-      ),
-      LaundryProvider(
-        id: 'demo-4', userId: 'demo',
-        businessName: 'QuickSuds Express',
-        description: '2-hour express turnaround for busy professionals. '
-            'Wash, dry and fold delivered back within hours. Open 7 days.',
-        address: '5 Shedden Road, George Town',
-        rating: 4.6, reviewCount: 73,
-        isActive: true, isVerified: true,
-        status: LaundryProviderStatus.active,
-        createdAt: DateTime.now(),
-        pricing: LaundryPricing(id: 'p4', providerId: 'demo-4',
-            pickupFee: 5, deliveryFee: 5, minOrderFee: 12),
-        services: [
-          _demoSvc('demo-4', 'Wash & Fold',      4.00, 2),
-          _demoSvc('demo-4', 'Express Laundry',  6.00, 2),
-          _demoSvc('demo-4', 'Wash Only',        3.00, 2),
-        ],
-      ),
-    ];
-
-    if (query == null || query.isEmpty) return all;
-    final q = query.toLowerCase();
-    return all
-        .where((p) =>
-            p.businessName.toLowerCase().contains(q) ||
-            (p.address ?? '').toLowerCase().contains(q))
+    final rows = await q.order('rating', ascending: false).limit(50);
+    return (rows as List)
+        .map((r) => LaundryProvider.fromMap(r as Map<String, dynamic>))
         .toList();
   }
-
-  LaundryProviderService _demoSvc(
-      String pid, String name, double pricePerKg, int hours) =>
-      LaundryProviderService(
-        id: '$pid-$name', providerId: pid,
-        serviceId: name, serviceName: name,
-        isAvailable: true, pricePerKg: pricePerKg,
-        estimatedHours: hours,
-      );
 
   Future<LaundryProvider?> getProviderById(String id) async {
     try {

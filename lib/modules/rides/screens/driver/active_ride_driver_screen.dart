@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:food_driver/utils/app_logger.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -334,8 +335,7 @@ class _ActiveRideDriverScreenState
       setState(() {
         _routePoints = [_pickupLatLng, _destLatLng];
       });
-      // Log error for debugging
-      debugPrint('Routing failed, using fallback: $e');
+      AppLogger.warning('Routing failed, using fallback: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingRoute = false);

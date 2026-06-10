@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/screens/auth_launch_gate_screen.dart';
 import '../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
+import '../modules/laundry/screens/provider/laundry_provider_dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import '../screens/driver/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
@@ -51,13 +52,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Logo bounce-in animation
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
 
     // Content fade-in
     _contentController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 450),
       vsync: this,
     );
 
@@ -128,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigate() {
     if (_navigated || !mounted) return;
     _navigated = true;
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -513,12 +514,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     )..repeat();
 
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
     _contentController = AnimationController(
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
@@ -546,24 +547,33 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
 
   Future<void> _initialize() async {
     await Future.wait([
-      Future.delayed(const Duration(milliseconds: 600)),
+      Future.delayed(const Duration(milliseconds: 300)),
       _doPermissionsAndAuth().timeout(
         const Duration(seconds: 5),
         onTimeout: () {
-          // Safety net: if auth check hangs, navigate to login screen.
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const AuthLaunchGateScreen(),
-                transitionsBuilder: (_, anim, __, child) =>
-                    FadeTransition(opacity: anim, child: child),
-                transitionDuration: const Duration(milliseconds: 500),
-              ),
-            );
-          }
+          _navigateToGate();
         },
       ),
     ]);
+
+    // Hard fallback: if _doPermissionsAndAuth returned early without navigating
+    // (e.g. !mounted check fired then recovered, or any unhandled early return),
+    // push the gate screen so the splash never stays on screen indefinitely.
+    _navigateToGate();
+  }
+
+  void _navigateToGate() {
+    if (!mounted) return;
+    // pushReplacement is a no-op if this widget is already off the navigation
+    // stack (mounted becomes false immediately after the first pushReplacement).
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const AuthLaunchGateScreen(),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   Future<void> _doPermissionsAndAuth() async {
@@ -625,6 +635,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
           destination = const RoleGuard(
             allowedRoles: ['service_provider'],
             child: CarServiceProviderDashboardScreen(),
+          );
+          break;
+        case 'laundry_provider':
+          destination = const RoleGuard(
+            allowedRoles: ['laundry_provider'],
+            child: LaundryProviderDashboardScreen(),
           );
           break;
         default:

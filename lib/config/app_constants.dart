@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = '7DASH';
+  static const String appName = 'MealHub';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -14,16 +14,20 @@
   );
 
   // Stripe Payment Configuration — Stripe is the ONLY payment method
+  // PRODUCTION BUILD: pass live keys via --dart-define STRIPE_PK=pk_live_... STRIPE_RK=rk_live_...
+  // Defaults below are TEST keys — real payments will be rejected in test mode.
   static String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PK',
     defaultValue:
         'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
   );
-  static const String stripeRestrictedKey = String.fromEnvironment(
-    'STRIPE_RK',
-    defaultValue:
-        'rk_test_51TMsI4IxFR3jJr2almj9Qkbmc9jxdJJ52wnMHe3zAYeoVal9QqCR2yPtfCSenJgPUeFK3zWFU9qSHr7IV1nfVjY100GKkOtn7q',
-  );
+  // stripeRestrictedKey removed — restricted keys are server-side only (edge functions)
+  // and must never be embedded in client code.
+
+  /// Returns true when the app is running with test-mode Stripe keys.
+  /// Checked at payment-screen entry to surface a visible warning in debug.
+  static bool get stripeIsTestMode =>
+      stripePublishableKey.startsWith('pk_test');
   static const String stripePaymentFunction = 'stripe-payment';
   static const String stripeMerchantId = 'merchant.com.sevendash.app';
 
@@ -53,7 +57,8 @@
   static const String orderPreparing = 'preparing';
   static const String orderReady = 'ready';
   static const String orderPickedUp = 'picked_up';
-  static const String orderOnTheWay = 'on_the_way';
+  // 'out_for_delivery' is the canonical DB value; 'on_the_way' is legacy
+  static const String orderOnTheWay = 'out_for_delivery';
   static const String orderDelivered = 'delivered';
   static const String orderCancelled = 'cancelled';
   static const String orderPartiallyCancelled = 'partially_cancelled';
@@ -263,6 +268,13 @@
   // System
   static int orderAssignmentCutoffMinutes = 30;
   static bool maintenanceMode = false;
+
+  // ── Service Toggles (controlled by admin via app_config) ─────────────────
+  static bool serviceFoodEnabled = true;
+  static bool serviceGroceryEnabled = true;
+  static bool serviceRidesEnabled = true;
+  static bool serviceLaundryEnabled = true;
+  static bool serviceCarServiceEnabled = true;
 
   /// Canonical food categories surfaced on the customer home screen.
   /// Restaurants should tag their menu items with one of these names so they

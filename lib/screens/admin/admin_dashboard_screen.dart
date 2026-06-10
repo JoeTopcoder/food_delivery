@@ -194,6 +194,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   final drivers = data['drivers'] as Map? ?? {};
                   final orders = data['orders'] as Map? ?? {};
                   final revenue = data['revenue'] as Map? ?? {};
+                  final laundry = data['laundry'] as Map? ?? {};
+                  final carServices = data['car_services'] as Map? ?? {};
+                  final rides = data['rides'] as Map? ?? {};
 
                   final totalRevenue = ((revenue['total_revenue'] ?? 0) as num)
                       .toDouble();
@@ -346,6 +349,57 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               onTap: () => Navigator.of(context)
                                   .pushNamed('/admin-drivers')
                                   .then((_) => _refresh()),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // ── Module activity row ────────────────────────────
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
+                        child: Row(
+                          children: [
+                            _KpiCard(
+                              label: 'Rides',
+                              value: '${rides['total_rides'] ?? 0}',
+                              icon: Icons.directions_car_rounded,
+                              color: const Color(0xFF8B5CF6),
+                              badge: rides['active_rides'] != null
+                                  ? '${rides['active_rides']} live'
+                                  : null,
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-rides'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Laundry',
+                              value: '${laundry['total_bookings'] ?? 0}',
+                              icon: Icons.local_laundry_service_rounded,
+                              color: const Color(0xFF0EA5E9),
+                              badge: laundry['active_bookings'] != null
+                                  ? '${laundry['active_bookings']} live'
+                                  : null,
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin/laundry'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Car Svc',
+                              value: '${carServices['total_bookings'] ?? 0}',
+                              icon: Icons.car_repair_rounded,
+                              color: const Color(0xFF0D9488),
+                              badge: carServices['active_bookings'] != null
+                                  ? '${carServices['active_bookings']} live'
+                                  : null,
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin/car-services'),
                             ),
                           ],
                         ),
@@ -532,6 +586,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-financials'),
                           ),
                           _GridAction(
+                            icon: Icons.account_balance_wallet_rounded,
+                            label: 'Commissions',
+                            color: const Color(0xFF1F2937),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-platform-earnings'),
+                          ),
+                          _GridAction(
                             icon: Icons.bar_chart_rounded,
                             label: 'Analytics',
                             color: const Color(0xFF0EA5E9),
@@ -562,6 +624,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-loyalty'),
+                          ),
+                          _GridAction(
+                            icon: Icons.toggle_on_rounded,
+                            label: 'Services',
+                            color: const Color(0xFF059669),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-services'),
                           ),
                           _GridAction(
                             icon: Icons.local_shipping_rounded,
@@ -634,6 +704,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-rides/driver-approval'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Laundry & Car Services
+                      _CategoryRow(
+                        title: 'Laundry & Car Services',
+                        children: [
+                          _GridAction(
+                            icon: Icons.local_laundry_service_rounded,
+                            label: 'Laundry',
+                            color: const Color(0xFF0F4C81),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin/laundry'),
+                          ),
+                          _GridAction(
+                            icon: Icons.car_repair,
+                            label: 'Car Services',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin/car-services'),
                           ),
                         ],
                       ),

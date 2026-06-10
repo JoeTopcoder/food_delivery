@@ -15,7 +15,9 @@ import '../../../../utils/app_theme.dart';
 import '../../../../utils/app_feedback_widgets.dart';
 import '../../../../utils/friendly_error.dart';
 import '../../../../config/app_constants.dart';
+import '../../../../config/supabase_config.dart';
 import '../../../../utils/app_logger.dart';
+import '../../../../widgets/outstanding_debt_banner.dart';
 
 const _kNavy = Color(0xFF0B3D6B);
 const _kBlue = Color(0xFF1565C0);
@@ -236,8 +238,9 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
         data: (w) => w?.availableBalance ?? 0.0,
         orElse: () => 0.0,
       );
+      final outstandingDebt = ref.read(outstandingDebtProvider);
       AppLogger.info('[Booking] walletAvailable=$available minNeeded=${pickupFee + estimatedAmt}');
-      final minNeeded  = pickupFee + estimatedAmt;
+      final minNeeded  = pickupFee + estimatedAmt + outstandingDebt;
       if (minNeeded > 0 && available < minNeeded) {
         if (!mounted) return;
         setState(() { _isSubmitting = false; });
@@ -302,6 +305,27 @@ class _LaundryBookingScreenState extends ConsumerState<LaundryBookingScreen> {
         } catch (walletErr) {
           AppLogger.error('[Booking] wallet reservation failed (non-fatal): $walletErr');
         }
+      }
+
+      // Zero out debt_balance now that booking payment is reserved.
+      // The wallet balance check already required sufficient funds (incl. debt),
+      // so reservePayment covers the full amount — just clear the debt_balance.
+      if (outstandingDebt > 0) {
+        try {
+          final userId = SupabaseConfig.client.auth.currentUser?.id ?? '';
+          if (userId.isNotEmpty) {
+            await SupabaseConfig.client.rpc(
+              'checkout_clear_debt_direct',
+              params: {
+                'p_user_id': userId,
+                'p_amount': outstandingDebt,
+                'p_reference': booking.id,
+              },
+            );
+            ref.invalidate(walletBalanceStreamProvider);
+            ref.invalidate(walletTransactionsStreamProvider);
+          }
+        } catch (_) {}
       }
 
       if (!mounted) return;
@@ -970,6 +994,7 @@ class _DetailsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final walletAsync = ref.watch(walletBalanceStreamProvider);
+    final outstandingDebt = ref.watch(outstandingDebtProvider);
     final c = AppConstants.currencySymbol;
 
     return SingleChildScrollView(
@@ -1018,6 +1043,7 @@ class _DetailsPage extends ConsumerWidget {
               final deliveryFee  = pricing?.deliveryFee ?? 0;
               final serviceTotal = _estimateServiceTotal();
               final estimatedTotal = serviceTotal + pickupFee;
+              final grandTotal = estimatedTotal + outstandingDebt;
 
               return Column(
                 children: [
@@ -1040,6 +1066,10 @@ class _DetailsPage extends ConsumerWidget {
                             pickupFee == 0 ? 'Free' : '$c${pickupFee.toStringAsFixed(2)}'),
                         _SummaryRow('Return delivery fee',
                             deliveryFee == 0 ? 'Free (paid later)' : '$c${deliveryFee.toStringAsFixed(2)} (paid on ready)'),
+                        if (outstandingDebt > 0)
+                          _SummaryRow('Outstanding balance',
+                              '+$c${outstandingDebt.toStringAsFixed(2)}',
+                              valueColor: const Color(0xFFEA580C)),
                         const Divider(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1047,7 +1077,7 @@ class _DetailsPage extends ConsumerWidget {
                             const Text('Due Now (estimate)',
                                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                             Text(
-                              '$c${estimatedTotal.toStringAsFixed(2)}',
+                              '$c${grandTotal.toStringAsFixed(2)}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: 16, color: _kBlue),
                             ),
@@ -1066,21 +1096,23 @@ class _DetailsPage extends ConsumerWidget {
 
                   const SizedBox(height: 16),
 
+                  OutstandingDebtBanner(debtAmount: outstandingDebt),
+
                   // ── Wallet balance ─────────────────────────────────────
                   walletAsync.when(
                     loading: () => _WalletCard(
                       balance: null,
-                      required: estimatedTotal,
+                      required: grandTotal,
                       onTopUp: () => Navigator.pushNamed(context, '/wallet'),
                     ),
                     error: (_, __) => _WalletCard(
                       balance: 0,
-                      required: estimatedTotal,
+                      required: grandTotal,
                       onTopUp: () => Navigator.pushNamed(context, '/wallet'),
                     ),
                     data: (wallet) => _WalletCard(
                       balance: wallet?.availableBalance,
-                      required: estimatedTotal,
+                      required: grandTotal,
                       onTopUp: () => Navigator.pushNamed(context, '/wallet'),
                     ),
                   ),
@@ -1097,7 +1129,8 @@ class _DetailsPage extends ConsumerWidget {
 class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
-  const _SummaryRow(this.label, this.value);
+  final Color? valueColor;
+  const _SummaryRow(this.label, this.value, {this.valueColor});
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1107,7 +1140,10 @@ class _SummaryRow extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
             Text(value,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor)),
           ],
         ),
       );

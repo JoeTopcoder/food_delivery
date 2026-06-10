@@ -380,7 +380,7 @@ class _ProviderEarningsTab extends ConsumerWidget {
         ref.invalidate(laundryProviderSplitsProvider(providerId));
       },
       child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -36,6 +36,8 @@ class _RoleGuardState extends ConsumerState<RoleGuard> {
         return '/admin-dashboard';
       case 'service_provider':
         return '/car-services/provider';
+      case 'laundry_provider':
+        return '/laundry/provider-dashboard';
       case 'customer':
       default:
         return '/home';

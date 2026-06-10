@@ -13,6 +13,7 @@ import 'package:food_driver/providers/auth_provider.dart';
 import 'package:food_driver/screens/customer/payment_screen.dart';
 import 'package:food_driver/providers/wallet_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
+import 'package:food_driver/widgets/outstanding_debt_banner.dart';
 import 'package:food_driver/utils/app_logger.dart';
 import 'package:food_driver/services/notification_service.dart';
 import 'package:intl/intl.dart';
@@ -139,12 +140,14 @@ class _CarServiceBookingScreenState
   Future<void> _confirmBooking(CarServiceProvider provider) async {
     if (_isSubmitting) return;
 
+    final outstandingDebt = ref.read(outstandingDebtProvider);
+
     // Pre-flight wallet balance check
     if (_paymentMethod == 'wallet') {
       final totalAmount = _groups.fold<double>(
         0,
         (sum, g) => sum + g.subtotal,
-      ) + (_mobileService ? AppConstants.carServiceMobileFee : 0.0);
+      ) + (_mobileService ? AppConstants.carServiceMobileFee : 0.0) + outstandingDebt;
       final walletBalance =
           ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0.0;
       if (walletBalance < totalAmount) {
@@ -195,7 +198,7 @@ class _CarServiceBookingScreenState
           MaterialPageRoute(
             builder: (_) => PaymentScreen(
               orderId: booking.id,
-              amount: booking.totalAmount,
+              amount: booking.totalAmount + outstandingDebt,
               currency: AppConstants.currencyCode,
               customerEmail: currentUser?.email ?? '',
               customerName: currentUser?.name ?? '',
@@ -210,6 +213,22 @@ class _CarServiceBookingScreenState
             paymentStatus: 'paid',
             stripePaymentIntentId: result?['paymentIntentId'] as String?,
           );
+          if (outstandingDebt > 0) {
+            try {
+              final userId = SupabaseConfig.client.auth.currentUser!.id;
+              // Card charged (totalAmount + outstandingDebt) via Stripe —
+              // wallet balance untouched; just zero out debt_balance.
+              await SupabaseConfig.client.rpc(
+                'checkout_clear_debt_direct',
+                params: {
+                  'p_user_id': userId,
+                  'p_amount': outstandingDebt,
+                  'p_reference': booking.id,
+                },
+              );
+              ref.invalidate(walletBalanceStreamProvider);
+            } catch (_) {}
+          }
         } else {
           setState(() => _isSubmitting = false);
           return;
@@ -217,9 +236,10 @@ class _CarServiceBookingScreenState
       } else if (_paymentMethod == 'wallet') {
         final userId = SupabaseConfig.client.auth.currentUser!.id;
         try {
+          // payWithWallet deducts (totalAmount + outstandingDebt) from balance.
           await ref.read(walletServiceProvider).payWithWallet(
             userId,
-            booking.totalAmount,
+            booking.totalAmount + outstandingDebt,
             booking.id,
           );
         } catch (e) {
@@ -236,6 +256,19 @@ class _CarServiceBookingScreenState
           return;
         }
         await svc.updateBookingPayment(booking.id, paymentStatus: 'paid');
+        if (outstandingDebt > 0) {
+          try {
+            // Wallet already deducted the debt; just zero out debt_balance.
+            await SupabaseConfig.client.rpc(
+              'checkout_clear_debt_direct',
+              params: {
+                'p_user_id': userId,
+                'p_amount': outstandingDebt,
+                'p_reference': booking.id,
+              },
+            );
+          } catch (_) {}
+        }
         ref.invalidate(walletBalanceStreamProvider);
         ref.invalidate(walletTransactionsStreamProvider);
       }
@@ -293,7 +326,9 @@ class _CarServiceBookingScreenState
             onNext: _currentStep < _stepLabels.length - 1
                 ? _next
                 : () => _confirmBooking(provider),
-            total: _currentStep == _stepLabels.length - 1 ? _total : null,
+            total: _currentStep == _stepLabels.length - 1
+                ? _total + ref.watch(outstandingDebtProvider)
+                : null,
           ),
         ],
       ),
@@ -906,6 +941,8 @@ class _ReviewStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final walletBalance =
         ref.watch(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0.0;
+    final outstandingDebt = ref.watch(outstandingDebtProvider);
+    final grandTotal = total + outstandingDebt;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -935,11 +972,14 @@ class _ReviewStep extends ConsumerWidget {
           if (mobileFee > 0) _PriceRow(label: 'Mobile Service', value: mobileFee),
           _PriceRow(label: 'Platform Fee (${(AppConstants.carServicePlatformFeePct * 100).toStringAsFixed(0)}%)', value: platformFee),
           _PriceRow(label: 'Service Fee', value: serviceFee),
+          if (outstandingDebt > 0)
+            _PriceRow(label: 'Outstanding Balance', value: outstandingDebt, color: const Color(0xFFEA580C)),
           Divider(height: 20, color: Theme.of(context).colorScheme.outlineVariant),
-          _PriceRow(label: 'Total', value: total, bold: true, color: _kBlue),
+          _PriceRow(label: 'Total', value: grandTotal, bold: true, color: _kBlue),
         ]),
         const SizedBox(height: 12),
 
+        OutstandingDebtBanner(debtAmount: outstandingDebt),
         TextField(
           controller: notesCtrl,
           maxLines: 3,

@@ -136,7 +136,21 @@ class _CarServiceAdminScreenState
     try {
       await ref.read(carServicesServiceProvider).updateProviderProfile(
           provider.id, {'is_active': active});
+      // Invalidate both providers so the admin tab and customer list stay in sync.
+      ref.invalidate(allCarServiceProvidersAdminProvider);
       ref.invalidate(carServiceProvidersProvider(null));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              active
+                  ? '${provider.businessName} reactivated'
+                  : '${provider.businessName} deactivated',
+            ),
+            backgroundColor: active ? Colors.green : Colors.orange,
+          ),
+        );
+      }
     } catch (e) {
       AppLogger.error('Error toggling provider', e);
       if (mounted) {
@@ -200,26 +214,9 @@ class _CarServiceAdminScreenState
                 ),
 
                 // ── PROVIDERS ──────────────────────────────────────────────
-                providersAsync.when(
-                  loading: () => const Center(
-                      child: CircularProgressIndicator(color: _kBlue)),
-                  error: (e, _) => Center(child: Text('Error: $e')),
-                  data: (providers) => RefreshIndicator(
-                    onRefresh: () async =>
-                        ref.invalidate(carServiceProvidersProvider(null)),
-                    child: providers.isEmpty
-                        ? const Center(child: Text('No providers yet'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: providers.length,
-                            itemBuilder: (ctx, i) => _ProviderCard(
-                              provider: providers[i],
-                              onVerify: () => _verifyProvider(providers[i]),
-                              onToggle: (v) =>
-                                  _toggleProvider(providers[i], v),
-                            ),
-                          ),
-                  ),
+                _AllProvidersTab(
+                  onVerify: _verifyProvider,
+                  onToggle: _toggleProvider,
                 ),
 
                 // ── BOOKINGS ───────────────────────────────────────────────
@@ -665,6 +662,128 @@ class _CategoriesTab extends StatelessWidget {
       default:
         return Icons.car_repair;
     }
+  }
+}
+
+// ── All providers tab (active + inactive) ─────────────────────────────────────
+
+class _AllProvidersTab extends ConsumerWidget {
+  final Future<void> Function(CarServiceProvider) onVerify;
+  final Future<void> Function(CarServiceProvider, bool) onToggle;
+
+  const _AllProvidersTab({required this.onVerify, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(allCarServiceProvidersAdminProvider);
+
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: _kBlue)),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (providers) {
+        if (providers.isEmpty) {
+          return const Center(child: Text('No providers yet'));
+        }
+
+        final active   = providers.where((p) => p.isActive).toList();
+        final inactive = providers.where((p) => !p.isActive).toList();
+
+        return RefreshIndicator(
+          color: _kBlue,
+          onRefresh: () async =>
+              ref.invalidate(allCarServiceProvidersAdminProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // ── Active ────────────────────────────────────────────────
+              if (active.isNotEmpty) ...[
+                _SectionHeader(
+                  label: 'Active (${active.length})',
+                  color: Colors.green,
+                ),
+                const SizedBox(height: 8),
+                ...active.map((p) => _ProviderCard(
+                      provider: p,
+                      onVerify: () => onVerify(p),
+                      onToggle: (v) => onToggle(p, v),
+                    )),
+              ],
+
+              // ── Inactive ──────────────────────────────────────────────
+              if (inactive.isNotEmpty) ...[
+                if (active.isNotEmpty) const SizedBox(height: 16),
+                _SectionHeader(
+                  label: 'Inactive / Deactivated (${inactive.length})',
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade100),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 14, color: Colors.red),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Toggle the switch to reactivate a provider.',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...inactive.map((p) => _ProviderCard(
+                      provider: p,
+                      onVerify: () => onVerify(p),
+                      onToggle: (v) => onToggle(p, v),
+                    )),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _SectionHeader({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
   }
 }
 

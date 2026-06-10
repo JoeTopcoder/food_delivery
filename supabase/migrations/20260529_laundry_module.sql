@@ -392,6 +392,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists trg_laundry_bookings_updated_at on laundry_bookings;
 create trigger trg_laundry_bookings_updated_at
   before update on laundry_bookings
   for each row execute function update_laundry_booking_updated_at();
@@ -403,6 +404,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists trg_laundry_providers_updated_at on laundry_providers;
 create trigger trg_laundry_providers_updated_at
   before update on laundry_providers
   for each row execute function update_laundry_provider_updated_at();
@@ -420,6 +422,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists trg_laundry_status_history on laundry_bookings;
 create trigger trg_laundry_status_history
   after insert or update on laundry_bookings
   for each row execute function laundry_booking_status_history_trigger();
@@ -443,35 +446,43 @@ alter table laundry_provider_documents      enable row level security;
 alter table laundry_provider_payouts        enable row level security;
 
 -- ── laundry_services (read-only for everyone) ─────────────────────────────────
+drop policy if exists "laundry_services_select_all" on laundry_services;
 create policy "laundry_services_select_all" on laundry_services
   for select using (true);
 
+drop policy if exists "laundry_services_admin_all" on laundry_services;
 create policy "laundry_services_admin_all" on laundry_services
   for all using (
     exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
 -- ── laundry_providers ─────────────────────────────────────────────────────────
+drop policy if exists "laundry_providers_select_active" on laundry_providers;
 create policy "laundry_providers_select_active" on laundry_providers
   for select using (is_active = true or user_id = auth.uid() or
     exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
 
+drop policy if exists "laundry_providers_insert_own" on laundry_providers;
 create policy "laundry_providers_insert_own" on laundry_providers
   for insert with check (user_id = auth.uid());
 
+drop policy if exists "laundry_providers_update_own" on laundry_providers;
 create policy "laundry_providers_update_own" on laundry_providers
   for update using (user_id = auth.uid() or
     exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
 
+drop policy if exists "laundry_providers_admin_delete" on laundry_providers;
 create policy "laundry_providers_admin_delete" on laundry_providers
   for delete using (
     exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
 -- ── laundry_provider_services ─────────────────────────────────────────────────
+drop policy if exists "laundry_ps_select" on laundry_provider_services;
 create policy "laundry_ps_select" on laundry_provider_services
   for select using (true);
 
+drop policy if exists "laundry_ps_write" on laundry_provider_services;
 create policy "laundry_ps_write" on laundry_provider_services
   for all using (
     exists (select 1 from laundry_providers where id = provider_id and user_id = auth.uid())
@@ -479,9 +490,11 @@ create policy "laundry_ps_write" on laundry_provider_services
   );
 
 -- ── laundry_pricing ───────────────────────────────────────────────────────────
+drop policy if exists "laundry_pricing_select" on laundry_pricing;
 create policy "laundry_pricing_select" on laundry_pricing
   for select using (true);
 
+drop policy if exists "laundry_pricing_write" on laundry_pricing;
 create policy "laundry_pricing_write" on laundry_pricing
   for all using (
     exists (select 1 from laundry_providers where id = provider_id and user_id = auth.uid())
@@ -489,6 +502,7 @@ create policy "laundry_pricing_write" on laundry_pricing
   );
 
 -- ── laundry_bookings ──────────────────────────────────────────────────────────
+drop policy if exists "laundry_bookings_customer_select" on laundry_bookings;
 create policy "laundry_bookings_customer_select" on laundry_bookings
   for select using (
     customer_id = auth.uid()
@@ -497,9 +511,11 @@ create policy "laundry_bookings_customer_select" on laundry_bookings
     or exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
+drop policy if exists "laundry_bookings_customer_insert" on laundry_bookings;
 create policy "laundry_bookings_customer_insert" on laundry_bookings
   for insert with check (customer_id = auth.uid());
 
+drop policy if exists "laundry_bookings_update" on laundry_bookings;
 create policy "laundry_bookings_update" on laundry_bookings
   for update using (
     customer_id = auth.uid()
@@ -509,6 +525,7 @@ create policy "laundry_bookings_update" on laundry_bookings
   );
 
 -- ── laundry_booking_items ─────────────────────────────────────────────────────
+drop policy if exists "laundry_items_select" on laundry_booking_items;
 create policy "laundry_items_select" on laundry_booking_items
   for select using (
     exists (select 1 from laundry_bookings b where b.id = booking_id and (
@@ -518,12 +535,14 @@ create policy "laundry_items_select" on laundry_booking_items
     ))
   );
 
+drop policy if exists "laundry_items_insert" on laundry_booking_items;
 create policy "laundry_items_insert" on laundry_booking_items
   for insert with check (
     exists (select 1 from laundry_bookings b where b.id = booking_id and b.customer_id = auth.uid())
   );
 
 -- ── laundry_status_history ────────────────────────────────────────────────────
+drop policy if exists "laundry_status_history_select" on laundry_status_history;
 create policy "laundry_status_history_select" on laundry_status_history
   for select using (
     exists (select 1 from laundry_bookings b where b.id = booking_id and (
@@ -535,6 +554,7 @@ create policy "laundry_status_history_select" on laundry_status_history
   );
 
 -- ── laundry_photos ────────────────────────────────────────────────────────────
+drop policy if exists "laundry_photos_select" on laundry_photos;
 create policy "laundry_photos_select" on laundry_photos
   for select using (
     uploader_id = auth.uid()
@@ -545,10 +565,12 @@ create policy "laundry_photos_select" on laundry_photos
     ))
   );
 
+drop policy if exists "laundry_photos_insert" on laundry_photos;
 create policy "laundry_photos_insert" on laundry_photos
   for insert with check (uploader_id = auth.uid());
 
 -- ── laundry_weights ───────────────────────────────────────────────────────────
+drop policy if exists "laundry_weights_select" on laundry_weights;
 create policy "laundry_weights_select" on laundry_weights
   for select using (
     exists (select 1 from laundry_bookings b where b.id = booking_id and (
@@ -558,6 +580,7 @@ create policy "laundry_weights_select" on laundry_weights
     ))
   );
 
+drop policy if exists "laundry_weights_insert_provider" on laundry_weights;
 create policy "laundry_weights_insert_provider" on laundry_weights
   for insert with check (
     exists (select 1 from laundry_bookings b
@@ -566,6 +589,7 @@ create policy "laundry_weights_insert_provider" on laundry_weights
   );
 
 -- ── laundry_driver_assignments ────────────────────────────────────────────────
+drop policy if exists "laundry_da_select" on laundry_driver_assignments;
 create policy "laundry_da_select" on laundry_driver_assignments
   for select using (
     driver_id = auth.uid()
@@ -576,10 +600,12 @@ create policy "laundry_da_select" on laundry_driver_assignments
     or exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
+drop policy if exists "laundry_da_update_driver" on laundry_driver_assignments;
 create policy "laundry_da_update_driver" on laundry_driver_assignments
   for update using (driver_id = auth.uid() or
     exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
 
+drop policy if exists "laundry_da_insert_admin" on laundry_driver_assignments;
 create policy "laundry_da_insert_admin" on laundry_driver_assignments
   for insert with check (
     exists (select 1 from public.users where id = auth.uid() and role = 'admin')
@@ -589,12 +615,15 @@ create policy "laundry_da_insert_admin" on laundry_driver_assignments
   );
 
 -- ── laundry_reviews ───────────────────────────────────────────────────────────
+drop policy if exists "laundry_reviews_select" on laundry_reviews;
 create policy "laundry_reviews_select" on laundry_reviews
   for select using (true);
 
+drop policy if exists "laundry_reviews_insert_customer" on laundry_reviews;
 create policy "laundry_reviews_insert_customer" on laundry_reviews
   for insert with check (customer_id = auth.uid());
 
+drop policy if exists "laundry_reviews_update_provider_response" on laundry_reviews;
 create policy "laundry_reviews_update_provider_response" on laundry_reviews
   for update using (
     customer_id = auth.uid()
@@ -602,6 +631,7 @@ create policy "laundry_reviews_update_provider_response" on laundry_reviews
   );
 
 -- ── laundry_disputes ──────────────────────────────────────────────────────────
+drop policy if exists "laundry_disputes_select" on laundry_disputes;
 create policy "laundry_disputes_select" on laundry_disputes
   for select using (
     opened_by = auth.uid()
@@ -611,19 +641,23 @@ create policy "laundry_disputes_select" on laundry_disputes
     or exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
+drop policy if exists "laundry_disputes_insert" on laundry_disputes;
 create policy "laundry_disputes_insert" on laundry_disputes
   for insert with check (opened_by = auth.uid());
 
+drop policy if exists "laundry_disputes_update_admin" on laundry_disputes;
 create policy "laundry_disputes_update_admin" on laundry_disputes
   for update using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
 
 -- ── laundry_provider_documents ────────────────────────────────────────────────
+drop policy if exists "laundry_docs_select" on laundry_provider_documents;
 create policy "laundry_docs_select" on laundry_provider_documents
   for select using (
     exists (select 1 from laundry_providers where id = provider_id and user_id = auth.uid())
     or exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
+drop policy if exists "laundry_docs_write" on laundry_provider_documents;
 create policy "laundry_docs_write" on laundry_provider_documents
   for all using (
     exists (select 1 from laundry_providers where id = provider_id and user_id = auth.uid())
@@ -631,12 +665,14 @@ create policy "laundry_docs_write" on laundry_provider_documents
   );
 
 -- ── laundry_provider_payouts ──────────────────────────────────────────────────
+drop policy if exists "laundry_payouts_select" on laundry_provider_payouts;
 create policy "laundry_payouts_select" on laundry_provider_payouts
   for select using (
     exists (select 1 from laundry_providers where id = provider_id and user_id = auth.uid())
     or exists (select 1 from public.users where id = auth.uid() and role = 'admin')
   );
 
+drop policy if exists "laundry_payouts_admin_write" on laundry_provider_payouts;
 create policy "laundry_payouts_admin_write" on laundry_provider_payouts
   for all using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
 
@@ -651,10 +687,16 @@ create policy "laundry_payouts_admin_write" on laundry_provider_payouts
 --   ('laundry-after-photos',       'laundry-after-photos',        false)
 -- ON CONFLICT (id) DO NOTHING;
 
--- Storage policies (execute after creating buckets):
--- CREATE POLICY "Public logos" ON storage.objects FOR SELECT USING (bucket_id = 'laundry-provider-logos');
--- CREATE POLICY "Provider upload logo" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'laundry-provider-logos' AND auth.uid() IS NOT NULL);
--- CREATE POLICY "Authenticated doc upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'laundry-provider-documents' AND auth.uid() IS NOT NULL);
--- CREATE POLICY "Doc owner select" ON storage.objects FOR SELECT USING (bucket_id = 'laundry-provider-documents' AND (storage.foldername(name))[1] = auth.uid()::text);
--- CREATE POLICY "Photo upload auth" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('laundry-order-photos','laundry-before-photos','laundry-after-photos') AND auth.uid() IS NOT NULL);
--- CREATE POLICY "Photo select auth" ON storage.objects FOR SELECT USING (bucket_id IN ('laundry-order-photos','laundry-before-photos','laundry-after-photos') AND auth.uid() IS NOT NULL);
+-- Storage policies (idempotent — drop first then recreate):
+DROP POLICY IF EXISTS "Public logos" ON storage.objects;
+CREATE POLICY "Public logos" ON storage.objects FOR SELECT USING (bucket_id = 'laundry-provider-logos');
+DROP POLICY IF EXISTS "Provider upload logo" ON storage.objects;
+CREATE POLICY "Provider upload logo" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'laundry-provider-logos' AND auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "Authenticated doc upload" ON storage.objects;
+CREATE POLICY "Authenticated doc upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'laundry-provider-documents' AND auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "Doc owner select" ON storage.objects;
+CREATE POLICY "Doc owner select" ON storage.objects FOR SELECT USING (bucket_id = 'laundry-provider-documents' AND (storage.foldername(name))[1] = auth.uid()::text);
+DROP POLICY IF EXISTS "Photo upload auth" ON storage.objects;
+CREATE POLICY "Photo upload auth" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('laundry-order-photos','laundry-before-photos','laundry-after-photos') AND auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "Photo select auth" ON storage.objects;
+CREATE POLICY "Photo select auth" ON storage.objects FOR SELECT USING (bucket_id IN ('laundry-order-photos','laundry-before-photos','laundry-after-photos') AND auth.uid() IS NOT NULL);

@@ -402,6 +402,14 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 },
                 child: const Text('Refresh Status', style: TextStyle(color: Color(0xFF9CA3AF))),
               ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+                child: const Text(
+                  '← Back to role selection',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                ),
+              ),
             ],
           ),
         ),

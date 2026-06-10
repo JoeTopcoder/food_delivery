@@ -2,12 +2,11 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
+import 'admin_wallet_adjust_sheet.dart';
 
 /// Admin database lookup screen.
 /// Search by card last-4, order ID, or customer email/phone/name.
@@ -745,13 +744,28 @@ class _CustomerResultView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _WalletAdjustButton(
-                userId: customer['id'] as String? ?? '',
-                customerName: customer['name'] as String? ?? 'Customer',
-                onAdjusted: () {
-                  // Re-run search to refresh wallet data
-                  // ignore: invalid_use_of_protected_member
-                },
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text(
+                    'Adjust Wallet Balance',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    side: BorderSide(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onPressed: () => AdminWalletAdjustSheet.show(
+                    context,
+                    userId: customer['id'] as String? ?? '',
+                    customerName: customer['name'] as String? ?? 'Customer',
+                  ),
+                ),
               ),
             ],
 
@@ -1130,356 +1144,3 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Admin wallet adjustment button + sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _WalletAdjustButton extends ConsumerWidget {
-  final String userId;
-  final String customerName;
-  final VoidCallback onAdjusted;
-
-  const _WalletAdjustButton({
-    required this.userId,
-    required this.customerName,
-    required this.onAdjusted,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        icon: const Icon(Icons.tune_rounded, size: 18),
-        label: const Text(
-          'Adjust Wallet Balance',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primaryColor,
-          side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-        ),
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (_) => _WalletAdjustSheet(
-            userId: userId,
-            customerName: customerName,
-            onDone: () {
-              Navigator.pop(context);
-              onAdjusted();
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WalletAdjustSheet extends ConsumerStatefulWidget {
-  final String userId;
-  final String customerName;
-  final VoidCallback onDone;
-
-  const _WalletAdjustSheet({
-    required this.userId,
-    required this.customerName,
-    required this.onDone,
-  });
-
-  @override
-  ConsumerState<_WalletAdjustSheet> createState() => _WalletAdjustSheetState();
-}
-
-class _WalletAdjustSheetState extends ConsumerState<_WalletAdjustSheet> {
-  final _amountCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  bool _isDebt = false; // false = credit (+), true = debt (-)
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _apply() async {
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
-      AppSnackbar.warning(context, 'Enter a valid positive amount');
-      return;
-    }
-    if (_descCtrl.text.trim().isEmpty) {
-      AppSnackbar.warning(context, 'Enter a reason / description');
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      final adminId = SupabaseConfig.client.auth.currentUser?.id ?? '';
-      final adjustedAmount = _isDebt ? -amount : amount;
-
-      await SupabaseConfig.client.rpc(
-        'admin_wallet_adjust',
-        params: {
-          'p_user_id': widget.userId,
-          'p_amount': adjustedAmount,
-          'p_description': _descCtrl.text.trim(),
-          'p_admin_id': adminId,
-        },
-      );
-
-      if (mounted) {
-        AppSnackbar.success(
-          context,
-          _isDebt
-              ? 'Debt of ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} recorded — '
-                    'will clear on next top-up'
-              : 'Credit of ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
-        );
-        widget.onDone();
-      }
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppConstants.currencySymbol;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          Text(
-            'Wallet Adjustment',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.customerName,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 20),
-
-          // Credit / Debt toggle
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isDebt = false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: !_isDebt
-                            ? const Color(0xFF10B981)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_circle_rounded,
-                            size: 16,
-                            color: !_isDebt ? Colors.white : Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Credit (add funds)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: !_isDebt ? Colors.white : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isDebt = true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isDebt
-                            ? const Color(0xFFEF4444)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.remove_circle_rounded,
-                            size: 16,
-                            color: _isDebt ? Colors.white : Colors.grey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Debt (next top-up)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: _isDebt ? Colors.white : Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Amount field
-          TextField(
-            controller: _amountCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Amount',
-              prefixText: c,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Description
-          TextField(
-            controller: _descCtrl,
-            maxLines: 2,
-            decoration: InputDecoration(
-              labelText: 'Reason / Description',
-              hintText: 'e.g. Compensation for service issue',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-          ),
-
-          // Debt info banner
-          if (_isDebt) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: Colors.orange.shade700,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Debt will NOT reduce the customer\'s balance now. '
-                      'It will be auto-deducted from their next wallet top-up.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _apply,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isDebt
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: _loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      _isDebt
-                          ? 'Record Debt (clears on next top-up)'
-                          : 'Add Credit to Wallet',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

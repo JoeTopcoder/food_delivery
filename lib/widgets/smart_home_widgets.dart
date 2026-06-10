@@ -866,84 +866,128 @@ class GrocerySmartSections extends ConsumerWidget {
 // the user just had a bad experience (low review or cancellation).
 // ════════════════════════════════════════════════════════════════
 
-class _ApologyCouponBanner extends ConsumerWidget {
+/// Scrolling ticker-notification banner shown when the customer has an
+/// apology coupon (code starts with SORRY). The message runs continuously
+/// from right to left, mimicking a system notification / news ticker.
+class _ApologyCouponBanner extends ConsumerStatefulWidget {
   const _ApologyCouponBanner({required this.coupon});
-
   final SmartCoupon coupon;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ApologyCouponBanner> createState() =>
+      _ApologyCouponBannerState();
+}
+
+class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    // Slower = more readable; adjust duration to taste.
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 14),
+    )..repeat();
+
+    // Slides from just off the right edge (1.2, 0) to just off the left (-1.2, 0)
+    _slide = Tween<Offset>(
+      begin: const Offset(1.2, 0),
+      end: const Offset(-1.2, 0),
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.linear));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    Clipboard.setData(ClipboardData(text: widget.coupon.code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Code ${widget.coupon.code} copied — apply at checkout'),
+        backgroundColor: const Color(0xFFB91C1C),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+    showCouponPopup(context, widget.coupon, 'apology');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message =
+        "🎁  We're sorry — ${widget.coupon.discountPercent}% OFF your next order  •  Use code: ${widget.coupon.code}  •  Tap to copy  🎁";
+
     return GestureDetector(
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: coupon.code));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Code ${coupon.code} copied — apply at checkout'),
-            backgroundColor: const Color(0xFFB91C1C),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        showCouponPopup(context, coupon, 'apology');
-      },
+      onTap: _onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFB91C1C), Color(0xFFEF4444)],
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFB91C1C), Color(0xFFDC2626), Color(0xFFB91C1C)],
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB91C1C).withValues(alpha: 0.25),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
         ),
         child: Row(
           children: [
+            // ── Left badge ─────────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.favorite_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: Colors.black.withValues(alpha: 0.15),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "We're sorry — here's a gift",
+                  Icon(Icons.notifications_active_rounded,
+                      color: Colors.white, size: 16),
+                  SizedBox(width: 5),
+                  Text(
+                    'OFFER',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${coupon.discountPercent}% OFF your next order — code ${coupon.code}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.white,
-              size: 14,
+
+            // ── Scrolling text ──────────────────────────────────────────────
+            Expanded(
+              child: ClipRect(
+                child: SlideTransition(
+                  position: _slide,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      message,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Right tap hint ──────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: Colors.black.withValues(alpha: 0.15),
+              child: const Icon(
+                Icons.touch_app_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
           ],
         ),

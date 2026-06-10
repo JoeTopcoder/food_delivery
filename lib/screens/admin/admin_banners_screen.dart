@@ -54,7 +54,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
           return ReorderableListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
             itemCount: banners.length,
-            onReorder: (oldIndex, newIndex) =>
+            onReorderItem: (oldIndex, newIndex) =>
                 _reorder(banners, oldIndex, newIndex),
             itemBuilder: (context, index) {
               final banner = banners[index];
@@ -77,7 +77,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     int oldIndex,
     int newIndex,
   ) async {
-    if (newIndex > oldIndex) newIndex--;
     final list = List<app.Banner>.from(banners);
     final item = list.removeAt(oldIndex);
     list.insert(newIndex, item);

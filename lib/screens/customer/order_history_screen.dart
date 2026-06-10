@@ -44,10 +44,11 @@ class OrderHistoryScreen extends ConsumerWidget {
 
     // Merge both async states — master orders failure is non-fatal
     final isLoading = ordersAsync.isLoading || masterOrdersAsync.isLoading;
-    final hasError  = ordersAsync.hasError;
+    final hasError = ordersAsync.hasError;
 
+    const terminalStatuses = {'delivered', 'cancelled', 'completed'};
     final activeOrderId = ordersAsync.valueOrNull
-        ?.where((o) => o.status != 'delivered' && o.status != 'cancelled')
+        ?.where((o) => !terminalStatuses.contains(o.status))
         .firstOrNull
         ?.id;
 
@@ -63,22 +64,22 @@ class OrderHistoryScreen extends ConsumerWidget {
       body: isLoading
           ? const AppLoadingIndicator()
           : hasError
-              ? AppErrorState(
-                  message: friendlyError(
-                    ordersAsync.error ?? masterOrdersAsync.error ?? 'Unknown error',
-                  ),
-                  onRetry: () {
-                    ref.invalidate(userOrdersProvider(userId));
-                    ref.invalidate(customerMasterOrdersProvider(userId));
-                  },
-                )
-              : _buildMergedList(
-                  context,
-                  singleOrders:  ordersAsync.valueOrNull ?? [],
-                  masterOrders:  masterOrdersAsync.valueOrNull ?? [],
-                  userId:        userId,
-                  ref:           ref,
-                ),
+          ? AppErrorState(
+              message: friendlyError(
+                ordersAsync.error ?? masterOrdersAsync.error ?? 'Unknown error',
+              ),
+              onRetry: () {
+                ref.invalidate(userOrdersProvider(userId));
+                ref.invalidate(customerMasterOrdersProvider(userId));
+              },
+            )
+          : _buildMergedList(
+              context,
+              singleOrders: ordersAsync.valueOrNull ?? [],
+              masterOrders: masterOrdersAsync.valueOrNull ?? [],
+              userId: userId,
+              ref: ref,
+            ),
     );
   }
 
@@ -118,10 +119,14 @@ class OrderHistoryScreen extends ConsumerWidget {
     }
 
     return ListView.builder(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context), 16,
-        Responsive.horizontalPadding(context), 24,
+        Responsive.horizontalPadding(context),
+        16,
+        Responsive.horizontalPadding(context),
+        24,
       ),
       itemCount: entries.length,
       itemBuilder: (_, i) {
@@ -153,40 +158,55 @@ class _MasterOrderCard extends StatelessWidget {
 
   static String _masterStatusLabel(String status) {
     switch (status) {
-      case 'partially_cancelled': return 'PART CANCELLED';
-      case 'out_for_delivery':    return 'DELIVERING';
-      case 'ready_for_pickup':    return 'READY';
-      default: return status.replaceAll('_', ' ').toUpperCase();
+      case 'partially_cancelled':
+        return 'PART CANCELLED';
+      case 'out_for_delivery':
+        return 'DELIVERING';
+      case 'ready_for_pickup':
+        return 'READY';
+      default:
+        return status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
   Color get _statusColor {
     switch (masterOrder.status) {
-      case 'delivered':            return const Color(0xFF10B981);
+      case 'delivered':
+        return const Color(0xFF10B981);
       case 'cancelled':
-      case 'partially_cancelled':  return Colors.red;
-      case 'out_for_delivery':     return const Color(0xFF6366F1);
-      case 'ready_for_pickup':     return const Color(0xFF8B5CF6);
-      case 'preparing':            return const Color(0xFFF59E0B);
-      case 'accepted':             return const Color(0xFF3B82F6);
-      default:                     return AppTheme.primaryColor;
+      case 'partially_cancelled':
+        return Colors.red;
+      case 'out_for_delivery':
+        return const Color(0xFF6366F1);
+      case 'ready_for_pickup':
+        return const Color(0xFF8B5CF6);
+      case 'preparing':
+        return const Color(0xFFF59E0B);
+      case 'accepted':
+        return const Color(0xFF3B82F6);
+      default:
+        return AppTheme.primaryColor;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final fmt      = DateFormat('MMM d, y · h:mm a');
+    final fmt = DateFormat('MMM d, y · h:mm a');
     final currency = AppConstants.currencySymbol;
-    final color    = _statusColor;
+    final color = _statusColor;
     final isActive = masterOrder.isActive;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color:        Theme.of(context).cardColor,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -200,35 +220,53 @@ class _MasterOrderCard extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 120),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color:        color.withValues(alpha: 0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       _masterStatusLabel(masterOrder.status),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 // Multi badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color:        Colors.deepOrange.withValues(alpha: 0.1),
+                    color: Colors.deepOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.store_mall_directory_rounded, size: 11, color: Colors.deepOrange),
+                      const Icon(
+                        Icons.store_mall_directory_rounded,
+                        size: 11,
+                        color: Colors.deepOrange,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         '${masterOrder.restaurantCount} restaurants',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.deepOrange),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.deepOrange,
+                        ),
                       ),
                     ],
                   ),
@@ -237,7 +275,8 @@ class _MasterOrderCard extends StatelessWidget {
                 Text(
                   '#${masterOrder.masterOrderNumber ?? masterOrder.id.substring(0, 8).toUpperCase()}',
                   style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -263,7 +302,10 @@ class _MasterOrderCard extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
                     fmt.format(masterOrder.createdAt),
-                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -275,17 +317,26 @@ class _MasterOrderCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
               child: Wrap(
-                spacing: 6, runSpacing: 4,
+                spacing: 6,
+                runSpacing: 4,
                 children: masterOrder.restaurantOrders!.map((ro) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color:        Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       ro.restaurantName ?? 'Restaurant ${ro.sequenceInGroup}',
-                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -296,12 +347,14 @@ class _MasterOrderCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(12),
             child: Wrap(
-              spacing: 8, runSpacing: 8,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 if (isActive)
                   OutlinedButton.icon(
                     onPressed: () => Navigator.pushNamed(
-                      context, '/multi-order-detail',
+                      context,
+                      '/multi-order-detail',
                       arguments: masterOrder.id,
                     ),
                     icon: const Icon(Icons.info_outline_rounded, size: 15),
@@ -309,14 +362,20 @@ class _MasterOrderCard extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF6366F1),
                       side: const BorderSide(color: Color(0xFF6366F1)),
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 if (!isActive)
                   OutlinedButton.icon(
                     onPressed: () => Navigator.pushNamed(
-                      context, '/multi-order-detail',
+                      context,
+                      '/multi-order-detail',
                       arguments: masterOrder.id,
                     ),
                     icon: const Icon(Icons.receipt_long_outlined, size: 15),
@@ -324,8 +383,13 @@ class _MasterOrderCard extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF004E89),
                       side: const BorderSide(color: Color(0xFF004E89)),
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
               ],
@@ -365,7 +429,13 @@ class _OrderCard extends ConsumerWidget {
     final isDelivered = order.status == 'delivered';
     final isCancelled = order.status == 'cancelled';
     final isActive = !isDelivered && !isCancelled;
-    final isPending = const {'draft', 'pending', 'confirmed', 'accepted', 'preparing'}.contains(order.status);
+    final isPending = const {
+      'draft',
+      'pending',
+      'confirmed',
+      'accepted',
+      'preparing',
+    }.contains(order.status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -474,7 +544,9 @@ class _OrderCard extends ConsumerWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -599,7 +671,8 @@ class _OrderCard extends ConsumerWidget {
                 if (isActive)
                   OutlinedButton.icon(
                     onPressed: () {
-                      if (order.isMultiRestaurant && order.orderGroupId != null) {
+                      if (order.isMultiRestaurant &&
+                          order.orderGroupId != null) {
                         // Legacy group orders: navigate to tracking which merges items
                         Navigator.pushNamed(
                           context,
@@ -1098,16 +1171,23 @@ class _OrderCard extends ConsumerWidget {
               _ReceiptRow(context, 'Driver Tip', order.driverTip!),
             if (order.postDeliveryTip != null && order.postDeliveryTip! > 0)
               _ReceiptRow(context, 'Post-Delivery Tip', order.postDeliveryTip!),
+            if (order.outstandingDebtCharged > 0)
+              _ReceiptRow(
+                context,
+                'Outstanding Balance',
+                order.outstandingDebtCharged,
+                valueColor: const Color(0xFFEA580C),
+              ),
             const Divider(height: 16),
             Row(
               children: [
                 const Text(
-                  'Total',
+                  'Total Charged',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 const Spacer(),
                 Text(
-                  '\$ ${order.totalAmount.toStringAsFixed(2)}',
+                  '\$ ${(order.totalAmount + order.outstandingDebtCharged).toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -1161,7 +1241,12 @@ class _OrderCard extends ConsumerWidget {
   }
 
   // ignore: non_constant_identifier_names
-  Widget _ReceiptRow(BuildContext context, String label, double amount) {
+  Widget _ReceiptRow(
+    BuildContext context,
+    String label,
+    double amount, {
+    Color? valueColor,
+  }) {
     final isNegative = amount < 0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -1179,7 +1264,8 @@ class _OrderCard extends ConsumerWidget {
             '${isNegative ? '-' : ''}\$ ${amount.abs().toStringAsFixed(2)}',
             style: TextStyle(
               fontSize: 13,
-              color: isNegative ? const Color(0xFF10B981) : null,
+              color:
+                  valueColor ?? (isNegative ? const Color(0xFF10B981) : null),
             ),
           ),
         ],
@@ -1188,8 +1274,8 @@ class _OrderCard extends ConsumerWidget {
   }
 
   void _confirmCancel(BuildContext context, WidgetRef ref, Order order) {
-    final isCardPayment   = order.paymentMethod == 'card';
-    final isCashPayment   = order.paymentMethod == 'cash';
+    final isCardPayment = order.paymentMethod == 'card';
+    final isCashPayment = order.paymentMethod == 'cash';
     final isWalletPayment = order.paymentMethod == 'wallet';
     String selectedRefundMethod = isWalletPayment ? 'wallet' : 'original';
 
@@ -1269,8 +1355,8 @@ class _OrderCard extends ConsumerWidget {
                         refundMethod: isCardPayment
                             ? selectedRefundMethod
                             : isWalletPayment
-                                ? 'wallet'
-                                : null,
+                            ? 'wallet'
+                            : null,
                       );
                   final userId = ref.read(currentUserIdProvider);
                   if (userId != null) {
@@ -1301,13 +1387,18 @@ class _OrderCard extends ConsumerWidget {
                   if (context.mounted) {
                     String message;
                     if (isCashPayment) {
-                      message = 'Order cancelled. Cash payment has no refund transfer.';
-                    } else if (refund > 0 && (refundMethod == 'wallet' || isWalletPayment)) {
-                      message = 'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to your wallet.';
+                      message =
+                          'Order cancelled. Cash payment has no refund transfer.';
+                    } else if (refund > 0 &&
+                        (refundMethod == 'wallet' || isWalletPayment)) {
+                      message =
+                          'Order cancelled. \$${refund.toStringAsFixed(2)} refunded to your wallet.';
                     } else if (isCardPayment && refund > 0) {
-                      message = 'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
+                      message =
+                          'Order cancelled. Refund of \$${refund.toStringAsFixed(2)} sent to your card.';
                     } else if (penalty > 0) {
-                      message = 'Order cancelled. \$${penalty.toStringAsFixed(2)} cancellation fee applied.';
+                      message =
+                          'Order cancelled. \$${penalty.toStringAsFixed(2)} cancellation fee applied.';
                     } else {
                       message = 'Order cancelled successfully';
                     }
@@ -1461,7 +1552,10 @@ class _ReportIssueSheetState extends ConsumerState<_ReportIssueSheet> {
             const SizedBox(height: 16),
             Text(
               'Report an Issue',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: Responsive.headingSmall(context)),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: Responsive.headingSmall(context),
+              ),
             ),
             const SizedBox(height: 14),
             Wrap(

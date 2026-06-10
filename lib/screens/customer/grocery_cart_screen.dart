@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
+import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -459,6 +460,13 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             ],
                           ),
                         ),
+                        // ── Suggested Items ───────────────────────────────
+                        _SuggestedItems(
+                          storeIds: storeIds,
+                          cartItemIds: cartItems
+                              .map((c) => c.menuItem.id)
+                              .toSet(),
+                        ),
                         // Items for this store
                         for (final cartItem in grouped[sid]!)
                           _GroceryCartItemWidget(
@@ -756,6 +764,269 @@ class _GroceryCartItemWidget extends StatelessWidget {
     height: 64,
     color: Colors.grey[100],
     child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[700], size: 28),
+  );
+}
+
+// ── Suggested Items ───────────────────────────────────────────────────────────
+
+class _SuggestedItems extends ConsumerWidget {
+  final List<String> storeIds;
+  final Set<String> cartItemIds;
+
+  const _SuggestedItems({required this.storeIds, required this.cartItemIds});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<MenuItem> suggestions = [];
+    for (final sid in storeIds) {
+      final items = ref.watch(restaurantMenuProvider(sid)).valueOrNull ?? [];
+      for (final item in items) {
+        if (!cartItemIds.contains(item.id) &&
+            item.isAvailable &&
+            item.inStock) {
+          suggestions.add(item);
+        }
+      }
+    }
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    final shown = suggestions.take(10).toList();
+
+    // Card width = 42 % of screen, clamped for tiny → tablet
+    final cardW = (MediaQuery.of(context).size.width * 0.42)
+        .clamp(140.0, 200.0);
+    // Card total height is screen-proportional — no manual content maths.
+    // The image section uses Expanded to fill whatever space is left after
+    // the fixed-height text + button area. Nothing can overflow.
+    final cardH = (MediaQuery.of(context).size.width * 0.58)
+        .clamp(200.0, 260.0);
+    // Image fills whatever remains after the fixed 110 dp text+button area
+    final imgH = (cardH - 110).clamp(88.0, 150.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Suggested Items',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Top picks based on the items in your cart',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        // Add 8 dp vertical padding inside the SizedBox so cards have
+        // breathing room top/bottom without adding to the card's own height.
+        SizedBox(
+          height: cardH + 8,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            itemCount: shown.length,
+            itemBuilder: (ctx, i) => _SuggestionCard(
+              item: shown[i],
+              cardWidth: cardW,
+              imageHeight: imgH,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+class _SuggestionCard extends ConsumerWidget {
+  final MenuItem item;
+  final double cardWidth;
+  final double imageHeight;
+
+  const _SuggestionCard({
+    required this.item,
+    required this.cardWidth,
+    required this.imageHeight,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inCart = ref
+        .watch(groceryCartProvider)
+        .any((c) => c.menuItem.id == item.id);
+    final scheme = Theme.of(context).colorScheme;
+
+    // Card has an explicit fixed height — the Column is max-sized inside it.
+    // Image section uses Expanded so it fills whatever remains after the
+    // fixed text + button rows. Nothing can grow past the card bounds.
+    return Container(
+      width: cardWidth,
+      // height == cardH exactly (no vertical margin so nothing spills out)
+      height: imageHeight + 110,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0.7),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          // ── Image (Expanded — fills all space above the text area) ──────
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(11),
+                  ),
+                  child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          item.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _placeholder(),
+                        )
+                      : _placeholder(),
+                ),
+                if (item.weight != null)
+                  Positioned(
+                    bottom: 5,
+                    left: 5,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: cardWidth - 14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2BA84A),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          item.weight!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // ── Name (fixed 2-line height) ──────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+            child: SizedBox(
+              height: 32,
+              child: Text(
+                item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Price (fixed 1-line height) ─────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
+            child: SizedBox(
+              height: 18,
+              child: Text(
+                '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.priceColor,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Add button (fixed 32 dp, overrides Material 36 dp minimum) ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: SizedBox(
+              width: double.infinity,
+              height: 32,
+              child: ElevatedButton.icon(
+                onPressed: inCart
+                    ? null
+                    : () => ref
+                        .read(groceryCartProvider.notifier)
+                        .addItem(item),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: inCart
+                      ? scheme.surfaceContainerHighest
+                      : const Color(0xFF2BA84A),
+                  foregroundColor:
+                      inCart ? scheme.onSurfaceVariant : Colors.white,
+                  elevation: 0,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  inCart ? Icons.check_rounded : Icons.shopping_cart_outlined,
+                  size: 13,
+                ),
+                label: Text(
+                  inCart ? 'Added' : 'Add',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+    color: Colors.grey[100],
+    child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400], size: 28),
   );
 }
 

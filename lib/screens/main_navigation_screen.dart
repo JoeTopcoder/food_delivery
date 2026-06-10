@@ -16,6 +16,7 @@ import '../utils/friendly_error.dart';
 import '../widgets/order_countdown_timer.dart';
 import '../widgets/ai_fab.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../providers/feature_providers.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -116,47 +117,89 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             _loadedTabs.contains(i) ? _screens[i] : const SizedBox.shrink(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          ref.read(currentTabIndexProvider.notifier).state = index;
-          setState(() {
-            _loadedTabs.add(index);
-            _selectedIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: context.theme.cardColor,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: context.colors.onSurfaceVariant,
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
-            activeIcon: const Icon(Icons.home),
-            label: context.l10n.home,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.local_grocery_store_outlined),
-            activeIcon: const Icon(Icons.local_grocery_store),
-            label: context.l10n.grocery,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.receipt_outlined),
-            activeIcon: const Icon(Icons.receipt),
-            label: context.l10n.orders,
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.car_repair),
-            activeIcon: Icon(Icons.car_repair),
-            label: 'Services',
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.account_circle_outlined),
-            activeIcon: const Icon(Icons.account_circle),
-            label: context.l10n.profile,
-          ),
-        ],
-      ),
+      bottomNavigationBar: Builder(builder: (context) {
+        final groceryEnabled =
+            ref.watch(serviceEnabledProvider('grocery'));
+        final carEnabled =
+            ref.watch(serviceEnabledProvider('car_service'));
+
+        return BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            // Tab 1 = Grocery, Tab 3 = Car Services
+            if (index == 1 && !groceryEnabled) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🚧 Grocery is coming soon!'),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+            if (index == 3 && !carEnabled) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🚧 Car Services is coming soon!'),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+            ref.read(currentTabIndexProvider.notifier).state = index;
+            setState(() {
+              _loadedTabs.add(index);
+              _selectedIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: context.theme.cardColor,
+          selectedItemColor: AppTheme.primaryColor,
+          unselectedItemColor: context.colors.onSurfaceVariant,
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.home_outlined),
+              activeIcon: const Icon(Icons.home),
+              label: context.l10n.home,
+            ),
+            BottomNavigationBarItem(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.local_grocery_store_outlined),
+                  if (!groceryEnabled)
+                    _ComingSoonDot(),
+                ],
+              ),
+              activeIcon: const Icon(Icons.local_grocery_store),
+              label: groceryEnabled ? context.l10n.grocery : 'Grocery',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.receipt_outlined),
+              activeIcon: const Icon(Icons.receipt),
+              label: context.l10n.orders,
+            ),
+            BottomNavigationBarItem(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.car_repair),
+                  if (!carEnabled)
+                    _ComingSoonDot(),
+                ],
+              ),
+              activeIcon: const Icon(Icons.car_repair),
+              label: carEnabled ? 'Services' : 'Services',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.account_circle_outlined),
+              activeIcon: const Icon(Icons.account_circle),
+              label: context.l10n.profile,
+            ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -652,6 +695,26 @@ class _MasterOrderCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// Small orange dot shown on bottom-nav icons when a service is disabled
+class _ComingSoonDot extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: -2,
+      right: -4,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: Colors.orange.shade600,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 1),
         ),
       ),
     );

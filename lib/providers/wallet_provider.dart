@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/wallet_model.dart';
@@ -24,9 +26,9 @@ final walletBalanceStreamProvider = StreamProvider.autoDispose<Wallet?>((ref) {
 });
 
 // ─── Real-time transaction list ───────────────────────────────────────────────
-// Re-fetches the full transaction history every time the wallet row changes.
-// This avoids needing wallet_transactions in Supabase Realtime — the wallets
-// table stream (above) is the trigger, and we always get a fresh ordered list.
+// Subscribes directly to wallet_transactions Realtime so each INSERT triggers
+// a targeted re-fetch — rather than re-fetching on every wallets row change
+// (which fired on every balance update, even ones unrelated to transactions).
 
 final walletTransactionsStreamProvider =
     StreamProvider.autoDispose<List<WalletTransaction>>((ref) async* {
@@ -38,8 +40,7 @@ final walletTransactionsStreamProvider =
 
   final service = ref.read(walletServiceProvider);
 
-  // Fetch immediately so the list appears without waiting for the first
-  // wallet-change event.
+  // Initial load
   try {
     yield await service.getTransactions(userId);
   } catch (e) {
@@ -47,20 +48,34 @@ final walletTransactionsStreamProvider =
     yield [];
   }
 
-  // Subscribe to wallet row changes. Every INSERT/UPDATE/DELETE on wallets
-  // (balance top-up, reservation, settlement, refund) fires this stream, which
-  // triggers a fresh transaction fetch so the history is always in sync.
-  final walletStream = Supabase.instance.client
-      .from('wallets')
-      .stream(primaryKey: ['id'])
-      .eq('user_id', userId);
+  // Re-fetch only when the user's own transactions change (INSERT or UPDATE).
+  // Using a broadcast stream controller so the Realtime channel fires the fetch.
+  final controller = StreamController<void>.broadcast();
+  final channel = Supabase.instance.client
+      .channel('wallet_txns_$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'wallet_transactions',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: userId,
+        ),
+        callback: (_) => controller.add(null),
+      )
+      .subscribe();
 
-  await for (final _ in walletStream) {
+  ref.onDispose(() {
+    channel.unsubscribe();
+    controller.close();
+  });
+
+  await for (final _ in controller.stream) {
     try {
-      final txns = await service.getTransactions(userId);
-      yield txns;
+      yield await service.getTransactions(userId);
     } catch (e) {
-      AppLogger.error('walletTransactions wallet-trigger fetch: $e');
+      AppLogger.error('walletTransactions realtime fetch: $e');
     }
   }
 });

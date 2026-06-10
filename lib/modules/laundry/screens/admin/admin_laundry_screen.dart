@@ -393,7 +393,7 @@ class _AnalyticsTab extends ConsumerWidget {
       data: (data) => RefreshIndicator(
         onRefresh: () async => ref.invalidate(adminLaundryAnalyticsProvider),
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
@@ -637,7 +637,7 @@ class _EarningsTab extends ConsumerWidget {
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(laundryAdminCommissionAnalyticsProvider),
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [

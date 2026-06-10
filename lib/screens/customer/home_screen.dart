@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
@@ -511,7 +512,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           parent: AlwaysScrollableScrollPhysics(),
         ),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        cacheExtent: 2000,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
         slivers: [
           SliverAppBar(
             floating: true,
@@ -877,6 +878,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           icon: Icons.directions_car,
                           label: 'Book a Ride',
                           color: const Color(0xFF1E40AF),
+                          enabled: ref.watch(serviceEnabledProvider('rides')),
                           onTap: () => Navigator.pushNamed(context, '/ride-home'),
                         ),
                         const SizedBox(width: 12),
@@ -884,6 +886,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           icon: Icons.local_grocery_store,
                           label: 'Grocery',
                           color: const Color(0xFF059669),
+                          enabled: ref.watch(serviceEnabledProvider('grocery')),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const GroceryScreen()),
@@ -894,6 +897,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           icon: Icons.local_car_wash,
                           label: 'Car Services',
                           color: const Color(0xFF7C3AED),
+                          enabled: ref.watch(serviceEnabledProvider('car_service')),
                           onTap: () => Navigator.pushNamed(context, '/car-services'),
                         ),
                         const SizedBox(width: 12),
@@ -901,6 +905,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           icon: Icons.local_laundry_service_rounded,
                           label: 'Laundry',
                           color: const Color(0xFF0F4C81),
+                          enabled: ref.watch(serviceEnabledProvider('laundry')),
                           onTap: () => Navigator.pushNamed(context, '/laundry'),
                         ),
                       ],
@@ -1967,53 +1972,102 @@ class _ServiceCard extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final bool enabled;
 
   const _ServiceCard({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cardWidth =
+        (MediaQuery.of(context).size.width * 0.38).clamp(130.0, 160.0);
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: (MediaQuery.of(context).size.width * 0.38).clamp(130.0, 160.0),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
+      onTap: enabled ? onTap : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Card body ────────────────────────────────────────────────────
+          Opacity(
+            opacity: enabled ? 1.0 : 0.55,
+            child: Container(
+              width: cardWidth,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
               decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(9),
+                color: enabled
+                    ? color.withValues(alpha: 0.08)
+                    : Colors.grey.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: enabled
+                      ? color.withValues(alpha: 0.2)
+                      : Colors.grey.withValues(alpha: 0.2),
+                ),
               ),
-              child: Icon(icon, color: Colors.white, size: 18),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: enabled ? color : Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: enabled ? color : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: color,
+          ),
+
+          // ── "Coming Soon" badge (only when disabled) ──────────────────
+          if (!enabled)
+            Positioned(
+              top: -6,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade600,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'Coming Soon',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

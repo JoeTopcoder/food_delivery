@@ -21,6 +21,12 @@ final carServiceCategoriesProvider =
 
 // ── PROVIDERS ─────────────────────────────────────────────────────────────────
 
+/// All providers for the admin view — includes inactive and rejected ones.
+final allCarServiceProvidersAdminProvider =
+    FutureProvider<List<CarServiceProvider>>((ref) async {
+  return ref.watch(carServicesServiceProvider).getAllProvidersAdmin();
+});
+
 /// All active providers, optionally filtered by categoryId (null = all).
 /// keepAlive — keeps the list cached so returning to the screen is instant.
 final carServiceProvidersProvider =
@@ -124,12 +130,6 @@ final watchProviderBookingsProvider =
 });
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
-
-/// All providers for admin (including inactive/rejected), newest first.
-final allProvidersAdminProvider =
-    FutureProvider<List<CarServiceProvider>>((ref) async {
-  return ref.watch(carServicesServiceProvider).getAllProvidersAdmin();
-});
 
 /// Providers pending admin approval.
 final pendingProvidersProvider =

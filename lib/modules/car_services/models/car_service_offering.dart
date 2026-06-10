@@ -41,9 +41,9 @@ class CarServiceOffering {
   factory CarServiceOffering.fromMap(Map<String, dynamic> map) {
     return CarServiceOffering(
       id: map['id'] as String,
-      providerId: map['provider_id'] as String,
-      categoryId: map['category_id'] as String,
-      name: map['name'] as String,
+      providerId: map['provider_id'] as String? ?? '',
+      categoryId: map['category_id'] as String? ?? '',
+      name: map['name'] as String? ?? 'Unknown',
       description: map['description'] as String?,
       durationMinutes: map['duration_minutes'] as int? ?? 60,
       basePrice: parseDoubleRequired(map['base_price']),

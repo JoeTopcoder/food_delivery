@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS user_favorite_laundry_providers (
 );
 
 ALTER TABLE user_favorite_laundry_providers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "laundry_fav_owner" ON user_favorite_laundry_providers;
 CREATE POLICY "laundry_fav_owner" ON user_favorite_laundry_providers
   FOR ALL USING (user_id = auth.uid());
 
@@ -21,5 +22,6 @@ CREATE TABLE IF NOT EXISTS user_favorite_car_providers (
 );
 
 ALTER TABLE user_favorite_car_providers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "car_fav_owner" ON user_favorite_car_providers;
 CREATE POLICY "car_fav_owner" ON user_favorite_car_providers
   FOR ALL USING (user_id = auth.uid());

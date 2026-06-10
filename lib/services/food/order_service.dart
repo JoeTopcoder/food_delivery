@@ -13,17 +13,26 @@ class OrderService {
 
   OrderService(this._supabaseClient);
 
-  /// Refreshes the session and returns an explicit Authorization header with
-  /// the fresh access token.  Passing this header directly to functions.invoke
-  /// avoids UNAUTHORIZED_LEGACY_JWT errors caused by stale in-memory tokens.
+  /// Returns an Authorization header with a fresh access token.
+  /// Only calls refreshSession() if the current JWT expires within 60 seconds
+  /// to avoid an unnecessary round-trip on every order creation.
   Future<Map<String, String>> _freshAuthHeader() async {
-    String? token;
-    try {
-      final res = await _supabaseClient.auth.refreshSession();
-      token = res.session?.accessToken;
-    } catch (_) {}
-    // Fall back to whatever is in memory if the refresh failed.
-    token ??= _supabaseClient.auth.currentSession?.accessToken;
+    String? token = _supabaseClient.auth.currentSession?.accessToken;
+    final expiresAt = _supabaseClient.auth.currentSession?.expiresAt;
+
+    final needsRefresh = expiresAt == null ||
+        DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000)
+                .difference(DateTime.now())
+                .inSeconds <
+            60;
+
+    if (needsRefresh) {
+      try {
+        final res = await _supabaseClient.auth.refreshSession();
+        token = res.session?.accessToken ?? token;
+      } catch (_) {}
+    }
+
     return (token != null && token.isNotEmpty)
         ? {'Authorization': 'Bearer $token'}
         : {};

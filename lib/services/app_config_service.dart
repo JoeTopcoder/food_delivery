@@ -478,6 +478,13 @@ class AppConfigService {
     AppConstants.supportEmail = _str(c, 'support_email', AppConstants.supportEmail);
     AppConstants.supportWhatsApp = _str(c, 'support_whatsapp', AppConstants.supportWhatsApp);
 
+    // Service toggles — admin can flip these to show "Coming Soon" to customers
+    AppConstants.serviceFoodEnabled        = _bool(c, 'service_food_enabled',        true);
+    AppConstants.serviceGroceryEnabled     = _bool(c, 'service_grocery_enabled',     true);
+    AppConstants.serviceRidesEnabled       = _bool(c, 'service_rides_enabled',       true);
+    AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     true);
+    AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', true);
+
     // System / maintenance
     AppConstants.maintenanceMode = _bool(c, 'maintenance_mode', AppConstants.maintenanceMode);
     AppConstants.apiTimeout = _int(c, 'api_timeout', AppConstants.apiTimeout);
