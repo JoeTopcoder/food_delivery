@@ -308,12 +308,13 @@ Deno.serve(async (req: Request) => {
     const currency = stripe_currency ?? "usd";
     const amountCents = Math.round(grandTotal * 100);
     const pi = await stripePost("/payment_intents", {
-      amount:           String(amountCents),
+      amount:                  String(amountCents),
       currency,
-      payment_method:   saved_card_payment_method_id,
+      payment_method:          saved_card_payment_method_id,
       ...(custId ? { customer: custId } : {}),
-      off_session:      "true",
-      confirm:          "true",
+      off_session:             "true",
+      confirm:                 "true",
+      description:             "Food Order",
       "metadata[type]":        "multi_restaurant_order",
       "metadata[customer_id]": customer_id,
     });

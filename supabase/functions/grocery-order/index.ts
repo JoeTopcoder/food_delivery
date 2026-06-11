@@ -362,12 +362,13 @@ Deno.serve(async (request) => {
         // Single-store path: charge now.
         const custId = await getStripeCustomerId(userId);
         const pi = await stripePost("/payment_intents", {
-          amount:          String(Math.round(grandTotal * 100)),
-          currency:        "usd",
-          payment_method:  savedCardPaymentMethodId,
+          amount:              String(Math.round(grandTotal * 100)),
+          currency:            "usd",
+          payment_method:      savedCardPaymentMethodId,
           ...(custId ? { customer: custId } : {}),
-          off_session:     "true",
-          confirm:         "true",
+          off_session:         "true",
+          confirm:             "true",
+          description:         "Grocery Order",
           "metadata[type]":    "grocery_order",
           "metadata[user_id]": userId,
         });
