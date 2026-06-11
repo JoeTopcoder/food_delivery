@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/app_constants.dart';
 import '../../core/utils/responsive.dart';
 import '../../models/restaurant_model.dart';
@@ -30,7 +29,6 @@ import '../../utils/safe_state_mixin.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../widgets/outstanding_debt_banner.dart';
 import 'order_success_screen.dart';
-import 'payment_screen.dart';
 
 class GroceryCheckoutScreen extends ConsumerStatefulWidget {
   const GroceryCheckoutScreen({super.key});
@@ -127,6 +125,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(groceryCartProvider);
+    ref.watch(configVersionProvider); // rebuild when admin changes app_config
     final subtotal = ref.watch(groceryCartSubtotalProvider);
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
@@ -199,16 +198,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final subDeliveryFree = subEligible;
     if (subDeliveryFree) activeFee = 0.0;
 
-    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
+    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
 
-    // Zone-based tax: look up by delivery coords (no tax for pickup).
-    final taxKey = (!isPickup && delLat != null && delLng != null)
-        ? '$delLat|$delLng'
-        : null;
-    final zoneTax = taxKey != null
-        ? ref.watch(zoneTaxProvider(taxKey)).valueOrNull
-        : null;
-    final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
+    // Tax: controlled by tax_enabled + tax_rate in app_config (DB toggle).
+    // No tax for pickup. taxEnabled is the master on/off switch.
+    final effectiveTaxRate = (AppConstants.taxEnabled && !isPickup)
+        ? AppConstants.taxRate
+        : 0.0;
     final tax = subtotal * effectiveTaxRate;
     final orderTotal =
         (subtotal -
@@ -1068,7 +1064,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                               : null,
                         ),
                       _SummaryRow(
-                        'Service Fee (5%)',
+                        'Service Fee',
                         '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                       ),
                       if (tax > 0)
@@ -1318,6 +1314,20 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       }
     }
 
+    // ── Card: validate saved card exists BEFORE creating any orders ─────────
+    String? savedCardPmId;
+    if (_selectedPayment == 'stripe') {
+      final savedCard = _selectedSavedCard;
+      savedCardPmId = savedCard?.stripePaymentMethodId;
+      if (savedCard == null || savedCardPmId == null || savedCardPmId.isEmpty) {
+        AppSnackbar.warning(
+          context,
+          'Please add a payment card from Profile → Payment Methods to pay by card.',
+        );
+        return;
+      }
+    }
+
     setState(() => _placingOrder = true);
 
     try {
@@ -1325,6 +1335,18 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       final cart = ref.read(groceryCartProvider);
       final appliedPromo = ref.read(appliedPromoProvider);
       final redeemPts = ref.read(redeemPointsProvider);
+
+      // ── Card: pre-charge the full total BEFORE creating any order rows ─────
+      // Each store's edge function verifies this PaymentIntent ID before
+      // inserting its order row — payment failure cannot leave ghost orders.
+      String? savedCardPaymentIntentId;
+      if (_selectedPayment == 'stripe' && savedCardPmId != null) {
+        final paymentService = ref.read(paymentServiceProvider);
+        savedCardPaymentIntentId = await paymentService.preChargeForOrders(
+          amount: grandTotal,
+          paymentMethodId: savedCardPmId,
+        );
+      }
 
       // Group items by store
       final Map<String, List<CartItem>> grouped = {};
@@ -1377,6 +1399,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
               ? _notesCtrl.text.trim()
               : null,
           promoCode: !promoApplied ? appliedPromo?.code : null,
+          paymentIntentId: savedCardPaymentIntentId,
         );
 
         final orderId =
@@ -1424,94 +1447,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         if (!promoApplied && appliedPromo != null) promoApplied = true;
       }
 
-      // Wallet payment is now handled atomically inside the grocery-order edge
-      // function before the order row is inserted — nothing to do here.
-
-      // ── Stripe payment (total across all orders) ──────────────────────
-      if (_selectedPayment == 'stripe') {
-        final paymentService = ref.read(paymentServiceProvider);
-        final savedCard = _selectedSavedCard;
-        final pmId = savedCard?.stripePaymentMethodId;
-
-        if (savedCard != null && pmId != null && pmId.isNotEmpty) {
-          // Off-session charge via saved card — no intermediate UI.
-          try {
-            final ok = await paymentService.chargeWithSavedCard(
-              orderId: orderIds.first,
-              amount: runningTotal + outstandingDebt,
-              paymentMethodId: pmId,
-            );
-            if (!mounted) return;
-            if (!ok) {
-              for (final oid in orderIds) {
-                await _deleteOrder(oid);
-              }
-              setState(() => _placingOrder = false);
-              AppSnackbar.error(
-                context,
-                'Card payment failed. Please try again.',
-              );
-              return;
-            }
-          } catch (e) {
-            for (final oid in orderIds) {
-              await _deleteOrder(oid);
-            }
-            rethrow;
-          }
-        } else {
-          // No saved card — open PaymentScreen for new card entry.
-          try {
-            final authUser = Supabase.instance.client.auth.currentUser;
-            final email = authUser?.email ?? '';
-            final name =
-                authUser?.userMetadata?['name'] as String? ?? 'Customer';
-
-            final result = await Navigator.push<Map<String, dynamic>>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PaymentScreen(
-                  orderId: orderIds.first,
-                  amount: runningTotal,
-                  currency: AppConstants.currencyCode,
-                  customerEmail: email,
-                  customerName: name,
-                ),
-              ),
-            );
-
-            if (!mounted) return;
-
-            if (result == null || result['status'] != 'paid') {
-              if (await _isOrderPaid(orderIds.first)) {
-                // Webhook pre-confirmed — fall through to success.
-              } else {
-                for (final oid in orderIds) {
-                  await _deleteOrder(oid);
-                }
-                setState(() => _placingOrder = false);
-                if (mounted) {
-                  AppSnackbar.warning(
-                    context,
-                    'Payment was cancelled. Your order was not placed.',
-                  );
-                }
-                return;
-              }
-            } else {
-              final activated = await _waitForOrderActivation(orderIds.first);
-              if (!activated) {
-                // Webhook delayed — proceed; it will complete in the background.
-              }
-            }
-          } catch (e) {
-            for (final oid in orderIds) {
-              await _deleteOrder(oid);
-            }
-            rethrow;
-          }
-        }
-      }
+      // Payment confirmed: wallet deducted atomically inside grocery-order edge
+      // function; saved card pre-charged above before any order rows were created.
 
       // Navigate to success immediately — do this before any post-order
       // bookkeeping so the user is never left staring at a loading spinner.
@@ -1614,50 +1551,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     }
   }
 
-  Future<void> _deleteOrder(String orderId) async {
-    try {
-      final client = SupabaseConfig.client;
-      await client.from('order_items').delete().eq('order_id', orderId);
-      await client.from('payments').delete().eq('order_id', orderId);
-      await client.from('orders').delete().eq('id', orderId);
-    } catch (_) {}
-  }
-
-  Future<bool> _isOrderPaid(String orderId) async {
-    try {
-      final row = await SupabaseConfig.client
-          .from('orders')
-          .select('payment_status')
-          .eq('id', orderId)
-          .maybeSingle();
-      return row?['payment_status'] == 'completed';
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> _waitForOrderActivation(
-    String orderId, {
-    int attempts = 15,
-    Duration interval = const Duration(seconds: 2),
-  }) async {
-    for (var i = 0; i < attempts; i++) {
-      try {
-        final row = await SupabaseConfig.client
-            .from('orders')
-            .select('status, payment_status')
-            .eq('id', orderId)
-            .maybeSingle();
-        if (row != null &&
-            row['payment_status'] == 'completed' &&
-            row['status'] != 'draft') {
-          return true;
-        }
-      } catch (_) {}
-      if (i < attempts - 1) await Future.delayed(interval);
-    }
-    return false;
-  }
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────

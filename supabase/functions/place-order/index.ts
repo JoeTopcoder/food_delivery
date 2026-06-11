@@ -11,7 +11,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? Deno.env.get("STRIPE_SK") ?? "";
 const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+async function stripePost(endpoint: string, params: Record<string, string>): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${stripeKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function stripeGet(endpoint: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
+    headers: { Authorization: `Bearer ${stripeKey}` },
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function getStripeCustomerId(uid: string): Promise<string | null> {
+  const { data } = await admin.from("users").select("stripe_customer_id").eq("id", uid).maybeSingle();
+  return (data?.stripe_customer_id as string | undefined) ?? null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,18 +172,20 @@ Deno.serve(async (request) => {
   const fromAd = body.from_ad === true;
   const adId = body.ad_id as string | undefined;
   const promoCode = body.promo_code as string | undefined;
+  const savedCardPaymentMethodId = body.saved_card_payment_method_id as string | undefined;
+  const incomingPaymentIntentId = body.payment_intent_id as string | undefined;
 
   if (!userId || !restaurantId || !items?.length || !deliveryAddress) {
     return json({ error: "Missing required fields" }, 400);
   }
 
   // ── PAYMENT GATE ───────────────────────────────────────────────────────────
-  // card   → 'draft' until stripe-webhook sets payment_status = 'completed'
+  // card   → charge Stripe BEFORE insert; order only created on success
   // wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
-  // cash   → 'preparing' immediately
+  // cash   → 'preparing' immediately (collected on delivery)
   const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
   const isWalletPayment = paymentMethod === "wallet";
-  const initialStatus = isCardPayment ? "draft" : "preparing";
+  const initialStatus = "preparing";
 
   // Pre-generate the order UUID so we can pass it to wallet_pay before the insert.
   const orderId: string = crypto.randomUUID();
@@ -218,7 +242,7 @@ Deno.serve(async (request) => {
       ));
     }
 
-    // ── 4. Wallet payment gate (atomic — must succeed before order is created) ──
+    // ── 4a. Wallet payment gate (atomic — must succeed before order is created) ──
     // wallet_deduct has no order_id FK so it safely runs before the order row exists.
     if (isWalletPayment) {
       const { error: walletErr } = await admin.rpc("wallet_deduct", {
@@ -236,6 +260,43 @@ Deno.serve(async (request) => {
       }
     }
 
+    // ── 4b. Card payment gate — charge/verify BEFORE inserting the order ───
+    // This prevents ghost 'draft' orders when the Stripe charge fails.
+    // Saved card: create + confirm a PaymentIntent off-session right now.
+    // Payment Sheet: Flutter already confirmed the PI — verify it server-side.
+    if (isCardPayment) {
+      if (!stripeKey) {
+        return json({ error: "Payment provider not configured." }, 500);
+      }
+      if (savedCardPaymentMethodId) {
+        const custId = await getStripeCustomerId(userId);
+        const pi = await stripePost("/payment_intents", {
+          amount:          String(Math.round(totalAmount * 100)),
+          currency:        "usd",
+          payment_method:  savedCardPaymentMethodId,
+          ...(custId ? { customer: custId } : {}),
+          off_session:     "true",
+          confirm:         "true",
+          "metadata[type]":    "food_order",
+          "metadata[user_id]": userId,
+        });
+        const piStatus = pi.status as string;
+        if (pi.error || (piStatus !== "succeeded" && piStatus !== "requires_capture")) {
+          const errMsg = ((pi.error as Record<string, unknown>)?.message as string)
+            ?? "Card charge failed. Please try a different card.";
+          return json({ error: errMsg }, 402);
+        }
+      } else if (incomingPaymentIntentId) {
+        const pi = await stripeGet(`/payment_intents/${encodeURIComponent(incomingPaymentIntentId)}`);
+        const piStatus = pi.status as string;
+        if (piStatus !== "succeeded" && piStatus !== "requires_capture") {
+          return json({ error: "Payment not confirmed. Please complete payment first." }, 402);
+        }
+      } else {
+        return json({ error: "Card payment information required. Please select a saved card." }, 402);
+      }
+    }
+
     // ── 5. Insert order ──────────────────────────────────────────────────
     const orderData: Record<string, unknown> = {
       id: orderId,           // use pre-generated UUID (needed for wallet_pay above)
@@ -250,7 +311,7 @@ Deno.serve(async (request) => {
       delivery_latitude: deliveryLatitude,
       delivery_longitude: deliveryLongitude,
       payment_method: paymentMethod,
-      payment_status: isWalletPayment ? "completed" : "pending",
+      payment_status: (isCardPayment || isWalletPayment) ? "completed" : "pending",
       ordered_at: now.toISOString(),
       contactless_delivery: contactlessDelivery,
       delivery_otp: otp,
@@ -320,14 +381,11 @@ Deno.serve(async (request) => {
     // by DB triggers (migration 108) which gate on payment_status = 'completed'.
     // We must NOT duplicate those calls here.
     //
-    // Receipt email: send immediately only for cash/wallet orders because their
-    // payment is synchronous. Card orders get the receipt from stripe-webhook
-    // once payment_intent.succeeded fires.
-    if (!isCardPayment) {
-      admin.functions.invoke("send-receipt-email", {
-        body: { order_id: orderId },
-      }).catch(() => {});
-    }
+    // Payment is confirmed before order creation for all methods (card charged
+    // above, wallet deducted above, cash on delivery). Send receipt immediately.
+    admin.functions.invoke("send-receipt-email", {
+      body: { order_id: orderId },
+    }).catch(() => {});
 
     // ── 7. Notify customer ───────────────────────────────────────────────
     await notifyUser(userId, '🍽️ Order Placed!', `Your order #${receiptNumber} has been received and is being prepared.`, {

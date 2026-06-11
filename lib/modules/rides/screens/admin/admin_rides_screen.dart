@@ -525,10 +525,10 @@ class _PricingTabState extends ConsumerState<_PricingTab> {
   bool _loaded = false;
 
   static const _fields = [
-    ('base_fare', 'Base Fare (JMD)', Icons.flag_rounded),
-    ('per_km_rate', 'Per KM Rate (JMD)', Icons.straighten_rounded),
-    ('per_minute_rate', 'Per Minute Rate (JMD)', Icons.timer_rounded),
-    ('minimum_fare', 'Minimum Fare (JMD)', Icons.price_check_rounded),
+    ('base_fare', 'Base Fare (USD)', Icons.flag_rounded),
+    ('per_km_rate', 'Per KM Rate (USD)', Icons.straighten_rounded),
+    ('per_minute_rate', 'Per Minute Rate (USD)', Icons.timer_rounded),
+    ('minimum_fare', 'Minimum Fare (USD)', Icons.price_check_rounded),
     ('peak_multiplier', 'Peak Hour Multiplier', Icons.trending_up_rounded),
     ('night_surcharge', 'Night Surcharge Multiplier', Icons.nightlight_rounded),
   ];

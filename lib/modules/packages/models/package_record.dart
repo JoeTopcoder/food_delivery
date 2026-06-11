@@ -61,5 +61,5 @@ class PackageRecord {
       packageWeight != null ? '${packageWeight!.toStringAsFixed(1)} kg' : 'Unknown';
 
   String get displayValue =>
-      packageValue != null ? 'JMD ${packageValue!.toStringAsFixed(2)}' : 'Not declared';
+      packageValue != null ? '\$${packageValue!.toStringAsFixed(2)}' : 'Not declared';
 }

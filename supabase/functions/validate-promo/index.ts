@@ -66,7 +66,7 @@ Deno.serve(async (request) => {
       if (promo.min_order_amount && subtotal < promo.min_order_amount) {
         return json({
           valid: false,
-          error: `Your cart is a little short — this code needs a minimum order of JMD$${promo.min_order_amount} to apply.`,
+          error: `Your cart is a little short — this code needs a minimum order of $${promo.min_order_amount} to apply.`,
         });
       }
       let discount = 0;
@@ -112,7 +112,7 @@ Deno.serve(async (request) => {
     if (minOrder > 0 && subtotal < minOrder) {
       return json({
         valid: false,
-        error: `Your cart is a little short — this code needs a minimum order of JMD$${minOrder} to apply.`,
+        error: `Your cart is a little short — this code needs a minimum order of $${minOrder} to apply.`,
       });
     }
     const userCoupon = userCouponAny;

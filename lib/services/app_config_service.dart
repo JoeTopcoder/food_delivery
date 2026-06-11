@@ -54,7 +54,11 @@ class AppConfigService {
   dynamic _parseValue(String raw, String valueType) {
     switch (valueType) {
       case 'number':
-        return num.tryParse(raw) ?? 0;
+        var n = raw.trim();
+        if (n.length > 2 && n.startsWith('"') && n.endsWith('"')) {
+          n = n.substring(1, n.length - 1);
+        }
+        return num.tryParse(n) ?? 0;
       case 'boolean':
         return raw == 'true';
       case 'json':
@@ -395,9 +399,17 @@ class AppConfigService {
 
     // Stripe
     if (c.containsKey('stripe_publishable_key')) {
-      final v = c['stripe_publishable_key'];
+      var v = c['stripe_publishable_key'];
       if (v is String && v.isNotEmpty) {
-        AppConstants.stripePublishableKey = v;
+        // Strip surrounding JSON double-quotes that Supabase Table Editor can introduce
+        // e.g. '"pk_live_..."' stored/returned as raw jsonb text → strip to 'pk_live_...'
+        v = v.trim();
+        if (v.length > 2 && v.startsWith('"') && v.endsWith('"')) {
+          v = v.substring(1, v.length - 1);
+        }
+        if (v.isNotEmpty) {
+          AppConstants.stripePublishableKey = v;
+        }
       }
     }
 
@@ -454,10 +466,10 @@ class AppConfigService {
     );
 
     // Ride sharing
-    AppConstants.airportSurchargeJmd = _double(
+    AppConstants.airportSurcharge = _double(
       c,
       'airport_surcharge_jmd',
-      AppConstants.airportSurchargeJmd,
+      AppConstants.airportSurcharge,
     );
     AppConstants.rideBookingAdvanceDays = _int(
       c,
@@ -523,8 +535,14 @@ class AppConfigService {
   }
 
   String _str(Map<String, dynamic> c, String key, String fallback) {
-    final v = c[key];
-    if (v is String && v.isNotEmpty) return v;
-    return fallback;
+    var v = c[key];
+    if (v is! String || v.isEmpty) return fallback;
+    v = v.trim();
+    // Strip surrounding JSON double-quotes that can appear when values are
+    // edited via the Supabase Table Editor (stores as raw jsonb text).
+    if (v.length > 2 && v.startsWith('"') && v.endsWith('"')) {
+      v = v.substring(1, v.length - 1);
+    }
+    return v.isNotEmpty ? v : fallback;
   }
 }

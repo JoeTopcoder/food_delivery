@@ -103,7 +103,7 @@ class PackageDeliveryRequest {
 
   bool get isActive => !['delivered', 'cancelled', 'failed'].contains(deliveryStatus);
 
-  String get displayFee => 'JMD ${deliveryFee.toStringAsFixed(2)}';
+  String get displayFee => '\$${deliveryFee.toStringAsFixed(2)}';
 
   String get statusLabel {
     switch (deliveryStatus) {

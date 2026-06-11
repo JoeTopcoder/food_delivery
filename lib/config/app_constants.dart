@@ -19,7 +19,7 @@
   static String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PK',
     defaultValue:
-        'pk_test_51TMsI4IxFR3jJr2a8pgcDa3D4XSC59nBD3aeEna8bxDGOGFaIQ342E7v4g8u8DwdA0vWn88g8n7DcMkJFaYGyxtD00s1C92qCF',
+        'pk_live_51TMsI4IxFR3jJr2ajK6WRDk3qwgoWdeQ9OuHMlZwBcEj3O8LvFsOXcBkzq7OBhL5YooUFk7ERF1dGgnAerQcRGzI00bV3je0f5',
   );
   // stripeRestrictedKey removed — restricted keys are server-side only (edge functions)
   // and must never be embedded in client code.
@@ -94,18 +94,20 @@
   static const String tableRestaurantOrderItems = 'restaurant_order_items';
 
   // Laundry Module Tables
-  static const String tableLaundryProviders       = 'laundry_providers';
-  static const String tableLaundryServices        = 'laundry_services';
-  static const String tableLaundryProviderServices = 'laundry_provider_services';
-  static const String tableLaundryPricing         = 'laundry_pricing';
-  static const String tableLaundryBookings        = 'laundry_bookings';
-  static const String tableLaundryBookingItems    = 'laundry_booking_items';
-  static const String tableLaundryStatusHistory   = 'laundry_status_history';
-  static const String tableLaundryPhotos          = 'laundry_photos';
-  static const String tableLaundryWeights         = 'laundry_weights';
-  static const String tableLaundryDriverAssignments = 'laundry_driver_assignments';
-  static const String tableLaundryReviews         = 'laundry_reviews';
-  static const String tableLaundryDisputes        = 'laundry_disputes';
+  static const String tableLaundryProviders = 'laundry_providers';
+  static const String tableLaundryServices = 'laundry_services';
+  static const String tableLaundryProviderServices =
+      'laundry_provider_services';
+  static const String tableLaundryPricing = 'laundry_pricing';
+  static const String tableLaundryBookings = 'laundry_bookings';
+  static const String tableLaundryBookingItems = 'laundry_booking_items';
+  static const String tableLaundryStatusHistory = 'laundry_status_history';
+  static const String tableLaundryPhotos = 'laundry_photos';
+  static const String tableLaundryWeights = 'laundry_weights';
+  static const String tableLaundryDriverAssignments =
+      'laundry_driver_assignments';
+  static const String tableLaundryReviews = 'laundry_reviews';
+  static const String tableLaundryDisputes = 'laundry_disputes';
 
   // Laundry Role
   static const String roleLaundryProvider = 'laundry_provider';
@@ -150,8 +152,29 @@
   // Fees
   static double taxRate = 0.0;
   static bool taxEnabled = false;
+  // Kept for backward compatibility (loaded from app_config DB row).
+  // No longer drives the customer-facing fee — use calculateServiceFee() instead.
   static double platformServiceFeeRate = 0.05;
   static double platformCommissionCap = 0.85;
+
+  // Platform service fee components: (subtotal × 2.9%) + $0.30 + $1.00
+  static const double stripeFeeRate = 0.029;  // Stripe processing rate
+  static const double stripeFixedFee = 0.30;  // Stripe per-transaction fixed
+  static const double platformFlatFee = 1.00; // Platform margin per transaction
+
+  /// Customer-facing platform service fee.
+  /// Formula: (subtotal × 2.9%) + $0.30 + $1.00
+  static double calculateServiceFee(double subtotal) {
+    final fee = (subtotal * stripeFeeRate) + stripeFixedFee + platformFlatFee;
+    return double.parse(fee.toStringAsFixed(2));
+  }
+
+  /// Stripe processing portion only (for reporting).
+  static double calculateStripeFee(double subtotal) {
+    final fee = (subtotal * stripeFeeRate) + stripeFixedFee;
+    return double.parse(fee.toStringAsFixed(2));
+  }
+
   static double defaultDeliveryFee = 5.0;
   static double pickupServiceFee = 2.0;
   static double driverFeePerDelivery = 5.0;
@@ -253,7 +276,7 @@
   static double subscriptionServiceFeeDiscount = 0.50;
 
   // Ride sharing — overridden from app_config table at startup
-  static double airportSurchargeJmd = 1500.0;
+  static double airportSurcharge = 10.0;
   static int rideBookingAdvanceDays = 30;
   static int scheduledRideBufferHours = 1;
   static int rideDriverOfferTimeoutSecs = 90;

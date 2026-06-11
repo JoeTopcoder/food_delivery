@@ -303,7 +303,7 @@ class _AvailablePackageCardState
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'JMD ${req.driverEarning.toStringAsFixed(0)}',
+                    '\$${req.driverEarning.toStringAsFixed(0)}',
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -469,7 +469,7 @@ class _ActivePackageTab extends ConsumerWidget {
                           const Text('Your Earning',
                               style: TextStyle(color: Colors.grey)),
                           Text(
-                            'JMD ${delivery.driverEarning.toStringAsFixed(2)}',
+                            '\$${delivery.driverEarning.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF7C3AED)),

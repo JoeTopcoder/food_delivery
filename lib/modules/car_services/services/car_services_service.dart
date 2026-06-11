@@ -352,7 +352,7 @@ class CarServicesService {
       final platformFee = double.parse(
         (subtotal * AppConstants.carServicePlatformFeePct).toStringAsFixed(2),
       );
-      final serviceFee = AppConstants.carServiceServiceFee;
+      final serviceFee = AppConstants.calculateServiceFee(subtotal);
       final totalAmount = subtotal + platformFee + serviceFee;
 
       final payload = <String, dynamic>{

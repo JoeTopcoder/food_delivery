@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
             try {
               await stripe.paymentIntents.create({
                 amount: finalFareCents - alreadyCapturedCents,
-                currency: (pi.currency as string) ?? "jmd",
+                currency: (pi.currency as string) ?? "usd",
                 customer: pi.customer as string,
                 payment_method: pi.payment_method as string,
                 off_session: true,
