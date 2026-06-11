@@ -372,6 +372,9 @@ class GroceryService {
     double driverTip = 0,
     String? specialInstructions,
     String? promoCode,
+    // Payment gate: pass one so the edge function charges/verifies before insert.
+    String? savedCardPaymentMethodId,
+    String? paymentIntentId,
   }) async {
     try {
       AppLogger.info('Placing grocery order via edge function');
@@ -388,6 +391,10 @@ class GroceryService {
         'driver_tip': driverTip,
         if (specialInstructions != null) 'special_instructions': specialInstructions,
         if (promoCode != null) 'promo_code': promoCode,
+        if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty)
+          'saved_card_payment_method_id': savedCardPaymentMethodId,
+        if (paymentIntentId != null && paymentIntentId.isNotEmpty)
+          'payment_intent_id': paymentIntentId,
       };
 
       // Build a fresh Authorization header to avoid UNAUTHORIZED_LEGACY_JWT.
@@ -405,6 +412,23 @@ class GroceryService {
             : {};
       }
 
+      String? extractFunctionError(dynamic details) {
+        if (details == null) return null;
+        if (details is Map) {
+          final e = details['error'] ?? details['message'];
+          if (e != null) return e.toString();
+        }
+        final str = details.toString();
+        try {
+          final parsed = jsonDecode(str);
+          if (parsed is Map) {
+            final e = parsed['error'] ?? parsed['message'];
+            if (e != null) return e.toString();
+          }
+        } catch (_) {}
+        return null;
+      }
+
       FunctionResponse response;
       try {
         response = await _client.functions.invoke('grocery-order',
@@ -420,10 +444,19 @@ class GroceryService {
           try {
             response = await _client.functions.invoke('grocery-order',
                 body: invokeBody, headers: await freshHeader());
-          } on FunctionException catch (_) {
-            throw Exception('Something went wrong. Please try again.');
+          } on FunctionException catch (fe2) {
+            if (fe2.status == 401 || fe2.status == 403) {
+              throw Exception(
+                'Your session has expired. Please sign out and sign in again to place your order.',
+              );
+            }
+            final msg = extractFunctionError(fe2.details) ??
+                'Order placement failed (${fe2.status}). Please try again.';
+            throw Exception(msg);
           }
         } else {
+          final msg = extractFunctionError(fe.details);
+          if (msg != null) throw Exception(msg);
           rethrow;
         }
       }

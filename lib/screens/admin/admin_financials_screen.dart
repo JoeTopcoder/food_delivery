@@ -39,6 +39,11 @@ class AdminFinancialsScreen extends ConsumerWidget {
             final monthlyCommission = (data['monthly_commission'] ?? 0)
                 .toDouble();
             final orderCount = data['order_count'] ?? 0;
+            final grossRevenue = (data['gross_revenue'] ?? totalSales).toDouble();
+            final stripeFeesCollected = (data['stripe_fees_collected'] ?? 0).toDouble();
+            final platformServiceFeesCollected =
+                (data['platform_service_fees_collected'] ?? 0).toDouble();
+            final netRevenue = (data['net_revenue'] ?? (grossRevenue - stripeFeesCollected)).toDouble();
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -166,6 +171,42 @@ class AdminFinancialsScreen extends ConsumerWidget {
                   subValue: null,
                 ),
 
+                const SizedBox(height: 12),
+
+                // ── Platform Service Fees ──
+                _FinancialCard(
+                  title: 'Platform Service Fees',
+                  icon: Icons.receipt_long_rounded,
+                  color: const Color(0xFFF59E0B),
+                  mainValue: platformServiceFeesCollected,
+                  subLabel: '(2.9% × subtotal) + \$0.30 + \$1.00 per order',
+                  subValue: null,
+                ),
+
+                const SizedBox(height: 12),
+
+                // ── Stripe Fees ──
+                _FinancialCard(
+                  title: 'Stripe Fees Collected',
+                  icon: Icons.credit_card_rounded,
+                  color: const Color(0xFF6366F1),
+                  mainValue: stripeFeesCollected,
+                  subLabel: '2.9% × subtotal + \$0.30 per order',
+                  subValue: null,
+                ),
+
+                const SizedBox(height: 12),
+
+                // ── Net Revenue ──
+                _FinancialCard(
+                  title: 'Net Revenue',
+                  icon: Icons.account_balance_rounded,
+                  color: const Color(0xFF10B981),
+                  mainValue: netRevenue,
+                  subLabel: 'Gross revenue after Stripe processing costs',
+                  subValue: null,
+                ),
+
                 const SizedBox(height: 24),
 
                 // ── Summary breakdown ──
@@ -195,9 +236,19 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       ),
                       const Divider(height: 20),
                       _BreakdownRow(
-                        label: 'Total Sales',
-                        value: totalSales,
+                        label: 'Gross Revenue',
+                        value: grossRevenue,
                         color: const Color(0xFF10B981),
+                      ),
+                      _BreakdownRow(
+                        label: 'Platform Service Fees',
+                        value: platformServiceFeesCollected,
+                        color: const Color(0xFFF59E0B),
+                      ),
+                      _BreakdownRow(
+                        label: 'Stripe Fees',
+                        value: stripeFeesCollected,
+                        color: const Color(0xFF6366F1),
                       ),
                       _BreakdownRow(
                         label: 'Platform Commission',
@@ -213,6 +264,12 @@ class AdminFinancialsScreen extends ConsumerWidget {
                         label: 'Driver Payouts',
                         value: totalDriverPayout,
                         color: const Color(0xFF3B82F6),
+                      ),
+                      const Divider(height: 20),
+                      _BreakdownRow(
+                        label: 'Net Revenue',
+                        value: netRevenue,
+                        color: const Color(0xFF10B981),
                       ),
                     ],
                   ),

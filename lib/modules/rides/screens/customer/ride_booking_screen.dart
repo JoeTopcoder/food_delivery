@@ -854,11 +854,17 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
       final baseFare =
           (_fareData!['estimated_fare'] as num?)?.toDouble() ?? 12.40;
       final isAirport = _pickupAirport != null || _dropoffAirport != null;
-      final surcharge = isAirport ? AppConstants.airportSurchargeJmd : 0.0;
+      final surcharge = isAirport ? AppConstants.airportSurcharge : 0.0;
       final estimatedFare = baseFare + surcharge;
       final platformFee =
           (_fareData!['platform_fee'] as num?)?.toDouble() ??
           baseFare * 0.10;
+      final ridePlatformServiceFee =
+          (_fareData!['platform_service_fee'] as num?)?.toDouble() ??
+          AppConstants.calculateServiceFee(estimatedFare);
+      final rideStripeFeePortion =
+          (_fareData!['stripe_fee_amount'] as num?)?.toDouble() ??
+          AppConstants.calculateStripeFee(estimatedFare);
 
       final user = SupabaseConfig.client.auth.currentUser;
       if (user == null)
@@ -926,7 +932,9 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
         terminalInfo: _terminalController.text.trim().isEmpty
             ? null
             : _terminalController.text.trim(),
-        airportSurcharge: isAirport ? AppConstants.airportSurchargeJmd : null,
+        airportSurcharge: isAirport ? AppConstants.airportSurcharge : null,
+        platformServiceFee: ridePlatformServiceFee,
+        stripeFeePortion: rideStripeFeePortion,
       );
 
       final result = await ref.read(createRideRequestProvider(params).future);
@@ -1747,7 +1755,7 @@ class _FareContent extends ConsumerWidget {
     final durationMinutes =
         (fareData['estimated_duration_minutes'] as num?)?.toInt() ?? 0;
     final baseFare = (fareData['estimated_fare'] as num?)?.toDouble() ?? 0.0;
-    final estimatedFare = baseFare + (isAirport ? AppConstants.airportSurchargeJmd : 0.0);
+    final estimatedFare = baseFare + (isAirport ? AppConstants.airportSurcharge : 0.0);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1788,7 +1796,7 @@ class _FareContent extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '+J\$${AppConstants.airportSurchargeJmd.toStringAsFixed(0)}',
+                  '+\$${AppConstants.airportSurcharge.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 13, color: _kBlue, fontWeight: FontWeight.bold),
                 ),
               ],

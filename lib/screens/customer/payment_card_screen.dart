@@ -368,7 +368,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'JMD ${widget.amount.toStringAsFixed(2)}',
+                          '\$${widget.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -401,7 +401,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                               ),
                             )
                           : Text(
-                              'Pay JMD ${widget.amount.toStringAsFixed(2)}',
+                              'Pay \$${widget.amount.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -462,7 +462,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
         }
 
         AppLogger.info(
-          'Processing Stripe payment: order=$orderId, amount=JMD${widget.amount.toStringAsFixed(2)}',
+          'Processing Stripe payment: order=$orderId, amount=\$${widget.amount.toStringAsFixed(2)}',
         );
 
         final authUser = Supabase.instance.client.auth.currentUser;

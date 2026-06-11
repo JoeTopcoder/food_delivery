@@ -211,14 +211,23 @@ class PaymentService {
     final msg = error.toString().toLowerCase();
     if (msg.contains('api key'))
       return 'Invalid Stripe API key. Contact support.';
-    if (msg.contains('card was declined')) return 'Your card was declined.';
-    if (msg.contains('expired card')) return 'Your card is expired.';
+    if (msg.contains('insufficient funds') || msg.contains('insufficient_funds'))
+      return 'Your card has insufficient funds. Please add funds or use a different card.';
+    if (msg.contains('card was declined') || msg.contains('card_declined') || msg.contains('do_not_honor'))
+      return 'Your card was declined. Please try a different card.';
+    if (msg.contains('expired card') || msg.contains('card_expired'))
+      return 'Your card is expired. Please use a different card.';
+    if (msg.contains('lost_card') || msg.contains('stolen_card'))
+      return 'Your card could not be processed. Please use a different card.';
     if (msg.contains('authentication'))
       return 'Authentication failed. Try another card.';
     if (msg.contains('network')) return 'Network error. Please try again.';
     if (msg.contains('paymentintent'))
       return 'Payment could not be created. Try again.';
-    return 'Payment failed: $error';
+    // If Stripe returned a user-readable sentence, pass it through directly.
+    if (msg.startsWith('your card') || msg.startsWith('your bank'))
+      return error.toString();
+    return 'Payment failed. Please try again or use a different card.';
   }
 
   /// Create a Stripe PaymentIntent and present the Payment Sheet in one go.
@@ -359,6 +368,40 @@ class PaymentService {
     }
   }
 
+  /// Pre-charge a saved card before any order records are created.
+  /// Used for multi-store grocery orders: charge the full total first, then pass
+  /// the returned PaymentIntent ID to each per-store order creation call.
+  /// Returns the Stripe PaymentIntent ID on success; throws on failure.
+  Future<String> preChargeForOrders({
+    required double amount,
+    required String paymentMethodId,
+  }) async {
+    final tempRef = 'pre_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      final response = await _invokeStripeFunction(
+        AppConstants.stripePaymentFunction,
+        body: {
+          'action': 'charge_saved_card',
+          'orderId': tempRef,
+          'amount': amount,
+          'paymentMethodId': paymentMethodId,
+          'type': 'food_pre_charge',
+          'currency': AppConstants.currencyCode.toLowerCase(),
+        },
+      );
+      final data = response.data;
+      if (data is! Map<String, dynamic>) throw Exception('Payment failed. Please try again.');
+      if (data['error'] != null) throw Exception(_stripeErrorMessage(data['error']));
+      if (data['success'] != true) throw Exception('Payment could not be processed. Please try again.');
+      final piId = data['paymentIntentId'] as String?;
+      if (piId == null || piId.isEmpty) throw Exception('Payment reference missing. Please try again.');
+      return piId;
+    } catch (e) {
+      AppLogger.error('Pre-charge error: $e');
+      rethrow;
+    }
+  }
+
   /// Present the Stripe Payment Sheet for a ride fare.
   /// Reuses the deployed `stripe-payment` function with type='ride' so the
   /// order lookup is skipped. [amountCents] is converted to dollars internally
@@ -366,7 +409,7 @@ class PaymentService {
   /// Returns {'status': 'paid'} on success, null if user cancels.
   Future<Map<String, dynamic>?> presentStripePaymentSheetForRide({
     required int amountCents,
-    String currency = 'jmd',
+    String currency = 'usd',
     String? customerEmail,
     String? customerName,
   }) async {

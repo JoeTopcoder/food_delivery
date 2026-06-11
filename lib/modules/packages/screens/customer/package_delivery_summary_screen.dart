@@ -111,7 +111,7 @@ class _PackageDeliverySummaryScreenState
                       '${_pkg['package_weight']} kg'),
                 if (_pkg['package_value'] != null)
                   _InfoRow('Declared Value',
-                      'JMD ${_pkg['package_value']}'),
+                      '\$${_pkg['package_value']}'),
                 if (_pkg['notes'] != null && (_pkg['notes'] as String).isNotEmpty)
                   _InfoRow('Notes', _pkg['notes'] as String),
               ],
@@ -139,11 +139,11 @@ class _PackageDeliverySummaryScreenState
                           _InfoRow('Est. Duration',
                               '${_feeData!['duration_minutes']} min'),
                           _InfoRow('Delivery Fee',
-                              'JMD ${_feeData!['delivery_fee']}'),
+                              '\$${_feeData!['delivery_fee']}'),
                           const Divider(),
                           _InfoRow(
                             'Total',
-                            'JMD ${_feeData!['total_charge']}',
+                            '\$${_feeData!['total_charge']}',
                             bold: true,
                           ),
                         ],

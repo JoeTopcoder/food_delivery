@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -183,16 +183,12 @@ void main() {
         CacheService.init(),
       ]);
 
-      // Initialize Stripe (non-blocking — don't await applySettings)
-      // flutter_stripe has no web support; skip entirely on web.
+      // Initialize Stripe with the compiled-in key as a bootstrap value.
+      // The real key (live or test) is loaded from app_config in
+      // _hydrateDeferredStartup() and synced to Stripe.publishableKey there.
+      // Do NOT guard on stripeIsTestMode here — the DB key may override it.
       if (!kIsWeb) {
         final stripeKey = AppConstants.stripePublishableKey;
-        if (kReleaseMode && AppConstants.stripeIsTestMode) {
-          throw StateError(
-            'PRODUCTION BUILD ERROR: Stripe test keys detected. '
-            'Pass live keys via --dart-define STRIPE_PK=pk_live_... STRIPE_RK=rk_live_...',
-          );
-        }
         if (stripeKey.isNotEmpty) {
           Stripe.publishableKey = stripeKey;
           Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
@@ -368,6 +364,18 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     ]);
 
     if (!mounted) return;
+
+    // Re-sync Stripe publishable key now that app_config has been loaded from DB.
+    // The key set in main() uses the compiled default (pk_test_...); the live key
+    // only becomes available after AppConfigService.load() above.
+    if (!kIsWeb) {
+      final dbKey = AppConstants.stripePublishableKey;
+      if (dbKey.isNotEmpty && Stripe.publishableKey != dbKey) {
+        Stripe.publishableKey = dbKey;
+        Stripe.instance.applySettings().catchError((_) {});
+      }
+    }
+
     // Bump configVersionProvider so maintenanceModeProvider (and any other
     // provider watching config) re-evaluates with the values just loaded from DB.
     ref.read(configVersionProvider.notifier).state++;

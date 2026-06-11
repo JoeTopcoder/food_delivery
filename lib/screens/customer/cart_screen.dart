@@ -146,7 +146,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
 
-    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
+    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
     // Tax is determined server-side (zone-based) at checkout — omit from estimate.
     final total = subtotal + activeFee + platformServiceFee + totalExtraStopFee;
 

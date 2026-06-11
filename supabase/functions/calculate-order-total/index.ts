@@ -286,7 +286,7 @@ Deno.serve(async (request) => {
         return json({ error: "Promo code usage limit reached" }, 400);
       }
       if (promo.min_order_amount && subtotal < promo.min_order_amount) {
-        return json({ error: `Minimum order of JMD$${promo.min_order_amount} required for this promo` }, 400);
+        return json({ error: `Minimum order of $${promo.min_order_amount} required for this promo` }, 400);
       }
 
       if (promo.discount_type === "percentage") {
@@ -295,7 +295,7 @@ Deno.serve(async (request) => {
         promoDiscount = Math.min(promo.discount_value, subtotal);
       }
       promoId = promo.id;
-      promoDetail = `${promo.code}: ${promo.discount_type === "percentage" ? promo.discount_value + "%" : "JMD$" + promo.discount_value} off`;
+      promoDetail = `${promo.code}: ${promo.discount_type === "percentage" ? promo.discount_value + "%" : "$" + promo.discount_value} off`;
     }
 
     // ── 7. Loyalty redemption validation ───────────────────────────────────
@@ -324,14 +324,18 @@ Deno.serve(async (request) => {
 
     // ── 8. Payment processing fee ──────────────────────────────────────────
     const feePct = paymentMethod === "card" ? cardFeePct : cashFeePct;
-    
+
     const orderBeforeFees = subtotal - promoDiscount - loyaltyDiscount + deliveryFee + taxAmount;
     const paymentFee = Math.round(orderBeforeFees * feePct / 100 * 100) / 100;
 
     // ── 9. Commission ──────────────────────────────────────────────────────
     const commissionRate = restaurant.commission_rate ?? defaultCommissionRate;
 
-    // ── 10. Final total ────────────────────────────────────────────────────
+    // ── 10. Platform service fee: (subtotal × 2.9%) + $0.30 + $1.00 ───────
+    const stripeFeePortion = Math.round(((subtotal * 0.029) + 0.30) * 100) / 100;
+    const platformServiceFee = Math.round((stripeFeePortion + 1.00) * 100) / 100;
+
+    // ── 11. Final total ────────────────────────────────────────────────────
     const orderTotal = Math.max(
       deliveryFee,
       Math.round((orderBeforeFees + paymentFee) * 100) / 100
@@ -356,6 +360,8 @@ Deno.serve(async (request) => {
         payment_method: paymentMethod,
         payment_fee_percent: feePct,
         payment_fee: paymentFee,
+        stripe_fee_amount: stripeFeePortion,
+        platform_service_fee: platformServiceFee,
         driver_tip: driverTip,
         commission_rate: commissionRate,
         commission_amount: commissionAmount,

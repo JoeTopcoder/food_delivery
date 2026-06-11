@@ -96,7 +96,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
         !isPickup;
     final effectiveFee = subDeliveryFree ? 0.0 : totalActiveFee;
 
-    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
+    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + effectiveFee + platformServiceFee + tax;
 
@@ -539,7 +539,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                               ),
                             const SizedBox(height: 8),
                             _PriceRow(
-                              'Service Fee (5%)',
+                              'Service Fee',
                               '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                             ),
                             const SizedBox(height: 8),

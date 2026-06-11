@@ -137,7 +137,7 @@ class _PackageRequestCardState extends ConsumerState<PackageRequestCard> {
                     ),
                     _Stat(
                       label: 'Earning',
-                      value: 'JMD ${req.driverEarning.toStringAsFixed(0)}',
+                      value: '\$${req.driverEarning.toStringAsFixed(0)}',
                       highlight: true,
                     ),
                   ],

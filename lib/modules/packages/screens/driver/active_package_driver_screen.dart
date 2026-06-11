@@ -95,7 +95,7 @@ class _ActivePackageDriverScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Delivery completed! Earning: JMD ${earning ?? delivery.driverEarning}'),
+              'Delivery completed! Earning: \$${earning ?? delivery.driverEarning}'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 4),
         ),
@@ -335,7 +335,7 @@ class _EarningCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  'JMD ${delivery.driverEarning.toStringAsFixed(2)}',
+                  '\$${delivery.driverEarning.toStringAsFixed(2)}',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,

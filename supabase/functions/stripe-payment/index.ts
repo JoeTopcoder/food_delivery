@@ -194,7 +194,7 @@ Deno.serve(async (request) => {
       );
     }
 
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     // Multi-restaurant pre-order PI: no order exists yet — skip order lookup.
@@ -708,7 +708,7 @@ Deno.serve(async (request) => {
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
     const currency = String(body.currency ?? "usd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {
@@ -793,7 +793,7 @@ Deno.serve(async (request) => {
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
     const currency = String(body.currency ?? "usd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {

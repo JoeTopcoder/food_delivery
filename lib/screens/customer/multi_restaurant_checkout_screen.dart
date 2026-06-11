@@ -395,7 +395,7 @@ class _MultiRestaurantCheckoutScreenState
       totalDeliveryFee += fee;
     }
 
-    final platformFee = subtotal * AppConstants.platformServiceFeeRate;
+    final platformFee = AppConstants.calculateServiceFee(subtotal);
     final total = subtotal + totalDeliveryFee + totalExtraStopFee + platformFee + _driverTip;
 
     if (cartItems.isEmpty) {

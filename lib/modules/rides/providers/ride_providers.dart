@@ -51,6 +51,8 @@ final createRideRequestProvider = FutureProvider.family<Map<String, dynamic>, Cr
     isAirportDropoff: params.isAirportDropoff,
     terminalInfo: params.terminalInfo,
     airportSurcharge: params.airportSurcharge,
+    platformServiceFee: params.platformServiceFee,
+    stripeFeePortion: params.stripeFeePortion,
   );
 });
 
@@ -73,6 +75,8 @@ class CreateRideParams {
   final bool isAirportDropoff;
   final String? terminalInfo;
   final double? airportSurcharge;
+  final double? platformServiceFee;
+  final double? stripeFeePortion;
 
   const CreateRideParams({
     required this.pickupAddress,
@@ -93,6 +97,8 @@ class CreateRideParams {
     this.isAirportDropoff = false,
     this.terminalInfo,
     this.airportSurcharge,
+    this.platformServiceFee,
+    this.stripeFeePortion,
   });
 }
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/index.dart';
 import '../../../utils/app_logger.dart';
+import '../../../config/app_constants.dart';
 
 class RideAuthException implements Exception {
   final String message;
@@ -86,16 +87,18 @@ class RideService {
     const double avgSpeedKmh = 30.0;
     final int estimatedMinutes = (distanceKm / avgSpeedKmh * 60).round();
 
-    // JMD pricing: J$250 per mile
+    // USD pricing: $3.00 per mile, $8.00 minimum
     const double kmPerMile = 1.60934;
     final double distanceMiles = distanceKm / kmPerMile;
-    const double perMileRateJmd = 250.0;
-    const double minimumFareJmd = 500.0;
+    const double perMileRate = 3.0;
+    const double minimumFare = 8.0;
     const double platformFeeRate = 0.20;
 
-    final double rawFare = distanceMiles * perMileRateJmd;
-    final double estimatedFare = rawFare < minimumFareJmd ? minimumFareJmd : rawFare;
+    final double rawFare = distanceMiles * perMileRate;
+    final double estimatedFare = rawFare < minimumFare ? minimumFare : rawFare;
     final double platformFee = estimatedFare * platformFeeRate;
+    final double platformServiceFee = AppConstants.calculateServiceFee(estimatedFare);
+    final double stripeFeePortion = AppConstants.calculateStripeFee(estimatedFare);
 
     return {
       'distance_km': double.parse(distanceKm.toStringAsFixed(2)),
@@ -103,9 +106,11 @@ class RideService {
       'estimated_duration_minutes': estimatedMinutes,
       'estimated_fare': double.parse(estimatedFare.toStringAsFixed(2)),
       'platform_fee': double.parse(platformFee.toStringAsFixed(2)),
-      'per_mile_rate': perMileRateJmd,
-      'distance_fare': double.parse((distanceMiles * perMileRateJmd).toStringAsFixed(2)),
-      'currency': 'JMD',
+      'platform_service_fee': platformServiceFee,
+      'stripe_fee_amount': stripeFeePortion,
+      'per_mile_rate': perMileRate,
+      'distance_fare': double.parse((distanceMiles * perMileRate).toStringAsFixed(2)),
+      'currency': 'USD',
       'source': 'local',
     };
   }
@@ -135,6 +140,8 @@ class RideService {
     bool isAirportDropoff = false,
     String? terminalInfo,
     double? airportSurcharge,
+    double? platformServiceFee,
+    double? stripeFeePortion,
   }) async {
     try {
       final token = await _freshToken();
@@ -158,6 +165,8 @@ class RideService {
         if (isAirportDropoff) 'is_airport_dropoff': true,
         if (terminalInfo != null && terminalInfo.isNotEmpty) 'terminal_info': terminalInfo,
         if (airportSurcharge != null) 'airport_surcharge': airportSurcharge,
+        if (platformServiceFee != null) 'platform_service_fee': platformServiceFee,
+        if (stripeFeePortion != null) 'stripe_fee_amount': stripeFeePortion,
       };
 
       final response = await _supabase.functions.invoke(

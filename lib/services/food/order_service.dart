@@ -61,6 +61,10 @@ class OrderService {
     bool fromAd = false,
     String? adId,
     String? promoCode,
+    // Payment gate: pass one of these for card payments so the edge function
+    // charges/verifies Stripe BEFORE inserting the order.
+    String? savedCardPaymentMethodId,
+    String? paymentIntentId,
   }) async {
     try {
       AppLogger.info('Creating order via Edge Function for user: $userId');
@@ -123,6 +127,12 @@ class OrderService {
       if (adId != null) body['ad_id'] = adId;
       if (promoCode != null && promoCode.trim().isNotEmpty) {
         body['promo_code'] = promoCode.trim().toUpperCase();
+      }
+      if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty) {
+        body['saved_card_payment_method_id'] = savedCardPaymentMethodId;
+      }
+      if (paymentIntentId != null && paymentIntentId.isNotEmpty) {
+        body['payment_intent_id'] = paymentIntentId;
       }
 
       AppLogger.info('Sending request to place-order: ${body.keys.join(", ")}');

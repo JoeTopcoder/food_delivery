@@ -9,7 +9,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") ?? Deno.env.get("STRIPE_SK") ?? "";
 const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+async function stripePost(endpoint: string, params: Record<string, string>): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${stripeKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function stripeGet(endpoint: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://api.stripe.com/v1${endpoint}`, {
+    headers: { Authorization: `Bearer ${stripeKey}` },
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function getStripeCustomerId(uid: string): Promise<string | null> {
+  const { data } = await admin.from("users").select("stripe_customer_id").eq("id", uid).maybeSingle();
+  return (data?.stripe_customer_id as string | undefined) ?? null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,6 +129,8 @@ Deno.serve(async (request) => {
   const driverTip = (body.driver_tip as number) ?? 0;
   const specialInstructions = body.special_instructions as string | undefined;
   const promoCode = (body.promo_code as string | undefined)?.toUpperCase();
+  const savedCardPaymentMethodId = body.saved_card_payment_method_id as string | undefined;
+  const incomingPaymentIntentId = body.payment_intent_id as string | undefined;
 
   if (!storeId || !userId || !items || items.length === 0) {
     return json({ error: "Missing required fields: store_id, user_id, items" }, 400);
@@ -133,7 +157,7 @@ Deno.serve(async (request) => {
     const { data: products, error: prodErr } = await admin
       .from("menus")
       .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type")
-      .filter("id", "in", `(${productIds.map((id) => `"${id}"`).join(",")})`);
+      .in("id", productIds);
 
     if (prodErr || !products) {
       return json({ error: "Could not verify products", details: prodErr?.message ?? "No products returned" }, 500);
@@ -179,9 +203,11 @@ Deno.serve(async (request) => {
     }
 
     // ── 3. Fetch config ─────────────────────────────────────────────────
-    const [globalTaxRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
+    const [globalTaxRate, taxEnabledFlag, serviceFeeRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
       await Promise.all([
         getConfig("tax_rate", 0.0),
+        getConfig("tax_enabled", 0),
+        getConfig("platform_service_fee_rate", 0.05),
         getConfig("delivery_base_fee", 50.0),
         getConfig("delivery_per_km_fee", 30.0),
         getConfig("delivery_base_km", 3.0),
@@ -194,6 +220,7 @@ Deno.serve(async (request) => {
         getConfig("peak_hours_start_2", 18),
         getConfig("peak_hours_end_2", 21),
       ]);
+    const isTaxEnabled = taxEnabledFlag > 0;
 
     // Check if current hour is within a peak window
     const currentHour = new Date().getUTCHours();
@@ -276,26 +303,29 @@ Deno.serve(async (request) => {
       }
     }
 
-    // ── 7. Calculate totals (zone-based tax) ───────────────────────────
-    const effectiveTaxRate = isPickup
-      ? 0
-      : await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate);
+    // ── 7. Calculate totals ─────────────────────────────────────────────
+    // Tax: gated by tax_enabled flag from app_config (master on/off switch).
+    const effectiveTaxRate = (isTaxEnabled && !isPickup)
+      ? await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate)
+      : 0;
     const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
-    const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + tax) * 100) / 100;
+    // Service fee from app_config (platform_service_fee_rate).
+    const platformServiceFee = Math.round(subtotal * serviceFeeRate * 100) / 100;
+    const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + platformServiceFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
 
     // ── 8. Create order ─────────────────────────────────────────────────
     // PAYMENT GATE:
-    //   card   → 'draft' until stripe-webhook sets payment_status = 'completed'
+    //   card   → charge Stripe BEFORE insert; order only created on success
     //   wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
-    //   cash   → 'preparing' immediately
+    //   cash   → 'preparing' immediately (collected on delivery)
     const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
     const isWalletPayment = paymentMethod === "wallet";
-    const initialStatus = isCardPayment ? "draft" : "preparing";
+    const initialStatus = "preparing";
 
     const orderId: string = crypto.randomUUID();
 
-    // wallet_deduct has no order_id FK so it safely runs before the order row exists.
+    // ── 8a. Wallet gate ───────────────────────────────────────────────────
     if (isWalletPayment) {
       const { error: walletErr } = await admin.rpc("wallet_deduct", {
         p_user_id:     userId,
@@ -309,6 +339,46 @@ Deno.serve(async (request) => {
           { error: isInsufficient ? "Insufficient wallet balance" : msg },
           isInsufficient ? 402 : 500,
         );
+      }
+    }
+
+    // ── 8b. Card gate — charge/verify BEFORE inserting the order ─────────
+    // Saved card (single store): charge now.
+    // Pre-charged PI (multi-store): caller already charged the full total,
+    //   just verify the PI succeeded before creating this store's sub-order.
+    if (isCardPayment) {
+      if (!stripeKey) {
+        return json({ error: "Payment provider not configured." }, 500);
+      }
+      if (incomingPaymentIntentId) {
+        // Multi-store path: PI was pre-charged by Flutter for the full order total.
+        // Verify it succeeded — no amount check (each sub-order is a portion of total).
+        const pi = await stripeGet(`/payment_intents/${encodeURIComponent(incomingPaymentIntentId)}`);
+        const piStatus = pi.status as string;
+        if (piStatus !== "succeeded" && piStatus !== "requires_capture") {
+          return json({ error: "Payment not confirmed. Please complete payment first." }, 402);
+        }
+      } else if (savedCardPaymentMethodId) {
+        // Single-store path: charge now.
+        const custId = await getStripeCustomerId(userId);
+        const pi = await stripePost("/payment_intents", {
+          amount:          String(Math.round(grandTotal * 100)),
+          currency:        "usd",
+          payment_method:  savedCardPaymentMethodId,
+          ...(custId ? { customer: custId } : {}),
+          off_session:     "true",
+          confirm:         "true",
+          "metadata[type]":    "grocery_order",
+          "metadata[user_id]": userId,
+        });
+        const piStatus = pi.status as string;
+        if (pi.error || (piStatus !== "succeeded" && piStatus !== "requires_capture")) {
+          const errMsg = ((pi.error as Record<string, unknown>)?.message as string)
+            ?? "Card charge failed. Please try a different card.";
+          return json({ error: errMsg }, 402);
+        }
+      } else {
+        return json({ error: "Card payment information required. Please select a saved card." }, 402);
       }
     }
 
@@ -330,7 +400,7 @@ Deno.serve(async (request) => {
       tax_amount: tax,
       total_amount: grandTotal,
       payment_method: paymentMethod,
-      payment_status: isWalletPayment ? "completed" : "pending",
+      payment_status: (isCardPayment || isWalletPayment) ? "completed" : "pending",
       is_pickup: isPickup,
       special_instructions: specialInstructions ?? null,
       delivery_address: isPickup ? store.address : deliveryAddress,
@@ -407,13 +477,10 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Receipt email: send immediately for cash/wallet; card orders get it
-    // from stripe-webhook after payment_intent.succeeded fires.
-    if (!isCardPayment) {
-      admin.functions.invoke("send-receipt-email", {
-        body: { order_id: orderId },
-      }).catch(() => {});
-    }
+    // Payment confirmed before insert for all methods — send receipt immediately.
+    admin.functions.invoke("send-receipt-email", {
+      body: { order_id: orderId },
+    }).catch(() => {});
 
     return json({
       success: true,

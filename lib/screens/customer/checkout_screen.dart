@@ -31,7 +31,6 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../widgets/outstanding_debt_banner.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/decision_engine_provider.dart';
-import '../../utils/app_logger.dart';
 import 'home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -222,7 +221,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
-    final platformServiceFee = subtotal * AppConstants.platformServiceFeeRate;
+    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
 
     // Zone-based tax: look up the delivery zone only when coords are known.
     final taxKey = (!isPickup && delLat != null && delLng != null)
@@ -1393,7 +1392,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
       final orderService = ref.read(orderServiceProvider);
       final orderCalcService = ref.read(orderCalculationServiceProvider);
-      final paymentService = ref.read(paymentServiceProvider);
       final cart = ref.read(cartProvider);
       final appliedPromo = ref.read(appliedPromoProvider);
       final selectedAddress = ref.read(selectedAddressProvider);
@@ -1494,12 +1492,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       final isFromAd =
           activeAd != null && activeAd.restaurantId == restaurantId;
 
-      // ── Card: complete Stripe payment ────────────────────────────────────
-      // Order must exist first so the edge function can validate the orderId.
-      // Flow: create order (pending) → Stripe sheet → confirm → done.
-      // On cancel/failure the pending order is deleted.
+      // ── Card: validate saved card exists BEFORE creating any order ─────────
+      // The edge function (place-order) charges Stripe BEFORE inserting the order
+      // row, so payment failure can never leave a ghost order in the database.
+      String? savedCardPmId;
+      if (_selectedPayment == 'stripe') {
+        final savedCard = _selectedSavedCard;
+        savedCardPmId = savedCard?.stripePaymentMethodId;
+        if (savedCard == null || savedCardPmId == null || savedCardPmId.isEmpty) {
+          setState(() => _placingOrder = false);
+          if (!mounted) return;
+          AppSnackbar.warning(
+            context,
+            'Please add a payment card from Profile → Payment Methods to pay by card.',
+          );
+          return;
+        }
+      }
 
-      // ── Create the order in the DB ────────────────────────────────────────
+      // ── Create the order in the DB (payment gated inside edge function) ────
+      // For card payments, savedCardPmId is passed so place-order charges Stripe
+      // first; the order row is only inserted after the charge succeeds.
+      // Wallet is deducted atomically in the edge function before insert.
+      // Cash orders require no upfront payment.
       final order = await orderService.createOrder(
         userId: userId,
         restaurantId: restaurantId,
@@ -1526,6 +1541,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         fromAd: isFromAd,
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,
+        savedCardPaymentMethodId: savedCardPmId,
       );
 
       // Clear active ad after order placed
@@ -1534,67 +1550,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       if (order == null) {
         throw Exception('Order could not be created. Please try again.');
       }
-
-      // Wallet payment is now handled atomically inside the place-order edge
-      // function before the order row is inserted — nothing to do here.
-
-      // ── Stripe: saved card (off-session) ─────────────────────────────────
-      if (_selectedPayment == 'stripe') {
-        final savedCard = _selectedSavedCard;
-        final pmId = savedCard?.stripePaymentMethodId;
-
-        if (savedCard != null && pmId != null && pmId.isNotEmpty) {
-          // ── Off-session charge using a saved verified card (same server-side
-          //    approach as the card verification charge — no Stripe UI needed) ──
-          try {
-            final ok = await paymentService.chargeWithSavedCard(
-              orderId: order.id,
-              amount: verifiedTotal + outstandingDebt,
-              paymentMethodId: pmId,
-            );
-            if (!mounted) return;
-            if (!ok) {
-              setState(() => _placingOrder = false);
-              final cleaned = await paymentService
-                  .cleanupUnpaidOrder(order.id)
-                  .timeout(const Duration(seconds: 10), onTimeout: () => false);
-              if (!cleaned) await _deleteOrder(order.id);
-              if (!mounted) return;
-              AppSnackbar.error(
-                context,
-                'Card payment failed. Please try again.',
-              );
-              return;
-            }
-            AppLogger.info('Order ${order.id} charged via saved card $pmId');
-          } catch (e) {
-            if (!mounted) return;
-            setState(() => _placingOrder = false);
-            final cleaned = await paymentService
-                .cleanupUnpaidOrder(order.id)
-                .timeout(const Duration(seconds: 10), onTimeout: () => false);
-            if (!cleaned) await _deleteOrder(order.id);
-            AppSnackbar.error(
-              context,
-              'Card payment failed: ${friendlyError(e)}',
-            );
-            return;
-          }
-        } else {
-          // No saved card — prompt user to add one; cancel this draft order.
-          setState(() => _placingOrder = false);
-          final cleaned = await paymentService
-              .cleanupUnpaidOrder(order.id)
-              .timeout(const Duration(seconds: 10), onTimeout: () => false);
-          if (!cleaned) await _deleteOrder(order.id);
-          if (!mounted) return;
-          AppSnackbar.warning(
-            context,
-            'Please add a payment card from Profile → Payment Methods to pay by card.',
-          );
-          return;
-        }
-      }
+      // Payment confirmed inside edge function — no separate charge needed.
 
       // ── Navigate to success immediately ─────────────────────────────────
       // Do this before any post-order bookkeeping so the user is never
@@ -1749,17 +1705,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     }
   }
 
-  /// Silently delete an unpaid order so nothing lingers in the database.
-  Future<void> _deleteOrder(String orderId) async {
-    try {
-      final client = SupabaseConfig.client;
-      await client.from('order_items').delete().eq('order_id', orderId);
-      await client.from('payments').delete().eq('order_id', orderId);
-      await client.from('orders').delete().eq('id', orderId);
-    } catch (_) {
-      // Best-effort cleanup – don't block the user.
-    }
-  }
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────

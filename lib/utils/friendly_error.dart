@@ -72,7 +72,7 @@ String friendlyError(Object? error) {
       msg.contains('legacy_jwt') ||
       msg.contains('invalid jwt') ||
       msg.contains('unauthorized_legacy')) {
-    return 'Something went wrong. Please try again.';
+    return 'Your session has expired. Please sign out and sign in again.';
   }
   if (msg.contains('please sign in first')) {
     return 'Please sign in (or confirm your email) to continue.';
@@ -82,6 +82,16 @@ String friendlyError(Object? error) {
       msg.contains('insufficient_privilege')) {
     return 'You don\'t have permission to do that.';
   }
+
+  // Payment / card declines
+  if (msg.contains('insufficient funds') || msg.contains('insufficient_funds'))
+    return 'Your card has insufficient funds. Please add funds or use a different card.';
+  if (msg.contains('card was declined') || msg.contains('card_declined') || msg.contains('do_not_honor'))
+    return 'Your card was declined. Please try a different card.';
+  if (msg.contains('expired card') || msg.contains('card_expired'))
+    return 'Your card is expired. Please use a different card.';
+  if (msg.contains('lost_card') || msg.contains('stolen_card'))
+    return 'Your card could not be processed. Please use a different card.';
 
   // Supabase / Postgres
   if (msg.contains('duplicate key') || msg.contains('unique constraint')) {
