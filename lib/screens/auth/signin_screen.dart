@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
@@ -405,20 +405,27 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     // Social login buttons
                     Row(
                       children: [
-                        // Google
-                        Expanded(
-                          child: _SocialButton(
-                            onPressed: (_isGoogleLoading || authState.isLoading)
-                                ? null
-                                : _handleGoogleSignIn,
-                            icon: _googleIcon(),
-                            label: 'Google',
-                            isLoading: _isGoogleLoading,
+                        // Google — hidden on iOS
+                        if (kIsWeb ||
+                            defaultTargetPlatform != TargetPlatform.iOS) ...[
+                          Expanded(
+                            child: _SocialButton(
+                              onPressed: (_isGoogleLoading || authState.isLoading)
+                                  ? null
+                                  : _handleGoogleSignIn,
+                              icon: _googleIcon(),
+                              label: 'Google',
+                              isLoading: _isGoogleLoading,
+                            ),
                           ),
-                        ),
-                        // Apple — only on iOS/macOS
-                        if (Platform.isIOS || Platform.isMacOS) ...[
-                          const SizedBox(width: 12),
+                        ],
+                        // Apple — only on native Apple platforms
+                        if (!kIsWeb &&
+                            (defaultTargetPlatform == TargetPlatform.iOS ||
+                                defaultTargetPlatform == TargetPlatform.macOS)) ...[
+                          if (kIsWeb ||
+                              defaultTargetPlatform != TargetPlatform.iOS)
+                            const SizedBox(width: 12),
                           Expanded(
                             child: _SocialButton(
                               onPressed: authState.isLoading
