@@ -113,68 +113,72 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         title: const Text('Add New Card'),
         backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,
       ),
-      body: Column(
-        children: [
-          // ── Scrollable section (header + card preview) ───────────────────
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Icon(Icons.credit_card, color: hintColor, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Add Payment Method',
-                              style: TextStyle(
-                                fontSize: Responsive.headingMedium(context),
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                            Text(
-                              'Securely add your credit or debit card',
-                              style: TextStyle(fontSize: 13, color: hintColor),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Card preview
-                  _buildCardPreview(isDark),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
+      body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
           ),
-
-          // ── Sticky bottom panel: CardFormField + Save button ─────────────
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF111827) : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, -4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header + card preview ──────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.credit_card, color: hintColor, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Add Payment Method',
+                                style: TextStyle(
+                                  fontSize: Responsive.headingMedium(context),
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              Text(
+                                'Securely add your credit or debit card',
+                                style: TextStyle(fontSize: 13, color: hintColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildCardPreview(isDark),
+                    const SizedBox(height: 16),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+              ),
+
+              // ── Card form + Save button ────────────────────────────────────
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF111827) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 // Card form header row
                 Row(
                   children: [
@@ -345,8 +349,11 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
           ),
         ],
       ),
+    ),
+  ),
     );
   }
+
 
   Widget _buildCardPreview(bool isDark) {
     return Container(

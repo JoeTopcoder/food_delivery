@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,28 @@ class AuthLaunchGateScreen extends ConsumerStatefulWidget {
 
 class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
   bool _navigated = false;
+  Timer? _loadingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Hard cap: if auth stays loading for >10 s (e.g. DB query hangs on slow
+    // network after a cold restart), fall through to role-selection instead of
+    // showing an infinite spinner.
+    _loadingTimer = Timer(const Duration(seconds: 10), () {
+      if (!mounted || _navigated) return;
+      if (ref.read(authNotifierProvider).isLoading) {
+        _navigated = true;
+        Navigator.of(context).pushReplacementNamed('/role-selection');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _loadingTimer?.cancel();
+    super.dispose();
+  }
 
   static OnboardingRole? _roleFromDeepLink() {
     final route = WidgetsBinding.instance.platformDispatcher.defaultRouteName
