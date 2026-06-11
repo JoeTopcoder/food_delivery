@@ -264,8 +264,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (_) {}
 
     // Fetch fresh profile from DB in the background (or block if no cache yet).
+    // 8-second timeout prevents an indefinite hang on slow networks/resume.
     try {
-      User? user = await _userService.getUserById(userId);
+      User? user = await _userService
+          .getUserById(userId)
+          .timeout(const Duration(seconds: 8), onTimeout: () => null);
       if (user == null) {
         final supabaseUser = _authService.getCurrentUser();
         final meta = supabaseUser?.userMetadata ?? {};
@@ -290,7 +293,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
 
       // Persist fresh profile for next launch.
-      unawaited(CacheService.put(cacheBox, userId, user.toJson(), ttlSeconds: 3600));
+      unawaited(CacheService.put(cacheBox, userId, user.toJson(), ttlSeconds: 86400));
 
       final previousUserId = state.user?.id;
       state = state.copyWith(

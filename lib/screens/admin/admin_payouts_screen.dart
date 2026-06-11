@@ -111,6 +111,47 @@ class _AdminPayoutsScreenState extends ConsumerState<AdminPayoutsScreen>
   }
 }
 
+// ── Balance badge (restaurant only) ──────────────────────────────────────────
+
+class _RestaurantBalanceBadge extends ConsumerWidget {
+  final String restaurantId;
+  const _RestaurantBalanceBadge({required this.restaurantId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final balanceAsync = ref.watch(
+      restaurantAvailableBalanceProvider(restaurantId),
+    );
+    return balanceAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (balance) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.account_balance_wallet_rounded,
+              size: 13,
+              color: Color(0xFF0EA5E9),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Available balance: ${AppConstants.currencySymbol}${NumberFormat('#,##0.00').format(balance)}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0EA5E9),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Payout card ───────────────────────────────────────────────────────────────
+
 class _PayoutCard extends ConsumerStatefulWidget {
   final PayoutRequest payout;
   final NumberFormat fmt;
@@ -211,7 +252,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
               ],
             ),
           ),
-          // ── Amount + details ──
+          // ── Amount + date ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Row(
@@ -266,8 +307,13 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                 ),
               ),
             ),
+          // ── Available balance badge (restaurant only) ──
+          if (p.requesterType == 'restaurant' && p.restaurantId != null)
+            _RestaurantBalanceBadge(restaurantId: p.restaurantId!),
           // ── Action buttons ──
-          if (p.status == 'pending' || p.status == 'approved')
+          if (p.status == 'pending' ||
+              p.status == 'approved' ||
+              (p.status == 'processing' && p.requesterType == 'restaurant'))
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Row(
@@ -292,12 +338,33 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                     ),
                   ],
                   if (p.status == 'approved') ...[
+                    if (p.requesterType == 'driver')
+                      Expanded(
+                        child: _actionBtn(
+                          label: 'Pay via Stripe',
+                          color: const Color(0xFF6366F1),
+                          icon: Icons.payment_rounded,
+                          onTap: () => _openStripePayoutDialog(p),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: _actionBtn(
+                          label: 'Process & Wire',
+                          color: const Color(0xFF0EA5E9),
+                          icon: Icons.account_balance_rounded,
+                          onTap: () => _openRestaurantPayoutDialog(p),
+                        ),
+                      ),
+                  ],
+                  if (p.status == 'processing' &&
+                      p.requesterType == 'restaurant') ...[
                     Expanded(
                       child: _actionBtn(
-                        label: 'Pay via Stripe',
-                        color: const Color(0xFF6366F1),
-                        icon: Icons.payment_rounded,
-                        onTap: () => _openStripePayoutDialog(p),
+                        label: 'Mark Completed',
+                        color: const Color(0xFF22C55E),
+                        icon: Icons.task_alt_rounded,
+                        onTap: () => _markCompleted(p.id),
                       ),
                     ),
                   ],
@@ -387,16 +454,29 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
     }
   }
 
-  Future<void> _openStripePayoutDialog(dynamic payout) async {
+  Future<void> _markCompleted(String id) async {
+    setState(() => _processing = true);
+    try {
+      await ref.read(payoutServiceProvider).markPayoutCompleted(payoutId: id);
+      _snack('Payout marked as completed', Colors.green);
+      widget.onAction();
+    } catch (e) {
+      _snack(friendlyError(e), Colors.red);
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _openStripePayoutDialog(PayoutRequest payout) async {
     final amount = NumberFormat.currency(
       symbol: '${AppConstants.currencySymbol} ',
       decimalDigits: 2,
     ).format(payout.amount);
     final details =
-        'Bank: ${payout.bankName ?? 'N/A'}\n'
+        'Bank: ${payout.bankName}\n'
         'Branch: ${payout.bankBranch ?? 'N/A'}\n'
-        'Account: ${payout.bankAccountNumber ?? 'N/A'}\n'
-        'Holder: ${payout.bankAccountHolder ?? 'N/A'}\n'
+        'Account: ${payout.bankAccountNumber}\n'
+        'Holder: ${payout.bankAccountHolder}\n'
         'Amount: $amount';
 
     if (!mounted) return;
@@ -448,7 +528,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This will send the payment to the recipient via Stripe.',
+                      'This will send the payment to the driver via Stripe Connect.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                     ),
                   ),
@@ -480,7 +560,6 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
     if (confirmed != true) return;
 
-    // Process the payout via Stripe
     setState(() => _processing = true);
     try {
       final result = await ref
@@ -500,6 +579,166 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
       _snack('Stripe payout failed: ${friendlyError(e)}', Colors.red);
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  Future<void> _openRestaurantPayoutDialog(PayoutRequest payout) async {
+    final amtFmt = NumberFormat.currency(
+      symbol: '${AppConstants.currencySymbol} ',
+      decimalDigits: 2,
+    );
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.account_balance_rounded,
+              color: Color(0xFF0EA5E9),
+              size: 22,
+            ),
+            SizedBox(width: 8),
+            Text('Bank Wire Transfer'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Wire these funds to the restaurant:',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _dialogRow('Amount', amtFmt.format(payout.amount)),
+                  _dialogRow('Recipient', payout.bankAccountHolder),
+                  _dialogRow('Bank', payout.bankName),
+                  if (payout.bankBranch != null &&
+                      payout.bankBranch!.isNotEmpty)
+                    _dialogRow('Branch', payout.bankBranch!),
+                  _dialogRow('Account', payout.bankAccountNumber),
+                  if (payout.bankAccountType != null)
+                    _dialogRow('Acct Type', payout.bankAccountType!),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF3B82F6),
+                    size: 16,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pressing "Process" records the debit and marks this payout as Processing. '
+                      'Then complete the bank wire manually and press "Mark Completed".',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.account_balance_rounded, size: 16),
+            label: const Text('Process'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0EA5E9),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _processing = true);
+    try {
+      final result = await ref
+          .read(payoutServiceProvider)
+          .processRestaurantPayout(payout.id);
+      widget.onAction();
+      if (mounted) {
+        setState(() => _processing = false);
+        _snack(
+          'Payout processing — complete the bank wire then mark it done.',
+          Colors.blue,
+        );
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PayoutSuccessScreen(result: result),
+          ),
+        );
+      }
+    } catch (e) {
+      _snack('Failed: ${friendlyError(e)}', Colors.red);
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Widget _dialogRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showRejectDialog(String id) {

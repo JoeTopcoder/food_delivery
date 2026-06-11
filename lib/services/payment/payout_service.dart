@@ -228,10 +228,38 @@ class PayoutService {
           .select()
           .single();
       AppLogger.info('Restaurant payout request created: ${response['id']}');
+
+      await _recalcRestaurantPaidOut(restaurantId);
+
       return PayoutRequest.fromJson(response);
     } catch (e) {
       AppLogger.error('Error requesting restaurant payout: $e');
       rethrow;
+    }
+  }
+
+  /// Recalculate total_paid_out for a restaurant from all active payout requests
+  /// (pending, approved, processing, completed — excludes rejected/failed).
+  Future<void> _recalcRestaurantPaidOut(String restaurantId) async {
+    try {
+      final rows = await _client
+          .from('payout_requests')
+          .select('amount, status')
+          .eq('restaurant_id', restaurantId)
+          .not('status', 'in', '(rejected,failed)');
+      final total = (rows as List).fold<double>(
+        0.0,
+        (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0.0),
+      );
+      await _client
+          .from(AppConstants.tableRestaurants)
+          .update({
+            'total_paid_out': total,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', restaurantId);
+    } catch (e) {
+      AppLogger.error('Error recalculating restaurant paid out: $e');
     }
   }
 
@@ -445,21 +473,74 @@ class PayoutService {
     try {
       final orders = await _client
           .from(AppConstants.tableOrders)
-          .select('total_amount, delivery_fee')
+          .select('total_amount, delivery_fee, commission_amount')
           .eq('restaurant_id', restaurantId)
           .eq('status', AppConstants.orderDelivered);
       double total = 0;
       for (final o in (orders as List)) {
         final orderTotal = (o['total_amount'] as num?)?.toDouble() ?? 0;
         final deliveryFee = (o['delivery_fee'] as num?)?.toDouble() ?? 0;
-        total +=
-            orderTotal -
-            deliveryFee; // Restaurant gets order minus delivery fee
+        final commission = (o['commission_amount'] as num?)?.toDouble() ?? 0;
+        total += orderTotal - deliveryFee - commission;
       }
       return total;
     } catch (e) {
       AppLogger.error('Error calculating restaurant earnings: $e');
       return 0;
+    }
+  }
+
+  /// Calls the process-restaurant-payout edge function (Option B manual wire flow).
+  /// Marks the request as 'processing', records a debit, returns bank-wire details.
+  Future<Map<String, dynamic>> processRestaurantPayout(String payoutId) async {
+    try {
+      final response = await _client.functions.invoke(
+        'process-restaurant-payout',
+        body: {'payout_request_id': payoutId},
+      );
+
+      final data = response.data as Map<String, dynamic>?;
+      if (data == null || data['success'] != true) {
+        final error = data?['error'] ?? 'Failed to process restaurant payout';
+        throw Exception(error);
+      }
+
+      final restaurantId = data['restaurant_id'] as String?;
+      if (restaurantId != null) {
+        await _recalcRestaurantPaidOut(restaurantId);
+      }
+
+      final wire = data['wire_details'] as Map<String, dynamic>? ?? {};
+      AppLogger.info('Restaurant payout processing: $payoutId');
+      return {
+        'payout_id': payoutId,
+        'payout_reference': '',
+        'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+        'recipient_name': wire['recipient_name'] ?? '',
+        'bank_name': wire['bank_name'] ?? '',
+        'bank_account': wire['account_number'] ?? '',
+        'requester_type': 'restaurant',
+        'status': 'processing',
+        'note': data['note'] ?? '',
+      };
+    } catch (e) {
+      AppLogger.error('Error processing restaurant payout: $e');
+      rethrow;
+    }
+  }
+
+  /// Reads the restaurant_balance_view for a restaurant's available balance.
+  Future<double> getRestaurantAvailableBalance(String restaurantId) async {
+    try {
+      final row = await _client
+          .from('restaurant_balance_view')
+          .select('available_balance')
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle();
+      return (row?['available_balance'] as num?)?.toDouble() ?? 0.0;
+    } catch (e) {
+      AppLogger.error('Error fetching restaurant available balance: $e');
+      return 0.0;
     }
   }
 

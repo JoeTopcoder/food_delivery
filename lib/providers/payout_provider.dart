@@ -36,3 +36,9 @@ final restaurantTotalPaidOutProvider = FutureProvider.family
       final service = ref.watch(payoutServiceProvider);
       return service.getTotalPaidOut(restaurantId, 'restaurant');
     });
+
+final restaurantAvailableBalanceProvider = FutureProvider.family
+    .autoDispose<double, String>((ref, restaurantId) async {
+      final service = ref.watch(payoutServiceProvider);
+      return service.getRestaurantAvailableBalance(restaurantId);
+    });
