@@ -271,12 +271,13 @@ Deno.serve(async (request) => {
       if (savedCardPaymentMethodId) {
         const custId = await getStripeCustomerId(userId);
         const pi = await stripePost("/payment_intents", {
-          amount:          String(Math.round(totalAmount * 100)),
-          currency:        "usd",
-          payment_method:  savedCardPaymentMethodId,
+          amount:              String(Math.round(totalAmount * 100)),
+          currency:            "usd",
+          payment_method:      savedCardPaymentMethodId,
           ...(custId ? { customer: custId } : {}),
-          off_session:     "true",
-          confirm:         "true",
+          off_session:         "true",
+          confirm:             "true",
+          description:         "Food Order",
           "metadata[type]":    "food_order",
           "metadata[user_id]": userId,
         });

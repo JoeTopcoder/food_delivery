@@ -748,10 +748,14 @@ Deno.serve(async (request) => {
       const customerId = await getOrCreateStripeCustomer(adminClient, userData.user.id, email, name);
       const amountInCents = Math.round(amount * 100);
       const description = txnType === "wallet_topup"
-        ? `Wallet top-up ${orderId}`
+        ? "Wallet Top-Up"
         : txnType === "ride"
-        ? `Ride payment ${orderId}`
-        : `Order payment ${orderId}`;
+        ? "Ride"
+        : txnType === "car_service"
+        ? "Car Service"
+        : txnType === "food_pre_charge"
+        ? "Food & Grocery Order"
+        : "Order";
 
       // Create PI with payment method attached but NOT confirmed —
       // Flutter SDK will confirm it client-side so CVC can be collected.
@@ -846,10 +850,14 @@ Deno.serve(async (request) => {
 
       const amountInCents = Math.round(amount * 100);
       const description = txnType === "wallet_topup"
-        ? `Wallet top-up ${orderId}`
+        ? "Wallet Top-Up"
         : txnType === "ride"
-        ? `Ride payment ${orderId}`
-        : `Order payment ${orderId}`;
+        ? "Ride"
+        : txnType === "car_service"
+        ? "Car Service"
+        : txnType === "food_pre_charge"
+        ? "Food & Grocery Order"
+        : "Order";
 
       // Create and immediately confirm the PaymentIntent off-session
       const pi = await stripeRequest("/payment_intents", {
