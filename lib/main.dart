@@ -98,6 +98,8 @@ import 'screens/customer/feedback_screen.dart';
 import 'screens/customer/wallet_screen.dart';
 import 'screens/restaurant/restaurant_dashboard_screen.dart';
 import 'screens/restaurant/restaurant_order_management_screen.dart';
+import 'web/restaurant/restaurant_web_app.dart';
+import 'web/admin/admin_web_app.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
@@ -420,6 +422,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  // Set at build time via --dart-define=WEB_MODE=restaurant|admin|full
+  static const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
+
   static Widget _getHomeForRole(String? role) {
     switch (role) {
       case 'customer':
@@ -428,8 +433,14 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       case 'driver':
         return const DriverDashboardScreen();
       case 'restaurant':
+        if (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) {
+          return const RestaurantWebApp();
+        }
         return const RestaurantDashboardScreen();
       case 'admin':
+        if (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) {
+          return const AdminWebApp();
+        }
         return const AdminDashboardScreen();
       case 'service_provider':
         return const CarServiceProviderDashboardScreen();
@@ -615,9 +626,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             // Admin Routes
             case '/admin-dashboard':
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['admin'],
-                  child: AdminDashboardScreen(),
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['admin'],
+                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) ? const AdminWebApp() : const AdminDashboardScreen(),
                 ),
               );
             case '/admin-users':
@@ -659,9 +670,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             // Restaurant Routes
             case '/restaurant-dashboard':
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['restaurant'],
-                  child: RestaurantDashboardScreen(),
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['restaurant'],
+                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) ? const RestaurantWebApp() : const RestaurantDashboardScreen(),
                 ),
               );
             case '/restaurant-orders':

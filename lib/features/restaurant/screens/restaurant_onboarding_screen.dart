@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +8,7 @@ import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
 import '../../../features/auth/widgets/social_auth_panel.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/app_theme.dart';
@@ -241,6 +243,16 @@ class _RestaurantOnboardingScreenState
             'Confirm your email, then sign in to complete your application.',
           );
           Navigator.of(context).pushReplacementNamed('/signin/restaurant');
+          return;
+        }
+        if (kIsWeb) {
+          // On web, RestaurantWebApp controls routing based on restaurant status.
+          // Invalidating the provider triggers re-render → WebPendingApprovalPage.
+          ref.invalidate(restaurantByOwnerProvider(userId));
+          AppSnackbar.success(
+            context,
+            'Application submitted! We will review your restaurant shortly.',
+          );
           return;
         }
         Navigator.of(

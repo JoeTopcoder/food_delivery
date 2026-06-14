@@ -1,11 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Camera & Media Permissions -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <!-- Agora Voice Call Permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Full-screen intent for incoming call screen -->
@@ -16,6 +15,8 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Strip MEDIA_PROJECTION injected by io.agora.rtc:full-screen-sharing — not used by this app -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove"/>
     <application
         android:label="7DASH"
         android:name="${applicationName}"

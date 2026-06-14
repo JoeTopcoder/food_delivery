@@ -10,10 +10,16 @@ import '../../../screens/driver/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/restaurant_dashboard_screen.dart';
 import '../../../screens/admin/admin_dashboard_screen.dart';
 import '../../../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
+import '../../../web/restaurant/restaurant_landing_page.dart';
+import '../../../web/restaurant/restaurant_web_app.dart';
+import '../../../web/admin/admin_web_app.dart';
 import '../../../widgets/role_guard.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 import 'role_selection_screen.dart';
+
+// Injected at build time via --dart-define=WEB_MODE=restaurant|admin|full
+const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
 
 class AuthLaunchGateScreen extends ConsumerStatefulWidget {
   const AuthLaunchGateScreen({super.key});
@@ -83,13 +89,22 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
     if (auth.isAuthenticated) {
       final role = auth.user?.role;
 
-      // On web only admin access is allowed.
-      if (kIsWeb && role != 'admin') {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          ref.read(authNotifierProvider.notifier).signOut();
-        });
-        return const _WebAdminOnlyScreen();
+      // On web, enforce role matches the build mode.
+      if (kIsWeb) {
+        final allowed = _webMode == 'restaurant'
+            ? role == 'restaurant'
+            : _webMode == 'admin'
+                ? role == 'admin'
+                : true; // full mode: allow all
+        if (!allowed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.read(authNotifierProvider.notifier).signOut();
+          });
+          return _webMode == 'restaurant'
+              ? const RestaurantLandingPage()
+              : const _WebAdminOnlyScreen();
+        }
       }
 
       switch (role) {
@@ -105,14 +120,18 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
             child: DriverDashboardScreen(),
           );
         case 'restaurant':
-          return const RoleGuard(
-            allowedRoles: ['restaurant'],
-            child: RestaurantDashboardScreen(),
+          return RoleGuard(
+            allowedRoles: const ['restaurant'],
+            child: (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant'))
+                ? const RestaurantWebApp()
+                : const RestaurantDashboardScreen(),
           );
         case 'admin':
-          return const RoleGuard(
-            allowedRoles: ['admin'],
-            child: AdminDashboardScreen(),
+          return RoleGuard(
+            allowedRoles: const ['admin'],
+            child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin'))
+                ? const AdminWebApp()
+                : const AdminDashboardScreen(),
           );
         case 'service_provider':
           return const RoleGuard(
@@ -124,13 +143,19 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
             if (!mounted) return;
             ref.read(authNotifierProvider.notifier).signOut();
           });
-          return kIsWeb ? const _WebAdminOnlyScreen() : const RoleSelectionScreen();
+          return kIsWeb && _webMode == 'restaurant'
+              ? const RestaurantLandingPage()
+              : kIsWeb
+                  ? const _WebAdminOnlyScreen()
+                  : const RoleSelectionScreen();
       }
     }
 
-    // Not authenticated — on web navigate to the sign-in route so SignInScreen
-    // renders as a proper route (with full context: theme, l10n, navigator).
+    // Not authenticated
     if (kIsWeb) {
+      // Restaurant build: show the marketing landing page directly
+      if (_webMode == 'restaurant') return const RestaurantLandingPage();
+      // Admin/full build: navigate to sign-in
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.of(context).pushReplacementNamed('/signin');

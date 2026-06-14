@@ -14,6 +14,15 @@ class OnboardingService {
 
   String? get currentUserId => _client.auth.currentUser?.id;
 
+  static String _roleFallback(OnboardingRole role) {
+    switch (role) {
+      case OnboardingRole.restaurant:     return 'Restaurant Partner';
+      case OnboardingRole.driver:         return 'Driver';
+      case OnboardingRole.customer:       return 'Customer';
+      case OnboardingRole.serviceProvider:return 'Service Provider';
+    }
+  }
+
   Future<void> sendOtp(String phone) async {
     final normalizedPhone = _normalizePhone(phone);
     try {
@@ -94,11 +103,18 @@ class OnboardingService {
       'updated_at': DateTime.now().toIso8601String(),
     };
     if (phone != null) userPayload['phone'] = phone;
-    // name is NOT NULL — always provide a value; fall back to email prefix or userId.
+    // name is NOT NULL — always provide a value; pull from auth metadata before
+    // falling back to the email prefix, then a role-appropriate placeholder.
     final effectiveEmail = (email != null && email.isNotEmpty) ? email : null;
+    final authMeta = _client.auth.currentUser?.userMetadata;
+    final authDisplayName = (authMeta?['full_name'] as String?)?.trim().isNotEmpty == true
+        ? authMeta!['full_name'] as String
+        : (authMeta?['name'] as String?)?.trim().isNotEmpty == true
+            ? authMeta!['name'] as String
+            : null;
     userPayload['name'] = (name != null && name.isNotEmpty)
         ? name
-        : effectiveEmail?.split('@').first ?? 'Driver';
+        : authDisplayName ?? effectiveEmail?.split('@').first ?? _roleFallback(role);
     // email is NOT NULL in base schema — use a placeholder for OTP (phone-only) users.
     userPayload['email'] = effectiveEmail ?? '$userId@otp.fooddriver.app';
 
@@ -252,10 +268,17 @@ class OnboardingService {
     // throws (RLS, missing column, etc.) — the trigger or a later sign-in
     // will recover.
     try {
+      final authMeta = _client.auth.currentUser?.userMetadata;
+      final authName = (authMeta?['full_name'] as String?)?.trim().isNotEmpty == true
+          ? authMeta!['full_name'] as String
+          : (authMeta?['name'] as String?)?.trim().isNotEmpty == true
+              ? authMeta!['name'] as String
+              : null;
       await ensureUserRecord(
         userId: userId,
         role: OnboardingRole.restaurant,
         phone: phone,
+        name: authName,
         onboardingCompleted: goLive,
       );
     } catch (e) {

@@ -55,3 +55,4 @@ app.*.map.json
 app-release.apks
 bundletool.jar
 android/app/*.apk
+.vercel

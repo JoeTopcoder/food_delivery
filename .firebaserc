@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "fooddelivery-bebe2"
-  }
+  },
+  "targets": {
+    "fooddelivery-bebe2": {
+      "hosting": {
+        "restaurant": [
+          "fooddelivery-bebe2-restaurant"
+        ],
+        "admin": [
+          "fooddelivery-bebe2-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

@@ -25,7 +25,8 @@ String friendlyError(Object? error) {
   if (msg.contains('email not confirmed')) {
     return 'Please verify your email before signing in.';
   }
-  if (msg.contains('google sign-in was cancelled')) {
+  if (msg.contains('google sign-in was cancelled') ||
+      msg.contains('sign_in_canceled')) {
     return 'Google sign-in was cancelled.';
   }
   if (msg.contains('google sign-in is not fully configured')) {
