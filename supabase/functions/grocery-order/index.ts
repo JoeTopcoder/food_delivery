@@ -203,7 +203,7 @@ Deno.serve(async (request) => {
     }
 
     // ── 3. Fetch config ─────────────────────────────────────────────────
-    const [globalTaxRate, taxEnabledFlag, serviceFeeRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2] =
+    const [globalTaxRate, taxEnabledFlag, serviceFeeRate, baseFee, perKmFee, baseKm, maxKm, surgeMultiplier, defaultDeliveryFee, peakAddonFee, peakStart, peakEnd, peakStart2, peakEnd2, defaultCommissionRate] =
       await Promise.all([
         getConfig("tax_rate", 0.0),
         getConfig("tax_enabled", 0),
@@ -219,6 +219,7 @@ Deno.serve(async (request) => {
         getConfig("peak_hours_end", 14),
         getConfig("peak_hours_start_2", 18),
         getConfig("peak_hours_end_2", 21),
+        getConfig("default_commission_rate", 0.15),
       ]);
     const isTaxEnabled = taxEnabledFlag > 0;
 
@@ -313,6 +314,9 @@ Deno.serve(async (request) => {
     const platformServiceFee = Math.round(subtotal * serviceFeeRate * 100) / 100;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + platformServiceFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
+    // Commission: per-store rate overrides global default_commission_rate.
+    const commissionRate: number = (store.commission_rate as number | null) ?? defaultCommissionRate;
+    const commissionAmount = Math.round(subtotal * commissionRate * 100) / 100;
 
     // ── 8. Create order ─────────────────────────────────────────────────
     // PAYMENT GATE:
@@ -413,6 +417,8 @@ Deno.serve(async (request) => {
       pickup_code: isPickup ? generatePickupCode() : null,
       delivery_otp: !isPickup ? generateOtp() : null,
       receipt_number: receiptNumber,
+      commission_rate: commissionRate,
+      commission_amount: commissionAmount,
     };
 
     const { data: order, error: orderErr } = await admin
@@ -502,6 +508,8 @@ Deno.serve(async (request) => {
         receipt_number: receiptNumber,
         item_count: verifiedItems.length,
         delivery_distance_km: deliveryDistanceKm,
+        commission_rate: commissionRate,
+        commission_amount: commissionAmount,
       },
       verified_items: verifiedItems,
     });
