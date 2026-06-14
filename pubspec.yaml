@@ -85,10 +85,8 @@ dependencies:
   # Confetti animation
   confetti: ^0.8.0
 
-  # Social sharing
-  # share_plus pinned at 10.x — 13.x has unresolved ShareSuccessManager/SharePlusPendingIntent
-  # errors with Kotlin 2.3.0 K2 compiler. Revisit when share_plus publishes a fix.
-  share_plus: ^10.1.4
+  # Social sharing — 13.1.0 fixes KGP (Built-in Kotlin migration)
+  share_plus: ^13.1.0
 
   # QR Code (for orders)
   qr_flutter: ^4.1.0
@@ -143,6 +141,10 @@ dependency_overrides:
   shared_preferences_android: 2.4.26
   # webview_flutter_android 4.13.0 removed KGP application.
   webview_flutter_android: 4.13.0
+  # ── Remaining KGP warnings (plugin authors must fix — no compatible upgrade exists) ──
+  # flutter_callkit_incoming: stuck at 3.0.0 — 3.1.1 has InAppCallManager crash on Android
+  # speech_to_text: stuck at 7.3.0 — 7.4.0 has Kotlin K2 compile failure
+  # flutter_credit_card, flutter_tts, sign_in_with_apple: already at pub.dev latest (no fix released)
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
