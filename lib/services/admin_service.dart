@@ -669,18 +669,18 @@ class AdminService {
     }
   }
 
-  /// Get dashboard summary — flat map of KPI keys used by WebAdminDashboardPage.
+  /// Get dashboard summary — nested map consumed by AdminDashboardScreen.
   Future<Map<String, dynamic>> getDashboardSummary() async {
     try {
       AppLogger.info('Fetching dashboard summary');
 
-      final todayStart = DateTime(
+      final monthStart = DateTime(
         DateTime.now().year,
         DateTime.now().month,
-        DateTime.now().day,
+        1,
       ).toIso8601String();
 
-      // Stats futures are all Future<Map<String, dynamic>> — safe to wait together
+      // Map stats — all Future<Map<String, dynamic>>
       final stats = await Future.wait<Map<String, dynamic>>([
         getUserStatistics(),
         getRestaurantStatistics(),
@@ -689,13 +689,33 @@ class AdminService {
         getRevenueStatistics(),
       ]);
 
-      // Count query has a different return type — await separately
-      final todayResp = await _supabaseClient
+      // Count queries (different return type) + monthly revenue list
+      final countResults = await Future.wait([
+        _supabaseClient.from('laundry_bookings').select('id').count(),
+        _supabaseClient
+            .from('laundry_bookings')
+            .select('id')
+            .inFilter('status', ['confirmed', 'picked_up', 'in_progress', 'out_for_delivery'])
+            .count(),
+        _supabaseClient.from('car_service_bookings').select('id').count(),
+        _supabaseClient
+            .from('car_service_bookings')
+            .select('id')
+            .inFilter('status', ['confirmed', 'in_progress'])
+            .count(),
+        _supabaseClient.from('ride_requests').select('id').count(),
+        _supabaseClient
+            .from('ride_requests')
+            .select('id')
+            .inFilter('status', ['accepted', 'arrived', 'started'])
+            .count(),
+      ]);
+
+      final monthlyOrdersResp = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select('id')
+          .select('total_amount')
           .eq('status', 'delivered')
-          .gte('ordered_at', todayStart)
-          .count();
+          .gte('ordered_at', monthStart);
 
       final users   = stats[0];
       final rests   = stats[1];
@@ -703,15 +723,50 @@ class AdminService {
       final orders  = stats[3];
       final revenue = stats[4];
 
+      double monthlyRevenue = 0;
+      for (final o in monthlyOrdersResp as List) {
+        monthlyRevenue += ((o['total_amount'] ?? 0) as num).toDouble();
+      }
+
+      final totalOrders     = (orders['total_orders']     ?? 0) as int;
+      final deliveredOrders = (orders['delivered_orders'] ?? 0) as int;
+      final completionRate  = totalOrders > 0
+          ? (deliveredOrders / totalOrders * 100)
+          : 0.0;
+
       return {
-        'total_users':         users['total_users']         ?? 0,
-        'total_restaurants':   rests['total_restaurants']   ?? 0,
-        'total_drivers':       drivers['total_drivers']     ?? 0,
-        'total_orders':        orders['total_orders']       ?? 0,
-        'total_revenue':       revenue['total_revenue']     ?? 0.0,
-        'total_platform_fees': revenue['platform_fees']     ?? 0.0,
-        'active_orders':       orders['active_orders']      ?? 0,
-        'delivered_today':     todayResp.count,
+        'users': {
+          'total_users': users['total_users'] ?? 0,
+        },
+        'restaurants': {
+          'total_restaurants': rests['total_restaurants'] ?? 0,
+          'pending':           rests['pending']           ?? 0,
+        },
+        'drivers': {
+          'total_drivers': drivers['total_drivers'] ?? 0,
+          'pending':       drivers['pending']       ?? 0,
+        },
+        'orders': {
+          'total_orders':   orders['total_orders']  ?? 0,
+          'active_orders':  orders['active_orders'] ?? 0,
+          'completion_rate': completionRate,
+        },
+        'revenue': {
+          'total_revenue':   revenue['total_revenue'] ?? 0.0,
+          'monthly_revenue': monthlyRevenue,
+        },
+        'laundry': {
+          'total_bookings':  countResults[0].count,
+          'active_bookings': countResults[1].count,
+        },
+        'car_services': {
+          'total_bookings':  countResults[2].count,
+          'active_bookings': countResults[3].count,
+        },
+        'rides': {
+          'total_rides':  countResults[4].count,
+          'active_rides': countResults[5].count,
+        },
       };
     } catch (e) {
       AppLogger.error('Error fetching dashboard summary: $e');
