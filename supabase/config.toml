@@ -497,3 +497,15 @@ verify_jwt = false
 
 [functions.assign-driver-multi-pickup]
 verify_jwt = false
+
+# ── Call / Agora edge functions ──────────────────────────────────────────────
+# verify_jwt = false — Supabase infra pre-validation fails with
+# UNAUTHORIZED_LEGACY_JWT on this project's HS256 tokens.
+[functions.agora-token]
+verify_jwt = false
+
+[functions.send-call-notification]
+verify_jwt = false
+
+[functions.cancel-call-notification]
+verify_jwt = false

@@ -26,7 +26,7 @@ class ChatService {
     } else {
       query = query.eq('ride_id', rideId!);
     }
-    query.order('created_at').then((data) {
+    query.order('created_at', ascending: false).then((data) {
       if (controller.isClosed) return;
       messages.addAll((data as List).map((e) => ChatMessage.fromJson(e)));
       controller.add(List.from(messages));
@@ -53,7 +53,7 @@ class ChatService {
                   ChatMessage.fromJson(Map<String, dynamic>.from(record));
               if (!messages.any((m) => m.id == msg.id)) {
                 messages.add(msg);
-                messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+                messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
                 controller.add(List.from(messages));
               }
             } catch (e) {

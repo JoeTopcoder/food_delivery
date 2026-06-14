@@ -108,7 +108,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       backgroundColor: isDark
           ? const Color(0xFF0D1117)
           : AppTheme.backgroundColor,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Add New Card'),
         backgroundColor: isDark ? const Color(0xFF111827) : Colors.white,

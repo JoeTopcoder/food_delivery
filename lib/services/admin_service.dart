@@ -610,34 +610,25 @@ class AdminService {
 
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
-          .select('total_amount, status')
+          .select('total_amount, delivery_fee, commission_amount, status')
           .eq('status', 'delivered');
 
       double totalRevenue = 0;
+      double totalDeliveryFees = 0;
+      double totalPlatformFees = 0;
       for (var order in response as List) {
         totalRevenue += (order['total_amount'] ?? 0).toDouble();
-      }
-
-      // Monthly revenue — current calendar month only, delivered orders
-      final now = DateTime.now();
-      final monthStart = DateTime(now.year, now.month, 1).toIso8601String();
-      final monthly = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('total_amount')
-          .eq('status', 'delivered')
-          .gte('ordered_at', monthStart);
-
-      double monthlyRevenue = 0;
-      for (var order in monthly as List) {
-        monthlyRevenue += (order['total_amount'] ?? 0).toDouble();
+        totalDeliveryFees += (order['delivery_fee'] ?? 0).toDouble();
+        totalPlatformFees += (order['commission_amount'] ?? 0).toDouble();
       }
 
       return {
         'total_revenue': totalRevenue,
-        'monthly_revenue': monthlyRevenue,
-        'average_order_value': totalRevenue > 0
+        'platform_fees': totalPlatformFees,
+        'delivery_fees': totalDeliveryFees,
+        'avg_order_value': response.isNotEmpty
             ? totalRevenue / response.length
-            : 0,
+            : 0.0,
       };
     } catch (e) {
       AppLogger.error('Error fetching revenue stats: $e');
@@ -650,33 +641,27 @@ class AdminService {
     try {
       AppLogger.info('Fetching order statistics');
 
-      final totalResponse = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('*')
-          .count();
-      final totalOrders = totalResponse.count;
+      final results = await Future.wait([
+        _supabaseClient.from(AppConstants.tableOrders).select('id').count(),
+        _supabaseClient.from(AppConstants.tableOrders).select('id').eq('status', 'delivered').count(),
+        _supabaseClient.from(AppConstants.tableOrders).select('id').eq('status', 'cancelled').count(),
+        _supabaseClient.from(AppConstants.tableOrders).select('id').eq('status', 'pending').count(),
+        _supabaseClient.from(AppConstants.tableOrders).select('id')
+            .inFilter('status', ['confirmed', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'on_the_way']).count(),
+      ]);
 
-      final completedResponse = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('*')
-          .eq('status', 'delivered')
-          .count();
-      final completedOrders = completedResponse.count;
-
-      final pendingResponse = await _supabaseClient
-          .from(AppConstants.tableOrders)
-          .select('*')
-          .eq('status', 'pending')
-          .count();
-      final pendingOrders = pendingResponse.count;
+      final totalOrders = results[0].count;
+      final deliveredOrders = results[1].count;
+      final cancelledOrders = results[2].count;
+      final pendingOrders = results[3].count;
+      final activeOrders = results[4].count;
 
       return {
         'total_orders': totalOrders,
-        'completed': completedOrders,
-        'pending': pendingOrders,
-        'completion_rate': totalOrders > 0
-            ? (completedOrders / totalOrders) * 100
-            : 0,
+        'delivered_orders': deliveredOrders,
+        'cancelled_orders': cancelledOrders,
+        'pending_orders': pendingOrders,
+        'active_orders': activeOrders,
       };
     } catch (e) {
       AppLogger.error('Error fetching order stats: $e');
@@ -684,108 +669,52 @@ class AdminService {
     }
   }
 
-  /// Get dashboard summary — covers all modules (food, rides, laundry, car services)
+  /// Get dashboard summary — flat map of KPI keys used by WebAdminDashboardPage.
   Future<Map<String, dynamic>> getDashboardSummary() async {
     try {
       AppLogger.info('Fetching dashboard summary');
 
-      // Fetch all module stats in parallel for speed
-      final results = await Future.wait([
+      final todayStart = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      ).toIso8601String();
+
+      // Stats futures are all Future<Map<String, dynamic>> — safe to wait together
+      final stats = await Future.wait<Map<String, dynamic>>([
         getUserStatistics(),
         getRestaurantStatistics(),
         getDriverStatistics(),
         getOrderStatistics(),
         getRevenueStatistics(),
-        _getLaundrySummary(),
-        _getCarServiceSummary(),
-        _getRideSummary(),
       ]);
 
+      // Count query has a different return type — await separately
+      final todayResp = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('id')
+          .eq('status', 'delivered')
+          .gte('ordered_at', todayStart)
+          .count();
+
+      final users   = stats[0];
+      final rests   = stats[1];
+      final drivers = stats[2];
+      final orders  = stats[3];
+      final revenue = stats[4];
+
       return {
-        'users': results[0],
-        'restaurants': results[1],
-        'drivers': results[2],
-        'orders': results[3],
-        'revenue': results[4],
-        'laundry': results[5],
-        'car_services': results[6],
-        'rides': results[7],
-        'timestamp': DateTime.now().toIso8601String(),
+        'total_users':         users['total_users']         ?? 0,
+        'total_restaurants':   rests['total_restaurants']   ?? 0,
+        'total_drivers':       drivers['total_drivers']     ?? 0,
+        'total_orders':        orders['total_orders']       ?? 0,
+        'total_revenue':       revenue['total_revenue']     ?? 0.0,
+        'total_platform_fees': revenue['platform_fees']     ?? 0.0,
+        'active_orders':       orders['active_orders']      ?? 0,
+        'delivered_today':     todayResp.count,
       };
     } catch (e) {
       AppLogger.error('Error fetching dashboard summary: $e');
-      return {};
-    }
-  }
-
-  // Use plain .select('status') — no .count() to avoid PostgrestResponse
-  // type ambiguity. Only the minimal 'status' column is fetched for counting.
-  Future<Map<String, dynamic>> _getLaundrySummary() async {
-    try {
-      final results = await Future.wait([
-        _supabaseClient.from('laundry_bookings').select('status'),
-        _supabaseClient.from('laundry_providers').select('status'),
-      ]);
-      final bookings = results[0] as List;
-      final providers = results[1] as List;
-      const terminal = {'completed', 'cancelled', 'disputed'};
-      return {
-        'total_bookings': bookings.length,
-        'active_bookings': bookings
-            .where((r) => !terminal.contains((r as Map)['status']))
-            .length,
-        'total_providers': providers.length,
-        'pending_providers': providers
-            .where((r) => (r as Map)['status'] == 'pending')
-            .length,
-      };
-    } catch (e) {
-      AppLogger.error('_getLaundrySummary error: $e');
-      return {};
-    }
-  }
-
-  Future<Map<String, dynamic>> _getCarServiceSummary() async {
-    try {
-      final results = await Future.wait([
-        _supabaseClient.from('car_service_bookings').select('status'),
-        _supabaseClient
-            .from('car_service_providers')
-            .select('is_verified, is_active'),
-      ]);
-      final bookings = results[0] as List;
-      final providers = results[1] as List;
-      return {
-        'total_bookings': bookings.length,
-        'active_bookings': bookings
-            .where((r) => !{'completed', 'cancelled'}
-                .contains((r as Map)['status']))
-            .length,
-        'total_providers': providers.length,
-        'pending_providers': providers
-            .where((r) => (r as Map)['is_verified'] == false)
-            .length,
-      };
-    } catch (e) {
-      AppLogger.error('_getCarServiceSummary error: $e');
-      return {};
-    }
-  }
-
-  Future<Map<String, dynamic>> _getRideSummary() async {
-    try {
-      final rows =
-          await _supabaseClient.from('ride_requests').select('ride_status');
-      final all = rows as List;
-      return {
-        'total_rides': all.length,
-        'active_rides': all
-            .where((r) => !{'ride_completed', 'cancelled'}
-                .contains((r as Map)['ride_status']))
-            .length,
-      };
-    } catch (e) {
-      AppLogger.error('_getRideSummary error: $e');
       return {};
     }
   }
