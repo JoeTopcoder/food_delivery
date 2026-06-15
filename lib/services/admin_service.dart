@@ -670,108 +670,105 @@ class AdminService {
   }
 
   /// Get dashboard summary — nested map consumed by AdminDashboardScreen.
+  /// Calls the get_admin_dashboard_summary RPC (SECURITY DEFINER, bypasses RLS).
   Future<Map<String, dynamic>> getDashboardSummary() async {
     try {
-      AppLogger.info('Fetching dashboard summary');
+      AppLogger.info('Fetching dashboard summary via RPC');
+      final result = await _supabaseClient.rpc('get_admin_dashboard_summary');
+      if (result is Map && result.isNotEmpty) {
+        return Map<String, dynamic>.from(result);
+      }
+    } catch (e) {
+      AppLogger.error('RPC dashboard summary failed, falling back: $e');
+    }
 
-      final monthStart = DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        1,
-      ).toIso8601String();
+    // Fallback: run each stat group independently so one failure does not
+    // zero out the whole dashboard.
+    AppLogger.info('Fetching dashboard summary via fallback queries');
 
-      // Map stats — all Future<Map<String, dynamic>>
-      final stats = await Future.wait<Map<String, dynamic>>([
-        getUserStatistics(),
-        getRestaurantStatistics(),
-        getDriverStatistics(),
-        getOrderStatistics(),
-        getRevenueStatistics(),
-      ]);
+    Map<String, dynamic> users = {};
+    Map<String, dynamic> rests = {};
+    Map<String, dynamic> drivers = {};
+    Map<String, dynamic> orders = {};
+    Map<String, dynamic> revenue = {};
+    int totalLaundry = 0, activeLaundry = 0;
+    int totalCar = 0, activeCar = 0;
+    int totalRides = 0, activeRides = 0;
 
-      // Count queries (different return type) + monthly revenue list
-      final countResults = await Future.wait([
-        _supabaseClient.from('laundry_bookings').select('id').count(),
-        _supabaseClient
-            .from('laundry_bookings')
-            .select('id')
-            .inFilter('status', ['confirmed', 'picked_up', 'in_progress', 'out_for_delivery'])
-            .count(),
-        _supabaseClient.from('car_service_bookings').select('id').count(),
-        _supabaseClient
-            .from('car_service_bookings')
-            .select('id')
-            .inFilter('status', ['confirmed', 'in_progress'])
-            .count(),
-        _supabaseClient.from('ride_requests').select('id').count(),
-        _supabaseClient
-            .from('ride_requests')
-            .select('id')
-            .inFilter('status', ['accepted', 'arrived', 'started'])
-            .count(),
-      ]);
+    try { users   = await getUserStatistics();    } catch (_) {}
+    try { rests   = await getRestaurantStatistics(); } catch (_) {}
+    try { drivers = await getDriverStatistics();  } catch (_) {}
+    try { orders  = await getOrderStatistics();   } catch (_) {}
+    try { revenue = await getRevenueStatistics(); } catch (_) {}
 
-      final monthlyOrdersResp = await _supabaseClient
+    try {
+      final r = await _supabaseClient.from('laundry_bookings').select('id').count();
+      totalLaundry = r.count;
+    } catch (_) {}
+    try {
+      final r = await _supabaseClient.from('laundry_bookings').select('id')
+          .inFilter('status', ['confirmed', 'picked_up', 'in_progress', 'out_for_delivery']).count();
+      activeLaundry = r.count;
+    } catch (_) {}
+    try {
+      final r = await _supabaseClient.from('car_service_bookings').select('id').count();
+      totalCar = r.count;
+    } catch (_) {}
+    try {
+      final r = await _supabaseClient.from('car_service_bookings').select('id')
+          .inFilter('status', ['confirmed', 'in_progress']).count();
+      activeCar = r.count;
+    } catch (_) {}
+    try {
+      final r = await _supabaseClient.from('ride_requests').select('id').count();
+      totalRides = r.count;
+    } catch (_) {}
+    try {
+      final r = await _supabaseClient.from('ride_requests').select('id')
+          .inFilter('status', ['accepted', 'arrived', 'started']).count();
+      activeRides = r.count;
+    } catch (_) {}
+
+    double monthlyRevenue = 0;
+    try {
+      final monthStart = DateTime(DateTime.now().year, DateTime.now().month, 1).toIso8601String();
+      final resp = await _supabaseClient
           .from(AppConstants.tableOrders)
           .select('total_amount')
           .eq('status', 'delivered')
           .gte('ordered_at', monthStart);
-
-      final users   = stats[0];
-      final rests   = stats[1];
-      final drivers = stats[2];
-      final orders  = stats[3];
-      final revenue = stats[4];
-
-      double monthlyRevenue = 0;
-      for (final o in monthlyOrdersResp as List) {
+      for (final o in resp as List) {
         monthlyRevenue += ((o['total_amount'] ?? 0) as num).toDouble();
       }
+    } catch (_) {}
 
-      final totalOrders     = (orders['total_orders']     ?? 0) as int;
-      final deliveredOrders = (orders['delivered_orders'] ?? 0) as int;
-      final completionRate  = totalOrders > 0
-          ? (deliveredOrders / totalOrders * 100)
-          : 0.0;
+    final totalOrders     = (orders['total_orders']     ?? 0) as int;
+    final deliveredOrders = (orders['delivered_orders'] ?? 0) as int;
+    final completionRate  = totalOrders > 0 ? (deliveredOrders / totalOrders * 100) : 0.0;
 
-      return {
-        'users': {
-          'total_users': users['total_users'] ?? 0,
-        },
-        'restaurants': {
-          'total_restaurants': rests['total_restaurants'] ?? 0,
-          'pending':           rests['pending']           ?? 0,
-        },
-        'drivers': {
-          'total_drivers': drivers['total_drivers'] ?? 0,
-          'pending':       drivers['pending']       ?? 0,
-        },
-        'orders': {
-          'total_orders':   orders['total_orders']  ?? 0,
-          'active_orders':  orders['active_orders'] ?? 0,
-          'completion_rate': completionRate,
-        },
-        'revenue': {
-          'total_revenue':   revenue['total_revenue'] ?? 0.0,
-          'monthly_revenue': monthlyRevenue,
-        },
-        'laundry': {
-          'total_bookings':  countResults[0].count,
-          'active_bookings': countResults[1].count,
-        },
-        'car_services': {
-          'total_bookings':  countResults[2].count,
-          'active_bookings': countResults[3].count,
-        },
-        'rides': {
-          'total_rides':  countResults[4].count,
-          'active_rides': countResults[5].count,
-        },
-      };
-    } catch (e) {
-      AppLogger.error('Error fetching dashboard summary: $e');
-      return {};
-    }
+    return {
+      'users': {'total_users': users['total_users'] ?? 0},
+      'restaurants': {
+        'total_restaurants': rests['total_restaurants'] ?? 0,
+        'pending':           rests['pending']           ?? 0,
+      },
+      'drivers': {
+        'total_drivers': drivers['total_drivers'] ?? 0,
+        'pending':       drivers['pending']       ?? 0,
+      },
+      'orders': {
+        'total_orders':    orders['total_orders']  ?? 0,
+        'active_orders':   orders['active_orders'] ?? 0,
+        'completion_rate': completionRate,
+      },
+      'revenue': {
+        'total_revenue':   revenue['total_revenue'] ?? 0.0,
+        'monthly_revenue': monthlyRevenue,
+      },
+      'laundry':       {'total_bookings': totalLaundry,  'active_bookings': activeLaundry},
+      'car_services':  {'total_bookings': totalCar,      'active_bookings': activeCar},
+      'rides':         {'total_rides':    totalRides,     'active_rides':    activeRides},
+    };
   }
 
   // ==================== DISPUTE MANAGEMENT ====================
