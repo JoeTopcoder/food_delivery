@@ -100,6 +100,7 @@ import 'screens/restaurant/restaurant_dashboard_screen.dart';
 import 'screens/restaurant/restaurant_order_management_screen.dart';
 import 'web/restaurant/restaurant_web_app.dart';
 import 'web/admin/admin_web_app.dart';
+import 'web/customer/customer_web_app.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
@@ -429,6 +430,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     switch (role) {
       case 'customer':
       case 'user':
+        if (kIsWeb && (_webMode == 'full' || _webMode == 'customer')) {
+          return const CustomerWebApp();
+        }
         return const MainNavigationScreen();
       case 'driver':
         return const DriverDashboardScreen();

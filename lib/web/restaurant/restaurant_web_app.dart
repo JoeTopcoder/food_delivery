@@ -17,6 +17,9 @@ import 'pages/web_settings_page.dart';
 import 'pages/web_grocery_page.dart';
 import 'pages/web_loyalty_page.dart';
 import 'pages/web_pending_approval_page.dart';
+import 'pages/web_offers_page.dart';
+import 'pages/web_contract_page.dart';
+import 'pages/web_referral_page.dart';
 
 enum _RestaurantWebPage {
   dashboard,
@@ -26,6 +29,9 @@ enum _RestaurantWebPage {
   analytics,
   loyalty,
   settings,
+  offers,
+  contract,
+  referral,
 }
 
 class RestaurantWebApp extends ConsumerStatefulWidget {
@@ -72,18 +78,24 @@ class _RestaurantWebAppState extends ConsumerState<RestaurantWebApp> {
     (icon: Icons.local_grocery_store_rounded, label: 'Grocery', page: _RestaurantWebPage.grocery),
     (icon: Icons.analytics_rounded, label: 'Analytics', page: _RestaurantWebPage.analytics),
     (icon: Icons.loyalty_rounded, label: 'Loyalty', page: _RestaurantWebPage.loyalty),
+    (icon: Icons.local_fire_department_rounded, label: 'Our Offer', page: _RestaurantWebPage.offers),
+    (icon: Icons.description_rounded, label: 'Contract', page: _RestaurantWebPage.contract),
+    (icon: Icons.share_rounded, label: 'Refer & Earn', page: _RestaurantWebPage.referral),
     (icon: Icons.settings_rounded, label: 'Settings', page: _RestaurantWebPage.settings),
   ];
 
   Widget _buildPage() {
     return switch (_currentPage) {
       _RestaurantWebPage.dashboard => const WebDashboardPage(),
-      _RestaurantWebPage.orders => const WebOrdersPage(),
-      _RestaurantWebPage.menu => const WebMenuPage(),
-      _RestaurantWebPage.grocery => const WebGroceryPage(),
+      _RestaurantWebPage.orders    => const WebOrdersPage(),
+      _RestaurantWebPage.menu      => const WebMenuPage(),
+      _RestaurantWebPage.grocery   => const WebGroceryPage(),
       _RestaurantWebPage.analytics => const WebAnalyticsPage(),
-      _RestaurantWebPage.loyalty => const WebLoyaltyPage(),
-      _RestaurantWebPage.settings => const WebSettingsPage(),
+      _RestaurantWebPage.loyalty   => const WebLoyaltyPage(),
+      _RestaurantWebPage.offers    => const WebOffersPage(),
+      _RestaurantWebPage.contract  => const WebContractPage(),
+      _RestaurantWebPage.referral  => const WebReferralPage(),
+      _RestaurantWebPage.settings  => const WebSettingsPage(),
     };
   }
 
