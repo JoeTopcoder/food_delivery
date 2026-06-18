@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/screens/auth_launch_gate_screen.dart';
@@ -11,7 +12,13 @@ import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';
 import '../screens/restaurant/restaurant_dashboard_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../web/restaurant/restaurant_landing_page.dart';
+import '../web/restaurant/restaurant_web_app.dart';
+import '../web/admin/admin_web_app.dart';
+import '../web/customer/customer_web_app.dart';
 import '../widgets/role_guard.dart';
+
+const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
 
 /// Role-specific splash screen with animated branding.
 /// Shows a beautiful animated intro before navigating to the role's home.
@@ -504,6 +511,8 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   late final Animation<double> _titleSlide;
   late final Animation<double> _shimmer;
 
+  bool _navigated = false;
+
   @override
   void initState() {
     super.initState();
@@ -563,9 +572,8 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   }
 
   void _navigateToGate() {
-    if (!mounted) return;
-    // pushReplacement is a no-op if this widget is already off the navigation
-    // stack (mounted becomes false immediately after the first pushReplacement).
+    if (!mounted || _navigated) return;
+    _navigated = true;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const AuthLaunchGateScreen(),
@@ -608,10 +616,17 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
       switch (role) {
         case 'customer':
         case 'user':
-          destination = const RoleGuard(
-            allowedRoles: ['user', 'customer'],
-            child: MainNavigationScreen(),
-          );
+          if (kIsWeb && (_webMode == 'full' || _webMode == 'customer')) {
+            destination = const RoleGuard(
+              allowedRoles: ['user', 'customer'],
+              child: CustomerWebApp(),
+            );
+          } else {
+            destination = const RoleGuard(
+              allowedRoles: ['user', 'customer'],
+              child: MainNavigationScreen(),
+            );
+          }
           break;
         case 'driver':
           destination = const RoleGuard(
@@ -620,16 +635,38 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
           );
           break;
         case 'restaurant':
-          destination = const RoleGuard(
-            allowedRoles: ['restaurant'],
-            child: RestaurantDashboardScreen(),
-          );
+          if (kIsWeb && _webMode == 'admin') {
+            // Wrong portal — sign out and show admin-only gate
+            await ref.read(authNotifierProvider.notifier).signOut();
+            destination = const AuthLaunchGateScreen();
+          } else if (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) {
+            destination = const RoleGuard(
+              allowedRoles: ['restaurant'],
+              child: RestaurantWebApp(),
+            );
+          } else {
+            destination = const RoleGuard(
+              allowedRoles: ['restaurant'],
+              child: RestaurantDashboardScreen(),
+            );
+          }
           break;
         case 'admin':
-          destination = const RoleGuard(
-            allowedRoles: ['admin'],
-            child: AdminDashboardScreen(),
-          );
+          if (kIsWeb && _webMode == 'restaurant') {
+            // Admin visiting the restaurant portal — sign out, show landing page
+            await ref.read(authNotifierProvider.notifier).signOut();
+            destination = const RestaurantLandingPage();
+          } else if (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) {
+            destination = const RoleGuard(
+              allowedRoles: ['admin'],
+              child: AdminWebApp(),
+            );
+          } else {
+            destination = const RoleGuard(
+              allowedRoles: ['admin'],
+              child: AdminDashboardScreen(),
+            );
+          }
           break;
         case 'service_provider':
           destination = const RoleGuard(
@@ -649,10 +686,16 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
           destination = const AuthLaunchGateScreen();
       }
     } else {
-      destination = const AuthLaunchGateScreen();
+      // Guest on the customer web portal — allow browsing without an account
+      if (kIsWeb && (_webMode == 'full' || _webMode == 'customer')) {
+        destination = const CustomerWebApp();
+      } else {
+        destination = const AuthLaunchGateScreen();
+      }
     }
 
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => destination,

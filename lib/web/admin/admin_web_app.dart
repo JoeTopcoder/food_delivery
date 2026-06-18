@@ -21,6 +21,17 @@ import 'pages/web_admin_services_page.dart';
 import 'pages/web_admin_financials_page.dart';
 import 'pages/web_admin_lookup_page.dart';
 import 'pages/web_admin_feedback_page.dart';
+import 'pages/web_admin_surge_page.dart';
+import 'pages/web_admin_platform_earnings_page.dart';
+import 'pages/web_admin_chats_page.dart';
+import 'pages/web_admin_contract_page.dart';
+import 'pages/web_admin_ads_page.dart';
+import 'pages/web_admin_mealhub_page.dart';
+import 'pages/web_admin_meal_plans_page.dart';
+import 'pages/web_admin_shipping_companies_page.dart';
+import 'pages/web_admin_package_deliveries_page.dart';
+import 'pages/web_admin_regions_page.dart';
+import 'pages/web_admin_earnings_page.dart';
 
 enum _AdminPage {
   dashboard,
@@ -40,6 +51,17 @@ enum _AdminPage {
   financials,
   lookup,
   feedback,
+  surge,
+  platformEarnings,
+  chats,
+  contract,
+  ads,
+  mealhub,
+  mealPlans,
+  shippingCompanies,
+  packageDeliveries,
+  regions,
+  earnings,
 }
 
 class AdminWebApp extends ConsumerStatefulWidget {
@@ -67,6 +89,8 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
         (icon: Icons.storefront_rounded, label: 'Restaurants', page: _AdminPage.restaurants),
         (icon: Icons.delivery_dining_rounded, label: 'Drivers', page: _AdminPage.drivers),
         (icon: Icons.receipt_long_rounded, label: 'Orders', page: _AdminPage.orders),
+        (icon: Icons.chat_bubble_rounded, label: 'Chats', page: _AdminPage.chats),
+        (icon: Icons.map_rounded, label: 'Regions', page: _AdminPage.regions),
       ]
     ),
     (
@@ -78,6 +102,22 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
         (icon: Icons.price_change_rounded, label: 'Pricing', page: _AdminPage.pricing),
         (icon: Icons.campaign_rounded, label: 'Banners', page: _AdminPage.banners),
         (icon: Icons.loyalty_rounded, label: 'Loyalty', page: _AdminPage.loyalty),
+        (icon: Icons.bolt_rounded, label: 'Surge Zones', page: _AdminPage.surge),
+        (icon: Icons.ads_click_rounded, label: 'Ads', page: _AdminPage.ads),
+      ]
+    ),
+    (
+      label: 'SUBSCRIPTIONS',
+      items: [
+        (icon: Icons.card_membership_rounded, label: 'MealHub+', page: _AdminPage.mealhub),
+        (icon: Icons.restaurant_menu_rounded, label: 'Meal Plans', page: _AdminPage.mealPlans),
+      ]
+    ),
+    (
+      label: 'DELIVERIES',
+      items: [
+        (icon: Icons.local_shipping_rounded, label: 'Shipping Cos.', page: _AdminPage.shippingCompanies),
+        (icon: Icons.inventory_2_rounded, label: 'Packages', page: _AdminPage.packageDeliveries),
       ]
     ),
     (
@@ -86,6 +126,9 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
         (icon: Icons.psychology_rounded, label: 'AI Panel', page: _AdminPage.aiPanel),
         (icon: Icons.miscellaneous_services_rounded, label: 'Services', page: _AdminPage.services),
         (icon: Icons.account_balance_rounded, label: 'Financials', page: _AdminPage.financials),
+        (icon: Icons.bar_chart_rounded, label: 'Platform Revenue', page: _AdminPage.platformEarnings),
+        (icon: Icons.monetization_on_rounded, label: 'Earnings', page: _AdminPage.earnings),
+        (icon: Icons.description_rounded, label: 'Contract', page: _AdminPage.contract),
         (icon: Icons.manage_search_rounded, label: 'Lookup', page: _AdminPage.lookup),
         (icon: Icons.feedback_rounded, label: 'Feedback', page: _AdminPage.feedback),
       ]
@@ -93,23 +136,34 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
   ];
 
   Widget _buildPage() => switch (_currentPage) {
-    _AdminPage.dashboard   => const WebAdminDashboardPage(),
-    _AdminPage.users       => const WebAdminUsersPage(),
-    _AdminPage.restaurants => const WebAdminRestaurantsPage(),
-    _AdminPage.drivers     => const WebAdminDriversPage(),
-    _AdminPage.orders      => const WebAdminOrdersPage(),
-    _AdminPage.analytics   => const WebAdminAnalyticsPage(),
-    _AdminPage.promos      => const WebAdminPromosPage(),
-    _AdminPage.disputes    => const WebAdminDisputesPage(),
-    _AdminPage.payouts     => const WebAdminPayoutsPage(),
-    _AdminPage.pricing     => const WebAdminPricingPage(),
-    _AdminPage.banners     => const WebAdminBannersPage(),
-    _AdminPage.loyalty     => const WebAdminLoyaltyPage(),
-    _AdminPage.aiPanel     => const WebAdminAiPanelPage(),
-    _AdminPage.services    => const WebAdminServicesPage(),
-    _AdminPage.financials  => const WebAdminFinancialsPage(),
-    _AdminPage.lookup      => const WebAdminLookupPage(),
-    _AdminPage.feedback    => const WebAdminFeedbackPage(),
+    _AdminPage.dashboard          => const WebAdminDashboardPage(),
+    _AdminPage.users              => const WebAdminUsersPage(),
+    _AdminPage.restaurants        => const WebAdminRestaurantsPage(),
+    _AdminPage.drivers            => const WebAdminDriversPage(),
+    _AdminPage.orders             => const WebAdminOrdersPage(),
+    _AdminPage.analytics          => const WebAdminAnalyticsPage(),
+    _AdminPage.promos             => const WebAdminPromosPage(),
+    _AdminPage.disputes           => const WebAdminDisputesPage(),
+    _AdminPage.payouts            => const WebAdminPayoutsPage(),
+    _AdminPage.pricing            => const WebAdminPricingPage(),
+    _AdminPage.banners            => const WebAdminBannersPage(),
+    _AdminPage.loyalty            => const WebAdminLoyaltyPage(),
+    _AdminPage.aiPanel            => const WebAdminAiPanelPage(),
+    _AdminPage.services           => const WebAdminServicesPage(),
+    _AdminPage.financials         => const WebAdminFinancialsPage(),
+    _AdminPage.lookup             => const WebAdminLookupPage(),
+    _AdminPage.feedback           => const WebAdminFeedbackPage(),
+    _AdminPage.surge              => const WebAdminSurgePage(),
+    _AdminPage.platformEarnings   => const WebAdminPlatformEarningsPage(),
+    _AdminPage.chats              => const WebAdminChatsPage(),
+    _AdminPage.contract           => const WebAdminContractPage(),
+    _AdminPage.ads                => const WebAdminAdsPage(),
+    _AdminPage.mealhub            => const WebAdminMealhubPage(),
+    _AdminPage.mealPlans          => const WebAdminMealPlansPage(),
+    _AdminPage.shippingCompanies  => const WebAdminShippingCompaniesPage(),
+    _AdminPage.packageDeliveries  => const WebAdminPackageDeliveriesPage(),
+    _AdminPage.regions            => const WebAdminRegionsPage(),
+    _AdminPage.earnings           => const WebAdminEarningsPage(),
   };
 
   Future<void> _signOut() async {
