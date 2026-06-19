@@ -221,13 +221,15 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
     return Container(
       height: 64,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 20),
       child: Row(
         children: [
           // Hamburger
@@ -236,7 +238,7 @@ class _TopBar extends StatelessWidget {
             onPressed: onMenuTap,
             tooltip: 'Menu',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
 
           // Logo
           GestureDetector(
@@ -250,37 +252,39 @@ class _TopBar extends StatelessWidget {
                 ),
                 child: const Icon(Icons.fastfood_rounded, color: Colors.white, size: 18),
               ),
-              const SizedBox(width: 8),
-              const Text('7DASH', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E293B), letterSpacing: -0.5)),
+              const SizedBox(width: 6),
+              const Text('7DASH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B), letterSpacing: -0.5)),
             ]),
           ),
 
-          const SizedBox(width: 32),
+          const Spacer(),
 
           // Cart
-          _CartButton(count: cartCount, onTap: onCartTap),
-          const SizedBox(width: 16),
+          _CartButton(count: cartCount, onTap: onCartTap, compact: isMobile),
+          SizedBox(width: isMobile ? 4 : 16),
 
           // Auth
           if (isGuest) ...[
-            TextButton(
-              onPressed: onSignIn,
-              child: const Text('Log in', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
-            ),
-            const SizedBox(width: 8),
+            if (!isMobile) ...[
+              TextButton(
+                onPressed: onSignIn,
+                child: const Text('Log in', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
+              ),
+              const SizedBox(width: 6),
+            ],
             ElevatedButton(
-              onPressed: onSignUp,
+              onPressed: isMobile ? onSignIn : onSignUp,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E293B),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 18, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 elevation: 0,
               ),
-              child: const Text('Sign up', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              child: Text(isMobile ? 'Login' : 'Sign up', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             ),
           ] else ...[
-            _UserMenu(userName: userName, onProfile: onProfileTap, onSignOut: onSignOut),
+            _UserMenu(userName: userName, onProfile: onProfileTap, onSignOut: onSignOut, compact: isMobile),
           ],
         ],
       ),
@@ -291,7 +295,8 @@ class _TopBar extends StatelessWidget {
 class _CartButton extends StatefulWidget {
   final int count;
   final VoidCallback onTap;
-  const _CartButton({required this.count, required this.onTap});
+  final bool compact;
+  const _CartButton({required this.count, required this.onTap, this.compact = false});
 
   @override
   State<_CartButton> createState() => _CartButtonState();
@@ -332,9 +337,11 @@ class _CartButtonState extends State<_CartButton> {
                   ),
                 ),
             ]),
-            const SizedBox(width: 6),
-            Text(widget.count == 0 ? 'Cart' : '${ widget.count} item${widget.count == 1 ? '' : 's'}',
-                style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
+            if (!widget.compact) ...[
+              const SizedBox(width: 6),
+              Text(widget.count == 0 ? 'Cart' : '${widget.count} item${widget.count == 1 ? '' : 's'}',
+                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
           ]),
         ),
       ),
@@ -346,7 +353,8 @@ class _UserMenu extends StatefulWidget {
   final String userName;
   final VoidCallback onProfile;
   final VoidCallback onSignOut;
-  const _UserMenu({required this.userName, required this.onProfile, required this.onSignOut});
+  final bool compact;
+  const _UserMenu({required this.userName, required this.onProfile, required this.onSignOut, this.compact = false});
 
   @override
   State<_UserMenu> createState() => _UserMenuState();
@@ -379,9 +387,11 @@ class _UserMenuState extends State<_UserMenu> {
             backgroundColor: const Color(0xFFFF6B35),
             child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(width: 8),
-          Text(widget.userName.split(' ').first, style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
-          const SizedBox(width: 4),
+          if (!widget.compact) ...[
+            const SizedBox(width: 8),
+            Text(widget.userName.split(' ').first, style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(width: 4),
+          ],
           const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
         ]),
       ),
