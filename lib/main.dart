@@ -101,6 +101,7 @@ import 'screens/restaurant/restaurant_order_management_screen.dart';
 import 'web/restaurant/restaurant_web_app.dart';
 import 'web/admin/admin_web_app.dart';
 import 'web/customer/customer_web_app.dart';
+import 'web/driver/driver_web_app.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
@@ -435,16 +436,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         }
         return const MainNavigationScreen();
       case 'driver':
+        if (kIsWeb) return const DriverWebApp();
         return const DriverDashboardScreen();
       case 'restaurant':
-        if (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) {
-          return const RestaurantWebApp();
-        }
+        if (kIsWeb) return const RestaurantWebApp();
         return const RestaurantDashboardScreen();
       case 'admin':
-        if (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) {
-          return const AdminWebApp();
-        }
+        if (kIsWeb) return const AdminWebApp();
         return const AdminDashboardScreen();
       case 'service_provider':
         return const CarServiceProviderDashboardScreen();
