@@ -16,6 +16,7 @@ import 'pages/web_customer_notifications_page.dart';
 import 'pages/web_customer_profile_page.dart';
 import 'pages/web_customer_restaurant_page.dart';
 import 'pages/web_customer_checkout_page.dart';
+import 'web_landing_page.dart';
 
 enum _CustomerPage {
   home,
@@ -42,9 +43,10 @@ class _CustomerWebAppState extends ConsumerState<CustomerWebApp> {
   _CustomerPage _currentPage = _CustomerPage.home;
   Restaurant? _selectedRestaurant;
   bool _showCheckout = false;
+  bool _showingLanding = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
 
-  void _openRestaurant(Restaurant r) => setState(() { _selectedRestaurant = r; _showCheckout = false; });
+  void _openRestaurant(Restaurant r) => setState(() { _selectedRestaurant = r; _showCheckout = false; _showingLanding = false; });
   void _closeRestaurant()            => setState(() { _selectedRestaurant = null; });
 
   void _navigate(_CustomerPage page) {
@@ -52,10 +54,19 @@ class _CustomerWebAppState extends ConsumerState<CustomerWebApp> {
       _currentPage = page;
       _selectedRestaurant = null;
       _showCheckout = false;
+      if (page != _CustomerPage.home) _showingLanding = false;
     });
   }
 
   Widget _buildBody(bool isGuest) {
+    if (isGuest && _currentPage == _CustomerPage.home && _showingLanding) {
+      return WebLandingPage(
+        onBrowseFood: () => setState(() => _showingLanding = false),
+        onSignIn:  () => _showAuthDialog(signUp: false),
+        onSignUp:  () => _showAuthDialog(signUp: true),
+        onRestaurantTapped: _openRestaurant,
+      );
+    }
     if (_showCheckout) {
       return WebCustomerCheckoutPage(
         onBack: () => setState(() => _showCheckout = false),
@@ -115,7 +126,7 @@ class _CustomerWebAppState extends ConsumerState<CustomerWebApp> {
     if (confirmed != true) return;
     try {
       await ref.read(authNotifierProvider.notifier).signOut();
-      if (mounted) setState(() { _currentPage = _CustomerPage.home; _selectedRestaurant = null; _showCheckout = false; });
+      if (mounted) setState(() { _currentPage = _CustomerPage.home; _selectedRestaurant = null; _showCheckout = false; _showingLanding = true; });
     } catch (e) {
       if (mounted) AppSnackbar.error(context, friendlyError(e));
     }
@@ -143,8 +154,10 @@ class _CustomerWebAppState extends ConsumerState<CustomerWebApp> {
           setState(() => _showCheckout = false);
         } else if (_selectedRestaurant != null) {
           setState(() => _selectedRestaurant = null);
+        } else if (!_showingLanding && _currentPage == _CustomerPage.home) {
+          setState(() => _showingLanding = true);
         } else if (_currentPage != _CustomerPage.home) {
-          setState(() => _currentPage = _CustomerPage.home);
+          setState(() { _currentPage = _CustomerPage.home; _showingLanding = true; });
         }
       },
       child: Scaffold(
