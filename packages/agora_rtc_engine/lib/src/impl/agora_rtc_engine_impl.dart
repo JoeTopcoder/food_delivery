@@ -299,8 +299,7 @@ extension MetadataObserverExt on MetadataObserver {
 }
 
 class _RtcEngineEventHandlerWrapper extends RtcEngineEventHandlerWrapper {
-  _RtcEngineEventHandlerWrapper(RtcEngineEventHandler rtcEngineEventHandler)
-      : super(rtcEngineEventHandler);
+  _RtcEngineEventHandlerWrapper(super.rtcEngineEventHandler);
 
   @override
   bool handleEventInternal(

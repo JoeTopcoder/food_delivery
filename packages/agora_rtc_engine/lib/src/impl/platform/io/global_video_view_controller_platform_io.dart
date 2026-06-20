@@ -18,8 +18,7 @@ const kNullViewHandle = 0;
 
 class GlobalVideoViewControllerIO extends GlobalVideoViewControllerPlatfrom {
   GlobalVideoViewControllerIO(
-      IrisMethodChannel irisMethodChannel, RtcEngine rtcEngine)
-      : super(irisMethodChannel, rtcEngine) {
+      super.irisMethodChannel, super.rtcEngine) {
     methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 

@@ -162,10 +162,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(
           children: [

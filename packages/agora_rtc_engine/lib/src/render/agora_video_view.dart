@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 class AgoraVideoView extends StatefulWidget {
   /// @nodoc
   const AgoraVideoView({
-    Key? key,
+    super.key,
     required this.controller,
     this.onAgoraVideoViewCreated,
-  }) : super(key: key);
+  });
 
   /// Controls the type of video to render:
   ///  To render video from RtcEngine, see VideoViewController.
