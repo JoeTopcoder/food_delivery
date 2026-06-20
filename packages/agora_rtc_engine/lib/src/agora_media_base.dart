@@ -1875,24 +1875,18 @@ class AudioFrameObserver extends AudioFrameObserverBase {
   /// @nodoc
   const AudioFrameObserver({
     /// @nodoc
-    void Function(String channelId, AudioFrame audioFrame)? onRecordAudioFrame,
+    super.onRecordAudioFrame,
 
     /// @nodoc
-    void Function(String channelId, AudioFrame audioFrame)?
-        onPlaybackAudioFrame,
+    super.onPlaybackAudioFrame,
 
     /// @nodoc
-    void Function(String channelId, AudioFrame audioFrame)? onMixedAudioFrame,
+    super.onMixedAudioFrame,
 
     /// @nodoc
-    void Function(AudioFrame audioFrame)? onEarMonitoringAudioFrame,
+    super.onEarMonitoringAudioFrame,
     this.onPlaybackAudioFrameBeforeMixing,
-  }) : super(
-          onRecordAudioFrame: onRecordAudioFrame,
-          onPlaybackAudioFrame: onPlaybackAudioFrame,
-          onMixedAudioFrame: onMixedAudioFrame,
-          onEarMonitoringAudioFrame: onEarMonitoringAudioFrame,
-        );
+  });
 
   /// Retrieves the audio of a subscribed remote user before mixing.
   ///
