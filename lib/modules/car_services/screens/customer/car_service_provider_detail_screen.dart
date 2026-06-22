@@ -67,7 +67,7 @@ class _CarServiceProviderDetailScreenState
       ..writeln('⭐ $rating stars');
     if (address.isNotEmpty) msg.writeln('📍 $address');
     msg.write('\nBook car services on 7Dash 👉 https://sevendash.app');
-    Share.share(msg.toString(), subject: provider.businessName);
+    SharePlus.instance.share(ShareParams(text: msg.toString(), subject: provider.businessName));
   }
 
   Future<void> _toggleFav(CarServiceProvider provider) async {

@@ -195,9 +195,9 @@ class RestaurantReferralScreen extends ConsumerWidget {
                   ? SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => Share.share(
-                          'List your restaurant on MealHub! Use my referral code $code when you sign up and get \$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} in ad credits. Download the app now.',
-                        ),
+                        onPressed: () => SharePlus.instance.share(ShareParams(
+                          text: 'List your restaurant on MealHub! Use my referral code $code when you sign up and get \$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} in ad credits. Download the app now.',
+                        )),
                         icon: const Icon(Icons.share_rounded),
                         label: const Text(
                           'Share with Restaurants',

@@ -312,7 +312,7 @@ class _AdDialogState extends ConsumerState<_AdDialog> {
                 const Center(child: CircularProgressIndicator())
               else
                 DropdownButtonFormField<String>(
-                  value: _restaurantId,
+                  initialValue: _restaurantId,
                   decoration: _dec('Restaurant'),
                   items: _restaurants.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['name'] ?? ''))).toList(),
                   onChanged: (v) => setState(() => _restaurantId = v),
@@ -326,7 +326,7 @@ class _AdDialogState extends ConsumerState<_AdDialog> {
               TextFormField(controller: _imageUrl, decoration: _dec('Image URL')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _type,
+                initialValue: _type,
                 decoration: _dec('Ad Type'),
                 items: ['banner', 'featured', 'sponsored', 'popup'].map((t) => DropdownMenuItem(value: t, child: Text(t[0].toUpperCase() + t.substring(1)))).toList(),
                 onChanged: (v) => setState(() => _type = v ?? 'banner'),

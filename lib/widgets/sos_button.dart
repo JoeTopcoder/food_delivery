@@ -170,7 +170,7 @@ class _SosSheetContent extends StatelessWidget {
       final message =
           'EMERGENCY - I need help! Here is my current location: $mapsUrl';
 
-      await Share.share(message);
+      await SharePlus.instance.share(ShareParams(text: message));
     } catch (e) {
       if (context.mounted) {
         AppSnackbar.error(context, friendlyError(e));

@@ -260,7 +260,7 @@ class _MealPlanDialogState extends ConsumerState<_MealPlanDialog> {
             ]),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _frequency,
+              initialValue: _frequency,
               decoration: _dec('Frequency'),
               items: ['daily', 'weekly', 'monthly'].map((f) => DropdownMenuItem(value: f, child: Text(f[0].toUpperCase() + f.substring(1)))).toList(),
               onChanged: (v) => setState(() => _frequency = v ?? 'weekly'),

@@ -98,7 +98,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           );
       _navigateAfterSignIn();
     } catch (e) {
-      AppLogger.error('Sign in error: $e');
+      // Log the full raw Supabase error (visible in `flutter logs`) so the
+      // exact error code from GoTrue can be read during debugging.
+      AppLogger.error('Sign in raw error: ${e.runtimeType}: $e');
       _showError(e);
     }
   }
