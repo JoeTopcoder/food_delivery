@@ -3,6 +3,34 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // Several Flutter plugins (share_plus, flutter_tts, stripe_android, etc.) still
+    // apply their own Kotlin Gradle Plugin via a legacy buildscript classpath block,
+    // which conflicts with the project-level KGP 2.3.0 and causes K2 compiler errors
+    // such as "Unresolved reference" for classes in the same package.
+    // Forcing every KGP + stdlib coordinate to 2.3.0 — in both buildscript classpath
+    // and runtime configurations — ensures a single consistent Kotlin toolchain is used
+    // throughout the build, eliminating the inter-version K2 incompatibilities.
+    val kotlinVersion = "2.3.0"
+    buildscript {
+        configurations.all {
+            resolutionStrategy {
+                force("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+                force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+                force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+                force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+                force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+            }
+        }
+    }
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+            force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+        }
+    }
 }
 
 val newBuildDir: Directory =

@@ -416,6 +416,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
             role: meta['role'] as String? ?? 'user',
             createdAt: DateTime.now(),
           );
+        } else {
+          // DB triggers can create users with the default 'customer' role.
+          // If auth metadata carries a more specific role (set at signup), apply it
+          // so navigation happens to the correct dashboard immediately.
+          final metaRole =
+              response.user!.userMetadata?['role'] as String?;
+          if ((user.role == 'customer' || user.role == 'user') &&
+              metaRole != null &&
+              metaRole != 'customer' &&
+              metaRole != 'user') {
+            user = user.copyWith(role: metaRole);
+          }
         }
         AppLogger.info('Sign in successful, role: ${user.role}');
         state = state.copyWith(
@@ -426,6 +438,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _subscribeToUserTopics(
           user,
         ); // fire-and-forget — don't block navigation
+      } else {
+        // signInWithPassword should always return a user on success, but guard
+        // against an unexpected null so isLoading is never left as true.
+        state = state.copyWith(isLoading: false);
       }
     } catch (e) {
       AppLogger.error('Sign in error: $e');

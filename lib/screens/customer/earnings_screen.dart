@@ -581,9 +581,9 @@ class _InviteCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Share.share(
-                'Join MealHub with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
-              ),
+              onPressed: () => SharePlus.instance.share(ShareParams(
+                text: 'Join MealHub with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
+              )),
               icon: const Icon(Icons.share_rounded, size: 16),
               label: const Text('Share with Friends'),
               style: ElevatedButton.styleFrom(

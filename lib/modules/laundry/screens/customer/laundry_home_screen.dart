@@ -520,7 +520,7 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
     if (rating.isNotEmpty)  msg.writeln(rating);
     if (address.isNotEmpty) msg.writeln('📍 $address');
     msg.write('\nBook laundry pickup on 7Dash 👉 https://sevendash.app');
-    Share.share(msg.toString(), subject: p.businessName);
+    SharePlus.instance.share(ShareParams(text: msg.toString(), subject: p.businessName));
   }
 
   LaundryProvider get provider => widget.provider;

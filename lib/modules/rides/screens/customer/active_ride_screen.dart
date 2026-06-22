@@ -406,7 +406,7 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
                 if (dest.isNotEmpty)   msg.writeln('🏁 To: $dest');
                 if (fare.isNotEmpty)   msg.writeln('💳 Fare: $fare');
                 msg.write('\nBook rides on 7Dash 👉 https://sevendash.app');
-                Share.share(msg.toString());
+                SharePlus.instance.share(ShareParams(text: msg.toString()));
               },
               onCancel: _cancelRide,
               onViewHistory: () => Navigator.pushReplacementNamed(

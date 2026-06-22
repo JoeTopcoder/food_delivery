@@ -57,8 +57,22 @@ String friendlyError(Object? error) {
   if (msg.contains('email') && msg.contains('invalid')) {
     return 'Please enter a valid email address.';
   }
-  if (msg.contains('database error') || msg.contains('unexpected_failure')) {
-    return 'A server error occurred. Please try again.';
+  if (msg.contains('database error saving new user') ||
+      msg.contains('database error creating new user')) {
+    return 'Account creation failed. Please try again or contact support.';
+  }
+  if (msg.contains('unexpected_failure') ||
+      msg.contains('database error')) {
+    // Extract the Supabase-provided message if available so it's debuggable.
+    final errorStr = error.toString();
+    final msgMatch = RegExp(r'message:\s*([^,\)]+)').firstMatch(errorStr);
+    final detail = msgMatch?.group(1)?.trim() ?? '';
+    if (detail.isNotEmpty &&
+        !detail.toLowerCase().contains('unexpected_failure') &&
+        !detail.toLowerCase().contains('database error')) {
+      return 'Server error: $detail. Please try again.';
+    }
+    return 'A server error occurred. Please try again or check your Supabase project status.';
   }
   if (msg.contains('weak password') || msg.contains('password')) {
     if (msg.contains('at least')) {

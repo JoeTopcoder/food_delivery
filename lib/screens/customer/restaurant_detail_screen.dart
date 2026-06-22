@@ -362,13 +362,13 @@ class _RestaurantDetailScreenState
                     final rating = widget.restaurant.rating != null
                         ? ' ⭐ ${widget.restaurant.rating}'
                         : '';
-                    Share.share(
-                      '🍽️ $name$rating\n'
-                      '$cuisine • Order on MealHub\n\n'
-                      'Use code NEWUSER for 30% off your first order!\n'
-                      'https://mealhub.app/restaurant/$id',
+                    SharePlus.instance.share(ShareParams(
+                      text: '🍽️ $name$rating\n'
+                          '$cuisine • Order on MealHub\n\n'
+                          'Use code NEWUSER for 30% off your first order!\n'
+                          'https://mealhub.app/restaurant/$id',
                       subject: 'Check out $name on MealHub!',
-                    );
+                    ));
                   },
                 ),
               ],

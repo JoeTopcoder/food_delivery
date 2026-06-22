@@ -208,9 +208,9 @@ class DriverReferralScreen extends ConsumerWidget {
                   ? SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => Share.share(
-                          'Join MealHub as a delivery driver! Use my referral code $code when you sign up and get a bonus on your first delivery. Download the app now.',
-                        ),
+                        onPressed: () => SharePlus.instance.share(ShareParams(
+                          text: 'Join MealHub as a delivery driver! Use my referral code $code when you sign up and get a bonus on your first delivery. Download the app now.',
+                        )),
                         icon: const Icon(Icons.share_rounded),
                         label: const Text(
                           'Share with Drivers',
