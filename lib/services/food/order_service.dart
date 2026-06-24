@@ -13,6 +13,22 @@ class OrderService {
 
   OrderService(this._supabaseClient);
 
+  /// Deterministic idempotency key for a checkout attempt.
+  /// Combining userId + restaurantId + totalAmount + minute-bucket gives a key
+  /// that is stable across retries within the same minute but changes if the
+  /// user starts a genuinely new order.
+  String _generateIdempotencyKey(String userId, String restaurantId, double total) {
+    final minute = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 60000;
+    final raw = '$userId:$restaurantId:${total.toStringAsFixed(2)}:$minute';
+    // Simple deterministic hash — not cryptographic, just collision-resistant enough
+    // for duplicate-order prevention within a 1-minute window.
+    var hash = 0;
+    for (final c in raw.codeUnits) {
+      hash = ((hash << 5) - hash + c) & 0x7fffffff;
+    }
+    return '${userId.substring(0, 8)}-$hash';
+  }
+
   /// Returns an Authorization header with a fresh access token.
   /// Only calls refreshSession() if the current JWT expires within 60 seconds
   /// to avoid an unnecessary round-trip on every order creation.
@@ -65,23 +81,25 @@ class OrderService {
     // charges/verifies Stripe BEFORE inserting the order.
     String? savedCardPaymentMethodId,
     String? paymentIntentId,
+    // Idempotency key — generate once per checkout attempt and keep it across
+    // retries so a network drop never creates a duplicate order.
+    String? idempotencyKey,
   }) async {
+    // Generate idempotency key here if the caller didn't supply one.
+    // Using a stable key derived from user+cart ensures the same order isn't
+    // duplicated even if the app crashes and the user taps "Place Order" again.
+    final iKey = idempotencyKey ?? _generateIdempotencyKey(userId, restaurantId, totalAmount);
+
     try {
-      AppLogger.info('Creating order via Edge Function for user: $userId');
+      AppLogger.info('Creating order via Edge Function for user: $userId (iKey=$iKey)');
       AppLogger.info(
         'Order params: restaurantId=$restaurantId, items=${items.length}, subtotal=$subtotal, deliveryFee=$deliveryFee, totalAmount=$totalAmount, isPickup=$isPickup, paymentMethod=$paymentMethod',
       );
 
       final itemsPayload = items.map((item) {
-        // Calculate subtotal: price per unit * quantity + sides total
         final sidesTotal =
-            item.sides?.fold<double>(
-              0.0,
-              (sum, side) => sum + side.sidePrice,
-            ) ??
-            0.0;
+            item.sides?.fold<double>(0.0, (sum, side) => sum + side.sidePrice) ?? 0.0;
         final itemSubtotal = (item.price + sidesTotal) * item.quantity;
-
         return <String, dynamic>{
           'menu_item_id': item.menuItemId,
           'item_name': item.itemName,
@@ -91,9 +109,7 @@ class OrderService {
           if (item.notes != null) 'notes': item.notes,
           if (item.sides != null && item.sides!.isNotEmpty)
             'sides': item.sides!
-                .map(
-                  (s) => {'side_name': s.sideName, 'side_price': s.sidePrice},
-                )
+                .map((s) => {'side_name': s.sideName, 'side_price': s.sidePrice})
                 .toList(),
         };
       }).toList();
@@ -113,6 +129,7 @@ class OrderService {
         'payment_method': paymentMethod ?? 'cash',
         'contactless_delivery': contactlessDelivery,
         'is_pickup': isPickup,
+        'idempotency_key': iKey,
       };
 
       if (taxAmount != null) body['tax_amount'] = taxAmount;

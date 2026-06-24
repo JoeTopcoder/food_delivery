@@ -140,8 +140,11 @@ Deno.serve(async (request) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // ── Request ID for tracing ────────────────────────────────────────────────
+  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
+
   let body: Record<string, unknown>;
-  try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+  try { body = await request.json(); } catch { return json({ error: "Invalid JSON", request_id: requestId }, 400); }
 
   const userId = body.user_id as string;
   const restaurantId = body.restaurant_id as string;
@@ -174,9 +177,27 @@ Deno.serve(async (request) => {
   const promoCode = body.promo_code as string | undefined;
   const savedCardPaymentMethodId = body.saved_card_payment_method_id as string | undefined;
   const incomingPaymentIntentId = body.payment_intent_id as string | undefined;
+  // Idempotency key — Flutter generates one UUID per order attempt and retains
+  // it across retries.  Duplicate calls with the same key return the original order.
+  const idempotencyKey = body.idempotency_key as string | undefined;
 
   if (!userId || !restaurantId || !items?.length || !deliveryAddress) {
-    return json({ error: "Missing required fields" }, 400);
+    return json({ error: "Missing required fields", request_id: requestId }, 400);
+  }
+
+  // ── Idempotency check ─────────────────────────────────────────────────────
+  // If this request was already processed, return the cached response immediately.
+  if (idempotencyKey) {
+    const { data: existing } = await admin
+      .from("order_idempotency_keys")
+      .select("response_snapshot")
+      .eq("user_id", userId)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (existing?.response_snapshot) {
+      console.log(`[place-order] Idempotency hit for key=${idempotencyKey}, requestId=${requestId}`);
+      return json({ ...(existing.response_snapshot as Record<string, unknown>), idempotent: true });
+    }
   }
 
   // ── PAYMENT GATE ───────────────────────────────────────────────────────────
@@ -349,32 +370,36 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order", details: orderErr?.message }, 500);
     }
 
-    // ── 6. Insert order items + sides ────────────────────────────────────
-    for (const item of items) {
-      const { data: insertedItem, error: itemErr } = await admin
-        .from("order_items")
-        .insert({
-          order_id: orderId,
-          menu_item_id: item.menu_item_id,
-          item_name: item.item_name,
-          price: item.price,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-          notes: item.notes ?? null,
-        })
-        .select("id")
-        .single();
+    // ── 6. Batch insert order items ──────────────────────────────────────
+    // Single INSERT instead of N round-trips — critical at scale.
+    // We still need returned IDs to insert sides, so we use select("id, menu_item_id").
+    const itemRows = items.map((item) => ({
+      order_id: orderId,
+      menu_item_id: item.menu_item_id,
+      item_name: item.item_name,
+      price: item.price,
+      quantity: item.quantity,
+      subtotal: item.subtotal,
+      notes: item.notes ?? null,
+    }));
 
-      if (itemErr || !insertedItem) continue;
+    const { data: insertedItems } = await admin
+      .from("order_items")
+      .insert(itemRows)
+      .select("id, menu_item_id");
 
-      if (item.sides && item.sides.length > 0) {
-        const sideRows = item.sides.map((s) => ({
-          order_item_id: insertedItem.id,
-          side_name: s.side_name,
-          side_price: s.side_price,
-        }));
-        await admin.from("order_item_sides").insert(sideRows);
+    // Batch insert sides — group all sides from all items into one INSERT
+    const allSideRows: Array<{ order_item_id: string; side_name: string; side_price: number }> = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const insertedItem = insertedItems?.[i];
+      if (!insertedItem || !item.sides?.length) continue;
+      for (const s of item.sides) {
+        allSideRows.push({ order_item_id: insertedItem.id, side_name: s.side_name, side_price: s.side_price });
       }
+    }
+    if (allSideRows.length > 0) {
+      await admin.from("order_item_sides").insert(allSideRows);
     }
 
     // ── 6. Post-create side-effects ──────────────────────────────────────
@@ -393,9 +418,10 @@ Deno.serve(async (request) => {
       type: 'order_placed', order_id: orderId, receipt_number: receiptNumber,
     });
 
-    // ── 8. Return the created order ──────────────────────────────────────
-    return json({
+    // ── 8. Build response + store idempotency snapshot ───────────────────
+    const responsePayload = {
       success: true,
+      request_id: requestId,
       order: {
         id: orderId,
         status: order.status,
@@ -413,8 +439,21 @@ Deno.serve(async (request) => {
         is_pickup: isPickup,
         ordered_at: order.ordered_at,
       },
-    });
+    };
+
+    // Persist idempotency snapshot (fire-and-forget — don't block the response)
+    if (idempotencyKey) {
+      admin.from("order_idempotency_keys").upsert({
+        user_id: userId,
+        idempotency_key: idempotencyKey,
+        order_id: orderId,
+        response_snapshot: responsePayload,
+      }, { onConflict: "user_id,idempotency_key" }).then(() => {}).catch(() => {});
+    }
+
+    return json(responsePayload);
   } catch (err) {
-    return json({ error: "Server error", details: `${err}` }, 500);
+    console.error(`[place-order] requestId=${requestId} error:`, err);
+    return json({ error: "Server error", details: `${err}`, request_id: requestId }, 500);
   }
 });

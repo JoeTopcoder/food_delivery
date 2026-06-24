@@ -131,10 +131,11 @@ class OrderHistoryScreen extends ConsumerWidget {
       itemCount: entries.length,
       itemBuilder: (_, i) {
         final e = entries[i];
-        if (e.master != null) {
-          return _MasterOrderCard(masterOrder: e.master!, userId: userId);
-        }
-        return _OrderCard(order: e.single!);
+        return RepaintBoundary(
+          child: e.master != null
+              ? _MasterOrderCard(masterOrder: e.master!, userId: userId)
+              : _OrderCard(order: e.single!),
+        );
       },
     );
   }

@@ -79,6 +79,7 @@ import 'screens/admin/admin_disputes_screen.dart';
 import 'screens/admin/admin_feedback_screen.dart';
 import 'screens/admin/admin_surge_screen.dart';
 import 'screens/admin/admin_banners_screen.dart';
+import 'screens/admin/admin_categories_screen.dart';
 import 'screens/admin/admin_orders_screen.dart';
 import 'screens/admin/admin_lookup_screen.dart';
 import 'screens/admin/admin_contract_screen_v2.dart';
@@ -1062,6 +1063,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminBannersScreen(),
+                ),
+              );
+            case '/admin-categories':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminCategoriesScreen(),
                 ),
               );
             case '/admin-lookup':

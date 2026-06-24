@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'dart:math';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/material.dart';
@@ -760,7 +761,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             SliverToBoxAdapter(
               child: RepaintBoundary(
                 child: SizedBox(
-                  height: 84,
+                  height: 90,
                   child: Builder(
                     builder: (context) {
                       final categoriesAsync = ref.watch(foodCategoriesProvider);
@@ -803,28 +804,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               );
                             },
                             child: SizedBox(
-                              width: 58,
+                              width: 64,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    width: 46,
-                                    height: 46,
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      cat['emoji']!,
-                                      style: const TextStyle(fontSize: 22),
-                                    ),
+                                  _CategoryImage(
+                                    imageUrl: cat['image_url'] ?? '',
+                                    emoji: cat['emoji']!,
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 5),
                                   Text(
                                     cat['name']!,
                                     maxLines: 1,
@@ -832,7 +820,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurface,
@@ -2069,6 +2057,55 @@ class _ServiceCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Circular category tile that shows a real food photo from the DB.
+/// Falls back to the emoji when the URL is empty or the image fails to load.
+class _CategoryImage extends StatelessWidget {
+  const _CategoryImage({required this.imageUrl, required this.emoji});
+
+  final String imageUrl;
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl.isNotEmpty;
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.18),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasImage
+          ? CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (_, __) => Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ),
+              errorWidget: (_, __, ___) => Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+              ),
+            )
+          : Center(
+              child: Text(emoji, style: const TextStyle(fontSize: 22)),
+            ),
     );
   }
 }

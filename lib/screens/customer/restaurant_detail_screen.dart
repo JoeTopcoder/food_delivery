@@ -255,9 +255,8 @@ class _RestaurantDetailScreenState
   }
 
   void _onScroll() {
-    setState(() {
-      _showAppBar = _scrollController.offset > 200;
-    });
+    final show = _scrollController.offset > 200;
+    if (show != _showAppBar) setState(() => _showAppBar = show);
   }
 
   @override

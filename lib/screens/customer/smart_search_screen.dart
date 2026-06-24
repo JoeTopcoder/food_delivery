@@ -726,29 +726,36 @@ class _MenuItemsSearchTab extends ConsumerWidget {
             );
           }
 
-          return ListView(
+          return ListView.builder(
             padding: const EdgeInsets.all(16),
-            children: [
-              const Text(
-                'Recommended for You',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Based on your order history',
-                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 12),
-              ...recs.map(
-                (r) => _MenuItemCard(
-                  name: r.itemName,
-                  price: r.itemPrice,
-                  imageUrl: r.itemImageUrl,
-                  restaurantName: r.restaurantName,
-                  restaurantId: r.restaurantId,
-                ),
-              ),
-            ],
+            itemCount: recs.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Recommended for You',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Based on your order history',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              }
+              final r = recs[index - 1];
+              return _MenuItemCard(
+                name: r.itemName,
+                price: r.itemPrice,
+                imageUrl: r.itemImageUrl,
+                restaurantName: r.restaurantName,
+                restaurantId: r.restaurantId,
+              );
+            },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -793,18 +800,20 @@ class _MenuItemsSearchTab extends ConsumerWidget {
           itemCount: results.length,
           itemBuilder: (context, index) {
             final r = results[index];
-            return _MenuItemCard(
-              name: r.itemName,
-              price: r.discountedPrice,
-              originalPrice: r.itemDiscount != null && r.itemDiscount! > 0
-                  ? r.itemPrice
-                  : null,
-              imageUrl: r.itemImageUrl,
-              restaurantName: r.restaurantName,
-              restaurantId: r.restaurantId,
-              restaurantImage: r.restaurantImage,
-              rating: r.restaurantRating,
-              category: r.itemCategory,
+            return RepaintBoundary(
+              child: _MenuItemCard(
+                name: r.itemName,
+                price: r.discountedPrice,
+                originalPrice: r.itemDiscount != null && r.itemDiscount! > 0
+                    ? r.itemPrice
+                    : null,
+                imageUrl: r.itemImageUrl,
+                restaurantName: r.restaurantName,
+                restaurantId: r.restaurantId,
+                restaurantImage: r.restaurantImage,
+                rating: r.restaurantRating,
+                category: r.itemCategory,
+              ),
             );
           },
         );
