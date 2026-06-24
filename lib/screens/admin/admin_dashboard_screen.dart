@@ -665,6 +665,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-shipping-companies'),
                           ),
+                          _GridAction(
+                            icon: Icons.category_rounded,
+                            label: 'Categories',
+                            color: const Color(0xFFD97706),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-categories').then((_) => _refresh()),
+                          ),
                         ],
                       ),
 

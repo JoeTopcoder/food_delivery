@@ -2,6 +2,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/api_retry.dart';
+
+// Columns needed by Restaurant.fromJson — explicit list avoids pulling large
+// unused fields (description, operating_hours JSON, etc.) on list requests.
+// Detail screen uses getRestaurantById() which fetches all columns.
+const _kRestaurantListCols = 'id, name, image_url, cuisine_type, rating, '
+    'review_count, delivery_fee, estimated_delivery_time, is_open, '
+    'is_verified, address, latitude, longitude, store_type, tags, '
+    'opening_time, closing_time, commission_rate, owner_id, created_at, updated_at';
 
 class RestaurantService {
   final SupabaseClient _supabaseClient;
@@ -11,62 +20,53 @@ class RestaurantService {
   static String _sanitizeQuery(String q) =>
       q.replaceAll(RegExp(r'[%_(),.\\]'), '');
 
-  // Get all restaurants
+  // Get all restaurants — narrowed columns + retry on transient failures
   Future<List<Restaurant>> getAllRestaurants({
     int? limit,
     int offset = 0,
   }) async {
     limit ??= AppConstants.pageSize;
-    try {
-      AppLogger.info('Fetching all restaurants');
+    return withRetry(() async {
+      AppLogger.info('Fetching all restaurants (offset=$offset, limit=$limit)');
 
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
+          .select(_kRestaurantListCols)
           .eq('is_open', true)
           .eq('is_verified', true)
           .neq('store_type', 'grocery')
-          .range(offset, offset + limit - 1)
+          .range(offset, offset + limit! - 1)
           .order('rating', ascending: false);
 
       final restaurants = (response as List)
-          .map((restaurant) => Restaurant.fromJson(restaurant))
+          .map((r) => Restaurant.fromJson(r))
           .toList();
-
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
-    } catch (e) {
-      AppLogger.error('Error fetching restaurants: $e');
-      rethrow;
-    }
+    }, label: 'getAllRestaurants');
   }
 
-  // Search restaurants by name or cuisine
+  // Search restaurants — narrowed columns + retry
   Future<List<Restaurant>> searchRestaurants(String query) async {
-    try {
+    final safe = _sanitizeQuery(query);
+    return withRetry(() async {
       AppLogger.info('Searching restaurants: $query');
 
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
-          .or(
-            'name.ilike.%${_sanitizeQuery(query)}%,cuisine_type.ilike.%${_sanitizeQuery(query)}%',
-          )
+          .select(_kRestaurantListCols)
+          .or('name.ilike.%$safe%,cuisine_type.ilike.%$safe%')
           .eq('is_open', true)
           .eq('is_verified', true)
           .neq('store_type', 'grocery')
           .limit(50);
 
       final restaurants = (response as List)
-          .map((restaurant) => Restaurant.fromJson(restaurant))
+          .map((r) => Restaurant.fromJson(r))
           .toList();
-
       AppLogger.info('Found ${restaurants.length} restaurants');
       return restaurants;
-    } catch (e) {
-      AppLogger.error('Error searching restaurants: $e');
-      rethrow;
-    }
+    }, label: 'searchRestaurants');
   }
 
   // Get restaurant by owner ID (no is_open filter)
@@ -148,84 +148,62 @@ class RestaurantService {
 
   // Get top rated restaurants
   Future<List<Restaurant>> getTopRatedRestaurants({int limit = 10}) async {
-    try {
+    return withRetry(() async {
       AppLogger.info('Fetching top rated restaurants');
-
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
+          .select(_kRestaurantListCols)
           .eq('is_open', true)
           .eq('is_verified', true)
           .neq('store_type', 'grocery')
           .order('rating', ascending: false)
           .limit(limit);
-
-      final restaurants = (response as List)
-          .map((restaurant) => Restaurant.fromJson(restaurant))
-          .toList();
-
-      AppLogger.info('Fetched ${restaurants.length} top rated restaurants');
-      return restaurants;
-    } catch (e) {
-      AppLogger.error('Error fetching top rated restaurants: $e');
-      rethrow;
-    }
+      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+    }, label: 'getTopRatedRestaurants');
   }
 
   // Get newly added restaurants (most recent first)
   Future<List<Restaurant>> getNewlyAddedRestaurants({int limit = 10}) async {
-    try {
+    return withRetry(() async {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
+          .select(_kRestaurantListCols)
           .eq('is_open', true)
           .eq('is_verified', true)
           .neq('store_type', 'grocery')
           .order('created_at', ascending: false)
           .limit(limit);
-
       return (response as List).map((r) => Restaurant.fromJson(r)).toList();
-    } catch (e) {
-      AppLogger.error('Error fetching newly added restaurants: $e');
-      rethrow;
-    }
+    }, label: 'getNewlyAddedRestaurants');
   }
 
   // Get restaurants tagged/typed as breakfast
   Future<List<Restaurant>> getBreakfastRestaurants({int limit = 10}) async {
-    try {
+    return withRetry(() async {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
+          .select(_kRestaurantListCols)
           .eq('is_open', true)
           .neq('store_type', 'grocery')
           .or('cuisine_type.ilike.%breakfast%,tags.cs.{breakfast}')
           .limit(limit);
-
       return (response as List).map((r) => Restaurant.fromJson(r)).toList();
-    } catch (e) {
-      AppLogger.error('Error fetching breakfast restaurants: $e');
-      rethrow;
-    }
+    }, label: 'getBreakfastRestaurants');
   }
 
   // Get "must try" restaurants — highest rated with most reviews
   Future<List<Restaurant>> getMustTryRestaurants({int limit = 10}) async {
-    try {
+    return withRetry(() async {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
-          .select()
+          .select(_kRestaurantListCols)
           .eq('is_open', true)
           .neq('store_type', 'grocery')
           .gte('rating', 4.0)
           .order('review_count', ascending: false)
           .limit(limit);
-
       return (response as List).map((r) => Restaurant.fromJson(r)).toList();
-    } catch (e) {
-      AppLogger.error('Error fetching must-try restaurants: $e');
-      rethrow;
-    }
+    }, label: 'getMustTryRestaurants');
   }
 
   // Create restaurant (for restaurant owners)

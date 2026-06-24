@@ -32,14 +32,34 @@ final foodCategoriesProvider = FutureProvider.autoDispose<List<Map<String, Strin
   ref,
 ) async {
   ref.keepAlive();
-  final rows = await SupabaseConfig.client
-      .from('food_categories')
-      .select('name, emoji')
-      .eq('is_active', true)
-      .order('sort_order');
-  return (rows as List)
-      .map((r) => {'name': r['name'] as String, 'emoji': r['emoji'] as String})
-      .toList();
+  try {
+    final rows = await SupabaseConfig.client
+        .from('food_categories')
+        .select('name, emoji, image_url')
+        .eq('is_active', true)
+        .order('sort_order');
+    return (rows as List)
+        .map((r) => {
+              'name': r['name'] as String,
+              'emoji': r['emoji'] as String,
+              'image_url': (r['image_url'] as String?) ?? '',
+            })
+        .toList();
+  } catch (_) {
+    // image_url column may not exist yet — fall back to name + emoji only
+    final rows = await SupabaseConfig.client
+        .from('food_categories')
+        .select('name, emoji')
+        .eq('is_active', true)
+        .order('sort_order');
+    return (rows as List)
+        .map((r) => {
+              'name': r['name'] as String,
+              'emoji': r['emoji'] as String,
+              'image_url': '',
+            })
+        .toList();
+  }
 });
 
 /// Call `ref.read(appConfigRealtimeProvider)` once at startup to begin

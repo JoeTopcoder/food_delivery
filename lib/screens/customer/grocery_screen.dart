@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -163,21 +164,9 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                               },
                               child: Column(
                                 children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        cat.icon ?? '🛒',
-                                        style: const TextStyle(fontSize: 28),
-                                      ),
-                                    ),
+                                  _GroceryCategoryImage(
+                                    imageUrl: cat.imageUrl ?? '',
+                                    emoji: cat.icon ?? '🛒',
                                   ),
                                   const SizedBox(height: 6),
                                   SizedBox(
@@ -209,7 +198,18 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                   height: 100,
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (err, __) => SizedBox(
+                  height: 60,
+                  child: Center(
+                    child: Text(
+                      friendlyError(err),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -948,3 +948,43 @@ class _GroceryBannerCard extends ConsumerWidget {
     );
   }
 }
+
+class _GroceryCategoryImage extends StatelessWidget {
+  const _GroceryCategoryImage({required this.imageUrl, required this.emoji});
+
+  final String imageUrl;
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl.isNotEmpty;
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasImage
+          ? CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (_, __) => Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              ),
+              errorWidget: (_, __, ___) => Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              ),
+            )
+          : Center(
+              child: Text(emoji, style: const TextStyle(fontSize: 28)),
+            ),
+    );
+  }
+}
+

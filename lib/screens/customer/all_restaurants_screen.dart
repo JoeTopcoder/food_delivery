@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/user_provider.dart';
@@ -165,15 +166,18 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(800),
                   itemCount: restaurants.length,
                   itemBuilder: (context, index) {
                     final r = restaurants[index];
-                    return RestaurantCard(
-                      restaurant: r,
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        '/restaurant-detail',
-                        arguments: r,
+                    return RepaintBoundary(
+                      child: RestaurantCard(
+                        restaurant: r,
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/restaurant-detail',
+                          arguments: r,
+                        ),
                       ),
                     );
                   },

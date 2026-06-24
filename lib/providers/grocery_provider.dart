@@ -126,10 +126,13 @@ final groceryCategoriesProvider =
             callback: (_) => ref.invalidateSelf(),
           )
           .onPostgresChanges(
-            event: PostgresChangeEvent.all,
+            event: PostgresChangeEvent.insert,
             schema: 'public',
             table: 'menus',
             callback: (payload) {
+              // Only refresh when a new product is inserted — a new category
+              // name may have appeared. Ignore UPDATE/DELETE events (stock
+              // toggles, price edits) which cannot add new category names.
               final row = payload.newRecord;
               if (row['product_type'] == 'grocery') {
                 ref.invalidateSelf();
