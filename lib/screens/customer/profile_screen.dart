@@ -224,6 +224,13 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                       },
                     ),
 
+                    const SizedBox(height: 8),
+
+                    // Delete account
+                    _DeleteAccountRow(
+                      onPressed: () => _confirmDeleteAccount(context, ref),
+                    ),
+
                     const SizedBox(height: 48),
                   ],
                 ),
@@ -233,6 +240,40 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         ),
       ),
     );
+  }
+
+  // ── Delete account ───────────────────────────────────────────────────────────
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref.read(authNotifierProvider.notifier).deleteAccount();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    }
   }
 
   // ── Photo upload ─────────────────────────────────────────────────────────────
@@ -860,6 +901,75 @@ class _MenuItem extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Delete-account row ───────────────────────────────────────────────────────
+class _DeleteAccountRow extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _DeleteAccountRow({required this.onPressed});
+
+  static const _red = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(7),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+              vertical: 14,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _red.withAlpha(18),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(Icons.delete_forever_rounded, color: _red, size: 20),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Delete Account',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5, color: _red),
+                      ),
+                      Text(
+                        'Permanently remove your account and data',
+                        style: TextStyle(fontSize: 11.5, color: _red),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ],
+            ),
           ),
         ),
       ),

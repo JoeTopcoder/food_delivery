@@ -289,6 +289,37 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     }
   }
 
+  Future<void> _confirmDeleteAccount(BuildContext ctx) async {
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(authNotifierProvider.notifier).deleteAccount();
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(context, 'Failed to delete account: $e');
+      }
+    }
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────
 
   @override
@@ -754,6 +785,12 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                           ),
                         ),
                       ],
+
+                      // ── Delete Account ───────────────────────────────
+                      const SizedBox(height: 32),
+                      _DeleteAccountButton(
+                        onPressed: () => _confirmDeleteAccount(context),
+                      ),
                     ],
                   ),
                 ),
@@ -1416,6 +1453,32 @@ class _StyledField extends StatelessWidget {
           borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
+    );
+  }
+}
+
+// ─── Delete account button ─────────────────────────────────────────────────────
+class _DeleteAccountButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _DeleteAccountButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 18),
+        label: const Text(
+          'Delete Account',
+          style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFFEF4444)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
     );
   }
