@@ -450,6 +450,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> deleteAccount() async {
+    final currentUser = state.user;
+    state = AuthState(isLoading: true);
+    try {
+      if (currentUser != null) {
+        await _unsubscribeFromAllTopics(currentUser);
+      }
+      await _authService.deleteAccount();
+      AppLogger.info('Account deleted successfully');
+    } catch (e) {
+      AppLogger.error('Delete account error: $e');
+      state = AuthState(isLoading: false, error: e.toString());
+      rethrow;
+    }
+    state = AuthState(isLoading: false);
+  }
+
   Future<void> signOut() async {
     final currentUser = state.user;
 

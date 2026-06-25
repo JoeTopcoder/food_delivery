@@ -80,6 +80,37 @@ class AuthService {
     }
   }
 
+  // Delete account — removes all user data then the auth record
+  Future<void> deleteAccount() async {
+    final user = _supabaseClient.auth.currentUser;
+    if (user == null) throw Exception('No authenticated user');
+    final userId = user.id;
+    AppLogger.info('Deleting account for user: $userId');
+    try {
+      // Try SECURITY DEFINER RPC that deletes auth.users (cascades to data).
+      await _supabaseClient.rpc('delete_my_account');
+      AppLogger.info('Account deleted via RPC');
+    } catch (rpcError) {
+      AppLogger.error('RPC delete_my_account failed ($rpcError) — falling back to data deletion');
+      // Fallback: delete user profile row (cascades to related rows via FK).
+      // The auth.users record stays but the profile is gone.
+      try {
+        await _supabaseClient
+            .from(AppConstants.tableUsers)
+            .delete()
+            .eq('id', userId);
+        AppLogger.info('User profile row deleted');
+      } catch (e) {
+        AppLogger.error('Error deleting user profile: $e');
+        rethrow;
+      }
+    }
+    // Always sign out after deletion.
+    try {
+      await _supabaseClient.auth.signOut();
+    } catch (_) {}
+  }
+
   // Reset password
   Future<void> resetPassword(String email) async {
     try {

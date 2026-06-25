@@ -119,6 +119,39 @@ class _RestaurantSettingsScreenState
     }
   }
 
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(authNotifierProvider.notifier).deleteAccount();
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
+
   void _prefillFields(Restaurant restaurant) {
     if (_hasInitialized) return;
     _hasInitialized = true;
@@ -608,6 +641,25 @@ class _RestaurantSettingsScreenState
                         )
                       : const Text('Save Settings'),
                 ),
+
+                const SizedBox(height: 16),
+
+                // Delete Account Button
+                OutlinedButton.icon(
+                  onPressed: _deleteAccount,
+                  icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 18),
+                  label: const Text(
+                    'Delete Account',
+                    style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    side: const BorderSide(color: Color(0xFFEF4444)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
               ],
             ),
           ),
