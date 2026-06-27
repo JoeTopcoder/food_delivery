@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,7 @@ import 'config/supabase_config.dart';
 import 'services/app_config_service.dart';
 import 'models/restaurant_model.dart';
 import 'models/order_model.dart';
-import 'providers/auth_provider.dart';
+import 'providers/auth_provider.dart'; // includes guestBrowsingProvider
 import 'providers/notification_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/locale_provider.dart';
@@ -159,6 +160,24 @@ import 'modules/rides/screens/driver/driver_schedule_screen.dart';
 import 'modules/packages/screens/customer/shipping_company_screen.dart';
 import 'modules/packages/screens/driver/package_request_card.dart';
 import 'modules/packages/models/package_delivery_request.dart';
+// Compliance / Legal screens
+import 'screens/legal/legal_center_screen.dart';
+import 'screens/legal/privacy_policy_screen.dart';
+import 'screens/legal/terms_conditions_screen.dart';
+import 'screens/legal/refund_policy_screen.dart';
+import 'screens/legal/cancellation_policy_screen.dart';
+import 'screens/legal/driver_safety_policy_screen.dart';
+import 'screens/legal/provider_terms_screen.dart';
+import 'screens/legal/subscription_terms_screen.dart';
+import 'screens/legal/about_screen.dart';
+import 'screens/legal/delete_account_screen.dart';
+import 'screens/legal/data_deletion_request_screen.dart';
+import 'screens/legal/contact_support_screen.dart';
+import 'screens/permissions/permission_explanation_screen.dart';
+import 'screens/shared/report_user_screen.dart';
+import 'screens/admin/admin_support_requests_screen.dart';
+import 'screens/admin/admin_deletion_requests_screen.dart';
+import 'screens/admin/admin_chat_reports_screen.dart';
 
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
@@ -211,6 +230,20 @@ void main() {
         AppLogger.error(
           '[Flutter] Uncaught: ${details.exception}\n${details.stack}',
         );
+      };
+
+      // Catch native/platform errors that bypass the Flutter framework
+      // (e.g. failed channel calls, plugin exceptions on iOS/Android).
+      PlatformDispatcher.instance.onError = (error, stack) {
+        AppLogger.error('[PlatformDispatcher] Uncaught: $error\n$stack');
+        if (kDebugMode) {
+          // In debug mode let Flutter's default handler also run so the
+          // red-screen overlay still appears for easy diagnosis.
+          return false;
+        }
+        // In release mode swallow the error — prevents hard crash and lets
+        // the app continue (or show the ErrorWidget) instead of force-closing.
+        return true;
       };
 
       // Replace the default red crash widget — show the real exception in
@@ -336,16 +369,19 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       if (isSignedOut) {
         // Debounce: wait 2 s before treating this as a real sign-out.
         // Supabase can emit a transient unauthenticated state during a
-        // token refresh on Android resume — jumping to role-selection
-        // immediately would look like the app "restarted" to the user.
+        // token refresh on Android resume — jumping to home immediately
+        // would look like the app "restarted" to the user.
         Future.delayed(const Duration(milliseconds: 2000), () {
           if (!mounted) return;
           final currentAuth = ref.read(authNotifierProvider);
           // Auth recovered within the window — do nothing.
           if (currentAuth.isAuthenticated) return;
+          // Re-enable guest browsing so the home screen loads for the
+          // signed-out user without requiring re-registration.
+          ref.read(guestBrowsingProvider.notifier).state = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-              '/role-selection',
+              '/home',
               (route) => false,
             );
           });
@@ -483,7 +519,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       navigatorKey: _navigatorKey,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
-        title: 'MealHub',
+        title: '7Dash',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
@@ -577,11 +613,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const ForgotPasswordScreen(),
               );
             case '/home':
+              // No RoleGuard — guests can browse; MainNavigationScreen handles
+              // null user state and prompts sign-in for protected actions.
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['user', 'customer'],
-                  child: MainNavigationScreen(),
-                ),
+                builder: (context) => const MainNavigationScreen(),
               );
             // Driver Routes
             case '/driver-dashboard':
@@ -657,18 +692,14 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               );
             // Customer Routes
             case '/customer-home':
+              // No RoleGuard — guests can view the home screen.
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['user'],
-                  child: CustomerHomeScreen(),
-                ),
+                builder: (context) => const CustomerHomeScreen(),
               );
             case '/all-restaurants':
+              // No RoleGuard — guests may browse the restaurant list.
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['user'],
-                  child: AllRestaurantsScreen(),
-                ),
+                builder: (context) => const AllRestaurantsScreen(),
               );
             // Restaurant Routes
             case '/restaurant-dashboard':
@@ -714,13 +745,12 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 ),
               );
             case '/restaurant-detail':
+              // No RoleGuard — guests may view restaurant menus and pricing.
+              // Auth-required actions (add to cart) are guarded inside the screen.
               if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
               return MaterialPageRoute(
-                builder: (context) => RoleGuard(
-                  allowedRoles: const ['user'],
-                  child: RestaurantDetailScreen(restaurant: restaurant),
-                ),
+                builder: (context) => RestaurantDetailScreen(restaurant: restaurant),
               );
             case '/cart':
               return MaterialPageRoute(
@@ -976,11 +1006,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 ),
               );
             case '/search':
+              // No RoleGuard — guests may search restaurants and products.
               return MaterialPageRoute(
-                builder: (context) => const RoleGuard(
-                  allowedRoles: ['user'],
-                  child: SmartSearchScreen(),
-                ),
+                builder: (context) => const SmartSearchScreen(),
               );
             case '/driver-leaderboard':
               return MaterialPageRoute(
@@ -1517,6 +1545,121 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
+                ),
+              );
+
+            // ── Legal / Compliance (public — no auth required) ────────
+            case '/legal':
+              return MaterialPageRoute(
+                builder: (_) => const LegalCenterScreen(),
+              );
+            case '/privacy-policy':
+              return MaterialPageRoute(
+                builder: (_) => const PrivacyPolicyScreen(),
+              );
+            case '/terms':
+              return MaterialPageRoute(
+                builder: (_) => const TermsConditionsScreen(),
+              );
+            case '/refund-policy':
+              return MaterialPageRoute(
+                builder: (_) => const RefundPolicyScreen(),
+              );
+            case '/cancellation-policy':
+              return MaterialPageRoute(
+                builder: (_) => const CancellationPolicyScreen(),
+              );
+            case '/driver-safety-policy':
+              return MaterialPageRoute(
+                builder: (_) => const DriverSafetyPolicyScreen(),
+              );
+            case '/provider-terms':
+              return MaterialPageRoute(
+                builder: (_) => const ProviderTermsScreen(),
+              );
+            case '/subscription-terms':
+              return MaterialPageRoute(
+                builder: (_) => const SubscriptionTermsScreen(),
+              );
+            case '/about':
+              return MaterialPageRoute(
+                builder: (_) => const AboutScreen(),
+              );
+            case '/data-deletion-request':
+              return MaterialPageRoute(
+                builder: (_) => const DataDeletionRequestScreen(),
+              );
+            case '/contact-support':
+              return MaterialPageRoute(
+                builder: (_) => const ContactSupportScreen(),
+              );
+
+            // ── Auth-required compliance screens ──────────────────────
+            case '/delete-account':
+              return MaterialPageRoute(
+                builder: (_) => const DeleteAccountScreen(),
+              );
+            case '/report-user':
+              final args = settings.arguments as Map<String, dynamic>?;
+              return MaterialPageRoute(
+                builder: (_) => ReportUserScreen(
+                  reportedUserId: args?['reportedUserId'] as String?,
+                  messageId: args?['messageId'] as String?,
+                  orderId: args?['orderId'] as String?,
+                  reportedUserName: args?['reportedUserName'] as String?,
+                ),
+              );
+
+            // ── Permission explanation screens ────────────────────────
+            case '/permissions/location':
+              return MaterialPageRoute(
+                builder: (_) => PermissionExplanationScreen(
+                  permissionType: AppPermissionType.location,
+                  onResult: settings.arguments as void Function(dynamic)?,
+                ),
+              );
+            case '/permissions/camera':
+              return MaterialPageRoute(
+                builder: (_) => PermissionExplanationScreen(
+                  permissionType: AppPermissionType.camera,
+                  onResult: settings.arguments as void Function(dynamic)?,
+                ),
+              );
+            case '/permissions/microphone':
+              return MaterialPageRoute(
+                builder: (_) => PermissionExplanationScreen(
+                  permissionType: AppPermissionType.microphone,
+                  onResult: settings.arguments as void Function(dynamic)?,
+                ),
+              );
+            case '/permissions/notifications':
+              return MaterialPageRoute(
+                builder: (_) => PermissionExplanationScreen(
+                  permissionType: AppPermissionType.notifications,
+                  onResult: settings.arguments as void Function(dynamic)?,
+                ),
+              );
+
+            // ── Admin compliance screens ──────────────────────────────
+            case '/admin-support-requests':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminSupportRequestsScreen(),
+                ),
+              );
+            case '/admin-deletion-requests':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDeletionRequestsScreen(),
+                ),
+              );
+            case '/admin-chat-reports':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminChatReportsScreen(),
                 ),
               );
 

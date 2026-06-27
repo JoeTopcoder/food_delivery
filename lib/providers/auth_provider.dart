@@ -638,3 +638,9 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
 });
 
 final authProvider = authNotifierProvider;
+
+/// True when the user chose to browse without signing in.
+/// Set via `ref.read(guestBrowsingProvider.notifier).state = true`.
+/// Automatically reads as false once the user becomes authenticated
+/// (callers should check authState.isAuthenticated first).
+final guestBrowsingProvider = StateProvider<bool>((ref) => false);
