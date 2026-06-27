@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -159,77 +161,119 @@ class AuthService {
 
   // Sign in with Google (native SDK → Supabase signInWithIdToken)
   Future<AuthResponse> signInWithGoogle() async {
+    // This MUST be the Web Application OAuth client ID (not the Android or iOS one).
+    // Android/iOS client IDs are only for native platform auth; the web client ID
+    // is what Supabase uses to verify the id_token.
+    const webClientId =
+        '379314267431-qg34f9rs5ms8bkpq298o1cn7prnqv7eu.apps.googleusercontent.com';
+
+    AppLogger.info('[Google] sign-in started — platform: $defaultTargetPlatform');
+
+    GoogleSignIn? googleSignIn;
     try {
-      AppLogger.info('Signing in with Google');
+      googleSignIn = GoogleSignIn(serverClientId: webClientId);
 
-      // This MUST be the Web Application OAuth client ID (not Android)
-      const webClientId =
-          '379314267431-qg34f9rs5ms8bkpq298o1cn7prnqv7eu.apps.googleusercontent.com';
+      // Silently clear any stale cached account so the account picker always shows.
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
 
-      final googleSignIn = GoogleSignIn(serverClientId: webClientId);
-
-      // Clear any stale session
-      await googleSignIn.signOut();
-
+      AppLogger.info('[Google] presenting account picker');
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
+        // User dismissed the picker — not a crash, not an error.
+        AppLogger.info('[Google] sign-in cancelled by user');
         throw Exception('Google sign-in was cancelled');
       }
 
+      AppLogger.info('[Google] account selected: ${googleUser.email}, fetching tokens');
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
       if (idToken == null) {
-        throw Exception('No ID token from Google — check OAuth client config');
+        AppLogger.error(
+          '[Google] idToken is null — check that the iOS/Android OAuth client is '
+          'configured in Google Cloud Console and GoogleService-Info.plist is present.',
+        );
+        throw Exception(
+          'Google did not return an ID token. '
+          'Ensure GoogleService-Info.plist is included in the Xcode project '
+          'and the iOS OAuth client ID is configured in Google Cloud Console.',
+        );
       }
 
+      AppLogger.info('[Google] token received — exchanging with Supabase');
       final response = await _supabaseClient.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
 
+      AppLogger.info('[Google] Supabase token exchange result — user: ${response.user?.id}');
+
       if (response.user != null) {
+        AppLogger.info('[Google] ensuring user profile exists');
         await _ensureUserProfile(
           userId: response.user!.id,
           email: response.user!.email ?? googleUser.email,
           name: googleUser.displayName ?? 'User',
         );
+        AppLogger.info('[Google] sign-in complete — uid: ${response.user!.id}');
       }
 
-      AppLogger.info('Google sign-in successful');
       return response;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error('[Google] PlatformException: ${e.code} — ${e.message}\n$stackTrace');
+      // Treat user-cancel codes gracefully (no scary error message).
+      if (e.code == 'sign_in_canceled' || e.code == 'sign_in_failed') {
+        throw Exception('Google sign-in was cancelled');
+      }
+      throw Exception('Google sign-in failed: ${e.message ?? e.code}');
     } catch (e, stackTrace) {
-      AppLogger.error('Google sign-in error: $e\n$stackTrace');
+      AppLogger.error('[Google] sign-in error: $e\n$stackTrace');
 
       final raw = e.toString().toLowerCase();
-      if (raw.contains('unacceptable audience in id_token') ||
+      // Already a friendly message from above — rethrow as-is.
+      if (raw.contains('cancelled')) rethrow;
+
+      if (raw.contains('unacceptable audience') ||
           raw.contains('invalid id token') ||
           raw.contains('id_token')) {
         throw Exception(
-          'Google token was rejected by Supabase. Verify Supabase Google provider uses the same Web client ID as Firebase.',
+          'Google token rejected by Supabase. '
+          'Verify the Web OAuth client ID in auth_service.dart matches '
+          'the "Authorized client IDs" setting in your Supabase Google provider.',
         );
       }
       if (raw.contains('provider is not enabled') ||
           raw.contains('unsupported provider')) {
         throw Exception(
-          'Google provider is disabled in Supabase Auth settings. Enable Google sign-in there and try again.',
+          'Google sign-in is disabled. Enable the Google provider in '
+          'your Supabase Auth dashboard and try again.',
         );
       }
-
       rethrow;
+    } finally {
+      // Always release the GoogleSignIn instance to avoid state leaks
+      // if the widget is disposed before the future completes.
+      try {
+        await googleSignIn?.disconnect().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => null,
+        );
+      } catch (_) {}
     }
   }
 
   // Sign in with Apple
   Future<AuthResponse> signInWithApple() async {
+    AppLogger.info('[Apple] sign-in started');
     try {
-      AppLogger.info('Signing in with Apple');
-
       final rawNonce = _generateNonce();
       final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
 
+      AppLogger.info('[Apple] requesting credential from Apple');
       final credential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -238,34 +282,62 @@ class AuthService {
         nonce: hashedNonce,
       );
 
+      AppLogger.info(
+        '[Apple] credential received — '
+        'authCode present: ${credential.authorizationCode.isNotEmpty}, '
+        'identityToken present: ${credential.identityToken != null}, '
+        'email: ${credential.email ?? "(not returned — subsequent login)"}',
+      );
+
       final idToken = credential.identityToken;
       if (idToken == null) {
-        throw Exception('No identity token received from Apple');
+        AppLogger.error('[Apple] identityToken is null — Apple did not return a token');
+        throw Exception(
+          'Apple did not return an identity token. '
+          'This can happen if the Apple Sign-In service is temporarily unavailable '
+          'or the app bundle ID is not registered in App Store Connect.',
+        );
       }
 
+      AppLogger.info('[Apple] exchanging token with Supabase');
       final response = await _supabaseClient.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
         nonce: rawNonce,
       );
+      AppLogger.info('[Apple] Supabase token exchange result — user: ${response.user?.id}');
 
       if (response.user != null) {
-        final name = [
-          credential.givenName,
-          credential.familyName,
-        ].where((n) => n != null).join(' ');
+        // Apple only returns name and email on the FIRST login.
+        // On subsequent logins these fields are null — use existing profile.
+        final givenName = credential.givenName;
+        final familyName = credential.familyName;
+        final nameParts = [givenName, familyName].whereType<String>().toList();
+        final name = nameParts.isNotEmpty ? nameParts.join(' ') : null;
+        final email = response.user!.email ?? credential.email ?? '';
 
+        AppLogger.info('[Apple] ensuring user profile — name: ${name ?? "(not returned)"}, email: $email');
         await _ensureUserProfile(
           userId: response.user!.id,
-          email: response.user!.email ?? credential.email ?? '',
-          name: name.isNotEmpty ? name : 'User',
+          email: email,
+          name: name ?? 'User',
         );
+        AppLogger.info('[Apple] sign-in complete — uid: ${response.user!.id}');
       }
 
-      AppLogger.info('Apple sign-in successful');
       return response;
-    } catch (e) {
-      AppLogger.error('Apple sign-in error: $e');
+    } on SignInWithAppleAuthorizationException catch (e) {
+      AppLogger.info('[Apple] authorization exception: ${e.code} — ${e.message}');
+      if (e.code == AuthorizationErrorCode.canceled) {
+        // User deliberately cancelled — not an error worth showing.
+        throw Exception('Apple sign-in was cancelled');
+      }
+      // Unknown / failed authorisation code.
+      throw Exception('Apple sign-in failed: ${e.message}');
+    } catch (e, stackTrace) {
+      AppLogger.error('[Apple] sign-in error: $e\n$stackTrace');
+      final raw = e.toString().toLowerCase();
+      if (raw.contains('cancelled')) rethrow; // already friendly
       rethrow;
     }
   }

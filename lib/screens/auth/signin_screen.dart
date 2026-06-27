@@ -127,12 +127,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _handleAppleSignIn() async {
+    // Disable button while loading — reuse the Google loading flag via a
+    // local state flag so both buttons disable together.
+    if (_isGoogleLoading || ref.read(authNotifierProvider).isLoading) return;
     try {
       await ref.read(authNotifierProvider.notifier).signInWithApple();
+      if (!mounted) return;
       _navigateAfterSignIn();
     } catch (e) {
       AppLogger.error('Apple sign-in error: $e');
-      _showError(e);
+      if (!mounted) return;
+      final msg = e.toString();
+      // Cancellation is intentional — show nothing.
+      if (msg.toLowerCase().contains('cancelled')) return;
+      AppSnackbar.error(
+        context,
+        msg.contains('identity token') || msg.contains('bundle ID')
+            ? 'Apple Sign-In is not available right now. Please try again later.'
+            : 'Apple sign-in failed. Please try again.',
+      );
     }
   }
 
@@ -407,11 +420,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     const SizedBox(height: 16),
 
                     // Social login buttons
+                    // Google is shown on Android/web; Apple is shown on iOS/macOS.
+                    // On iOS both can be shown side-by-side (Google hidden by default
+                    // per Apple HIG, but allowed). We show Google on non-iOS only and
+                    // Apple on iOS/macOS only to keep the UI clean.
                     Row(
                       children: [
-                        // Google — hidden on iOS
-                        if (kIsWeb ||
-                            defaultTargetPlatform != TargetPlatform.iOS) ...[
+                        // Google — Android + Web only
+                        if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) ...[
                           Expanded(
                             child: _SocialButton(
                               onPressed: (_isGoogleLoading || authState.isLoading)
@@ -423,16 +439,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ),
                           ),
                         ],
-                        // Apple — only on native Apple platforms
+                        // Apple — iOS + macOS only
                         if (!kIsWeb &&
                             (defaultTargetPlatform == TargetPlatform.iOS ||
                                 defaultTargetPlatform == TargetPlatform.macOS)) ...[
-                          if (kIsWeb ||
-                              defaultTargetPlatform != TargetPlatform.iOS)
-                            const SizedBox(width: 12),
                           Expanded(
                             child: _SocialButton(
-                              onPressed: authState.isLoading
+                              onPressed: (authState.isLoading || _isGoogleLoading)
                                   ? null
                                   : _handleAppleSignIn,
                               icon: const Icon(

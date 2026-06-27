@@ -41,6 +41,68 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     CustomerProfileScreen(),
   ];
 
+  void _showGuestSignInPrompt(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.lock_outline_rounded, size: 40, color: Color(0xFFFF7A1A)),
+            const SizedBox(height: 12),
+            const Text(
+              'Sign in to continue',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Create a free account to access orders, favourites, and more.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(sheetCtx);
+                  Navigator.pushNamed(context, '/role-selection');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF7A1A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Sign In / Create Account', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetCtx),
+              child: const Text('Continue browsing'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   static String _dashboardRouteForRole(String role) {
     switch (role) {
       case 'driver':
@@ -62,8 +124,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
-    // Only customers (role 'user' or 'customer') belong here.
-    // Any other authenticated role is redirected to their own dashboard.
+    // Authenticated non-customer roles (driver, restaurant, admin) belong on
+    // their own dashboards — redirect them immediately.
     if (authState.isAuthenticated) {
       final role = authState.user?.role;
       if (role != null && role != 'user' && role != 'customer') {
@@ -80,6 +142,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
     }
+    // Unauthenticated (guest) users are allowed through; tabs 0–3 load freely
+    // and the profile tab (4) redirects guests to sign-in.
 
     final userId = ref.watch(currentUserIdProvider);
 
@@ -126,11 +190,21 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         return BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
+            // Tab 4 = Profile — guests must sign in first.
+            if (index == 4 && !authState.isAuthenticated) {
+              _showGuestSignInPrompt(context);
+              return;
+            }
+            // Tab 2 = Orders — guests must sign in first.
+            if (index == 2 && !authState.isAuthenticated) {
+              _showGuestSignInPrompt(context);
+              return;
+            }
             // Tab 1 = Grocery, Tab 3 = Car Services
             if (index == 1 && !groceryEnabled) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('🚧 Grocery is coming soon!'),
+                  content: Text('Grocery is coming soon!'),
                   duration: Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -140,7 +214,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             if (index == 3 && !carEnabled) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('🚧 Car Services is coming soon!'),
+                  content: Text('Car Services is coming soon!'),
                   duration: Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),

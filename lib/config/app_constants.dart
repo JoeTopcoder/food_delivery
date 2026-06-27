@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'MealHub';
+  static const String appName = '7Dash';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -38,6 +38,24 @@
   static const String appBaseUrl = 'https://mealhubcayman.com';
   static const String privacyPolicyUrl = '$appBaseUrl/privacy-policy';
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
+
+  // ── Compliance / Legal ────────────────────────────────────────────────────
+  static const String appDisplayName = '7Dash';
+  static const String businessLegalName = 'SevenDash Technologies Limited';
+  static const String supportEmailAddress = 'support@7dash.app';
+  static const String supportPhoneDisplay = 'TODO_CONFIGURE';
+  static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
+  static const String businessAddress = 'TODO_CONFIGURE';
+  static const String supportHours = 'Monday–Friday, 9 AM–6 PM EST';
+
+  // Reviewer demo credentials (for App Store / Play Store reviewers)
+  static const String reviewerEmail = 'reviewer@7dash.app';
+  static const String reviewerPassword = 'Review123!';
+
+  // Compliance table names
+  static const String tableSupportRequests = 'support_requests';
+  static const String tableUserDeletionRequests = 'user_deletion_requests';
+  static const String tableChatReports = 'chat_reports';
 
   static String get supabaseFunctionsBaseUrl => '$supabaseUrl/functions/v1';
   static String get ncbCallbackUrlFull =>

@@ -163,21 +163,38 @@ class _AuthLaunchGateScreenState extends ConsumerState<AuthLaunchGateScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final roleIntentAsync = ref.watch(roleProvider);
-    return roleIntentAsync.when(
-      data: (savedRole) {
-        final deepLinkRole = _roleFromDeepLink();
-        final targetRole = deepLinkRole ?? savedRole;
-        if (targetRole == null) return const RoleSelectionScreen();
+    // Deep-link: /join/driver or /join/restaurant → skip guest mode and go
+    // straight to the matching onboarding screen so drivers/restaurants can
+    // sign up without first seeing the home screen.
+    final deepLinkRole = _roleFromDeepLink();
+    if (deepLinkRole != null) {
+      _navigateToRole(deepLinkRole);
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-        _navigateToRole(targetRole);
+    // Guest-browsing: already chose "Browse as Guest" this session → home.
+    final isGuestBrowsing = ref.watch(guestBrowsingProvider);
+    if (isGuestBrowsing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _navigated) return;
+        _navigated = true;
+        Navigator.of(context).pushReplacementNamed('/home');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
-      },
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (_, __) => const RoleSelectionScreen(),
-    );
+    // Default unauthenticated path: go straight to home (guest mode).
+    // The home screen's profile tab and cart will prompt sign-in when needed.
+    // This satisfies App Store guideline 5.1.1(v) — no forced registration
+    // before browsing.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _navigated) return;
+      _navigated = true;
+      // Enable guest-browsing flag so future navigations know we're in guest mode.
+      ref.read(guestBrowsingProvider.notifier).state = true;
+      Navigator.of(context).pushReplacementNamed('/home');
+    });
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 

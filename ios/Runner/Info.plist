@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>MealHub</string>
+	<string>7Dash</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>MealHub</string>
+	<string>7Dash</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -28,16 +28,41 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Google Sign-In</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Replace with REVERSED_CLIENT_ID from your GoogleService-Info.plist
+				     e.g. com.googleusercontent.apps.379314267431-XXXXXXXXXX -->
+				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Supabase OAuth Callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sevendash.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>MealHub needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
+	<string>7Dash needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>MealHub needs your location to provide delivery tracking even when the app is in the background.</string>
+	<string>7Dash needs your location to provide delivery tracking even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>MealHub needs your location to show nearby restaurants and track deliveries.</string>
+	<string>7Dash needs your location to show nearby restaurants and track deliveries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MealHub needs microphone access for voice calls between customers, drivers, and restaurants.</string>
+	<string>7Dash needs microphone access for voice calls between customers, drivers, and restaurants.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MealHub needs photo library access to upload menu item images and profile pictures.</string>
+	<string>7Dash needs photo library access to upload menu item images and profile pictures.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
