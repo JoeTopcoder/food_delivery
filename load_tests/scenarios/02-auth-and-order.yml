@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 2 — Customer Login → Place Order
+# Simulates an authenticated user placing an order. ~25% of traffic.
+# ─────────────────────────────────────────────────────────────────────────────
+scenarios:
+  - name: "Customer Auth + Order Flow"
+    weight: 25
+    flow:
+      # Step 1 — Sign in
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+          expect:
+            - statusCode:
+                - 200
+                - 400   # 400 = user doesn't exist (expected in load test)
+
+      # Step 2 — Fetch user profile
+      - get:
+          url: "/rest/v1/users?select=*&id=eq.{{ userId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+
+      # Step 3 — Fetch user's past orders (order history screen)
+      - get:
+          url: "/rest/v1/orders?select=id,status,total_amount,created_at,restaurants(name)&user_id=eq.{{ userId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+
+      # Step 4 — Browse restaurants (same as public flow)
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee&is_open=eq.true&is_verified=eq.true&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          afterResponse: "cacheRestaurantIds"
+
+      # Step 5 — User picks a restaurant, fetch its menu
+      - get:
+          url: "/rest/v1/menu_items?select=id,name,price,discount_percentage,is_available&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          afterResponse: "cacheMenuItemIds"
+
+      # Step 6 — Think time: user configures their cart (5–15 seconds)
+      - think: "{{ $randomNumber(5, 15) }}"
+
+      # Step 7 — Fetch promo codes
+      - get:
+          url: "/rest/v1/promo_codes?select=code,discount_type,discount_value,min_order_amount&is_active=eq.true&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+
+      # Step 8 — Build order payload and place order via Edge Function
+      - function: "buildOrderPayload"
+      - post:
+          url: "/functions/v1/create-order"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          body: "{{ orderPayload }}"
+          afterResponse: "logSlowResponse"
+          expect:
+            - statusCode:
+                - 200
+                - 201
+                - 400   # validation errors are expected with test data
+                - 401
+                - 404
+
+      # Step 9 — Track order (polling pattern: 3 polls, 5s apart)
+      - loop:
+          - get:
+              url: "/rest/v1/orders?select=id,status,driver_id&user_id=eq.{{ userId }}&order=created_at.desc&limit=1"
+              headers:
+                apikey: "{{ anonKey }}"
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+          - think: 5
+        count: 3

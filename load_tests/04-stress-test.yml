@@ -1,0 +1,138 @@
+# =============================================================================
+# MealHub — Stress Test
+# Purpose : Push beyond expected load to find breaking point.
+#           Expect degraded latency and some failures — that's the goal.
+# Scale   : Up to 500 concurrent users. Total runtime ~25 minutes.
+# Run     : artillery run load_tests/04-stress-test.yml --output load_tests/reports/stress.json
+#
+# ⚠️  WARNING — READ BEFORE RUNNING ⚠️
+#   This test WILL cause elevated latency on your Supabase project.
+#   Do NOT run against production during peak hours.
+#   Run during low-traffic windows (e.g. 2–4 AM).
+#
+# ARTILLERY REMINDER — WHY THE OLD TEST CREATED 639,816 USERS:
+#   The broken config used: arrivalRate: 500, duration: 600s
+#   That means: 500 new users EVERY SECOND for 600 seconds = 300,000 users.
+#   This config uses maxVusers to cap concurrency regardless of arrivalRate.
+#
+#   arrivalRate: 20  = 20 new VUs per second
+#   maxVusers: 500   = never more than 500 active at once (surplus arrivals wait)
+#   duration: 300    = phase runs for 5 minutes
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 30
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # Warm-up: gentle start so DB connection pool fills normally
+    - name: "Warm-up"
+      duration: 120         # 2 minutes
+      arrivalRate: 5        # 5 new users/sec
+      maxVusers: 50
+
+    # Ramp: climb to target load
+    - name: "Ramp to stress"
+      duration: 300         # 5 minutes
+      arrivalRate: 5
+      rampTo: 20            # ramp to 20 new users/sec
+      maxVusers: 200
+
+    # Sustained stress: hold at peak — PRIMARY MEASUREMENT WINDOW
+    - name: "Sustained stress"
+      duration: 600         # 10 minutes — watch p95 here
+      arrivalRate: 20       # 20 new users/sec
+      maxVusers: 500        # hard cap — prevents the 639k-user mistake
+
+    # Spike: brief burst to 2× normal to simulate a viral moment
+    - name: "Spike"
+      duration: 120         # 2 minutes
+      arrivalRate: 20
+      rampTo: 40            # doubles arrivals for 2 minutes
+      maxVusers: 500        # still capped — spike is time-based, not VU-based
+
+    # Cool-down
+    - name: "Cool-down"
+      duration: 180         # 3 minutes
+      arrivalRate: 40
+      rampTo: 1
+      maxVusers: 100
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+      - http.response_time.p99: 10000
+      - http.codes.200: 50          # lower threshold — stress = some failures OK
+
+scenarios:
+  - name: "Public Browse (60%)"
+    weight: 60
+    flow:
+      - function: "generateUserContext"
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+      - think: 3
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&limit=50"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "logSlowResponse"
+      - think: 5
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment&restaurant_id=eq.{{ restaurantId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+
+  - name: "Auth + Order (25%)"
+    weight: 25
+    flow:
+      - function: "generateUserContext"
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+      - think: 2
+      - get:
+          url: "/rest/v1/orders?select=id,status,total_amount,ordered_at&user_id=eq.{{ userId }}&order=ordered_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+
+  - name: "Driver Poll (15%)"
+    weight: 15
+    flow:
+      - function: "generateUserContext"
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "driver_{{ uid }}@test.mealhub.dev"
+            password: "LoadTest#2026!"
+          afterResponse: "extractAuthToken"
+      - think: 8
+      - get:
+          url: "/rest/v1/orders?select=id,status,delivery_address,total_amount&status=eq.confirmed&driver_id=is.null&order=ordered_at.asc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"

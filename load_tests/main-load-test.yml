@@ -1,0 +1,196 @@
+# =============================================================================
+# MealHub — Full Load Test Suite
+# =============================================================================
+# Target: https://yharweliruemjexmuuxn.supabase.co
+#
+# Phase schedule (total ~25 minutes):
+#   Warm-up    →  ramp 10→100 VUs  over 2 min
+#   Ramp-up    →  ramp 100→500 VUs over 5 min
+#   Sustained  →  hold 500 VUs     for 10 min   ← primary measurement window
+#   Spike      →  burst to 1500 VUs for 2 min   ← tests elasticity
+#   Cool-down  →  ramp to 0        over 3 min
+#
+# 500 VUs × 60s ÷ ~8s avg response = ~3,750 req/s sustained
+# Extrapolation note: to handle 3M concurrent users you need:
+#   3,000,000 / 500 = 6,000× the infrastructure
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+
+  # Global HTTP settings
+  http:
+    timeout: 30         # seconds before request is marked failed
+    pool: 100           # connection pool per VU
+    cookie: false       # Supabase sets auth cookies Artillery can't parse; disable jar
+
+  # Environment variables accessible in scenarios as {{ varName }}
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  # Default headers on every request
+  defaults:
+    headers:
+      User-Agent: "MealHub-LoadTest/1.0"
+      Accept: "application/json"
+
+  # Inject per-VU context before each scenario
+  before:
+    flow:
+      - function: "generateUserContext"
+
+  # ── Load phases ──────────────────────────────────────────────────────────
+  phases:
+    - name: "Warm-up"
+      duration: 120       # 2 minutes
+      arrivalRate: 10
+      rampTo: 100
+
+    - name: "Ramp-up"
+      duration: 300       # 5 minutes
+      arrivalRate: 100
+      rampTo: 500
+
+    - name: "Sustained Load"
+      duration: 600       # 10 minutes — primary measurement window
+      arrivalRate: 500
+
+    - name: "Spike Test"
+      duration: 120       # 2 minutes
+      arrivalRate: 500
+      rampTo: 1500
+
+    - name: "Cool-down"
+      duration: 180       # 3 minutes
+      arrivalRate: 1500
+      rampTo: 0
+
+  # ── Success thresholds (test FAILS if these are breached) ────────────────
+  ensure:
+    thresholds:
+      - http.response_time.p95: 3000    # 95th percentile under 3 seconds
+      - http.response_time.p99: 8000    # 99th percentile under 8 seconds
+      - http.codes.200: 70              # at least 70% of requests succeed
+
+  # ── Reporting ────────────────────────────────────────────────────────────
+  plugins:
+    expect: {}
+
+# ── Scenarios (weights must sum to 100) ─────────────────────────────────────
+scenarios:
+  # ---- 60% — Anonymous browse (home screen, search, menu view) ----
+  - name: "Browse Restaurants (Public)"
+    weight: 60
+    flow:
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,image_url,delivery_fee,estimated_delivery_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,image_url&or=(name.ilike.*{{ searchQuery }}*,cuisine_type.ilike.*{{ searchQuery }}*)&is_open=eq.true&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+
+      - think: 3
+
+      - get:
+          url: "/rest/v1/menu_items?select=id,name,price,description,image_url,category,is_available,discount_percentage&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&order=category.asc"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheMenuItemIds"
+
+      - think: 5
+
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment,created_at&restaurant_id=eq.{{ restaurantId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+
+  # ---- 25% — Authenticated order flow ----
+  - name: "Customer Auth + Order"
+    weight: 25
+    flow:
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "loadtest_{{ uid }}@test.mealhub.dev"
+            password: "LoadTest#2026!"
+          afterResponse: "extractAuthToken"
+
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type&is_open=eq.true&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+
+      - get:
+          url: "/rest/v1/menu_items?select=id,name,price,discount_percentage&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "cacheMenuItemIds"
+
+      - think: 8
+
+      - function: "buildOrderPayload"
+
+      - post:
+          url: "/functions/v1/create-order"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          body: "{{ orderPayload }}"
+          afterResponse: "logSlowResponse"
+
+  # ---- 15% — Driver polling for orders ----
+  - name: "Driver Order Polling"
+    weight: 15
+    flow:
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "driver_{{ uid }}@test.mealhub.dev"
+            password: "LoadTest#2026!"
+          afterResponse: "extractAuthToken"
+
+      - get:
+          url: "/rest/v1/orders?select=id,status,restaurant_id,delivery_address,total_amount,created_at&status=eq.confirmed&driver_id=is.null&order=created_at.asc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+
+      - think: 12
+
+      - get:
+          url: "/rest/v1/orders?select=id,status&status=eq.confirmed&driver_id=is.null&order=created_at.asc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+
+      - get:
+          url: "/rest/v1/drivers?select=id,rating,completed_deliveries,earnings_today&user_id=eq.{{ userId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"

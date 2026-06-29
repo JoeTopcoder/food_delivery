@@ -1,0 +1,66 @@
+# =============================================================================
+# MealHub — Spike Test
+# Purpose : Simulate a sudden traffic burst (marketing email goes out, news
+#           feature, etc.). Total runtime ~6 minutes.
+# Scale   : Flat baseline → instant 5× spike → recovery. Max 300 concurrent.
+# Run     : artillery run load_tests/05-spike-test.yml --output load_tests/reports/spike.json
+#
+# What to watch:
+#   • Does p95 recover within 2 minutes after the spike ends?
+#   • Are there 503/504 errors during the spike?
+#   • Does Supabase rate-limit (429) during the spike?
+#   A healthy backend should degrade gracefully and recover fully.
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 20
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # Normal baseline load
+    - name: "Baseline (pre-spike)"
+      duration: 60
+      arrivalRate: 5        # 5 new users/sec — normal traffic
+      maxVusers: 50
+
+    # Sudden spike — simulates 5× traffic surge for 2 minutes
+    - name: "Spike"
+      duration: 120
+      arrivalRate: 25       # 5× baseline
+      maxVusers: 300        # capped — spike is time-limited, not unbounded
+
+    # Recovery — back to normal; watch how fast latency recovers
+    - name: "Recovery"
+      duration: 120
+      arrivalRate: 5
+      maxVusers: 50
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 6000   # allow higher during spike
+      - http.codes.200: 50
+
+scenarios:
+  - name: "Home Browse"
+    weight: 100
+    flow:
+      - function: "generateUserContext"
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantsAndLog"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+      - think: 2
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&limit=50"
+          headers:
+            apikey: "{{ anonKey }}"

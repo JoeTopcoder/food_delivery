@@ -1,0 +1,57 @@
+# =============================================================================
+# MealHub — Smoke Test
+# Purpose : Verify the backend is reachable and returning valid responses.
+# Scale   : 10 total virtual users, 60 seconds.
+# Run     : artillery run load_tests/01-smoke-test.yml
+#
+# KEY ARTILLERY TERMS (read before editing any test):
+#   arrivalRate  = NEW virtual users created PER SECOND for the whole phase.
+#                  arrivalRate: 500 for 60s = 30,000 users. Easy to overload!
+#   maxVusers    = Hard cap on CONCURRENT virtual users at any moment.
+#   duration     = Phase length in seconds.
+#   rampTo       = End arrivalRate (linearly interpolated from arrivalRate).
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 15
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # 1 new user/sec for 10 seconds = 10 total users. Safe on any plan.
+    - name: "Smoke"
+      duration: 10
+      arrivalRate: 1      # 1 NEW user per second
+      maxVusers: 10       # never more than 10 concurrent
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+      - http.codes.200: 50      # at least 50% success
+
+scenarios:
+  - name: "Smoke — Public Browse"
+    weight: 100
+    flow:
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating&is_open=eq.true&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "ignoreCloudflareCookies"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/menus?select=id,name,price&is_available=eq.true&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
