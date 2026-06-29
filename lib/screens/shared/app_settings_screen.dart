@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../config/app_constants.dart';
 
 class AppSettingsScreen extends ConsumerWidget {
   const AppSettingsScreen({super.key});
@@ -47,6 +48,57 @@ class AppSettingsScreen extends ConsumerWidget {
               }
             },
             l10n: l10n,
+          ),
+          const SizedBox(height: 24),
+
+          // ── Legal & Support Section ──
+          _SectionHeader(title: 'Legal & Support', icon: Icons.gavel_outlined),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  _LegalTile(
+                    icon: Icons.account_balance_outlined,
+                    label: 'Legal Center',
+                    onTap: () => Navigator.of(context).pushNamed('/legal'),
+                  ),
+                  const Divider(height: 1),
+                  _LegalTile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy Policy',
+                    onTap: () => Navigator.of(context).pushNamed('/privacy-policy'),
+                  ),
+                  const Divider(height: 1),
+                  _LegalTile(
+                    icon: Icons.description_outlined,
+                    label: 'Terms & Conditions',
+                    onTap: () => Navigator.of(context).pushNamed('/terms'),
+                  ),
+                  const Divider(height: 1),
+                  _LegalTile(
+                    icon: Icons.headset_mic_outlined,
+                    label: 'Contact Support',
+                    onTap: () => Navigator.of(context).pushNamed('/contact-support'),
+                  ),
+                  const Divider(height: 1),
+                  _LegalTile(
+                    icon: Icons.delete_sweep_outlined,
+                    label: 'Delete Account',
+                    onTap: () => Navigator.of(context).pushNamed('/delete-account'),
+                    isDestructive: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              '${AppConstants.appDisplayName} v${AppConstants.appVersion}',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
           ),
         ],
       ),
@@ -246,6 +298,38 @@ class _LanguageOption extends StatelessWidget {
           ? Icon(Icons.check_circle, color: AppTheme.primaryColor)
           : null,
       onTap: onTap,
+    );
+  }
+}
+
+class _LegalTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _LegalTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? const Color(0xFFEF4444) : AppTheme.primaryColor;
+    return ListTile(
+      leading: Icon(icon, color: color, size: 20),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          color: isDestructive ? const Color(0xFFEF4444) : null,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: onTap,
+      dense: true,
     );
   }
 }

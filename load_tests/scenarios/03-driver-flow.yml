@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 3 — Driver Flow
+# Simulates a driver polling for available orders and accepting one. ~15% of traffic.
+# Drivers poll every 10–30 seconds while online — this creates sustained DB load.
+# ─────────────────────────────────────────────────────────────────────────────
+scenarios:
+  - name: "Driver Flow (Poll + Accept Orders)"
+    weight: 15
+    flow:
+      # Step 1 — Driver sign in
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "driver_{{ uid }}@test.mealhub.dev"
+            password: "LoadTest#2026!"
+          afterResponse: "extractAuthToken"
+          expect:
+            - statusCode:
+                - 200
+                - 400
+
+      # Step 2 — Fetch driver profile
+      - get:
+          url: "/rest/v1/drivers?select=id,rating,completed_deliveries,is_available,vehicle_type&user_id=eq.{{ userId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          capture:
+            - json: "$[0].id"
+              as: "driverId"
+
+      # Step 3 — Set driver as available
+      - patch:
+          url: "/rest/v1/drivers?id=eq.{{ driverId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            is_available: true
+
+      # Step 4 — Poll available orders (drivers do this every 10–30 seconds)
+      - loop:
+          - get:
+              url: "/rest/v1/orders?select=id,status,restaurant_id,delivery_address,total_amount,delivery_fee,created_at,restaurants(name,address)&status=eq.confirmed&driver_id=is.null&order=created_at.asc&limit=10"
+              headers:
+                apikey: "{{ anonKey }}"
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+              afterResponse: "logSlowResponse"
+              capture:
+                - json: "$[0].id"
+                  as: "availableOrderId"
+
+          # Try to claim the order via atomic RPC
+          - post:
+              url: "/rest/v1/rpc/claim_order"
+              headers:
+                apikey: "{{ anonKey }}"
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+              json:
+                p_order_id: "{{ availableOrderId }}"
+                p_driver_id: "{{ driverId }}"
+              expect:
+                - statusCode:
+                    - 200
+                    - 400   # already claimed by another driver
+
+          - think: "{{ $randomNumber(10, 30) }}"
+        count: 4
+
+      # Step 5 — Mark delivery complete
+      - patch:
+          url: "/rest/v1/orders?id=eq.{{ availableOrderId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            status: "delivered"
+
+      # Step 6 — Fetch earnings summary
+      - get:
+          url: "/rest/v1/rpc/get_driver_earnings"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            p_driver_id: "{{ driverId }}"
+            p_period: "today"
+          expect:
+            - statusCode:
+                - 200
+                - 400

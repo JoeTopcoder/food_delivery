@@ -1,0 +1,80 @@
+# =============================================================================
+# MealHub — Baseline Test
+# Purpose : Establish a performance baseline at 100 concurrent users.
+#           Run this after every significant backend change to detect regressions.
+# Scale   : ~100 concurrent users, 3 minutes.
+# Run     : artillery run load_tests/02-baseline-test.yml --output load_tests/reports/baseline.json
+#
+# ARTILLERY REMINDER:
+#   arrivalRate: 5  + duration: 60s = 300 total users created
+#   maxVusers: 100  = at most 100 are ever active simultaneously
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 20
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    - name: "Warm-up"
+      duration: 30
+      arrivalRate: 2        # 2 new users/sec → 60 total
+      maxVusers: 20
+
+    - name: "Baseline"
+      duration: 150         # 2.5 minutes
+      arrivalRate: 5        # 5 new users/sec
+      maxVusers: 100        # cap at 100 concurrent
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 3000
+      - http.response_time.p99: 6000
+      - http.codes.200: 70
+
+scenarios:
+  - name: "Browse Restaurants"
+    weight: 70
+    flow:
+      - function: "generateUserContext"
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category,is_available&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&order=category.asc&limit=50"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "logSlowResponse"
+
+      - think: 3
+
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment,created_at&restaurant_id=eq.{{ restaurantId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+
+  - name: "Search"
+    weight: 30
+    flow:
+      - function: "generateUserContext"
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type&or=(name.ilike.*{{ searchQuery }}*,cuisine_type.ilike.*{{ searchQuery }}*)&is_open=eq.true&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200

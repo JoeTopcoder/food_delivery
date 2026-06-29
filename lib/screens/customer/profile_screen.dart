@@ -212,6 +212,38 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           onTap: () =>
                               Navigator.of(context).pushNamed('/feedback'),
                         ),
+                        _MenuItem(
+                          icon: Icons.headset_mic_rounded,
+                          color: const Color(0xFF0EA5E9),
+                          title: 'Contact Support',
+                          sub: 'Get help from the 7Dash team',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/contact-support'),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _MenuGroup(
+                      label: 'LEGAL',
+                      items: [
+                        _MenuItem(
+                          icon: Icons.account_balance_outlined,
+                          color: const Color(0xFF6B7280),
+                          title: 'Legal Center',
+                          sub: 'Privacy, Terms, Refunds & more',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/legal'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.privacy_tip_outlined,
+                          color: const Color(0xFF0077C8),
+                          title: 'Privacy Policy',
+                          sub: 'How we handle your data',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/privacy-policy'),
+                        ),
                       ],
                     ),
 
@@ -226,9 +258,10 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Delete account
+                    // Delete account — navigates to full multi-step screen
                     _DeleteAccountRow(
-                      onPressed: () => _confirmDeleteAccount(context, ref),
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed('/delete-account'),
                     ),
 
                     const SizedBox(height: 48),

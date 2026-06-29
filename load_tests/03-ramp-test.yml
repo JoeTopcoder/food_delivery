@@ -1,0 +1,115 @@
+# =============================================================================
+# MealHub — Ramp Test
+# Purpose : Gradually increase load to find where latency degrades.
+#           Watch p95 carefully — when it crosses 2s, that's your DB limit.
+# Scale   : Ramps from 10 to 100 req/sec over 10 minutes. Max 300 concurrent.
+# Run     : artillery run load_tests/03-ramp-test.yml --output load_tests/reports/ramp.json
+#
+# ARTILLERY REMINDER:
+#   This test uses arrivalRate + rampTo.
+#   At the END of the ramp phase: 100 new users arrive every second.
+#   maxVusers: 300 prevents runaway concurrency if sessions are long.
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 25
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # Phase 1: gentle ramp — find where things start to slow
+    - name: "Ramp 10→50 req/s"
+      duration: 180         # 3 minutes
+      arrivalRate: 10
+      rampTo: 50
+      maxVusers: 150
+
+    # Phase 2: hold at 50 — measure steady-state
+    - name: "Hold 50 req/s"
+      duration: 120         # 2 minutes
+      arrivalRate: 50
+      maxVusers: 200
+
+    # Phase 3: push to 100 — find the ceiling
+    - name: "Ramp 50→100 req/s"
+      duration: 180         # 3 minutes
+      arrivalRate: 50
+      rampTo: 100
+      maxVusers: 300
+
+    # Phase 4: hold at 100 — measure under sustained load
+    - name: "Hold 100 req/s"
+      duration: 120         # 2 minutes
+      arrivalRate: 100
+      maxVusers: 300
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 4000
+      - http.response_time.p99: 8000
+      - http.codes.200: 60
+
+scenarios:
+  - name: "Restaurant Browse (60%)"
+    weight: 60
+    flow:
+      - function: "generateUserContext"
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+      - think: 3
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&limit=50"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "logSlowResponse"
+
+  - name: "Auth + Order View (25%)"
+    weight: 25
+    flow:
+      - function: "generateUserContext"
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+      - get:
+          url: "/rest/v1/orders?select=id,status,total_amount,ordered_at&user_id=eq.{{ userId }}&order=ordered_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Driver Poll (15%)"
+    weight: 15
+    flow:
+      - function: "generateUserContext"
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "driver_{{ uid }}@test.mealhub.dev"
+            password: "LoadTest#2026!"
+          afterResponse: "extractAuthToken"
+      - think: 5
+      - get:
+          url: "/rest/v1/orders?select=id,status,delivery_address,total_amount&status=eq.confirmed&driver_id=is.null&order=ordered_at.asc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"

@@ -1,0 +1,62 @@
+# =============================================================================
+# MealHub — Quick Smoke Test (3 minutes, safe to run against production)
+# Tests core endpoints at low load to verify everything is reachable.
+# Run this FIRST before the full load test.
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 15
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    - name: "Smoke Test"
+      duration: 60      # 1 minute
+      arrivalRate: 5    # 5 new virtual users per second
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+      - http.codes.200: 50
+
+scenarios:
+  - name: "Smoke — Public Browse"
+    weight: 100
+    flow:
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating&is_open=eq.true&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/menu_items?select=id,name,price&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/promo_codes?select=code,discount_value&is_active=eq.true&limit=5"
+          headers:
+            apikey: "{{ anonKey }}"

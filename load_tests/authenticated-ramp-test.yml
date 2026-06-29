@@ -1,0 +1,197 @@
+# =============================================================================
+# MealHub — Authenticated Ramp Test
+# File   : authenticated-ramp-test.yml
+# Purpose: Measure authenticated (JWT-protected) read performance.
+#          ALL scenarios log in with a real seeded user first.
+#
+# PRE-REQUISITE: Run the seed script before this test.
+#   SQL:  Supabase Dashboard → SQL Editor → load_tests/seed-load-test-users.sql
+#   JS:   ENABLE_LOAD_TEST_SEED=true SUPABASE_SERVICE_ROLE_KEY=<key>
+#         node load_tests/seed-load-test-users.js
+#
+# Endpoints tested:
+#   POST /auth/v1/token          — password login
+#   GET  /rest/v1/users          — profile fetch
+#   GET  /rest/v1/orders         — order history
+#   GET  /rest/v1/notifications  — notification bell
+#   GET  /rest/v1/wallets        — wallet balance
+#
+# SUCCESS TARGETS:
+#   • 2xx success rate   ≥ 85%
+#   • p95 latency        < 800ms
+#   • 5xx errors         = 0
+#   • Timeouts           = 0
+#
+# RUN:
+#   artillery run load_tests/authenticated-ramp-test.yml \
+#             --output load_tests/reports/auth-ramp.json
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 20
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # Phase 1 — warm up at low concurrency to prime connection pool
+    - name: "Warm-up"
+      duration: 60
+      arrivalRate: 2
+      maxVusers: 20
+
+    # Phase 2 — gentle ramp
+    - name: "Ramp 2→15 req/s"
+      duration: 120
+      arrivalRate: 2
+      rampTo: 15
+      maxVusers: 80
+
+    # Phase 3 — hold at 15: authenticated read baseline
+    - name: "Hold 15 req/s"
+      duration: 120
+      arrivalRate: 15
+      maxVusers: 100
+
+    # Phase 4 — push higher
+    - name: "Ramp 15→30 req/s"
+      duration: 120
+      arrivalRate: 15
+      rampTo: 30
+      maxVusers: 150
+
+    # Phase 5 — sustained load window
+    - name: "Hold 30 req/s"
+      duration: 120
+      arrivalRate: 30
+      maxVusers: 150
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 800
+      - http.response_time.p99: 3000
+      - http.codes.200: 85    # ≥85% 2xx
+      # Note: remaining 15% budget accounts for expected 429 rate-limits on
+      # /auth/v1/token at higher concurrency (Supabase free/pro limit).
+
+scenarios:
+
+  # ── Profile + Order History (40%) ───────────────────────────────────────────
+  # Most common authenticated flow: open app → see profile → check orders
+  - name: "Profile and Order History"
+    weight: 40
+    flow:
+      - function: "generateUserContext"
+
+      # Login with a real seeded user
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+          expect:
+            - statusCode: 200   # must succeed — 400 means seed not run
+
+      - think: 1
+
+      # Fetch user profile
+      - get:
+          url: "/rest/v1/users?select=id,name,email,address,role,is_active&id=eq.{{ userId }}&limit=1"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      # Fetch order history (last 20 orders)
+      - get:
+          url: "/rest/v1/orders?select=id,status,total_amount,ordered_at,restaurant_id&user_id=eq.{{ userId }}&order=ordered_at.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+          expect:
+            - statusCode: 200
+
+  # ── Notifications (35%) ─────────────────────────────────────────────────────
+  # Notification bell — reads the notifications table filtered by user_id
+  - name: "Notifications"
+    weight: 35
+    flow:
+      - function: "generateUserContext"
+
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+          expect:
+            - statusCode: 200
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/notifications?select=id,title,body,is_read,created_at,type&user_id=eq.{{ userId }}&order=created_at.desc&limit=30"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      # Unread count (badge)
+      - get:
+          url: "/rest/v1/notifications?select=id&user_id=eq.{{ userId }}&is_read=eq.false&limit=1"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+            Prefer: "count=exact"
+          expect:
+            - statusCode: 200
+
+  # ── Wallet (25%) ────────────────────────────────────────────────────────────
+  # Wallet balance screen
+  - name: "Wallet Balance"
+    weight: 25
+    flow:
+      - function: "generateUserContext"
+
+      - post:
+          url: "/auth/v1/token?grant_type=password"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          afterResponse: "extractAuthToken"
+          expect:
+            - statusCode: 200
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/wallets?select=id,balance,currency,updated_at&user_id=eq.{{ userId }}&limit=1"
+          headers:
+            apikey: "{{ anonKey }}"
+            Authorization: "Bearer {{ authToken }}"
+          afterResponse: "logSlowResponse"
+          expect:
+            - statusCode: 200

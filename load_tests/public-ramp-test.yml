@@ -1,0 +1,165 @@
+# =============================================================================
+# MealHub — Public Ramp Test
+# File   : public-ramp-test.yml
+# Purpose: Measure pure public (unauthenticated) endpoint performance.
+#          No auth means no 400/401 noise — success rate target ≥ 95%.
+#
+# Endpoints tested:
+#   GET /rest/v1/restaurants   — home-screen browse (highest traffic)
+#   GET /rest/v1/menus         — restaurant detail / menu page
+#   GET /rest/v1/food_categories — category bar
+#   GET /rest/v1/restaurants?or=... — search
+#   GET /rest/v1/reviews       — review section
+#
+# SUCCESS TARGETS:
+#   • 2xx success rate  ≥ 95%
+#   • p95 latency       < 500ms
+#   • 5xx errors        = 0
+#   • Timeouts          = 0
+#
+# RUN:
+#   artillery run load_tests/public-ramp-test.yml \
+#             --output load_tests/reports/public-ramp.json
+#
+# ARTILLERY KEY TERMS (read before editing):
+#   arrivalRate  = NEW virtual users created PER SECOND.
+#   maxVusers    = hard cap on concurrent VUs (surplus arrivals queue, not dropped).
+#   rampTo       = end arrival rate, linearly interpolated from arrivalRate.
+# =============================================================================
+
+config:
+  target: "https://yharweliruemjexmuuxn.supabase.co"
+  processor: "./processor.js"
+  http:
+    timeout: 15
+    cookie: false
+
+  variables:
+    anonKey: "sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6"
+
+  phases:
+    # Phase 1 — warm-up: give DB connection pool time to fill
+    - name: "Warm-up"
+      duration: 60
+      arrivalRate: 5
+      maxVusers: 30
+
+    # Phase 2 — gentle ramp: confirm baseline is solid
+    - name: "Ramp 5→30 req/s"
+      duration: 120
+      arrivalRate: 5
+      rampTo: 30
+      maxVusers: 80
+
+    # Phase 3 — hold at 30: measure steady-state latency
+    - name: "Hold 30 req/s"
+      duration: 120
+      arrivalRate: 30
+      maxVusers: 100
+
+    # Phase 4 — push to 60: find degradation point
+    - name: "Ramp 30→60 req/s"
+      duration: 120
+      arrivalRate: 30
+      rampTo: 60
+      maxVusers: 200
+
+    # Phase 5 — hold at 60: sustained load measurement window
+    - name: "Hold 60 req/s"
+      duration: 120
+      arrivalRate: 60
+      maxVusers: 200
+
+  # These are hard thresholds; test returns exit code 1 if any breach.
+  ensure:
+    thresholds:
+      - http.response_time.p95: 500
+      - http.response_time.p99: 2000
+      - http.codes.200: 95   # ≥95% of ALL responses must be 2xx
+
+scenarios:
+
+  # ── Restaurant browse (55%) ─────────────────────────────────────────────────
+  # Simulates the home screen: list → pick one → load its menu → read reviews
+  - name: "Home Browse"
+    weight: 55
+    flow:
+      - function: "generateUserContext"
+
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time,image_url,store_type&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category,is_available,image_url&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&order=category.asc&limit=50"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheMenusAndLog"
+          expect:
+            - statusCode: 200
+
+      - think: 3
+
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment,created_at&restaurant_id=eq.{{ restaurantId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+
+  # ── Search (25%) ────────────────────────────────────────────────────────────
+  # Simulates the search bar — uses GIN trigram index
+  - name: "Search"
+    weight: 25
+    flow:
+      - function: "generateUserContext"
+
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,image_url&or=(name.ilike.*{{ searchQuery }}*,cuisine_type.ilike.*{{ searchQuery }}*)&is_open=eq.true&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          expect:
+            - statusCode: 200
+
+      - think: 2
+
+      - get:
+          url: "/rest/v1/menus?select=id,name,price,category&or=(name.ilike.*{{ searchQuery }}*,category.ilike.*{{ searchQuery }}*)&is_available=eq.true&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+
+  # ── Category browse (20%) ───────────────────────────────────────────────────
+  # Simulates tapping a food category chip on the home screen
+  - name: "Category Browse"
+    weight: 20
+    flow:
+      - function: "generateUserContext"
+
+      - get:
+          url: "/rest/v1/food_categories?select=id,name,emoji&order=name.asc"
+          headers:
+            apikey: "{{ anonKey }}"
+          expect:
+            - statusCode: 200
+
+      - think: 1
+
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,delivery_fee,estimated_delivery_time&cuisine_type=ilike.*{{ searchQuery }}*&is_open=eq.true&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+          afterResponse: "cacheRestaurantIds"
+          expect:
+            - statusCode: 200

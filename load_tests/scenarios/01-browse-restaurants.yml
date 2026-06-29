@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Scenario 1 — Customer Browse (PUBLIC, no auth required)
+# Simulates the most common user action: open app and browse/search restaurants.
+# This is ~60% of all traffic.
+# ─────────────────────────────────────────────────────────────────────────────
+scenarios:
+  - name: "Browse Restaurants (Public)"
+    weight: 60
+    flow:
+      # Step 1 — Fetch restaurant list (home screen load)
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,is_open,image_url,delivery_fee,estimated_time&is_open=eq.true&is_verified=eq.true&store_type=neq.grocery&order=rating.desc&limit=20"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          afterResponse: "cacheRestaurantIds"
+          capture:
+            - json: "$[0].id"
+              as: "restaurantId"
+
+      # Step 2 — Think time: user scrolls the list (1–2 seconds)
+      - think: "{{ $randomNumber(1, 2) }}"
+
+      # Step 3 — Search for a specific cuisine
+      - get:
+          url: "/rest/v1/restaurants?select=id,name,rating,cuisine_type,image_url&or=(name.ilike.*{{ searchQuery }}*,cuisine_type.ilike.*{{ searchQuery }}*)&is_open=eq.true&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+
+      # Step 4 — Think time: user reads results (2–4 seconds)
+      - think: "{{ $randomNumber(2, 4) }}"
+
+      # Step 5 — Open a restaurant and fetch its menu
+      - get:
+          url: "/rest/v1/menu_items?select=id,name,price,description,image_url,category,is_available,discount_percentage&restaurant_id=eq.{{ restaurantId }}&is_available=eq.true&order=category.asc"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          afterResponse: "cacheMenuItemIds"
+
+      # Step 6 — Think time: user reads the menu (3–8 seconds)
+      - think: "{{ $randomNumber(3, 8) }}"
+
+      # Step 7 — Fetch restaurant details (ratings, hours, etc.)
+      - get:
+          url: "/rest/v1/restaurants?select=*&id=eq.{{ restaurantId }}"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+
+      # Step 8 — Fetch reviews for this restaurant
+      - get:
+          url: "/rest/v1/reviews?select=rating,comment,created_at,users(name)&restaurant_id=eq.{{ restaurantId }}&order=created_at.desc&limit=10"
+          headers:
+            apikey: "{{ anonKey }}"
+            Content-Type: "application/json"
+          afterResponse: "logSlowResponse"

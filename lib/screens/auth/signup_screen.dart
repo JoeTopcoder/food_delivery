@@ -290,7 +290,38 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       isLoading: authState.isLoading,
                       label: context.l10n.createAccount,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
+
+                    // Privacy / Terms notice
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          Text(
+                            'By creating an account you agree to our ',
+                            style: TextStyle(fontSize: 12, color: context.colors.onSurfaceVariant),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).pushNamed('/terms'),
+                            child: Text(
+                              'Terms & Conditions',
+                              style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Text(' and ', style: TextStyle(fontSize: 12, color: context.colors.onSurfaceVariant)),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).pushNamed('/privacy-policy'),
+                            child: Text(
+                              'Privacy Policy',
+                              style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Text('.', style: TextStyle(fontSize: 12, color: context.colors.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // Sign in link
                     Row(
