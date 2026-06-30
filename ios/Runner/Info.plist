@@ -53,6 +53,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>7Dash uses analytics to improve app performance and your experience. Your data is never sold or shared with advertisers.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>7Dash needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'dart:ui' show PlatformDispatcher;
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -282,6 +283,22 @@ void main() {
           ),
         );
       };
+
+      // Request App Tracking Transparency permission on iOS before any
+      // analytics data is collected (required by Guideline 5.1.2(i)).
+      if (!kIsWeb) {
+        try {
+          final status =
+              await AppTrackingTransparency.trackingAuthorizationStatus;
+          if (status == TrackingStatus.notDetermined) {
+            // Brief delay ensures the system UI is ready to show the prompt.
+            await Future.delayed(const Duration(milliseconds: 200));
+            await AppTrackingTransparency.requestTrackingAuthorization();
+          }
+        } catch (_) {
+          // ATT unavailable on this platform (Android, or iOS < 14) — proceed.
+        }
+      }
 
       runApp(const ProviderScope(child: MyApp()));
     },
