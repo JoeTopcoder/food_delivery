@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
 
   String get _roleLabel {
     switch (widget.role) {
@@ -127,9 +129,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _handleAppleSignIn() async {
-    // Disable button while loading — reuse the Google loading flag via a
-    // local state flag so both buttons disable together.
-    if (_isGoogleLoading || ref.read(authNotifierProvider).isLoading) return;
+    setState(() => _isAppleLoading = true);
     try {
       await ref.read(authNotifierProvider.notifier).signInWithApple();
       if (!mounted) return;
@@ -138,7 +138,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       AppLogger.error('Apple sign-in error: $e');
       if (!mounted) return;
       final msg = e.toString();
-      // Cancellation is intentional — show nothing.
       if (msg.toLowerCase().contains('cancelled')) return;
       AppSnackbar.error(
         context,
@@ -146,6 +145,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ? 'Apple Sign-In is not available right now. Please try again later.'
             : 'Apple sign-in failed. Please try again.',
       );
+    } finally {
+      if (mounted) setState(() => _isAppleLoading = false);
     }
   }
 
@@ -444,16 +445,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             (defaultTargetPlatform == TargetPlatform.iOS ||
                                 defaultTargetPlatform == TargetPlatform.macOS)) ...[
                           Expanded(
-                            child: _SocialButton(
-                              onPressed: (authState.isLoading || _isGoogleLoading)
+                            child: SignInWithAppleButton(
+                              onPressed: (authState.isLoading ||
+                                      _isGoogleLoading ||
+                                      _isAppleLoading)
                                   ? null
                                   : _handleAppleSignIn,
-                              icon: const Icon(
-                                Icons.apple,
-                                size: 22,
-                                color: Colors.black,
-                              ),
-                              label: 'Apple',
+                              style: SignInWithAppleButtonStyle.black,
                             ),
                           ),
                         ],

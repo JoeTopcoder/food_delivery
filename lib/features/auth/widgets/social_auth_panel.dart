@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// A reusable panel showing Google (and Apple on iOS/macOS) sign-in buttons.
 class SocialAuthPanel extends StatelessWidget {
@@ -18,10 +19,7 @@ class SocialAuthPanel extends StatelessWidget {
   final bool googleLoading;
   final bool appleLoading;
 
-  // Show Apple sign-in only on Apple devices. On web we use the browser's
-  // reported platform (defaultTargetPlatform on Flutter web reflects the OS
-  // running the browser), so a Mac/iOS Safari user gets the button while a
-  // Windows / Android / Linux browser does not.
+  // Apple is only available on Apple devices.
   bool get _showApple {
     if (kIsWeb) {
       return defaultTargetPlatform == TargetPlatform.macOS ||
@@ -30,34 +28,37 @@ class SocialAuthPanel extends StatelessWidget {
     return Platform.isIOS || Platform.isMacOS;
   }
 
+  // Google is only shown on Android/web. On iOS the native Google Sign-In
+  // SDK requires GoogleService-Info.plist + a registered URL scheme; Apple
+  // also requires Sign in with Apple to be the primary social auth option.
+  bool get _showGoogle {
+    if (kIsWeb) return true;
+    return !Platform.isIOS && !Platform.isMacOS;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OutlinedButton.icon(
-          onPressed: onGoogle,
-          icon: googleLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.g_mobiledata, size: 26),
-          label: Text(googleLoading ? 'Signing in...' : 'Continue with Google'),
-        ),
-        if (_showApple) ...[
-          const SizedBox(height: 10),
+        if (_showGoogle) ...[
           OutlinedButton.icon(
-            onPressed: onApple,
-            icon: appleLoading
+            onPressed: onGoogle,
+            icon: googleLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.apple, size: 24),
-            label: Text(appleLoading ? 'Signing in...' : 'Continue with Apple'),
+                : const Icon(Icons.g_mobiledata, size: 26),
+            label: Text(googleLoading ? 'Signing in...' : 'Continue with Google'),
+          ),
+        ],
+        if (_showApple) ...[
+          if (_showGoogle) const SizedBox(height: 10),
+          SignInWithAppleButton(
+            onPressed: appleLoading ? null : onApple,
+            style: SignInWithAppleButtonStyle.black,
           ),
         ],
       ],
