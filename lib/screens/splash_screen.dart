@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
           transitionsBuilder: (context, anim, secondaryAnimation, child) {
             return FadeTransition(opacity: anim, child: child);
           },
-          transitionDuration: const Duration(milliseconds: 500),
+          transitionDuration: const Duration(milliseconds: 150),
         ),
       );
     });
@@ -523,12 +523,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     )..repeat();
 
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 350),
       vsync: this,
     );
 
     _contentController = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
 
@@ -555,19 +555,13 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   }
 
   Future<void> _initialize() async {
-    await Future.wait([
-      Future.delayed(const Duration(milliseconds: 300)),
-      _doPermissionsAndAuth().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          _navigateToGate();
-        },
-      ),
-    ]);
-
-    // Hard fallback: if _doPermissionsAndAuth returned early without navigating
-    // (e.g. !mounted check fired then recovered, or any unhandled early return),
-    // push the gate screen so the splash never stays on screen indefinitely.
+    await _doPermissionsAndAuth().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        _navigateToGate();
+      },
+    );
+    // Hard fallback: ensures splash never stays on screen indefinitely.
     _navigateToGate();
   }
 
@@ -579,7 +573,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
         pageBuilder: (_, __, ___) => const AuthLaunchGateScreen(),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 150),
       ),
     );
   }
@@ -701,7 +695,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
         pageBuilder: (_, __, ___) => destination,
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 150),
       ),
     );
 

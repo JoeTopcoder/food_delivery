@@ -164,7 +164,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       return;
     }
 
-    Navigator.of(context).pushReplacementNamed(_routeForRole(role));
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      _routeForRole(role),
+      (route) => false,
+    );
   }
 
   void _showError(Object e) {
