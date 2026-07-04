@@ -41,6 +41,30 @@ class _RestaurantDetailScreenState
   String? _selectedCategory;
   bool _startingGroupOrder = false;
   bool _savingToGroup = false;
+  bool? _isFavOverride;
+  bool _isFavLoading = false;
+
+  Future<void> _toggleFav() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null || _isFavLoading) return;
+    final isFavNow = _isFavOverride ??
+        (ref.read(isFavoriteProvider((userId, widget.restaurant.id))).valueOrNull ?? false);
+    setState(() {
+      _isFavOverride = !isFavNow;
+      _isFavLoading = true;
+    });
+    try {
+      final svc = ref.read(favoritesServiceProvider);
+      await svc.toggleFavorite(userId, widget.restaurant.id);
+      ref.invalidate(isFavoriteProvider((userId, widget.restaurant.id)));
+      ref.invalidate(favoriteRestaurantsProvider(userId));
+    } catch (_) {
+      if (mounted) setState(() => _isFavOverride = isFavNow);
+      if (mounted) AppSnackbar.error(context, 'Could not update favourite. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isFavLoading = false);
+    }
+  }
 
   Future<void> _saveToGroupOrder() async {
     final participantId = widget.groupParticipantId;
@@ -268,15 +292,7 @@ class _RestaurantDetailScreenState
     final isFavAsync = currentUserId != null
         ? ref.watch(isFavoriteProvider((currentUserId, widget.restaurant.id)))
         : const AsyncValue<bool>.data(false);
-    final isFav = isFavAsync.valueOrNull ?? false;
-
-    Future<void> toggleFav() async {
-      if (currentUserId == null) return;
-      final svc = ref.read(favoritesServiceProvider);
-      await svc.toggleFavorite(currentUserId, widget.restaurant.id);
-      ref.invalidate(isFavoriteProvider((currentUserId, widget.restaurant.id)));
-      ref.invalidate(favoriteRestaurantsProvider(currentUserId));
-    }
+    final isFav = _isFavOverride ?? isFavAsync.valueOrNull ?? false;
 
     return Scaffold(
       appBar: _showAppBar
@@ -346,7 +362,7 @@ class _RestaurantDetailScreenState
                         ? AppTheme.accentColor
                         : Theme.of(context).colorScheme.onSurface,
                   ),
-                  onPressed: toggleFav,
+                  onPressed: _toggleFav,
                 ),
                 IconButton(
                   icon: Icon(
@@ -536,7 +552,7 @@ class _RestaurantDetailScreenState
                       top: 40,
                       right: 16,
                       child: GestureDetector(
-                        onTap: toggleFav,
+                        onTap: _toggleFav,
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,

@@ -336,9 +336,10 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
   Future<void> _toggleFav() async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null || _favLoading) return;
-    setState(() => _favLoading = true);
+    final willBeFav = !_isFav;
+    setState(() { _isFav = willBeFav; _favLoading = true; });
     try {
-      if (_isFav) {
+      if (!willBeFav) {
         await _db
             .from('user_favorite_car_providers')
             .delete()
@@ -350,9 +351,8 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
           'provider_id': widget.provider.id,
         }, onConflict: 'user_id,provider_id');
       }
-      if (mounted) setState(() => _isFav = !_isFav);
     } catch (_) {
-      // silently fail
+      if (mounted) setState(() => _isFav = !willBeFav);
     } finally {
       if (mounted) setState(() => _favLoading = false);
     }

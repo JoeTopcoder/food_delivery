@@ -73,7 +73,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           default:
             route = '/home';
         }
-        Navigator.of(context).pushReplacementNamed(route);
+        Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
       }
     } catch (e) {
       AppLogger.error('Sign up error: $e');

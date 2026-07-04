@@ -73,9 +73,10 @@ class _CarServiceProviderDetailScreenState
   Future<void> _toggleFav(CarServiceProvider provider) async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null || _favLoading) return;
-    setState(() => _favLoading = true);
+    final willBeFav = !_isFav;
+    setState(() { _isFav = willBeFav; _favLoading = true; });
     try {
-      if (_isFav) {
+      if (!willBeFav) {
         await _db
             .from('user_favorite_car_providers')
             .delete()
@@ -88,9 +89,8 @@ class _CarServiceProviderDetailScreenState
         }, onConflict: 'user_id,provider_id');
       }
       if (mounted) {
-        setState(() => _isFav = !_isFav);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isFav
+          content: Text(willBeFav
               ? '❤️ ${provider.businessName} saved to favourites'
               : '${provider.businessName} removed from favourites'),
           duration: const Duration(seconds: 2),
@@ -99,6 +99,7 @@ class _CarServiceProviderDetailScreenState
       }
     } catch (_) {
       if (mounted) {
+        setState(() => _isFav = !willBeFav);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Could not update favourites. Please try again.'),
           behavior: SnackBarBehavior.floating,

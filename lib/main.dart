@@ -284,23 +284,23 @@ void main() {
         );
       };
 
-      // Request App Tracking Transparency permission on iOS before any
-      // analytics data is collected (required by Guideline 5.1.2(i)).
-      if (!kIsWeb) {
-        try {
-          final status =
-              await AppTrackingTransparency.trackingAuthorizationStatus;
-          if (status == TrackingStatus.notDetermined) {
-            // Brief delay ensures the system UI is ready to show the prompt.
-            await Future.delayed(const Duration(milliseconds: 200));
-            await AppTrackingTransparency.requestTrackingAuthorization();
-          }
-        } catch (_) {
-          // ATT unavailable on this platform (Android, or iOS < 14) — proceed.
-        }
-      }
-
       runApp(const ProviderScope(child: MyApp()));
+
+      // Request App Tracking Transparency permission on iOS — done after runApp
+      // so it never blocks the first frame. ATT only needs to fire before data
+      // is actually collected; SDK initialisation is fine beforehand.
+      if (!kIsWeb) {
+        Future.microtask(() async {
+          try {
+            final status =
+                await AppTrackingTransparency.trackingAuthorizationStatus;
+            if (status == TrackingStatus.notDetermined) {
+              await Future.delayed(const Duration(milliseconds: 200));
+              await AppTrackingTransparency.requestTrackingAuthorization();
+            }
+          } catch (_) {}
+        });
+      }
     },
     (error, stack) {
       AppLogger.error('[Zone] Uncaught: $error\n$stack');
