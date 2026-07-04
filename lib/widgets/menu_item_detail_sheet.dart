@@ -518,7 +518,6 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(group.name, group.isRequired),
-        const SizedBox(height: 4),
         ...availableChoices.map((choice) {
           final isSelected =
               _selectedChoices[group.id]?.contains(choice.id) ?? false;
@@ -527,6 +526,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
             price: choice.price,
             showPrice: choice.price > 0,
             isSelected: isSelected,
+            isRadio: group.isSingleSelect,
             onTap: () => _toggleChoice(group, choice),
           );
         }),
@@ -535,8 +535,9 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
   }
 
   Widget _buildSectionHeader(String title, bool isRequired) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      margin: const EdgeInsets.only(top: 20),
       child: Row(
         children: [
           Flexible(
@@ -551,15 +552,25 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            isRequired ? '(Required)' : '(Optional)',
-            style: TextStyle(
-              fontSize: 12,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
               color: isRequired
-                  ? const Color(0xFFB44D4D)
-                  : AppTheme.textSecondary,
-              fontWeight: isRequired ? FontWeight.w600 : FontWeight.w400,
+                  ? const Color(0xFFFEF2F2)
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              isRequired ? 'REQUIRED' : 'Optional',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isRequired
+                    ? const Color(0xFFDC2626)
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ],
@@ -573,29 +584,19 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
     required bool showPrice,
     required bool isSelected,
     required VoidCallback onTap,
+    bool isRadio = false,
   }) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Dark square bullet (7krave style)
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: const Color(0xFF333333),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 name,
-                maxLines: 1,
-                softWrap: false,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
@@ -615,23 +616,52 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                 ),
               ),
             ],
-            const SizedBox(width: 10),
-            // Selection circle
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey[350]!,
-                  width: 2,
+            const SizedBox(width: 12),
+            // Radio (single-select) or Checkbox (multi-select/add-ons)
+            if (isRadio)
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : Colors.grey[400]!,
+                    width: 2,
+                  ),
                 ),
-                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                child: isSelected
+                    ? Center(
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      )
+                    : null,
+              )
+            else
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : Colors.grey[400]!,
+                    width: 1.5,
+                  ),
+                  color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : null,
               ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 13, color: Colors.white)
-                  : null,
-            ),
           ],
         ),
       ),
