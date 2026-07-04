@@ -20,17 +20,46 @@ class MenuItemCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Info
+            // Square item image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                item.imageUrl?.isNotEmpty == true
+                    ? item.imageUrl!
+                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500',
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.fastfood_rounded,
+                    size: 32,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Name, description, price
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,105 +74,57 @@ class MenuItemCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (item.description != null &&
-                      item.description!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                  if (item.description?.isNotEmpty == true) ...[
+                    const SizedBox(height: 3),
                     Text(
                       item.description!,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 10),
-                  // Price
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       if (item.discount != null && item.discount! > 0) ...[
                         Text(
                           '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: AppTheme.textLight,
                             decoration: TextDecoration.lineThrough,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                       ],
                       Text(
                         '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                          fontSize: 15,
                           color: AppTheme.priceColor,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  // Add to Cart button
-                  GestureDetector(
-                    onTap: onAddTap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppTheme.primaryColor,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.add_shopping_cart_rounded,
-                            size: 16,
-                            color: AppTheme.primaryColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Add to Cart',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            // Image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                item.imageUrl ??
-                    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500',
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  width: 90,
-                  height: 90,
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.fastfood,
-                    size: 36,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            const SizedBox(width: 10),
+            // Teal circular add button
+            GestureDetector(
+              onTap: onAddTap,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
               ),
             ),
           ],

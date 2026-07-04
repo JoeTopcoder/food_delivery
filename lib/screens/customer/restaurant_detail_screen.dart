@@ -874,15 +874,21 @@ class _RestaurantDetailScreenState
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Horizontal category tabs (7krave pill style)
-                        SizedBox(
-                          height: 44,
-                          child: ListView.separated(
+                        // Horizontal category tabs (underline indicator style)
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          height: 46,
+                          child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             itemCount: categories.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               final cat = categories[index];
                               final isActive = cat == activeCategory;
@@ -891,30 +897,30 @@ class _RestaurantDetailScreenState
                                     setState(() => _selectedCategory = cat),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 10,
+                                    horizontal: 16,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isActive
-                                        ? AppTheme.primaryColor
-                                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: isActive
-                                          ? AppTheme.primaryColor
-                                          : Theme.of(context).colorScheme.outlineVariant,
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: isActive
+                                            ? AppTheme.primaryColor
+                                            : Colors.transparent,
+                                        width: 2.5,
+                                      ),
                                     ),
                                   ),
-                                  child: Text(
-                                    cat,
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? Colors.white
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.onSurface,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
+                                  child: Center(
+                                    child: Text(
+                                      cat,
+                                      style: TextStyle(
+                                        color: isActive
+                                            ? AppTheme.primaryColor
+                                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontWeight: isActive
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -922,19 +928,7 @@ class _RestaurantDetailScreenState
                             },
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        // Category header
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                          child: Text(
-                            activeCategory,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         // Items under selected category
                         ...activeItems.map(
                           (item) => MenuItemCard(

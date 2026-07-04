@@ -833,22 +833,22 @@ class _CartItemWidget extends StatelessWidget {
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
             ),
-            child: imageUrl != null && imageUrl!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                    child: Image.network(
-                      imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.image,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                child: Image.network(
+                  imageUrl?.isNotEmpty == true
+                      ? imageUrl!
+                      : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.fastfood_rounded,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  )
-                : Icon(
-                    Icons.image,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                ),
+              ),
           ),
           const SizedBox(width: 12),
           Expanded(
