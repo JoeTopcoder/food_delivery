@@ -72,6 +72,7 @@ import 'screens/driver/advanced_earnings_screen.dart';
 import 'screens/driver/driver_performance_screen.dart';
 import 'screens/driver/demand_heatmap_screen.dart';
 import 'screens/admin/admin_promos_screen.dart';
+import 'screens/admin/admin_email_notifications_screen.dart';
 import 'screens/admin/admin_chats_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
 import 'screens/admin/admin_financials_screen.dart';
@@ -906,6 +907,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminPromosScreen(),
+                ),
+              );
+            case '/admin-email-notifications':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminEmailNotificationsScreen(),
                 ),
               );
             case '/admin-chats':

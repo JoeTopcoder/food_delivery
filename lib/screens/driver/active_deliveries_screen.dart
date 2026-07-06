@@ -21,6 +21,7 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/ai_fab.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -121,6 +122,7 @@ class _ActiveDeliveriesScreenState
                   ),
                 ),
                 actions: [
+                  const AiAppBarAction(role: 'driver'),
                   const SosButton(),
                   if (isTracking)
                     Container(

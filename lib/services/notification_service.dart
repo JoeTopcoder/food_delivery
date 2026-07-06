@@ -62,6 +62,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         incomingCallNotificationChannelName: 'Incoming Calls',
         missedCallNotificationChannelName: 'Missed Calls',
       ),
+      ios: const IOSParams(
+        handleType: 'generic',
+        supportsVideo: false,
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        audioSessionMode: 'default',
+        audioSessionActive: true,
+        audioSessionPreferredSampleRate: 44100.0,
+        audioSessionPreferredIOBufferDuration: 0.005,
+        supportsDTMF: false,
+        supportsHolding: false,
+        supportsGrouping: false,
+        supportsUngrouping: false,
+        configureAudioSession: true,
+      ),
     );
 
     await FlutterCallkitIncoming.showCallkitIncoming(params);
@@ -509,6 +524,21 @@ class NotificationService {
           actionColor: '#7C3AED',
           incomingCallNotificationChannelName: 'Incoming Calls',
           missedCallNotificationChannelName: 'Missed Calls',
+        ),
+        ios: const IOSParams(
+          handleType: 'generic',
+          supportsVideo: false,
+          maximumCallGroups: 1,
+          maximumCallsPerCallGroup: 1,
+          audioSessionMode: 'default',
+          audioSessionActive: true,
+          audioSessionPreferredSampleRate: 44100.0,
+          audioSessionPreferredIOBufferDuration: 0.005,
+          supportsDTMF: false,
+          supportsHolding: false,
+          supportsGrouping: false,
+          supportsUngrouping: false,
+          configureAudioSession: true,
         ),
       );
 

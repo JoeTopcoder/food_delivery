@@ -16,6 +16,7 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/ai_fab.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -224,6 +225,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
               ),
             ),
             actions: [
+              const AiAppBarAction(role: 'driver'),
               Container(
                 margin: const EdgeInsets.only(right: 12),
                 decoration: BoxDecoration(

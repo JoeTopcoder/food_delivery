@@ -97,17 +97,16 @@ class AiVoiceService {
     List<Map<String, String>> history = const [],
   }) async {
     try {
-      // Refresh session to ensure we have a valid RS256 JWT (not a legacy HS256 token).
-      // UNAUTHORIZED_LEGACY_JWT errors occur when a stale token is sent.
+      // Force a session refresh so the SDK sends a fresh token.
       try {
         await _client.auth.refreshSession();
       } catch (_) {}
 
-      // Explicitly pass the refreshed access token.
+      // Always read the token AFTER the refresh attempt.
       final session = _client.auth.currentSession;
-      final headers = session != null
-          ? {'Authorization': 'Bearer ${session.accessToken}'}
-          : <String, String>{};
+      if (session == null) {
+        throw Exception('Your session has expired. Please log in again.');
+      }
 
       final response = await _client.functions.invoke(
         'ai-voice-assistant',
@@ -119,7 +118,7 @@ class AiVoiceService {
           'language': language,
           if (history.isNotEmpty) 'history': history,
         },
-        headers: headers,
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
       );
 
       final data = response.data as Map<String, dynamic>?;

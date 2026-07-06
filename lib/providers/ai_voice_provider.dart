@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/ai/ai_voice_service.dart';
 import '../services/ai/speech_service.dart';
-import '../utils/friendly_error.dart';
 
 // ── Service providers ─────────────────────────────────────────────────────────
 
@@ -343,11 +342,10 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
       );
       state = state.copyWith(
         status: AiVoiceStatus.error,
-        errorMessage: friendlyError(e),
+        errorMessage: e.toString(),
         history: [...state.history, aiMsg],
         canEscalate: _consecutiveErrors >= 2,
       );
-      await _speak(errText);
       if (kDebugMode) debugPrint('AiVoiceNotifier error: $e');
     }
   }
