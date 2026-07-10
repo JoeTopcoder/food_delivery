@@ -12,21 +12,21 @@ import '../../providers/feature_providers.dart';
 
 final _foodCatsAdminProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final rows = await Supabase.instance.client
-      .from('food_categories')
-      .select()
-      .order('sort_order');
-  return List<Map<String, dynamic>>.from(rows as List);
-});
+      final rows = await Supabase.instance.client
+          .from('food_categories')
+          .select()
+          .order('sort_order');
+      return List<Map<String, dynamic>>.from(rows as List);
+    });
 
 final _groceryCatsAdminProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final rows = await Supabase.instance.client
-      .from('grocery_categories')
-      .select()
-      .order('sort_order');
-  return List<Map<String, dynamic>>.from(rows as List);
-});
+      final rows = await Supabase.instance.client
+          .from('grocery_categories')
+          .select()
+          .order('sort_order');
+      return List<Map<String, dynamic>>.from(rows as List);
+    });
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -38,8 +38,7 @@ class AdminCategoriesScreen extends ConsumerStatefulWidget {
       _AdminCategoriesScreenState();
 }
 
-class _AdminCategoriesScreenState
-    extends ConsumerState<AdminCategoriesScreen>
+class _AdminCategoriesScreenState extends ConsumerState<AdminCategoriesScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
 
@@ -65,7 +64,10 @@ class _AdminCategoriesScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Categories', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Categories',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         bottom: TabBar(
           controller: _tab,
           tabs: const [
@@ -99,14 +101,14 @@ class _AdminCategoriesScreenState
     );
   }
 
-  void _showEditDialog(BuildContext context, {required bool isFood, Map<String, dynamic>? row}) {
+  void _showEditDialog(
+    BuildContext context, {
+    required bool isFood,
+    Map<String, dynamic>? row,
+  }) {
     showDialog(
       context: context,
-      builder: (_) => _EditDialog(
-        isFood: isFood,
-        row: row,
-        onSaved: _refresh,
-      ),
+      builder: (_) => _EditDialog(isFood: isFood, row: row, onSaved: _refresh),
     );
   }
 }
@@ -136,14 +138,22 @@ class _CatList extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.category_outlined, size: 48, color: Colors.grey[400]),
+                Icon(
+                  Icons.category_outlined,
+                  size: 48,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(height: 12),
-                Text('No categories yet', style: TextStyle(color: Colors.grey[600])),
+                Text(
+                  'No categories yet',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: () => showDialog(
                     context: context,
-                    builder: (_) => _EditDialog(isFood: isFood, onSaved: onChanged),
+                    builder: (_) =>
+                        _EditDialog(isFood: isFood, onSaved: onChanged),
                   ),
                   icon: const Icon(Icons.add),
                   label: const Text('Add first category'),
@@ -167,14 +177,14 @@ class _CatList extends ConsumerWidget {
               onTap: isFood
                   ? null
                   : () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => _CategoryItemsScreen(
-                            categoryName: name,
-                            categoryEmoji: emoji,
-                          ),
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _CategoryItemsScreen(
+                          categoryName: name,
+                          categoryEmoji: emoji,
                         ),
                       ),
+                    ),
               leading: _CategoryThumb(imageUrl: imageUrl, emoji: emoji),
               title: Text(
                 name,
@@ -189,16 +199,20 @@ class _CatList extends ConsumerWidget {
                   if (imageUrl.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(right: 4),
-                      child: Icon(Icons.image_not_supported_outlined,
-                          size: 12, color: Colors.orange),
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        size: 12,
+                        color: Colors.orange,
+                      ),
                     ),
                   Expanded(
                     child: Text(
                       '${isFood ? 'emoji' : 'icon'}: $emoji  •  sort: ${cat['sort_order'] ?? 0}  •  ${isActive ? 'Active' : 'Hidden'}'
                       '${imageUrl.isEmpty ? '  •  No image' : ''}',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: imageUrl.isEmpty ? Colors.orange : null),
+                        fontSize: 12,
+                        color: imageUrl.isEmpty ? Colors.orange : null,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -209,8 +223,11 @@ class _CatList extends ConsumerWidget {
                 children: [
                   if (!isFood)
                     IconButton(
-                      icon: Icon(Icons.shopping_basket_rounded,
-                          size: 20, color: AppTheme.primaryColor),
+                      icon: Icon(
+                        Icons.shopping_basket_rounded,
+                        size: 20,
+                        color: AppTheme.primaryColor,
+                      ),
                       tooltip: 'Manage items',
                       onPressed: () => Navigator.push(
                         context,
@@ -224,7 +241,9 @@ class _CatList extends ConsumerWidget {
                     ),
                   IconButton(
                     icon: Icon(
-                      isActive ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                      isActive
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
                       size: 20,
                       color: isActive ? AppTheme.primaryColor : Colors.grey,
                     ),
@@ -244,7 +263,11 @@ class _CatList extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: Colors.red,
+                    ),
                     tooltip: 'Delete',
                     onPressed: () => _confirmDelete(context, ref, cat, isFood),
                   ),
@@ -274,7 +297,10 @@ class _CatList extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(friendlyError(e)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -292,7 +318,10 @@ class _CatList extends ConsumerWidget {
         title: const Text('Delete category?'),
         content: Text('Delete "${cat['name']}"? This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -308,7 +337,10 @@ class _CatList extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(friendlyError(e)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -339,10 +371,19 @@ class _CategoryThumb extends StatelessWidget {
           ? CachedNetworkImage(
               imageUrl: imageUrl,
               fit: BoxFit.cover,
-              errorWidget: (_, __, ___) =>
-                  Center(child: Text(emoji.isEmpty ? '📷' : emoji, style: const TextStyle(fontSize: 22))),
+              errorWidget: (_, __, ___) => Center(
+                child: Text(
+                  emoji.isEmpty ? '📷' : emoji,
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ),
             )
-          : Center(child: Text(emoji.isEmpty ? '📷' : emoji, style: const TextStyle(fontSize: 22))),
+          : Center(
+              child: Text(
+                emoji.isEmpty ? '📷' : emoji,
+                style: const TextStyle(fontSize: 22),
+              ),
+            ),
     );
   }
 }
@@ -350,11 +391,7 @@ class _CategoryThumb extends StatelessWidget {
 // ── Edit / Add Dialog ─────────────────────────────────────────────────────────
 
 class _EditDialog extends StatefulWidget {
-  const _EditDialog({
-    required this.isFood,
-    this.row,
-    required this.onSaved,
-  });
+  const _EditDialog({required this.isFood, this.row, required this.onSaved});
 
   final bool isFood;
   final Map<String, dynamic>? row;
@@ -419,18 +456,26 @@ class _EditDialogState extends State<_EditDialog> {
   }
 
   Future<String?> _uploadImage() async {
-    if (_pickedImage == null) return _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
+    if (_pickedImage == null)
+      return _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
     setState(() => _uploading = true);
     try {
       final bytes = await _pickedImage!.readAsBytes();
-      final catName = _name.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
-      final fileName = 'cat_${catName}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final catName = _name.text
+          .trim()
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+          .toLowerCase();
+      final fileName =
+          'cat_${catName}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await Supabase.instance.client.storage
           .from('category-images')
           .uploadBinary(
             fileName,
             bytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
           );
       return Supabase.instance.client.storage
           .from('category-images')
@@ -443,9 +488,9 @@ class _EditDialogState extends State<_EditDialog> {
   Future<void> _save() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Name is required')));
       return;
     }
     setState(() => _saving = true);
@@ -482,7 +527,10 @@ class _EditDialogState extends State<_EditDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(friendlyError(e)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -510,7 +558,9 @@ class _EditDialogState extends State<_EditDialog> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -584,7 +634,10 @@ class _EditDialogState extends State<_EditDialog> {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : Text(_isEdit ? 'Save' : 'Add'),
         ),
@@ -610,9 +663,16 @@ class _EditDialogState extends State<_EditDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.add_photo_alternate_outlined, size: 28, color: Colors.grey[500]),
+        Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 28,
+          color: Colors.grey[500],
+        ),
         const SizedBox(height: 4),
-        Text('Tap to add', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+        Text(
+          'Tap to add',
+          style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+        ),
       ],
     );
   }
@@ -624,25 +684,25 @@ class _EditDialogState extends State<_EditDialog> {
 
 final _categoryItemsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, categoryName) async {
-  final rows = await Supabase.instance.client
-      .from('menus')
-      .select('*, restaurants(name)')
-      .eq('product_type', 'grocery')
-      .eq('category', categoryName)
-      .order('name');
-  return List<Map<String, dynamic>>.from(rows as List);
-});
+      final rows = await Supabase.instance.client
+          .from('menus')
+          .select('*, restaurants(name)')
+          .eq('product_type', 'grocery')
+          .eq('category', categoryName)
+          .order('name');
+      return List<Map<String, dynamic>>.from(rows as List);
+    });
 
 final _groceryStoresProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final rows = await Supabase.instance.client
-      .from('restaurants')
-      .select('id, name')
-      .inFilter('store_type', ['grocery', 'both'])
-      .eq('is_verified', true)
-      .order('name');
-  return List<Map<String, dynamic>>.from(rows as List);
-});
+      final rows = await Supabase.instance.client
+          .from('restaurants')
+          .select('id, name')
+          .inFilter('store_type', ['grocery', 'both'])
+          .eq('is_verified', true)
+          .order('name');
+      return List<Map<String, dynamic>>.from(rows as List);
+    });
 
 class _CategoryItemsScreen extends ConsumerWidget {
   const _CategoryItemsScreen({
@@ -659,8 +719,10 @@ class _CategoryItemsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$categoryEmoji  $categoryName',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          '$categoryEmoji  $categoryName',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
@@ -678,11 +740,16 @@ class _CategoryItemsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.shopping_basket_outlined,
-                      size: 56, color: Colors.grey[300]),
+                  Icon(
+                    Icons.shopping_basket_outlined,
+                    size: 56,
+                    color: Colors.grey[300],
+                  ),
                   const SizedBox(height: 12),
-                  Text('No items in $categoryName yet',
-                      style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    'No items in $categoryName yet',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () => _showItemDialog(context, ref),
@@ -706,8 +773,10 @@ class _CategoryItemsScreen extends ConsumerWidget {
 
               return ListTile(
                 leading: _CategoryThumb(imageUrl: imgUrl, emoji: categoryEmoji),
-                title: Text(item['name'] as String,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(
+                  item['name'] as String,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Text(
                   '\$${(item['price'] as num).toStringAsFixed(2)}  •  $storeName'
                   '${item['brand'] != null ? '  •  ${item['brand']}' : ''}'
@@ -728,7 +797,9 @@ class _CategoryItemsScreen extends ConsumerWidget {
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: inStock
                               ? const Color(0xFF10B981).withValues(alpha: 0.1)
@@ -752,10 +823,12 @@ class _CategoryItemsScreen extends ConsumerWidget {
                       onPressed: () => _showItemDialog(context, ref, row: item),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          size: 20, color: Colors.red),
-                      onPressed: () =>
-                          _confirmDelete(context, ref, item),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 20,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => _confirmDelete(context, ref, item),
                     ),
                   ],
                 ),
@@ -767,8 +840,11 @@ class _CategoryItemsScreen extends ConsumerWidget {
     );
   }
 
-  void _showItemDialog(BuildContext context, WidgetRef ref,
-      {Map<String, dynamic>? row}) {
+  void _showItemDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    Map<String, dynamic>? row,
+  }) {
     showDialog(
       context: context,
       builder: (_) => _ItemEditDialog(
@@ -780,7 +856,10 @@ class _CategoryItemsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Map<String, dynamic> item) async {
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> item,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -788,21 +867,18 @@ class _CategoryItemsScreen extends ConsumerWidget {
         content: Text('Delete "${item['name']}"? This cannot be undone.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
     if (ok != true) return;
-    await Supabase.instance.client
-        .from('menus')
-        .delete()
-        .eq('id', item['id']);
+    await Supabase.instance.client.from('menus').delete().eq('id', item['id']);
     ref.invalidate(_categoryItemsProvider(categoryName));
   }
 }
@@ -848,9 +924,11 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
     final r = widget.row;
     _name = TextEditingController(text: r?['name'] as String? ?? '');
     _price = TextEditingController(
-        text: r != null ? (r['price'] as num).toStringAsFixed(2) : '');
-    _description =
-        TextEditingController(text: r?['description'] as String? ?? '');
+      text: r != null ? (r['price'] as num).toStringAsFixed(2) : '',
+    );
+    _description = TextEditingController(
+      text: r?['description'] as String? ?? '',
+    );
     _brand = TextEditingController(text: r?['brand'] as String? ?? '');
     _unit = TextEditingController(text: r?['unit'] as String? ?? '');
     _weight = TextEditingController(text: r?['weight'] as String? ?? '');
@@ -898,14 +976,17 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
           .trim()
           .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
           .toLowerCase();
-      final fileName = 'grocery_${slug}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName =
+          'grocery_${slug}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await Supabase.instance.client.storage
           .from('category-images')
           .uploadBinary(
             fileName,
             bytes,
-            fileOptions:
-                const FileOptions(contentType: 'image/jpeg', upsert: true),
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
           );
       return Supabase.instance.client.storage
           .from('category-images')
@@ -925,9 +1006,9 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
       return;
     }
     if (!_isEdit && _selectedStoreId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a store')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a store')));
       return;
     }
     setState(() => _saving = true);
@@ -966,7 +1047,9 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(friendlyError(e)), backgroundColor: Colors.red),
+            content: Text(friendlyError(e)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -996,10 +1079,10 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outline
-                            .withValues(alpha: 0.3)),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.3),
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: _buildPreview(),
@@ -1031,8 +1114,10 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
             if (!_isEdit) ...[
               storesAsync.when(
                 loading: () => const LinearProgressIndicator(),
-                error: (e, _) => Text(friendlyError(e),
-                    style: const TextStyle(color: Colors.red, fontSize: 12)),
+                error: (e, _) => Text(
+                  friendlyError(e),
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
                 data: (stores) => InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Store *',
@@ -1046,10 +1131,12 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
                     isDense: true,
                     hint: const Text('Select store'),
                     items: stores
-                        .map((s) => DropdownMenuItem(
-                              value: s['id'] as String,
-                              child: Text(s['name'] as String),
-                            ))
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s['id'] as String,
+                            child: Text(s['name'] as String),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedStoreId = v),
                   ),
@@ -1069,8 +1156,9 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
             const SizedBox(height: 10),
             TextField(
               controller: _price,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Price *',
                 prefixText: '\$ ',
@@ -1146,7 +1234,9 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : Text(_isEdit ? 'Save' : 'Add'),
         ),
@@ -1169,12 +1259,14 @@ class _ItemEditDialogState extends ConsumerState<_ItemEditDialog> {
   }
 
   Widget _placeholder() => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_photo_alternate_outlined,
-              size: 24, color: Colors.grey[500]),
-          Text('Add photo',
-              style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-        ],
-      );
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(
+        Icons.add_photo_alternate_outlined,
+        size: 24,
+        color: Colors.grey[500],
+      ),
+      Text('Add photo', style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+    ],
+  );
 }

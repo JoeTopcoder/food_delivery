@@ -420,6 +420,54 @@ verify_jwt = false
 [functions.stripe-subscription-webhook]
 verify_jwt = false
 
+[functions.stripe-connect-webhook]
+verify_jwt = false
+
+[functions.support-agent-draft]
+verify_jwt = false
+
+[functions.support-agent-approve]
+verify_jwt = false
+
+[functions.executive-agent-brief]
+verify_jwt = false
+
+[functions.business-intelligence-agent]
+verify_jwt = false
+
+[functions.restaurant-success-agent]
+verify_jwt = false
+
+[functions.driver-performance-agent]
+verify_jwt = false
+
+[functions.menu-intelligence-agent]
+verify_jwt = false
+
+[functions.reputation-agent-draft]
+verify_jwt = false
+
+[functions.reputation-agent-approve]
+verify_jwt = false
+
+[functions.ops-report-agent]
+verify_jwt = false
+
+[functions.approve-payout-request]
+verify_jwt = false
+
+[functions.retry-payout-request]
+verify_jwt = false
+
+[functions.release-available-earnings]
+verify_jwt = false
+
+[functions.create-earning-entry]
+verify_jwt = false
+
+[functions.stripe-pay-from-payout-request]
+verify_jwt = false
+
 [functions.check-order-payment]
 verify_jwt = false
 

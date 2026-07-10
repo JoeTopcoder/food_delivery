@@ -78,6 +78,17 @@ import 'screens/admin/admin_payouts_screen.dart';
 import 'screens/admin/admin_financials_screen.dart';
 import 'screens/admin/admin_analytics_screen.dart';
 import 'screens/admin/admin_ai_panel_screen.dart';
+import 'screens/admin/admin_ai_operations_screen.dart';
+import 'screens/admin/admin_executive_intelligence_screen.dart';
+import 'screens/admin/admin_business_intelligence_screen.dart';
+import 'screens/admin/admin_restaurant_success_screen.dart';
+import 'screens/admin/admin_driver_performance_screen.dart';
+import 'screens/admin/admin_menu_intelligence_screen.dart';
+import 'screens/admin/admin_reputation_management_screen.dart';
+import 'screens/admin/admin_ops_report_screen.dart';
+import 'screens/admin/admin_marketing_content_screen.dart';
+import 'screens/admin/admin_dispatch_optimization_screen.dart';
+import 'screens/admin/admin_restaurant_leads_screen.dart';
 import 'screens/admin/admin_disputes_screen.dart';
 import 'screens/admin/admin_feedback_screen.dart';
 import 'screens/admin/admin_surge_screen.dart';
@@ -180,6 +191,9 @@ import 'screens/shared/report_user_screen.dart';
 import 'screens/admin/admin_support_requests_screen.dart';
 import 'screens/admin/admin_deletion_requests_screen.dart';
 import 'screens/admin/admin_chat_reports_screen.dart';
+import 'screens/stripe/earnings_dashboard_screen.dart';
+import 'screens/stripe/payout_setup_screen.dart';
+import 'screens/stripe/admin_payout_requests_screen.dart';
 
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
@@ -951,6 +965,219 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminAiPanelScreen(),
                 ),
               );
+            case '/admin-ai-operations':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAiOperationsScreen(),
+                ),
+              );
+            case '/admin-ai/executive':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminExecutiveIntelligenceScreen(),
+                ),
+              );
+            case '/admin-ai/business-intelligence':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminBusinessIntelligenceScreen(),
+                ),
+              );
+            case '/admin-ai/restaurant-success':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRestaurantSuccessScreen(),
+                ),
+              );
+            case '/admin-ai/driver-performance':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDriverPerformanceScreen(),
+                ),
+              );
+            case '/admin-ai/menu-intelligence':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMenuIntelligenceScreen(),
+                ),
+              );
+            case '/admin-ai/reputation':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminReputationManagementScreen(),
+                ),
+              );
+            case '/admin-ai/live-orders':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'live_order_ops',
+                    title: 'Live Order Operations',
+                    buttonLabel: 'Check Active Orders',
+                  ),
+                ),
+              );
+            case '/admin-ai/driver-compliance':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'driver_compliance',
+                    title: 'Driver Compliance',
+                    buttonLabel: 'Check Compliance',
+                  ),
+                ),
+              );
+            case '/admin-ai/fraud-risk':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'fraud_risk',
+                    title: 'Fraud & Risk',
+                    buttonLabel: 'Scan for Risk Patterns',
+                  ),
+                ),
+              );
+            case '/admin-ai/finance':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'finance_reconciliation',
+                    title: 'Finance & Reconciliation',
+                    buttonLabel: 'Run Reconciliation Check',
+                  ),
+                ),
+              );
+            case '/admin-ai/payouts':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'payout_agent',
+                    title: 'Payout Agent',
+                    buttonLabel: 'Triage Pending Payouts',
+                  ),
+                ),
+              );
+            case '/admin-ai/refunds':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'refund_resolution',
+                    title: 'Refund & Resolution',
+                    buttonLabel: 'Review Open Disputes',
+                  ),
+                ),
+              );
+            case '/admin-ai/retention':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'customer_retention',
+                    title: 'Customer Retention',
+                    buttonLabel: 'Find At-Risk Customers',
+                  ),
+                ),
+              );
+            case '/admin-ai/restaurant-onboarding':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'restaurant_onboarding',
+                    title: 'Restaurant Onboarding',
+                    buttonLabel: 'Check Onboarding Pipeline',
+                  ),
+                ),
+              );
+            case '/admin-ai/driver-recruitment':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'driver_recruitment',
+                    title: 'Driver Recruitment',
+                    buttonLabel: 'Check Applicant Pipeline',
+                  ),
+                ),
+              );
+            case '/admin-ai/marketing-strategy':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'marketing_strategy',
+                    title: 'Marketing Strategy',
+                    buttonLabel: 'Analyze Active Promos',
+                  ),
+                ),
+              );
+            case '/admin-ai/marketing-content':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMarketingContentScreen(),
+                ),
+              );
+            case '/admin-ai/dispatch':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDispatchOptimizationScreen(),
+                ),
+              );
+            case '/admin-ai/market-expansion':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'market_expansion',
+                    title: 'Market Expansion',
+                    buttonLabel: 'Analyze Zone Coverage',
+                  ),
+                ),
+              );
+            case '/admin-ai/technical-operations':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'technical_operations',
+                    title: 'Technical Operations',
+                    buttonLabel: 'Check AI Agent Health',
+                  ),
+                ),
+              );
+            case '/admin-ai/restaurant-leads':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOpsReportScreen(
+                    agentSlug: 'restaurant_lead_gen',
+                    title: 'Restaurant Lead Gen',
+                    buttonLabel: 'Score & Dedupe New Leads',
+                  ),
+                ),
+              );
+            case '/admin-ai/restaurant-sales':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminRestaurantLeadsScreen(),
+                ),
+              );
             case '/admin-earnings':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -1545,6 +1772,38 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: CarServiceAdminScreen(),
+                ),
+              );
+
+            // ── Stripe Connect Payouts ───────────────────────────────
+            case '/driver-payouts':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['driver'],
+                  child: EarningsDashboardScreen(role: 'driver'),
+                ),
+              );
+            case '/restaurant-payouts':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: EarningsDashboardScreen(role: 'restaurant'),
+                ),
+              );
+            case '/payout-setup':
+              {
+                final args = settings.arguments as Map<String, dynamic>?;
+                return MaterialPageRoute(
+                  builder: (_) => PayoutSetupScreen(
+                    role: args?['role'] as String? ?? 'driver',
+                  ),
+                );
+              }
+            case '/admin/stripe-payout-requests':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPayoutRequestsScreen(),
                 ),
               );
 

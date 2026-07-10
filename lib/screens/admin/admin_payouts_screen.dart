@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
 import '../../providers/payout_provider.dart';
 import '../../services/payment/payout_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
-import 'payout_success_screen.dart';
+
 
 class AdminPayoutsScreen extends ConsumerStatefulWidget {
   const AdminPayoutsScreen({super.key});
@@ -169,6 +170,31 @@ class _PayoutCard extends ConsumerStatefulWidget {
 
 class _PayoutCardState extends ConsumerState<_PayoutCard> {
   bool _processing = false;
+  bool _hasStripeAccount = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.payout.requesterType == 'driver') {
+      _loadStripeAccountStatus();
+    }
+  }
+
+  Future<void> _loadStripeAccountStatus() async {
+    final row = await Supabase.instance.client
+        .from('stripe_connected_accounts')
+        .select('onboarding_status, payouts_enabled')
+        .eq('user_id', widget.payout.requesterId)
+        .eq('role', 'driver')
+        .maybeSingle();
+    if (mounted) {
+      setState(() {
+        _hasStripeAccount = row != null &&
+            row['onboarding_status'] == 'complete' &&
+            (row['payouts_enabled'] as bool? ?? false);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +364,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                     ),
                   ],
                   if (p.status == 'approved') ...[
-                    if (p.requesterType == 'driver')
+                    if (_hasStripeAccount) ...[
                       Expanded(
                         child: _actionBtn(
                           label: 'Pay via Stripe',
@@ -346,16 +372,17 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                           icon: Icons.payment_rounded,
                           onTap: () => _openStripePayoutDialog(p),
                         ),
-                      )
-                    else
-                      Expanded(
-                        child: _actionBtn(
-                          label: 'Process & Wire',
-                          color: const Color(0xFF0EA5E9),
-                          icon: Icons.account_balance_rounded,
-                          onTap: () => _openRestaurantPayoutDialog(p),
-                        ),
                       ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: _actionBtn(
+                        label: 'Mark as Paid',
+                        color: const Color(0xFF22C55E),
+                        icon: Icons.task_alt_rounded,
+                        onTap: () => _openMarkAsPaidDialog(p),
+                      ),
+                    ),
                   ],
                   if (p.status == 'processing' &&
                       p.requesterType == 'restaurant') ...[
@@ -468,18 +495,86 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
   }
 
   Future<void> _openStripePayoutDialog(PayoutRequest payout) async {
-    final amount = NumberFormat.currency(
-      symbol: '${AppConstants.currencySymbol} ',
-      decimalDigits: 2,
-    ).format(payout.amount);
-    final details =
-        'Bank: ${payout.bankName}\n'
-        'Branch: ${payout.bankBranch ?? 'N/A'}\n'
-        'Account: ${payout.bankAccountNumber}\n'
-        'Holder: ${payout.bankAccountHolder}\n'
-        'Amount: $amount';
+    // Look up the driver's Stripe Connect account
+    final db = Supabase.instance.client;
+    final accountRow = await db
+        .from('stripe_connected_accounts')
+        .select('stripe_account_id, onboarding_status, payouts_enabled, country')
+        .eq('user_id', payout.requesterId)
+        .eq('role', 'driver')
+        .maybeSingle();
 
     if (!mounted) return;
+
+    // No connected account — show setup instructions
+    if (accountRow == null) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  color: Color(0xFFF59E0B), size: 22),
+              SizedBox(width: 8),
+              Text('Stripe Not Set Up'),
+            ],
+          ),
+          content: const Text(
+            'This driver hasn\'t connected a Stripe account yet.\n\n'
+            'Ask them to open the app → Earnings → "Set Up Payout Account" and '
+            'complete Stripe onboarding. Once done, come back and try again.\n\n'
+            'Alternatively, use "Mark as Paid" to record a manual bank transfer.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final status = accountRow['onboarding_status'] as String? ?? '';
+    final payoutsEnabled = accountRow['payouts_enabled'] as bool? ?? false;
+
+    // Account exists but not fully onboarded
+    if (status != 'complete' || !payoutsEnabled) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Color(0xFFF59E0B), size: 22),
+              SizedBox(width: 8),
+              Text('Stripe Setup Incomplete'),
+            ],
+          ),
+          content: Text(
+            'This driver\'s Stripe account is not ready for payouts.\n\n'
+            'Status: $status\nPayouts enabled: $payoutsEnabled\n\n'
+            'Ask the driver to finish Stripe onboarding in the app.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Account ready — confirm and send via Stripe Connect
+    final amtFmt = NumberFormat.currency(
+      symbol: '${AppConstants.currencySymbol} ',
+      decimalDigits: 2,
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -488,7 +583,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           children: [
             Icon(Icons.payment_rounded, color: Color(0xFF6366F1), size: 22),
             SizedBox(width: 8),
-            Text('Stripe Payout'),
+            Text('Pay via Stripe'),
           ],
         ),
         content: Column(
@@ -496,42 +591,26 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Send payment via Stripe:',
+              'Transfer funds to driver\'s Stripe account:',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 12),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(details, style: const TextStyle(fontSize: 13)),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: Color(0xFFF59E0B),
-                    size: 16,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This will send the payment to the driver via Stripe Connect.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
-                    ),
-                  ),
+                  _dialogRow('Amount', amtFmt.format(payout.amount)),
+                  _dialogRow('Recipient', payout.bankAccountHolder),
+                  _dialogRow('Stripe acct',
+                      accountRow['stripe_account_id'] as String? ?? ''),
+                  _dialogRow('Country',
+                      accountRow['country'] as String? ?? ''),
                 ],
               ),
             ),
@@ -550,42 +629,40 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+                  borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() => _processing = true);
     try {
-      final result = await ref
-          .read(payoutServiceProvider)
-          .processPayout(payout.id);
-      widget.onAction();
-      if (mounted) {
-        setState(() => _processing = false);
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PayoutSuccessScreen(result: result),
-          ),
-        );
+      final res = await db.functions.invoke(
+        'stripe-pay-from-payout-request',
+        body: {'payout_request_id': payout.id},
+      );
+      final data = res.data as Map<String, dynamic>?;
+      if (data != null && data.containsKey('error')) {
+        throw Exception(data['error']);
       }
+      widget.onAction();
+      _snack('Payment sent via Stripe', Colors.green);
     } catch (e) {
-      _snack('Stripe payout failed: ${friendlyError(e)}', Colors.red);
+      _snack('Stripe payment failed: ${friendlyError(e)}', Colors.red);
+    } finally {
       if (mounted) setState(() => _processing = false);
     }
   }
 
-  Future<void> _openRestaurantPayoutDialog(PayoutRequest payout) async {
+  Future<void> _openMarkAsPaidDialog(PayoutRequest payout) async {
     final amtFmt = NumberFormat.currency(
       symbol: '${AppConstants.currencySymbol} ',
       decimalDigits: 2,
     );
+    final refCtrl = TextEditingController();
 
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
@@ -594,13 +671,9 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(
-              Icons.account_balance_rounded,
-              color: Color(0xFF0EA5E9),
-              size: 22,
-            ),
+            Icon(Icons.task_alt_rounded, color: Color(0xFF22C55E), size: 22),
             SizedBox(width: 8),
-            Text('Bank Wire Transfer'),
+            Text('Mark as Paid'),
           ],
         ),
         content: Column(
@@ -608,7 +681,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Wire these funds to the restaurant:',
+              'Transfer these funds via your bank, then confirm below:',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 12),
@@ -625,43 +698,29 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                   _dialogRow('Amount', amtFmt.format(payout.amount)),
                   _dialogRow('Recipient', payout.bankAccountHolder),
                   _dialogRow('Bank', payout.bankName),
-                  if (payout.bankBranch != null &&
-                      payout.bankBranch!.isNotEmpty)
+                  if (payout.bankBranch != null && payout.bankBranch!.isNotEmpty)
                     _dialogRow('Branch', payout.bankBranch!),
                   _dialogRow('Account', payout.bankAccountNumber),
                   if (payout.bankAccountType != null)
-                    _dialogRow('Acct Type', payout.bankAccountType!),
+                    _dialogRow('Type', payout.bankAccountType!),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+            const SizedBox(height: 14),
+            TextField(
+              controller: refCtrl,
+              decoration: InputDecoration(
+                labelText: 'Transfer reference (optional)',
+                hintText: 'e.g. NCB ref #12345',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
               ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: Color(0xFF3B82F6),
-                    size: 16,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Pressing "Process" records the debit and marks this payout as Processing. '
-                      'Then complete the bank wire manually and press "Mark Completed".',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
-                    ),
-                  ),
-                ],
-              ),
+              style: const TextStyle(fontSize: 13),
             ),
           ],
         ),
@@ -672,10 +731,10 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.account_balance_rounded, size: 16),
-            label: const Text('Process'),
+            icon: const Icon(Icons.check_rounded, size: 16),
+            label: const Text('Confirm Paid'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0EA5E9),
+              backgroundColor: const Color(0xFF22C55E),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -690,25 +749,15 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
 
     setState(() => _processing = true);
     try {
-      final result = await ref
-          .read(payoutServiceProvider)
-          .processRestaurantPayout(payout.id);
+      await ref.read(payoutServiceProvider).markPayoutCompleted(
+        payoutId: payout.id,
+        transactionId: refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+      );
       widget.onAction();
-      if (mounted) {
-        setState(() => _processing = false);
-        _snack(
-          'Payout processing — complete the bank wire then mark it done.',
-          Colors.blue,
-        );
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PayoutSuccessScreen(result: result),
-          ),
-        );
-      }
+      _snack('Payout marked as completed', Colors.green);
     } catch (e) {
       _snack('Failed: ${friendlyError(e)}', Colors.red);
+    } finally {
       if (mounted) setState(() => _processing = false);
     }
   }
