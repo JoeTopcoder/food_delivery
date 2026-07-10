@@ -36,15 +36,19 @@ ALTER TABLE public.menu_option_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_option_choices ENABLE ROW LEVEL SECURITY;
 
 -- Customers and the app can read all option groups and choices
+DROP POLICY IF EXISTS "menu_option_groups_select_all" ON public.menu_option_groups;
 CREATE POLICY "menu_option_groups_select_all"
   ON public.menu_option_groups FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "menu_option_choices_select_all" ON public.menu_option_choices;
 CREATE POLICY "menu_option_choices_select_all"
   ON public.menu_option_choices FOR SELECT USING (true);
 
 -- Only service_role (admin panel / backend) may write
+DROP POLICY IF EXISTS "menu_option_groups_service_role_all" ON public.menu_option_groups;
 CREATE POLICY "menu_option_groups_service_role_all"
   ON public.menu_option_groups FOR ALL TO service_role USING (true);
 
+DROP POLICY IF EXISTS "menu_option_choices_service_role_all" ON public.menu_option_choices;
 CREATE POLICY "menu_option_choices_service_role_all"
   ON public.menu_option_choices FOR ALL TO service_role USING (true);

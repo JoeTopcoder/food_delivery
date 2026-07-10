@@ -6,10 +6,10 @@ import 'package:intl/intl.dart';
 import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/stripe/earnings_provider.dart';
 import '../../services/payment/payout_service.dart'
     show
         StripePayoutService,
-        StripePayoutException,
         PayoutRecord,
         DriverPayoutMethod;
 import '../../utils/friendly_error.dart';
@@ -55,7 +55,6 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
   String? _successMessage;
 
   static const _bg = Color(0xFF0F1117);
-  static const _cardBg = Color(0xFF1C1F2E);
   static const _accent = Color(0xFF6C63FF);
   static const _green = Color(0xFF00C896);
 
@@ -166,47 +165,18 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
       _successMessage = null;
     });
     try {
-      await StripePayoutService.instance.requestPayout(
-        amountCents: netCents,
-        payoutType: payoutType,
-      );
-      ref.invalidate(driverProfileProvider(ref.read(currentUserIdProvider)!));
+      final pr = await ref
+          .read(earningsProvider('driver').notifier)
+          .requestPayout(
+            amountCents: netCents,
+            payoutMethod: payoutType == 'instant' ? 'instant' : 'standard',
+          );
+      if (pr == null) throw Exception(ref.read(earningsProvider('driver')).error ?? 'Payout failed');
       ref.invalidate(payoutHistoryProvider(driver.id));
       setState(
         () => _successMessage =
             '${payoutType == 'instant' ? 'Instant' : 'Standard'} payout of \$${(netCents / 100).toStringAsFixed(2)} initiated!',
       );
-    } on StripePayoutException catch (ex) {
-      if (ex.fallbackAvailable && payoutType == 'instant' && mounted) {
-        final useStd = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: _cardBg,
-            title: const Text(
-              'Instant Unavailable',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              '${ex.message}\n\nTry standard payout (2-5 business days)?',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: _accent),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Standard Payout'),
-              ),
-            ],
-          ),
-        );
-        if (useStd == true) await _cashOut('standard', available, driver);
-        return;
-      }
-      setState(() => _errorMessage = ex.message);
     } catch (e) {
       setState(() => _errorMessage = friendlyError(e));
     } finally {
@@ -248,9 +218,12 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
       );
     }
 
-    final totalEarned = driver.totalEarnings ?? 0.0;
-    final totalPaidOut = driver.totalPaidOut ?? 0.0;
-    final available = (totalEarned - totalPaidOut).clamp(0.0, double.infinity);
+    // Read balance from earnings_ledger (single source of truth).
+    final earningsState = ref.watch(earningsProvider('driver'));
+    final summary = earningsState.summary;
+    final totalEarned = summary.lifetimeEarnedDollars;
+    final totalPaidOut = summary.withdrawnBalanceCents / 100.0;
+    final available = summary.availableBalanceDollars;
     final statusAsync = ref.watch(stripeStatusProvider);
     final methodsAsync = ref.watch(payoutMethodsProvider);
     final payoutsAsync = ref.watch(payoutHistoryProvider(driver.id));
@@ -263,6 +236,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
           ref.invalidate(stripeStatusProvider);
           ref.invalidate(payoutMethodsProvider);
           ref.invalidate(payoutHistoryProvider(driver.id));
+          ref.read(earningsProvider('driver').notifier).load();
         },
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),

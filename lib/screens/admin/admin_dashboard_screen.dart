@@ -812,6 +812,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-promos'),
                           ),
                           _GridAction(
+                            icon: Icons.mark_email_read_rounded,
+                            label: 'Email Blast',
+                            color: const Color(0xFF0EA5E9),
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/admin-email-notifications'),
+                          ),
+                          _GridAction(
                             icon: Icons.bolt_rounded,
                             label: 'Surge Zones',
                             color: const Color(0xFFFFA630),
@@ -857,6 +864,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-lookup'),
+                          ),
+                          _GridAction(
+                            icon: Icons.contact_support_rounded,
+                            label: 'Support Requests',
+                            color: const Color(0xFFF97316),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-support-requests'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // AI Operations
+                      _CategoryRow(
+                        title: 'AI Operations',
+                        children: [
+                          _GridAction(
+                            icon: Icons.smart_toy_rounded,
+                            label: 'AI Ops Hub',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-ai-operations'),
                           ),
                         ],
                       ),

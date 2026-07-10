@@ -324,6 +324,61 @@ Deno.serve(async (request) => {
         // Non-fatal — delivery is already completed
         console.error("Performance update error:", perfErr);
       }
+
+      // ── 4b. Credit driver earnings ledger (Stripe Connect, fire-and-forget) ─
+      const earningsSecret = Deno.env.get("RELEASE_EARNINGS_SECRET") ?? "";
+      admin.from("drivers").select("user_id").eq("id", driverId).single()
+        .then(({ data: driverRow }) => {
+          if (!driverRow?.user_id) return;
+          const deliveryFee = Number(order.delivery_fee) || 0;
+          const tip = Number(order.driver_tip) || 0;
+          const driverEarningCents = Math.round((deliveryFee * driverPayPercent + tip + bonusPerOrder) * 100);
+          if (driverEarningCents <= 0) return;
+          admin.functions.invoke("create-earning-entry", {
+            body: {
+              user_id: driverRow.user_id,
+              role: "driver",
+              order_id: orderId,
+              driver_id: driverId,
+              type: "order_earning",
+              amount_cents: driverEarningCents,
+              description: `Delivery #${orderId.substring(0, 8).toUpperCase()}`,
+            },
+            headers: { "Authorization": `Bearer ${earningsSecret}` },
+          }).catch(() => {});
+        })
+        .catch(() => {});
+    }
+
+    // ── 4c. Credit restaurant earnings ledger (fire-and-forget) ─────��───
+    const restaurantId = order.restaurant_id as string | null;
+    if (restaurantId) {
+      const earningsSecretR = Deno.env.get("RELEASE_EARNINGS_SECRET") ?? "";
+      Promise.all([
+        admin.from("restaurants").select("owner_id").eq("id", restaurantId).single(),
+        admin.from("app_config").select("value").eq("key", "restaurant_commission_percent").maybeSingle(),
+      ]).then(([{ data: restRow }, { data: commissionRow }]) => {
+        if (!restRow?.owner_id) return;
+        const commissionPct = commissionRow ? parseFloat(commissionRow.value) : 0.15;
+        const totalAmount = Number(order.total_amount) || 0;
+        const deliveryFee = Number(order.delivery_fee) || 0;
+        const tip = Number(order.driver_tip) || 0;
+        const foodSubtotal = Math.max(0, totalAmount - deliveryFee - tip);
+        const restaurantEarningCents = Math.round(foodSubtotal * (1 - commissionPct) * 100);
+        if (restaurantEarningCents <= 0) return;
+        admin.functions.invoke("create-earning-entry", {
+          body: {
+            user_id: restRow.owner_id,
+            role: "restaurant",
+            order_id: orderId,
+            restaurant_id: restaurantId,
+            type: "order_earning",
+            amount_cents: restaurantEarningCents,
+            description: `Order #${orderId.substring(0, 8).toUpperCase()}`,
+          },
+          headers: { "Authorization": `Bearer ${earningsSecretR}` },
+        }).catch(() => {});
+      }).catch(() => {});
     }
 
     // ── 5. Process referral earnings (fire-and-forget) ──────────────────

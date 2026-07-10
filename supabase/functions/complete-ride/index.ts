@@ -222,6 +222,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Credit driver earnings ledger (Stripe Connect, fire-and-forget) ─
+    if (isDriver && driver?.id && driver_earning > 0) {
+      const driverEarningCents = Math.round(driver_earning * 100);
+      const earningsSecret = Deno.env.get("RELEASE_EARNINGS_SECRET") ?? "";
+      supabase.functions.invoke("create-earning-entry", {
+        body: {
+          user_id,
+          role: "driver",
+          ride_id: payload.ride_id,
+          driver_id: driver.id,
+          type: "ride_earning",
+          amount_cents: driverEarningCents,
+          description: `Ride #${payload.ride_id.substring(0, 8).toUpperCase()}`,
+        },
+        headers: { "Authorization": `Bearer ${earningsSecret}` },
+      }).catch(() => {});
+    }
+
     return new Response(
       JSON.stringify({
         message: "Ride completed successfully",

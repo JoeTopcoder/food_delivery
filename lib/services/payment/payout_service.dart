@@ -86,6 +86,7 @@ class PayoutService {
     required String accountNumber,
     required String accountHolder,
     required String accountType,
+    String bankCountryCode = 'KY',
   }) async {
     try {
       await _client
@@ -96,6 +97,7 @@ class PayoutService {
             'bank_account_number': accountNumber,
             'bank_account_holder': accountHolder,
             'bank_account_type': accountType,
+            'bank_country_code': bankCountryCode,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', driverId);
@@ -113,6 +115,7 @@ class PayoutService {
     required String accountNumber,
     required String accountHolder,
     required String accountType,
+    String bankCountryCode = 'KY',
   }) async {
     try {
       await _client
@@ -123,6 +126,7 @@ class PayoutService {
             'bank_account_number': accountNumber,
             'bank_account_holder': accountHolder,
             'bank_account_type': accountType,
+            'bank_country_code': bankCountryCode,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', restaurantId);

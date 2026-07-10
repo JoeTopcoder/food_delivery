@@ -41,7 +41,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
 
     await ref.read(roleProvider.notifier).setRole(role);
     if (!context.mounted) return;
-    Navigator.of(context).pushReplacementNamed(role.route);
+    Navigator.of(context).pushReplacementNamed('/signin');
   }
 
   @override
