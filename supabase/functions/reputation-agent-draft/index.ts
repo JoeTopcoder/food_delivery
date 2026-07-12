@@ -9,6 +9,7 @@
 import { serviceClient } from '../stripe-shared/supabase.ts'
 import { requireAdmin } from '../stripe-shared/auth.ts'
 import { json, errorResponse, handleOptions } from '../stripe-shared/errors.ts'
+import { getCrossAgentContext, summarizeCrossAgentContext } from '../stripe-shared/agent_context.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 
@@ -38,6 +39,12 @@ Deno.serve(async (req) => {
 
     const { data: restaurant } = await serviceClient.from('restaurants').select('name').eq('id', review.restaurant_id).maybeSingle()
 
+    // ── Cross-agent signal: does Restaurant Success / Menu Intelligence
+    // already know this restaurant has issues? Informs whether a negative
+    // review reflects a known systemic problem vs. a one-off. ──
+    const related = await getCrossAgentContext([{ type: 'restaurant', id: review.restaurant_id }], 10)
+    const crossAgentSummary = summarizeCrossAgentContext(related.filter((r) => ['restaurant_success', 'menu_intelligence'].includes(r.agent_name)))
+
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -51,6 +58,7 @@ Deno.serve(async (req) => {
 - Never fabricate details about what happened; only reference what's in the review itself.
 - Tone: warm and professional for positive reviews, genuinely apologetic and non-defensive for negative ones. 2-4 sentences.
 - Also classify: sentiment ("positive"|"neutral"|"negative"), urgency ("low"|"medium"|"high" — high only for serious complaints like food safety, safety incidents, or repeated failures), and whether this needs escalation to a human before any reply is posted (needs_escalation: true/false).
+- The "Known issues from other 7Dash agents" section is real findings from Restaurant Success / Menu Intelligence about this restaurant, not something you should mention by name in the public reply — but if the review's complaint matches a known issue (e.g. slow prep, missing menu photos), that raises urgency since it's a pattern, not a one-off, and needs_escalation should lean true.
 Respond ONLY with JSON: { "draft_response": string, "sentiment": string, "urgency": string, "needs_escalation": boolean, "reasoning": string }`,
           },
           {
@@ -59,7 +67,10 @@ Respond ONLY with JSON: { "draft_response": string, "sentiment": string, "urgenc
 Rating: ${review.rating}/5
 Food quality: ${review.food_quality ?? 'N/A'}, Delivery speed: ${review.delivery_speed ?? 'N/A'}, Driver behavior: ${review.driver_behavior ?? 'N/A'}
 Would recommend: ${review.would_recommend}
-Review text: ${review.review_text ?? '(no written review)'}`,
+Review text: ${review.review_text ?? '(no written review)'}
+
+Known issues from other 7Dash agents about this restaurant:
+${crossAgentSummary}`,
           },
         ],
         response_format: { type: 'json_object' },
@@ -87,7 +98,7 @@ Review text: ${review.review_text ?? '(no written review)'}`,
         entity_type: 'review',
         entity_id: review_id,
         related_entities: [{ type: 'restaurant', id: review.restaurant_id }],
-        input: { review, restaurant_name: restaurant?.name },
+        input: { review, restaurant_name: restaurant?.name, cross_agent_context_used: related.length },
         output: { draft_response: draftResponse, sentiment, urgency, needs_escalation: needsEscalation, reasoning },
         model: 'gpt-4o-mini',
         status: 'completed',

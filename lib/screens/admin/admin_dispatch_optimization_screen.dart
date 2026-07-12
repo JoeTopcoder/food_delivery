@@ -121,15 +121,25 @@ class _AdminDispatchOptimizationScreenState extends State<AdminDispatchOptimizat
                     ..._rankedDrivers!.asMap().entries.map((entry) {
                       final i = entry.key;
                       final d = entry.value;
+                      final expired = d['compliance_flag'] == 'expired';
                       return Card(
                         elevation: 0,
                         margin: const EdgeInsets.only(bottom: 6),
-                        color: i == 0 ? const Color(0xFFDCFCE7) : null,
+                        color: expired ? const Color(0xFFFEE2E2) : (i == 0 ? const Color(0xFFDCFCE7) : null),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade200)),
                         child: ListTile(
                           dense: true,
                           leading: CircleAvatar(radius: 12, child: Text('${i + 1}', style: const TextStyle(fontSize: 11))),
-                          title: Text(d['driver'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          title: Row(
+                            children: [
+                              Flexible(child: Text(d['driver'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                              if (expired) ...[
+                                const SizedBox(width: 6),
+                                const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFDC2626)),
+                              ],
+                            ],
+                          ),
+                          subtitle: expired ? const Text('License expired — Driver Compliance', style: TextStyle(fontSize: 10, color: Color(0xFFDC2626))) : null,
                           trailing: Text('${d['distance_km']} km', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       );

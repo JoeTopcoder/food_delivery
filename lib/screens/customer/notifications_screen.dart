@@ -236,6 +236,10 @@ class _NotifCard extends StatelessWidget {
         return Icons.home_rounded;
       case 'payment':
         return Icons.payment_rounded;
+      case 'promotion':
+        return Icons.local_offer_rounded;
+      case 'retention_outreach':
+        return Icons.favorite_rounded;
       default:
         return Icons.notifications_rounded;
     }
@@ -251,6 +255,9 @@ class _NotifCard extends StatelessWidget {
         return const Color(0xFFF59E0B);
       case 'payment':
         return const Color(0xFF10B981);
+      case 'promotion':
+      case 'retention_outreach':
+        return const Color(0xFF7C3AED);
       default:
         return AppTheme.primaryColor;
     }

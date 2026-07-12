@@ -578,6 +578,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-payouts'),
                           ),
                           _GridAction(
+                            icon: Icons.account_balance_outlined,
+                            label: 'Banking',
+                            color: const Color(0xFFF97316),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-banking'),
+                          ),
+                          _GridAction(
                             icon: Icons.account_balance_rounded,
                             label: 'Financials',
                             color: const Color(0xFF8B5CF6),
@@ -889,6 +897,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai-operations'),
+                          ),
+                          _GridAction(
+                            icon: Icons.schedule_rounded,
+                            label: 'Workflow Station',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-workflow-station'),
+                          ),
+                          _GridAction(
+                            icon: Icons.forum_rounded,
+                            label: 'Ask AI',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-ai/ask'),
                           ),
                         ],
                       ),

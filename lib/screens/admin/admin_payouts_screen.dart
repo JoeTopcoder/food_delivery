@@ -339,7 +339,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
           // ── Action buttons ──
           if (p.status == 'pending' ||
               p.status == 'approved' ||
-              (p.status == 'processing' && p.requesterType == 'restaurant'))
+              p.status == 'processing')
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Row(
@@ -384,8 +384,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                       ),
                     ),
                   ],
-                  if (p.status == 'processing' &&
-                      p.requesterType == 'restaurant') ...[
+                  if (p.status == 'processing') ...[
                     Expanded(
                       child: _actionBtn(
                         label: 'Mark Completed',

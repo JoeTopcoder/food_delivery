@@ -93,7 +93,25 @@ class _AdminDriverPerformanceScreenState extends State<AdminDriverPerformanceScr
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            Row(
+                              children: [
+                                Flexible(child: Text(m['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                                if (m['compliance_flag'] != null) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: m['compliance_flag'] == 'expired' ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      m['compliance_flag'] == 'expired' ? 'License Expired' : 'License Expiring',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: m['compliance_flag'] == 'expired' ? const Color(0xFFDC2626) : const Color(0xFFB45309)),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                             Text(
                               '${m['order_count']} deliveries · ${m['cancellation_rate_pct']}% cancelled · '
                               '${m['avg_delivery_minutes'] != null ? '${m['avg_delivery_minutes']}m avg' : 'no timing data'}',

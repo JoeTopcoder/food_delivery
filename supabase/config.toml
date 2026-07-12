@@ -453,6 +453,9 @@ verify_jwt = false
 [functions.ops-report-agent]
 verify_jwt = false
 
+[functions.automation-workflow-runner]
+verify_jwt = false
+
 [functions.approve-payout-request]
 verify_jwt = false
 

@@ -25,19 +25,40 @@ interface DriverMetrics {
   cancellation_rate_pct: number
   avg_delivery_minutes: number | null
   lifetime_completed_deliveries: number
+  compliance_flag: string | null
   at_risk_score: number
+}
+
+/** Most recent Driver Compliance run's flagged drivers, keyed by driver_id —
+ *  a real cross-agent signal, not a fresh recomputation. */
+async function getLatestComplianceSignal(): Promise<Map<string, string>> {
+  const { data } = await serviceClient
+    .from('ai_agent_runs')
+    .select('output, created_at')
+    .eq('agent_name', 'driver_compliance')
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const flagged = (data?.output as Record<string, unknown> | null)?.flagged_drivers as
+    { driver_id: string; status: string }[] | undefined
+  const map = new Map<string, string>()
+  for (const f of flagged ?? []) map.set(f.driver_id, f.status)
+  return map
 }
 
 async function computeDriverMetrics(): Promise<DriverMetrics[]> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
 
-  const [{ data: drivers }, { data: orders }] = await Promise.all([
+  const [{ data: drivers }, { data: orders }, complianceByDriver] = await Promise.all([
     serviceClient.from('drivers').select('id, full_name, completed_deliveries').eq('status', 'approved'),
     serviceClient
       .from('orders')
       .select('driver_id, status, picked_up_at, delivered_at, ordered_at')
       .gte('ordered_at', thirtyDaysAgo)
       .not('driver_id', 'is', null),
+    getLatestComplianceSignal(),
   ])
 
   const driverRows = drivers ?? []
@@ -56,12 +77,17 @@ async function computeDriverMetrics(): Promise<DriverMetrics[]> {
     const avgDelivery = deliveryTimes.length > 0 ? round2(deliveryTimes.reduce((s, m) => s + m, 0) / deliveryTimes.length) : null
 
     // Deterministic at-risk score. Drivers with too little recent volume
-    // (<3 orders this window) aren't scored — not enough signal.
+    // (<3 orders this window) aren't scored — not enough signal. A driver
+    // flagged by Driver Compliance (a different agent) for an expired/
+    // expiring license adds real urgency regardless of delivery performance.
+    const complianceFlag = complianceByDriver.get(d.id) ?? null
     let riskScore = 0
     if (count >= 3) {
       riskScore += cancellationRate * 0.6
       if (avgDelivery != null && avgDelivery > 40) riskScore += Math.min((avgDelivery - 40) * 0.5, 30)
     }
+    if (complianceFlag === 'expired') riskScore += 40
+    else if (complianceFlag === 'expiring_soon') riskScore += 15
 
     return {
       id: d.id,
@@ -71,6 +97,7 @@ async function computeDriverMetrics(): Promise<DriverMetrics[]> {
       cancellation_rate_pct: cancellationRate,
       avg_delivery_minutes: avgDelivery,
       lifetime_completed_deliveries: d.completed_deliveries ?? 0,
+      compliance_flag: complianceFlag,
       at_risk_score: round2(riskScore),
     }
   }).sort((a, b) => b.at_risk_score - a.at_risk_score)
@@ -100,7 +127,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the 7Dash Driver Performance Agent. You're given 30-day metrics for every approved driver, ranked by a deterministic at_risk_score (higher = more concerning). Write a short briefing (100-150 words): name the 1-3 drivers most worth checking in on and the specific reason (cancellation rate or slow delivery time — cite the actual numbers), and note any standout performer. Drivers with order_count under 3 have insufficient data — don't flag them. You may ONLY ever recommend a check-in or coaching conversation — never recommend deactivation or suspension, that decision requires a formal human review. Never invent a number not present in the data. Plain text, no markdown.`,
+              content: `You are the 7Dash Driver Performance Agent. You're given 30-day metrics for every approved driver, ranked by a deterministic at_risk_score (higher = more concerning). compliance_flag comes from a different 7Dash agent (Driver Compliance) — "expired" means their license has already lapsed and is the single most urgent thing to mention regardless of their delivery performance; "expiring_soon" is worth a mention too. Write a short briefing (100-150 words): name the 1-3 drivers most worth checking in on and the specific reason (cancellation rate, slow delivery time, or compliance flag — cite the actual numbers), and note any standout performer. Drivers with order_count under 3 and no compliance flag have insufficient data — don't flag them. You may ONLY ever recommend a check-in, coaching conversation, or compliance follow-up — never recommend deactivation or suspension, that decision requires a formal human review. Never invent a number not present in the data. Plain text, no markdown.`,
             },
             { role: 'user', content: JSON.stringify(metrics) },
           ],

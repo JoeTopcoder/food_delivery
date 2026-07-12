@@ -8,13 +8,11 @@ declare const Deno: { env: { get(key: string): string | undefined }; serve(handl
 
 // @ts-ignore: Deno ESM import
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { sendEmail } from "../_shared/resend.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = Deno.env.get("RECEIPT_FROM_EMAIL") ?? "MealHub <onboarding@resend.dev>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -213,10 +211,6 @@ Deno.serve(async (request) => {
     return json({ error: "order_id is required" }, 400);
   }
 
-  if (!RESEND_API_KEY) {
-    return json({ error: "RESEND_API_KEY not configured" }, 500);
-  }
-
   try {
     // ── 1. Fetch order with items ────────────────────────────────────────
     const { data: order, error: orderErr } = await admin
@@ -266,27 +260,16 @@ Deno.serve(async (request) => {
     const restName = restaurant?.name || "MealHub";
 
     // ── 5. Send via Resend ───────────────────────────────────────────────
-    const emailResp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [customer.email],
-        subject: `Your MealHub Receipt — ${receiptNumber} from ${restName}`,
-        html,
-      }),
+    const emailResult = await sendEmail({
+      to: [customer.email],
+      subject: `Your MealHub Receipt — ${receiptNumber} from ${restName}`,
+      html,
     });
 
-    if (!emailResp.ok) {
-      const errText = await emailResp.text();
-      console.error("Resend error:", errText);
-      return json({ error: "Failed to send email", details: errText }, 500);
+    if (!emailResult.ok) {
+      console.error("Resend error:", emailResult.error);
+      return json({ error: "Failed to send email", details: emailResult.error }, 500);
     }
-
-    const emailData = await emailResp.json();
 
     // ── 6. Mark receipt as sent on the order ─────────────────────────────
     await admin
@@ -296,7 +279,7 @@ Deno.serve(async (request) => {
 
     return json({
       success: true,
-      email_id: emailData.id,
+      email_id: emailResult.id,
       sent_to: customer.email,
       receipt_number: receiptNumber,
     });

@@ -19,6 +19,8 @@ import { json, errorResponse, handleOptions } from '../stripe-shared/errors.ts'
 import { getCrossAgentContext, summarizeCrossAgentContext, type EntityRef } from '../stripe-shared/agent_context.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
 const CUSTOMER_ACTIONS = ['none', 'reply_only', 'credit', 'refund_manual', 'escalate']
 const PARTNER_ACTIONS = ['none', 'reply_only', 'escalate'] // restaurant/driver — no wallet credit path
@@ -33,6 +35,30 @@ const SAFETY_KEYWORDS = [
 function detectSafetyIncident(message: string): boolean {
   const lower = message.toLowerCase()
   return SAFETY_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+// Fire-and-forget push to every admin with an FCM token registered. Best
+// effort only — a failed push must never block saving the safety draft
+// itself, which is why this is never awaited by the caller.
+async function notifyAdminsOfSafetyIncident(driverName: string, supportRequestId: string): Promise<void> {
+  try {
+    const { data: admins } = await serviceClient.from('users').select('fcm_token').eq('role', 'admin').not('fcm_token', 'is', null)
+    const tokens = (admins ?? []).map((a) => a.fcm_token as string).filter(Boolean)
+    await Promise.all(tokens.map((token) =>
+      fetch(`${SUPABASE_URL}/functions/v1/send-fcm-notification`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          title: '🚨 Driver Safety Incident',
+          body: `${driverName} reported a possible safety incident — review immediately.`,
+          data: { type: 'driver_safety_escalation', support_request_id: supportRequestId },
+        }),
+      }).catch((e) => console.error('notifyAdminsOfSafetyIncident: push failed', e))
+    ))
+  } catch (e) {
+    console.error('notifyAdminsOfSafetyIncident failed', e)
+  }
 }
 
 interface DraftResult {
@@ -147,6 +173,12 @@ Deno.serve(async (req) => {
     // ── Driver safety short-circuit — no AI involved, deterministic only ──
     if (role === 'driver' && detectSafetyIncident(ticket.message ?? '')) {
       const safetyReply = `Hi ${ticket.name}, thank you for letting us know. This has been flagged as urgent and a member of our team will reach out to you directly as soon as possible. If you are in immediate danger or need medical attention, please contact local emergency services right away.`
+      // Awaited (not fire-and-forget): edge function isolates aren't
+      // guaranteed to stay alive after the response is sent, so a detached
+      // promise here could get killed before the push actually goes out.
+      // notifyAdminsOfSafetyIncident swallows its own errors, so this can
+      // never fail the draft save that follows.
+      await notifyAdminsOfSafetyIncident(ticket.name ?? 'A driver', support_request_id)
       return await saveDraftAndRespond({
         supportRequestId: support_request_id,
         agentName: 'driver_support',

@@ -133,6 +133,46 @@ async function networkCounts() {
   return { active_restaurants: restaurants.count ?? 0, active_drivers: drivers.count ?? 0 }
 }
 
+const KNOWN_AGENT_SLUGS = [
+  'support_agent_draft', 'restaurant_support', 'driver_support', 'executive_intelligence',
+  'business_intelligence', 'restaurant_success', 'driver_performance', 'menu_intelligence',
+  'reputation_management', 'live_order_ops', 'driver_compliance', 'fraud_risk',
+  'finance_reconciliation', 'payout_agent', 'refund_resolution', 'customer_retention',
+  'restaurant_onboarding', 'driver_recruitment', 'marketing_strategy', 'marketing_content',
+  'market_expansion', 'technical_operations', 'restaurant_lead_gen', 'restaurant_sales',
+  'dispatch_optimization',
+]
+
+/** Bounded, parameterized lookup into the shared agent audit trail — this is
+ *  what makes BI genuinely able to answer "what has agent X found lately"
+ *  without ever handing the model free-form SQL access. */
+async function recentAgentFindings(args: { agent_name?: string; days?: number; limit?: number }) {
+  const days = Math.max(1, Math.min(Number(args.days) || 7, 90))
+  const limit = Math.max(1, Math.min(Number(args.limit) || 5, 20))
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+
+  let query = serviceClient
+    .from('ai_agent_runs')
+    .select('agent_name, entity_type, output, created_at')
+    .eq('status', 'completed')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (args.agent_name) {
+    if (!KNOWN_AGENT_SLUGS.includes(args.agent_name)) {
+      return { error: `Unknown agent_name. Valid values: ${KNOWN_AGENT_SLUGS.join(', ')}` }
+    }
+    query = query.eq('agent_name', args.agent_name)
+  }
+
+  const { data } = await query
+  return {
+    since_days: days,
+    runs: (data ?? []).map((r) => ({ agent_name: r.agent_name, entity_type: r.entity_type, output: r.output, created_at: r.created_at })),
+  }
+}
+
 const TOOLS = [
   {
     type: 'function',
@@ -203,6 +243,21 @@ const TOOLS = [
       parameters: { type: 'object', properties: {} },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'recent_agent_findings',
+      description: `Look up what a specific 7Dash AI agent has found/reported recently, from the shared agent audit trail. Use this when the question is about what another agent (e.g. Fraud & Risk, Restaurant Success, Driver Compliance) has flagged, not about raw business data. Valid agent_name values: ${KNOWN_AGENT_SLUGS.join(', ')}.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          agent_name: { type: 'string', description: 'One of the known agent slugs. Omit to search across all agents.' },
+          days: { type: 'number', description: 'How many days back to look, max 90, default 7' },
+          limit: { type: 'number', description: 'Max runs to return, max 20, default 5' },
+        },
+      },
+    },
+  },
 ]
 
 async function executeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -212,6 +267,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
     case 'cancellation_and_refund_rates': return cancellationAndRefundRates(args as { start_date: string; end_date: string })
     case 'agent_activity_summary': return agentActivitySummary(args as { start_date: string; end_date: string })
     case 'network_counts': return networkCounts()
+    case 'recent_agent_findings': return recentAgentFindings(args as { agent_name?: string; days?: number; limit?: number })
     default: return { error: `Unknown tool: ${name}` }
   }
 }
@@ -237,7 +293,7 @@ Deno.serve(async (req) => {
     const messages: any[] = [
       {
         role: 'system',
-        content: `You are the 7Dash Business Intelligence Agent. Today's date is ${today}. Answer the admin's question using ONLY the tools available — never guess, estimate, or state a figure you did not get from a tool call. If a question needs data outside what the tools provide, say so plainly instead of guessing. Cite the actual numbers in your answer (e.g. "$1,234.56 across 42 orders"). Keep answers concise and direct.`,
+        content: `You are the 7Dash Business Intelligence Agent. Today's date is ${today}. Answer the admin's question using ONLY the tools available — never guess, estimate, or state a figure you did not get from a tool call. For questions about raw business numbers (revenue, orders, cancellations), use the direct query tools. For questions about what another 7Dash agent has flagged or found (e.g. "why is X restaurant flagged", "what has Fraud & Risk seen lately"), use recent_agent_findings to pull real findings from that agent's own audit trail — never guess at what another agent "probably" thinks. If a question needs data outside what the tools provide, say so plainly instead of guessing. Cite the actual numbers in your answer (e.g. "$1,234.56 across 42 orders"). Keep answers concise and direct.`,
       },
       { role: 'user', content: question },
     ]

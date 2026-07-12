@@ -56,3 +56,9 @@ app-release.apks
 bundletool.jar
 android/app/*.apk
 .vercel
+
+# Firebase CLI local cache
+.firebase/
+
+# Native build intermediates (CMake/NDK) for vendored plugin sources
+packages/agora_rtc_engine/android/.cxx/
