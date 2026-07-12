@@ -93,7 +93,19 @@ class _AdminRestaurantSuccessScreenState extends State<AdminRestaurantSuccessScr
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            Row(
+                              children: [
+                                Flexible(child: Text(m['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                                if (m['menu_quality_issue_score'] != null && (m['menu_quality_issue_score'] as num) > 0) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(6)),
+                                    child: const Text('Menu Issues', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
+                                  ),
+                                ],
+                              ],
+                            ),
                             Text(
                               '${m['order_count']} orders · ${m['cancellation_rate_pct']}% cancelled · '
                               '${m['avg_prep_minutes'] != null ? '${m['avg_prep_minutes']}m prep' : 'no prep data'}'

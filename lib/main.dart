@@ -89,6 +89,12 @@ import 'screens/admin/admin_ops_report_screen.dart';
 import 'screens/admin/admin_marketing_content_screen.dart';
 import 'screens/admin/admin_dispatch_optimization_screen.dart';
 import 'screens/admin/admin_restaurant_leads_screen.dart';
+import 'screens/admin/admin_workflow_station_screen.dart';
+import 'screens/admin/admin_promotion_agent_screen.dart';
+import 'screens/admin/admin_customer_retention_screen.dart';
+import 'screens/admin/admin_ask_ai_screen.dart';
+import 'screens/admin/admin_banking_screen.dart';
+import 'screens/admin/admin_escalation_queue_screen.dart';
 import 'screens/admin/admin_disputes_screen.dart';
 import 'screens/admin/admin_feedback_screen.dart';
 import 'screens/admin/admin_surge_screen.dart';
@@ -944,6 +950,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminPayoutsScreen(),
                 ),
               );
+            case '/admin-banking':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminBankingScreen(),
+                ),
+              );
             case '/admin-financials':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -1084,11 +1097,28 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
-                  child: AdminOpsReportScreen(
-                    agentSlug: 'customer_retention',
-                    title: 'Customer Retention',
-                    buttonLabel: 'Find At-Risk Customers',
-                  ),
+                  child: AdminCustomerRetentionScreen(),
+                ),
+              );
+            case '/admin-ai/promotions':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPromotionAgentScreen(),
+                ),
+              );
+            case '/admin-ai/ask':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAskAiScreen(),
+                ),
+              );
+            case '/admin-escalation-queue':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminEscalationQueueScreen(),
                 ),
               );
             case '/admin-ai/restaurant-onboarding':
@@ -1176,6 +1206,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminRestaurantLeadsScreen(),
+                ),
+              );
+            case '/admin-workflow-station':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminWorkflowStationScreen(),
                 ),
               );
             case '/admin-earnings':

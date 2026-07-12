@@ -25,18 +25,39 @@ interface RestaurantMetrics {
   refund_rate_pct: number
   avg_prep_minutes: number | null
   revenue: number
+  menu_quality_issue_score: number | null
   at_risk_score: number
+}
+
+/** Most recent Menu Intelligence run's per-restaurant issue_score, keyed by
+ *  restaurant_id — a real cross-agent signal, not a fresh recomputation. */
+async function getLatestMenuQualitySignal(): Promise<Map<string, number>> {
+  const { data } = await serviceClient
+    .from('ai_agent_runs')
+    .select('output, created_at')
+    .eq('agent_name', 'menu_intelligence')
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const summaries = (data?.output as Record<string, unknown> | null)?.summaries as
+    { restaurant_id: string; issue_score: number }[] | undefined
+  const map = new Map<string, number>()
+  for (const s of summaries ?? []) map.set(s.restaurant_id, s.issue_score)
+  return map
 }
 
 async function computeRestaurantMetrics(): Promise<RestaurantMetrics[]> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
 
-  const [{ data: restaurants }, { data: orders }] = await Promise.all([
+  const [{ data: restaurants }, { data: orders }, menuQualityByRestaurant] = await Promise.all([
     serviceClient.from('restaurants').select('id, name, rating').eq('status', 'approved'),
     serviceClient
       .from('orders')
       .select('restaurant_id, status, payment_status, total_amount, ordered_at, ready_at')
       .gte('ordered_at', thirtyDaysAgo),
+    getLatestMenuQualitySignal(),
   ])
 
   const restaurantRows = restaurants ?? []
@@ -60,12 +81,17 @@ async function computeRestaurantMetrics(): Promise<RestaurantMetrics[]> {
 
     // Deterministic at-risk score (0-100, higher = more at risk). Restaurants
     // with too little volume (<3 orders) aren't scored — not enough signal.
+    // Menu quality is a cross-agent signal from Menu Intelligence's own most
+    // recent run — a restaurant struggling on operations AND menu quality
+    // at once is a stronger, more urgent signal than either alone.
+    const menuQualityScore = menuQualityByRestaurant.get(r.id) ?? null
     let riskScore = 0
     if (count >= 3) {
       riskScore += cancellationRate * 0.4
       riskScore += refundRate * 0.3
       if (r.rating != null && r.rating < 4.0) riskScore += (4.0 - r.rating) * 15
       if (avgPrep != null && avgPrep > 30) riskScore += Math.min((avgPrep - 30) * 0.5, 20)
+      if (menuQualityScore) riskScore += Math.min(menuQualityScore * 0.3, 15)
     }
 
     return {
@@ -79,6 +105,7 @@ async function computeRestaurantMetrics(): Promise<RestaurantMetrics[]> {
       refund_rate_pct: refundRate,
       avg_prep_minutes: avgPrep,
       revenue,
+      menu_quality_issue_score: menuQualityScore,
       at_risk_score: round2(riskScore),
     }
   }).sort((a, b) => b.at_risk_score - a.at_risk_score)
@@ -108,7 +135,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the 7Dash Restaurant Success Agent. You're given 30-day performance metrics for every active restaurant, already ranked by a deterministic at_risk_score (higher = more concerning). Write a short briefing (100-160 words): name the 1-3 restaurants most at risk and the specific reason (cancellation rate, rating, slow prep time, or refunds — cite the actual numbers), and note any standout top performer. Restaurants with order_count under 3 have insufficient data — don't flag them as at-risk. Never invent a number not present in the data. Plain text, no markdown.`,
+              content: `You are the 7Dash Restaurant Success Agent. You're given 30-day performance metrics for every active restaurant, already ranked by a deterministic at_risk_score (higher = more concerning). menu_quality_issue_score comes from a different 7Dash agent (Menu Intelligence) — if a restaurant has BOTH a high at_risk_score AND a notable menu_quality_issue_score, call that out explicitly as a compounding problem worth prioritizing (operations issues plus a neglected menu often means the partner has disengaged). Write a short briefing (100-160 words): name the 1-3 restaurants most at risk and the specific reason (cancellation rate, rating, slow prep time, refunds, or menu quality — cite the actual numbers), and note any standout top performer. Restaurants with order_count under 3 have insufficient data — don't flag them as at-risk. Never invent a number not present in the data. Plain text, no markdown.`,
             },
             { role: 'user', content: JSON.stringify(metrics) },
           ],

@@ -129,7 +129,14 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
       appBar: AppBar(
         title: const Text('AI Operations', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.priority_high_rounded),
+            tooltip: 'Escalation Queue',
+            onPressed: () => Navigator.of(context).pushNamed('/admin-escalation-queue'),
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
