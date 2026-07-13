@@ -8,12 +8,24 @@ class PromoService {
   final SupabaseClient _client;
   PromoService(this._client);
 
-  Future<PromoCode?> validateCode(String code, double subtotal) async {
+  Future<PromoCode?> validateCode(
+    String code,
+    double subtotal, {
+    String? restaurantId,
+    double deliveryFee = 0,
+    double taxAmount = 0,
+  }) async {
     try {
       // Proactively refresh JWT to avoid UNAUTHORIZED_LEGACY_JWT errors.
       try { await _client.auth.refreshSession(); } catch (_) {}
 
-      final invokeBody = {'code': code.trim().toUpperCase(), 'subtotal': subtotal};
+      final invokeBody = {
+        'code': code.trim().toUpperCase(),
+        'subtotal': subtotal,
+        if (restaurantId != null) 'restaurant_id': restaurantId,
+        'delivery_fee': deliveryFee,
+        'tax_amount': taxAmount,
+      };
       FunctionResponse res;
       try {
         res = await _client.functions.invoke('validate-promo', body: invokeBody);
@@ -50,6 +62,7 @@ class PromoService {
         code: promoData['code'] as String,
         discountType: promoData['discount_type'] as String,
         discountValue: (promoData['discount_value'] as num).toDouble(),
+        appliesTo: promoData['applies_to'] as String? ?? 'subtotal',
         minOrderAmount: (promoData['min_order_amount'] as num?)?.toDouble(),
         maxUses: null,
         usedCount: 0,

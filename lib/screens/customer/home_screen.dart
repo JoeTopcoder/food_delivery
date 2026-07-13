@@ -13,6 +13,8 @@ import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/banner_provider.dart';
+import '../../providers/promo_provider.dart';
+import '../../models/promo_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/feature_providers.dart';
@@ -1539,6 +1541,40 @@ class _DynamicBannerCarouselState
               .eq('id', banner.restaurantId)
               .single();
           final restaurant = Restaurant.fromJson(data);
+
+          // Auto-apply this banner's discount, if it has one — fetch the
+          // real promo_codes row (not the banner's own cached copy) so an
+          // expired/deactivated/edited code is never applied stale.
+          if (banner.promoCode != null) {
+            try {
+              final promoRow = await SupabaseConfig.client
+                  .from('promo_codes')
+                  .select()
+                  .eq('code', banner.promoCode!)
+                  .eq('is_active', true)
+                  .maybeSingle();
+              if (promoRow != null) {
+                final promo = PromoCode.fromJson(promoRow);
+                ref.read(appliedPromoProvider.notifier).apply(promo);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        promo.discountType == 'percentage'
+                            ? '${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)}% off applied!'
+                            : '\$${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)} off applied!',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            } catch (_) {
+              // Discount couldn't be applied — still let them into the
+              // restaurant, just without the pre-applied promo.
+            }
+          }
+
           if (context.mounted) {
             Navigator.pushNamed(
               context,

@@ -96,7 +96,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     _paymentPhoneCtrl.text = currentUser.phone ?? '';
   }
 
-  Future<void> _applyPromo(double subtotal) async {
+  Future<void> _applyPromo(double subtotal, {double deliveryFee = 0, double taxAmount = 0}) async {
     final code = _promoCtrl.text.trim();
     if (code.isEmpty) return;
     setState(() {
@@ -105,7 +105,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     });
     try {
       final service = ref.read(promoServiceProvider);
-      final promo = await service.validateCode(code, subtotal);
+      // No single restaurant_id — a grocery cart can span multiple stores —
+      // so restaurant-scoped codes (e.g. a banner promotion) aren't checked
+      // against a specific store here.
+      final promo = await service.validateCode(code, subtotal, deliveryFee: deliveryFee, taxAmount: taxAmount);
       if (!mounted) return;
       if (promo == null) {
         setState(() => _promoError = 'Invalid or expired code');
@@ -153,7 +156,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         ? ref.watch(savedCardsProvider(currentUserId))
         : null;
 
-    final promoDiscount = appliedPromo?.computeDiscount(subtotal) ?? 0.0;
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
     final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
@@ -206,6 +208,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         ? AppConstants.taxRate
         : 0.0;
     final tax = subtotal * effectiveTaxRate;
+    final promoDiscount = appliedPromo?.computeDiscount(subtotal, deliveryFee: activeFee, taxAmount: tax) ?? 0.0;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -749,7 +752,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             ElevatedButton(
                               onPressed: _applyingPromo
                                   ? null
-                                  : () => _applyPromo(subtotal),
+                                  : () => _applyPromo(subtotal, deliveryFee: activeFee, taxAmount: tax),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,

@@ -279,6 +279,9 @@ Deno.serve(async (request) => {
         return json({ error: "Invalid or expired promo code" }, 400);
       }
       // Server-side validation
+      if (promo.restaurant_id && promo.restaurant_id !== restaurantId) {
+        return json({ error: "This promo code isn't valid for this restaurant" }, 400);
+      }
       if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
         return json({ error: "Promo code has expired" }, 400);
       }
@@ -289,10 +292,17 @@ Deno.serve(async (request) => {
         return json({ error: `Minimum order of $${promo.min_order_amount} required for this promo` }, 400);
       }
 
+      const appliesTo = promo.applies_to ?? "subtotal";
+      const discountBase = appliesTo === "delivery_fee"
+        ? deliveryFee
+        : appliesTo === "total"
+          ? subtotal + deliveryFee + taxAmount
+          : subtotal;
+
       if (promo.discount_type === "percentage") {
-        promoDiscount = Math.round(subtotal * promo.discount_value / 100 * 100) / 100;
+        promoDiscount = Math.round(discountBase * promo.discount_value / 100 * 100) / 100;
       } else {
-        promoDiscount = Math.min(promo.discount_value, subtotal);
+        promoDiscount = Math.min(promo.discount_value, discountBase);
       }
       promoId = promo.id;
       promoDetail = `${promo.code}: ${promo.discount_type === "percentage" ? promo.discount_value + "%" : "$" + promo.discount_value} off`;
