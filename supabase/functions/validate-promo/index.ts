@@ -37,6 +37,9 @@ Deno.serve(async (request) => {
 
   const code = (body.code as string | undefined)?.trim().toUpperCase();
   const subtotal = body.subtotal as number | undefined;
+  const restaurantId = body.restaurant_id as string | undefined;
+  const deliveryFee = (body.delivery_fee as number | undefined) ?? 0;
+  const taxAmount = (body.tax_amount as number | undefined) ?? 0;
 
   if (!code) return json({ error: "Missing promo code" }, 400);
   if (!subtotal || subtotal <= 0) return json({ error: "Missing or invalid subtotal" }, 400);
@@ -54,6 +57,11 @@ Deno.serve(async (request) => {
       if (!promo.is_active) {
         return json({ valid: false, error: "This code has already been used." });
       }
+      // Restaurant scoping — a code tied to one restaurant (e.g. a banner
+      // promotion) can't be redeemed against a different one.
+      if (promo.restaurant_id && restaurantId && promo.restaurant_id !== restaurantId) {
+        return json({ valid: false, error: "This code isn't valid for this restaurant." });
+      }
       // Expiry check
       if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
         return json({ valid: false, error: "This code has expired." });
@@ -69,11 +77,17 @@ Deno.serve(async (request) => {
           error: `Your cart is a little short — this code needs a minimum order of $${promo.min_order_amount} to apply.`,
         });
       }
+      const appliesTo = promo.applies_to ?? "subtotal";
+      const discountBase = appliesTo === "delivery_fee"
+        ? deliveryFee
+        : appliesTo === "total"
+          ? subtotal + deliveryFee + taxAmount
+          : subtotal;
       let discount = 0;
       if (promo.discount_type === "percentage") {
-        discount = Math.round(subtotal * promo.discount_value / 100 * 100) / 100;
+        discount = Math.round(discountBase * promo.discount_value / 100 * 100) / 100;
       } else {
-        discount = Math.min(promo.discount_value, subtotal);
+        discount = Math.min(promo.discount_value, discountBase);
       }
       return json({
         valid: true,
@@ -81,6 +95,7 @@ Deno.serve(async (request) => {
           id: promo.id,
           code: promo.code,
           discount_type: promo.discount_type,
+          applies_to: appliesTo,
           discount_value: promo.discount_value,
           discount_amount: discount,
           min_order_amount: promo.min_order_amount,

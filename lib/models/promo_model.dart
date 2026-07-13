@@ -3,6 +3,9 @@ class PromoCode {
   final String code;
   final String discountType; // 'percentage' | 'fixed'
   final double discountValue;
+  /// What the discount is computed against: 'subtotal' (meal/food items,
+  /// the default), 'delivery_fee', or 'total' (subtotal + delivery + tax).
+  final String appliesTo;
   final double? minOrderAmount;
   final int? maxUses;
   final int usedCount;
@@ -15,6 +18,7 @@ class PromoCode {
     required this.code,
     required this.discountType,
     required this.discountValue,
+    this.appliesTo = 'subtotal',
     this.minOrderAmount,
     this.maxUses,
     required this.usedCount,
@@ -28,6 +32,7 @@ class PromoCode {
     code: json['code'] as String,
     discountType: json['discount_type'] as String,
     discountValue: (json['discount_value'] as num).toDouble(),
+    appliesTo: json['applies_to'] as String? ?? 'subtotal',
     minOrderAmount: (json['min_order_amount'] as num?)?.toDouble(),
     maxUses: json['max_uses'] as int?,
     usedCount: (json['usage_count'] as num? ?? 0).toInt(),
@@ -43,6 +48,7 @@ class PromoCode {
     'code': code,
     'discount_type': discountType,
     'discount_value': discountValue,
+    'applies_to': appliesTo,
     if (minOrderAmount != null) 'min_order_amount': minOrderAmount,
     if (maxUses != null) 'max_uses': maxUses,
     'usage_count': usedCount,
@@ -51,11 +57,19 @@ class PromoCode {
     'created_at': createdAt.toIso8601String(),
   };
 
-  /// Compute the discount amount for a given subtotal.
-  double computeDiscount(double subtotal) {
+  /// Compute the discount amount for a given subtotal — pass deliveryFee/
+  /// taxAmount too when known so 'delivery_fee'/'total'-scoped codes are
+  /// computed against the right base; they default to 0, which only matters
+  /// for those two scopes (a 'subtotal'-scoped code ignores them entirely).
+  double computeDiscount(double subtotal, {double deliveryFee = 0, double taxAmount = 0}) {
     if (!isValid(subtotal)) return 0;
-    if (discountType == 'percentage') return subtotal * discountValue / 100;
-    return discountValue > subtotal ? subtotal : discountValue;
+    final base = switch (appliesTo) {
+      'delivery_fee' => deliveryFee,
+      'total' => subtotal + deliveryFee + taxAmount,
+      _ => subtotal,
+    };
+    if (discountType == 'percentage') return base * discountValue / 100;
+    return discountValue > base ? base : discountValue;
   }
 
   bool isValid(double subtotal) {

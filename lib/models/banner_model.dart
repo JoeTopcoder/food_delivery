@@ -17,6 +17,16 @@ class Banner {
   final String? restaurantName;
   final bool? restaurantVerified;
 
+  /// 'percentage' | 'fixed' | null (no discount attached to this banner)
+  final String? discountType;
+  final double? discountValue;
+  /// What the discount is computed against: 'subtotal' (meal/food items),
+  /// 'delivery_fee', or 'total'. Null when discountType is null.
+  final String? appliesTo;
+  /// The real promo_codes.code backing this banner's discount, if any —
+  /// tapping the banner auto-applies this code for the customer.
+  final String? promoCode;
+
   Banner({
     required this.id,
     required this.title,
@@ -31,6 +41,10 @@ class Banner {
     required this.createdAt,
     this.restaurantName,
     this.restaurantVerified,
+    this.discountType,
+    this.discountValue,
+    this.appliesTo,
+    this.promoCode,
   });
 
   factory Banner.fromJson(Map<String, dynamic> json) {
@@ -53,6 +67,10 @@ class Banner {
       createdAt: DateTime.parse(json['created_at'] as String),
       restaurantName: restaurant?['name'] as String?,
       restaurantVerified: restaurant?['is_verified'] as bool?,
+      discountType: json['discount_type'] as String?,
+      discountValue: (json['discount_value'] as num?)?.toDouble(),
+      appliesTo: json['applies_to'] as String?,
+      promoCode: json['promo_code'] as String?,
     );
   }
 
@@ -66,5 +84,9 @@ class Banner {
     'sort_order': sortOrder,
     'starts_at': startsAt?.toIso8601String(),
     'ends_at': endsAt?.toIso8601String(),
+    'discount_type': discountType,
+    'discount_value': discountValue,
+    'applies_to': appliesTo,
+    'promo_code': promoCode,
   };
 }

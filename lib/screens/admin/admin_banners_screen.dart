@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -198,12 +199,35 @@ class _BannerTile extends StatelessWidget {
           banner.title,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
-        subtitle: Text(
-          banner.restaurantName ?? 'Unknown restaurant',
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+        subtitle: Row(
+          children: [
+            Expanded(
+              child: Text(
+                banner.restaurantName ?? 'Unknown restaurant',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            if (banner.discountType != null && banner.discountValue != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  banner.discountType == 'percentage'
+                      ? '${banner.discountValue!.toStringAsFixed(banner.discountValue! % 1 == 0 ? 0 : 2)}% off'
+                      : '\$${banner.discountValue!.toStringAsFixed(banner.discountValue! % 1 == 0 ? 0 : 2)} off',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                ),
+              ),
+            ],
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -257,6 +281,12 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   String? _existingImageUrl;
   bool    _uploadingImage = false;
 
+  // Discount state — null discountType means "no discount attached"
+  String? _discountType;
+  final _discountValueCtrl = TextEditingController();
+  String  _appliesTo = 'subtotal';
+  String? _existingPromoCode;
+
   @override
   void initState() {
     super.initState();
@@ -266,13 +296,39 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
       _existingImageUrl         = widget.existing!.imageUrl;
       _selectedRestaurantId     = widget.existing!.restaurantId;
       _section                  = widget.existing!.section;
+      _discountType             = widget.existing!.discountType;
+      _discountValueCtrl.text   = widget.existing!.discountValue != null
+          ? _stripTrailingZeros(widget.existing!.discountValue!)
+          : '';
+      _appliesTo                = widget.existing!.appliesTo ?? 'subtotal';
+      _existingPromoCode        = widget.existing!.promoCode;
     }
+  }
+
+  String _stripTrailingZeros(double value) {
+    return value == value.roundToDouble() ? value.toInt().toString() : value.toString();
+  }
+
+  Future<String> _generateUniqueBannerCode() async {
+    final rand = Random();
+    for (var attempt = 0; attempt < 5; attempt++) {
+      final suffix = List.generate(5, (_) => rand.nextInt(36).toRadixString(36)).join().toUpperCase();
+      final candidate = 'BANNER$suffix';
+      final existing = await SupabaseConfig.client
+          .from('promo_codes')
+          .select('id')
+          .eq('code', candidate)
+          .maybeSingle();
+      if (existing == null) return candidate;
+    }
+    return 'BANNER${DateTime.now().millisecondsSinceEpoch}';
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _subtitleCtrl.dispose();
+    _discountValueCtrl.dispose();
     super.dispose();
   }
 
@@ -322,6 +378,60 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     );
   }
 
+  /// Creates or updates the promo_codes row this banner's discount is backed
+  /// by, so tapping the banner has a real code to auto-apply — not just a
+  /// number shown on an image. Reuses the existing code across edits so a
+  /// customer who's already seen/shared it keeps working; only mints a new
+  /// one the first time a discount is set. Returns the code to store on the
+  /// banner, or null if no discount is set (deactivating any old code).
+  Future<String?> _syncPromoCode(String title) async {
+    if (_discountType == null) {
+      if (_existingPromoCode != null) {
+        await SupabaseConfig.client
+            .from('promo_codes')
+            .update({'is_active': false})
+            .eq('code', _existingPromoCode!);
+      }
+      return null;
+    }
+
+    final value = double.tryParse(_discountValueCtrl.text.trim());
+    if (value == null || value <= 0) {
+      throw Exception('Enter a valid discount value');
+    }
+    if (_discountType == 'percentage' && value > 100) {
+      throw Exception('Percentage discount cannot exceed 100');
+    }
+
+    if (_existingPromoCode != null) {
+      await SupabaseConfig.client
+          .from('promo_codes')
+          .update({
+            'discount_type': _discountType,
+            'discount_value': value,
+            'applies_to': _appliesTo,
+            'restaurant_id': _selectedRestaurantId,
+            'is_active': true,
+          })
+          .eq('code', _existingPromoCode!);
+      return _existingPromoCode;
+    }
+
+    final code = await _generateUniqueBannerCode();
+    await SupabaseConfig.client.from('promo_codes').insert({
+      'code': code,
+      'description': 'Banner promotion — $title',
+      'discount_type': _discountType,
+      'discount_value': value,
+      'applies_to': _appliesTo,
+      'restaurant_id': _selectedRestaurantId,
+      'max_uses': null,
+      'usage_count': 0,
+      'is_active': true,
+    });
+    return code;
+  }
+
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty || _selectedRestaurantId == null) {
@@ -331,6 +441,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     setState(() => _saving = true);
     try {
       final imageUrl = await _uploadImageIfNeeded();
+      final promoCode = await _syncPromoCode(title);
       final data = {
         'title': title,
         'subtitle': _subtitleCtrl.text.trim().isEmpty
@@ -339,6 +450,10 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
         'image_url': imageUrl,
         'restaurant_id': _selectedRestaurantId,
         'section': _section,
+        'discount_type': _discountType,
+        'discount_value': _discountType != null ? double.tryParse(_discountValueCtrl.text.trim()) : null,
+        'applies_to': _discountType != null ? _appliesTo : null,
+        'promo_code': promoCode,
       };
 
       if (widget.existing != null) {
@@ -365,7 +480,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     final groceryStoresAsync = ref.watch(groceryStoresProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -430,6 +545,68 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
               hintText: 'e.g. Order now and save 20%',
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Discount toggle — attaches a real promo code, auto-applied when
+          // a customer taps this banner.
+          Text(
+            'Discount (optional)',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String?>(
+            segments: const [
+              ButtonSegment(value: null, label: Text('None')),
+              ButtonSegment(value: 'percentage', label: Text('% off')),
+              ButtonSegment(value: 'fixed', label: Text('\$ off')),
+            ],
+            selected: {_discountType},
+            onSelectionChanged: (sel) => setState(() => _discountType = sel.first),
+          ),
+          if (_discountType != null) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _discountValueCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: _discountType == 'percentage' ? 'Percent off *' : 'Amount off (\$) *',
+                hintText: _discountType == 'percentage' ? 'e.g. 15' : 'e.g. 5',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Applies to *',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              initialValue: _appliesTo,
+              isExpanded: true,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'subtotal', child: Text('The meal (food subtotal)')),
+                DropdownMenuItem(value: 'delivery_fee', child: Text('Delivery fee')),
+                DropdownMenuItem(value: 'total', child: Text('Entire order total')),
+              ],
+              onChanged: (v) => setState(() => _appliesTo = v ?? 'subtotal'),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Tapping this banner automatically applies this discount for the customer — no code to type in.',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
           const SizedBox(height: 12),
 
           // Banner image picker

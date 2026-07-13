@@ -105,7 +105,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     _paymentPhoneCtrl.text = currentUser.phone ?? '';
   }
 
-  Future<void> _applyPromo(double subtotal) async {
+  Future<void> _applyPromo(
+    double subtotal, {
+    String? restaurantId,
+    double deliveryFee = 0,
+    double taxAmount = 0,
+  }) async {
     final code = _promoCtrl.text.trim();
     if (code.isEmpty) return;
     setState(() {
@@ -114,7 +119,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     });
     try {
       final service = ref.read(promoServiceProvider);
-      final promo = await service.validateCode(code, subtotal);
+      final promo = await service.validateCode(
+        code,
+        subtotal,
+        restaurantId: restaurantId,
+        deliveryFee: deliveryFee,
+        taxAmount: taxAmount,
+      );
       if (!mounted) {
         return;
       }
@@ -178,7 +189,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? ref.watch(savedCardsProvider(currentUserId))
         : null;
 
-    final promoDiscount = appliedPromo?.computeDiscount(subtotal) ?? 0.0;
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
     // Admin-configured delivery fee via Edge Function
@@ -232,6 +242,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         : null;
     final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
     final tax = subtotal * effectiveTaxRate;
+    final promoDiscount = appliedPromo?.computeDiscount(subtotal, deliveryFee: activeFee, taxAmount: tax) ?? 0.0;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -784,7 +795,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             ElevatedButton(
                               onPressed: _applyingPromo
                                   ? null
-                                  : () => _applyPromo(subtotal),
+                                  : () => _applyPromo(
+                                        subtotal,
+                                        restaurantId: restaurantId,
+                                        deliveryFee: activeFee,
+                                        taxAmount: tax,
+                                      ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
