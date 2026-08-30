@@ -1490,7 +1490,7 @@ class _DynamicBannerCarouselState
         return Column(
           children: [
             AspectRatio(
-              aspectRatio: 16 / 6,
+              aspectRatio: 16 / 5,
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: banners.length,
