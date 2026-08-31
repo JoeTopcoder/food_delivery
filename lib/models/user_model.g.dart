@@ -20,6 +20,9 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
       isActive: json['is_active'] as bool? ?? true,
       referralCode: json['referral_code'] as String?,
       referredBy: json['referred_by'] as String?,
+      birthday: json['birthday'] == null
+          ? null
+          : DateTime.parse(json['birthday'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -40,6 +43,7 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
       'is_active': instance.isActive,
       'referral_code': instance.referralCode,
       'referred_by': instance.referredBy,
+      'birthday': instance.birthday?.toIso8601String(),
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

@@ -54,6 +54,7 @@ import 'screens/customer/notifications_screen.dart';
 import 'screens/customer/loyalty_screen.dart';
 import 'screens/customer/address_book_screen.dart';
 import 'screens/customer/order_history_screen.dart';
+import 'screens/customer/birthday_reward_screen.dart';
 import 'screens/customer/referral_screen.dart';
 import 'screens/customer/earnings_screen.dart';
 import 'screens/driver/driver_referral_screen.dart';
@@ -72,6 +73,7 @@ import 'screens/driver/advanced_earnings_screen.dart';
 import 'screens/driver/driver_performance_screen.dart';
 import 'screens/driver/demand_heatmap_screen.dart';
 import 'screens/admin/admin_promos_screen.dart';
+import 'screens/admin/admin_birthday_campaign_screen.dart';
 import 'screens/admin/admin_email_notifications_screen.dart';
 import 'screens/admin/admin_chats_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
@@ -887,6 +889,16 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: OrderHistoryScreen(),
                 ),
               );
+            case '/birthday-reward':
+              final args = settings.arguments as Map<String, dynamic>?;
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['user'],
+                  child: BirthdayRewardScreen(
+                    promoCode: args?['promoCode'] as String?,
+                  ),
+                ),
+              );
             case '/driver-earnings':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -927,6 +939,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminPromosScreen(),
+                ),
+              );
+            case '/admin-birthday-campaign':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminBirthdayCampaignScreen(),
                 ),
               );
             case '/admin-email-notifications':

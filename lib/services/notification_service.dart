@@ -666,6 +666,18 @@ class NotificationService {
       case 'promo':
         AppLogger.info('Promo notification: $title');
         break;
+      case 'birthday':
+        AppLogger.info('Birthday notification: $title');
+        if (navigate) {
+          navigatorKey?.currentState?.pushNamed(
+            '/birthday-reward',
+            arguments: {
+              'promoCode': data['promo_code'] as String?,
+              'discountAmount': data['discount_amount'] as String?,
+            },
+          );
+        }
+        break;
       case 'new_message':
         AppLogger.info('New message notification: $title');
         if (navigate) {

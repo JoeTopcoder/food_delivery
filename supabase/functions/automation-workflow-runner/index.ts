@@ -672,10 +672,150 @@ Respond ONLY with JSON: { "code": string, "description": string, "discount_type"
   }
 }
 
+// ── daily_birthday_wishes ────────────────────────────────────────────────
+// No AI drafting — a fixed, personalized template, so this sends
+// automatically every morning (auto_approve = true on this workflow's row,
+// set in the migration) rather than going through the draft/review path the
+// other workflows use. Reward = a freshly minted single-use promo_codes row
+// (same mold as createRetentionPromoCode), not a parallel redemption engine
+// — checkout already knows how to apply any promo code. birthday_rewards is
+// only a log for idempotency + admin reporting; redemption truth always
+// lives on the linked promo_codes row.
+async function getConfigValue(key: string, fallback: string): Promise<string> {
+  const { data } = await serviceClient.from('app_config').select('value').eq('key', key).maybeSingle()
+  return (data?.value as string | undefined) ?? fallback
+}
+
+/** Mints a one-time, fixed-amount birthday discount code, valid through the
+ *  end of today in Cayman time (fixed UTC-5, no DST — matches
+ *  lib/utils/est_datetime.dart). Returns the new promo_codes row's id too,
+ *  so the caller can link it from birthday_rewards. */
+async function createBirthdayPromoCode(
+  discountAmount: number,
+  minOrderAmount: number,
+): Promise<{ id: string; code: string } | null> {
+  let code = ''
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = `BDAY${Math.random().toString(36).slice(2, 7).toUpperCase()}`
+    const { data: existing } = await serviceClient.from('promo_codes').select('id').eq('code', candidate).maybeSingle()
+    if (!existing) { code = candidate; break }
+  }
+  if (!code) return null
+
+  const nowCayman = new Date(Date.now() - 5 * 3600000)
+  const endOfDayCaymanAsUtcInstant = new Date(
+    Date.UTC(nowCayman.getUTCFullYear(), nowCayman.getUTCMonth(), nowCayman.getUTCDate(), 23, 59, 59) + 5 * 3600000,
+  )
+
+  const { data: inserted, error: insertErr } = await serviceClient
+    .from('promo_codes')
+    .insert({
+      code,
+      description: 'Happy Birthday reward — 7Dash',
+      discount_type: 'fixed',
+      discount_value: discountAmount,
+      min_order_amount: minOrderAmount,
+      max_uses: 1,
+      usage_count: 0,
+      expires_at: endOfDayCaymanAsUtcInstant.toISOString(),
+      restaurant_id: null,
+      is_active: true,
+    })
+    .select('id')
+    .single()
+  if (insertErr || !inserted) {
+    console.error('daily_birthday_wishes: failed to create promo code', insertErr?.message)
+    return null
+  }
+  return { id: inserted.id as string, code }
+}
+
+async function dailyBirthdayWishes(_workflowId: string): Promise<WorkflowResult> {
+  const enabled = (await getConfigValue('birthday_campaign_enabled', 'true')) === 'true'
+  if (!enabled) return { summary: 'Birthday campaign is disabled in app_config — skipped.' }
+
+  const discountAmount = Number(await getConfigValue('birthday_discount_amount', '500')) || 500
+  const minOrderAmount = Number(await getConfigValue('birthday_min_order_amount', '2000')) || 2000
+  const titleTemplate = await getConfigValue('birthday_notification_title', '🎂 Happy Birthday!')
+  const bodyTemplate = await getConfigValue(
+    'birthday_notification_body',
+    "Happy Birthday, {first_name}! 🎉 We've got a special reward waiting for you.",
+  )
+
+  // "Today" in Cayman time — fixed UTC-5 offset, no DST.
+  const nowCayman = new Date(Date.now() - 5 * 3600000)
+  const month = nowCayman.getUTCMonth() + 1
+  const day = nowCayman.getUTCDate()
+  const birthdayDate = nowCayman.toISOString().slice(0, 10)
+
+  const { data: users, error: usersErr } = await serviceClient
+    .from('users')
+    .select('id, name, birthday')
+    .eq('is_active', true)
+    .not('birthday', 'is', null)
+  if (usersErr) throw new Error(`Failed to query users: ${usersErr.message}`)
+
+  // Month/day match done in JS rather than a SQL EXTRACT filter because the
+  // Supabase JS client has no clean way to express that predicate — the
+  // users table is small enough platform-wide that this is fine; a raw SQL
+  // function would be the next step if it ever isn't.
+  const todaysBirthdays = (users ?? []).filter((u) => {
+    if (!u.birthday) return false
+    const parts = String(u.birthday).split('-').map(Number)
+    return parts[1] === month && parts[2] === day
+  })
+
+  let wished = 0
+  let alreadyProcessed = 0
+  let failed = 0
+
+  for (const user of todaysBirthdays) {
+    // Idempotency gate: UNIQUE(user_id, birthday_date) — if a row already
+    // exists (this ran earlier today, or twice), this insert no-ops and we
+    // skip. Running the workflow twice in one day never double-rewards.
+    const { data: logRow } = await serviceClient
+      .from('birthday_rewards')
+      .insert({ user_id: user.id, birthday_date: birthdayDate })
+      .select('id')
+      .maybeSingle()
+    if (!logRow) { alreadyProcessed++; continue }
+
+    const promo = await createBirthdayPromoCode(discountAmount, minOrderAmount)
+    if (!promo) { failed++; continue }
+
+    await serviceClient.from('birthday_rewards').update({ promo_code_id: promo.id }).eq('id', logRow.id)
+
+    const firstName = (user.name ?? 'there').split(' ')[0]
+    const body = bodyTemplate.replaceAll('{first_name}', firstName)
+    const sent = await sendPushToCustomer(user.id, titleTemplate, body, {
+      type: 'birthday',
+      promo_code: promo.code,
+      discount_amount: String(discountAmount),
+    })
+    if (sent) {
+      await serviceClient
+        .from('birthday_rewards')
+        .update({ notification_sent: true, notification_sent_at: new Date().toISOString() })
+        .eq('id', logRow.id)
+    }
+    wished++
+  }
+
+  return {
+    summary:
+      todaysBirthdays.length === 0
+        ? 'No birthdays today.'
+        : `Wished ${wished} customer(s) happy birthday.` +
+          (alreadyProcessed > 0 ? ` ${alreadyProcessed} already processed earlier today.` : '') +
+          (failed > 0 ? ` ${failed} failed to get a promo code.` : ''),
+  }
+}
+
 const WORKFLOWS: Record<string, (workflowId: string) => Promise<WorkflowResult>> = {
   weekly_social_campaign: weeklySocialCampaign,
   weekly_retention_outreach: weeklyRetentionOutreach,
   weekly_promotion_scan: weeklyPromotionScan,
+  daily_birthday_wishes: dailyBirthdayWishes,
 }
 
 Deno.serve(async (req) => {

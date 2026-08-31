@@ -43,6 +43,33 @@ final isPeakHourProvider = StreamProvider<bool>((ref) {
 // dialog and the customer home stay in sync.
 const _fallbackCategories = AppConstants.homeFoodCategories;
 
+// ── Local visual constants (home screen only) ──────────────────────────────
+// Small, self-contained style palette so cards/pills/shadows read as one
+// consistent system across this screen without introducing a separate
+// design-system module.
+const double _kRadiusSm = 10;
+const double _kRadiusMd = 14;
+const double _kRadiusLg = 18;
+const double _kRadiusPill = 999;
+final List<BoxShadow> _kSoftShadow = [
+  BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4)),
+];
+LinearGradient _kBrandGradient() => LinearGradient(
+  colors: [AppTheme.primaryColor, const Color(0xFFFF8C42)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
+/// True when [birthday]'s month and day match [today]'s — a plain top-level
+/// function (not a widget method) so it's independently unit-testable.
+/// Deliberately ignores the year (a birthday is a yearly-recurring date).
+/// A Feb 29 birthday only matches on an actual Feb 29 (leap years) — it does
+/// not "early-celebrate" on Feb 28 or Mar 1 in non-leap years.
+bool isBirthdayToday(DateTime birthday, [DateTime? today]) {
+  final now = today ?? DateTime.now();
+  return birthday.month == now.month && birthday.day == now.day;
+}
+
 class CustomerHomeScreen extends ConsumerStatefulWidget {
   const CustomerHomeScreen({super.key});
 
@@ -55,6 +82,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   bool _trackedOpen = false;
   bool _couponPopupShown = false;
   bool _adPopupShown = false;
+  bool _birthdayBannerDismissed = false;
 
   @override
   void initState() {
@@ -503,6 +531,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         ? ref.watch(restaurantSearchProvider(_searchQuery))
         : null;
 
+    // Birthday banner replaces the regular promo banners in that slot —
+    // they're mutually exclusive, not stacked. Once dismissed (or if there's
+    // no birthday match), the regular banners take over the slot again.
+    final showBirthdayBanner = !_birthdayBannerDismissed &&
+        currentUser?.birthday != null &&
+        isBirthdayToday(currentUser!.birthday!);
+
     final newlyAddedAsync = ref.watch(newlyAddedRestaurantsProvider);
     final topRatedAsync = ref.watch(topRatedRestaurantsProvider);
     final breakfastAsync = ref.watch(breakfastRestaurantsProvider);
@@ -524,11 +559,18 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             title: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(10),
+                    gradient: _kBrandGradient(),
+                    borderRadius: BorderRadius.circular(_kRadiusSm),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.restaurant_menu,
@@ -541,8 +583,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   child: Text(
                     'MealHub',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 23,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -566,7 +609,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                             gradient: const LinearGradient(
                               colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
                             ),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(_kRadiusPill),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -656,18 +699,26 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 7,
+                  vertical: 9,
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(_kRadiusMd),
+                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.12)),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.location_on,
-                      color: AppTheme.primaryColor,
-                      size: 20,
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.location_on,
+                        color: AppTheme.primaryColor,
+                        size: 16,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -708,6 +759,22 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
+          // Birthday banner — only shown when today matches the user's
+          // saved birthday and they haven't dismissed it this session.
+          // Mutually exclusive with the regular promo banners below.
+          if (showBirthdayBanner)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
+                ),
+                child: _BirthdayBanner(
+                  firstName: (currentUser.name ?? 'there').split(' ').first,
+                  onDismiss: () => setState(() => _birthdayBannerDismissed = true),
+                ),
+              ),
+            ),
+
           // Search bar + Taxi button
           SliverToBoxAdapter(
             child: Padding(
@@ -733,15 +800,19 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ..._buildSearchResults(searchAsync),
 
           if (!isSearching) ...[
-            // AI-powered smart offer banner
-            const SliverToBoxAdapter(child: SmartOfferBanner()),
+            // Regular promo banners — only when the birthday banner isn't
+            // occupying this slot (no birthday today, or it was dismissed).
+            if (!showBirthdayBanner) ...[
+              // AI-powered smart offer banner
+              const SliverToBoxAdapter(child: SmartOfferBanner()),
 
-            // Dynamic Promotional Banners
-            SliverToBoxAdapter(
-              child: RepaintBoundary(child: _DynamicBannerCarousel()),
-            ),
+              // Dynamic Promotional Banners
+              SliverToBoxAdapter(
+                child: RepaintBoundary(child: _DynamicBannerCarousel()),
+              ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 6)),
+              const SliverToBoxAdapter(child: SizedBox(height: 6)),
+            ],
 
             // Browse by Category (right below banners)
             SliverToBoxAdapter(
@@ -753,8 +824,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 child: Text(
                   'Browse by Category',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -852,8 +924,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                     child: Text(
                       'More Services',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
@@ -959,7 +1032,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   'All Restaurants',
                   style: TextStyle(
                     fontSize: Responsive.headingMedium(context),
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -1156,7 +1230,8 @@ class _HorizontalRestaurantRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: Responsive.headingMedium(context),
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -1165,12 +1240,12 @@ class _HorizontalRestaurantRow extends StatelessWidget {
                 onTap: onViewAll,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
+                    horizontal: 12,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: AppTheme.primaryColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(_kRadiusPill),
                   ),
                   child: Text(
                     'View all',
@@ -1231,7 +1306,7 @@ class _RestaurantSectionViewAllScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         elevation: 0,
       ),
@@ -1284,22 +1359,15 @@ class _CompactRestaurantCard extends StatelessWidget {
         width: cardW,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2), width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(_kRadiusLg),
+          boxShadow: _kSoftShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+                top: Radius.circular(_kRadiusLg),
               ),
               child:
                   restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
@@ -1344,12 +1412,12 @@ class _CompactRestaurantCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 7,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(_kRadiusPill),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1518,7 +1586,7 @@ class _DynamicBannerCarouselState
                         color: _currentPage == i
                             ? AppTheme.primaryColor
                             : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(3),
+                        borderRadius: BorderRadius.circular(_kRadiusPill),
                       ),
                     ),
                   ),
@@ -1590,7 +1658,7 @@ class _DynamicBannerCarouselState
         margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(_kRadiusLg),
           gradient: LinearGradient(
             colors: [
               AppTheme.primaryColor,
@@ -1599,6 +1667,13 @@ class _DynamicBannerCarouselState
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.28),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Stack(
           fit: StackFit.expand,
@@ -1652,8 +1727,9 @@ class _DynamicBannerCarouselState
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   if (banner.subtitle != null) ...[
@@ -1674,7 +1750,7 @@ class _DynamicBannerCarouselState
                     ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(_kRadiusPill),
                     ),
                     child: Text(
                       'Visit ${banner.restaurantName ?? 'Restaurant'}',
@@ -1891,49 +1967,61 @@ class _AdPopupDialog extends StatelessWidget {
                   // "Order now" button
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                    child: SizedBox(
+                    child: Container(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final nav = Navigator.of(
-                            context,
-                            rootNavigator: true,
-                          );
-                          nav.pop(); // close dialog
-                          final restaurant = await ref
-                              .read(restaurantServiceProvider)
-                              .getRestaurantById(ad.restaurantId);
-                          if (restaurant != null) {
-                            // Mark that we came from an ad
-                            ref.read(_activeAdProvider.notifier).state = ad;
-                            nav.pushNamed(
-                              '/restaurant-detail',
-                              arguments: restaurant,
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.onSurface,
-                          foregroundColor: Theme.of(context).colorScheme.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                      decoration: BoxDecoration(
+                        gradient: _kBrandGradient(),
+                        borderRadius: BorderRadius.circular(_kRadiusMd),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
                           ),
-                          elevation: 0,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Order now',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(_kRadiusMd),
+                          onTap: () async {
+                            final nav = Navigator.of(
+                              context,
+                              rootNavigator: true,
+                            );
+                            nav.pop(); // close dialog
+                            final restaurant = await ref
+                                .read(restaurantServiceProvider)
+                                .getRestaurantById(ad.restaurantId);
+                            if (restaurant != null) {
+                              // Mark that we came from an ad
+                              ref.read(_activeAdProvider.notifier).state = ad;
+                              nav.pushNamed(
+                                '/restaurant-detail',
+                                arguments: restaurant,
+                              );
+                            }
+                          },
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Order now',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: 6),
-                            Icon(Icons.arrow_forward_rounded, size: 20),
-                          ],
+                              SizedBox(width: 6),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -2020,27 +2108,28 @@ class _ServiceCard extends StatelessWidget {
             opacity: enabled ? 1.0 : 0.55,
             child: Container(
               width: cardWidth,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
               decoration: BoxDecoration(
                 color: enabled
                     ? color.withValues(alpha: 0.08)
                     : Colors.grey.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(_kRadiusMd),
                 border: Border.all(
                   color: enabled
-                      ? color.withValues(alpha: 0.2)
+                      ? color.withValues(alpha: 0.18)
                       : Colors.grey.withValues(alpha: 0.2),
                 ),
+                boxShadow: enabled ? _kSoftShadow : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: enabled ? color : Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(_kRadiusSm),
                     ),
                     child: Icon(icon, color: Colors.white, size: 18),
                   ),
@@ -2051,7 +2140,7 @@ class _ServiceCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         fontSize: 13,
                         color: enabled ? color : Colors.grey.shade500,
                       ),
@@ -2142,6 +2231,161 @@ class _CategoryImage extends StatelessWidget {
           : Center(
               child: Text(emoji, style: const TextStyle(fontSize: 22)),
             ),
+    );
+  }
+}
+
+/// Home-screen birthday banner. Reads the campaign's configured discount
+/// amount straight from app_config (publicly readable, one small row read —
+/// the same amount every birthday code is minted with, so there's no need
+/// to look up the individual promo_codes row just to show a figure here).
+/// Tapping the card or "ORDER NOW" opens BirthdayRewardScreen, where the
+/// actual per-user code (and its live status) lives.
+class _BirthdayBanner extends StatefulWidget {
+  final String firstName;
+  final VoidCallback onDismiss;
+
+  const _BirthdayBanner({required this.firstName, required this.onDismiss});
+
+  @override
+  State<_BirthdayBanner> createState() => _BirthdayBannerState();
+}
+
+class _BirthdayBannerState extends State<_BirthdayBanner> {
+  late Future<double?> _discountFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _discountFuture = _loadDiscountAmount();
+  }
+
+  Future<double?> _loadDiscountAmount() async {
+    try {
+      final row = await SupabaseConfig.client
+          .from('app_config')
+          .select('value')
+          .eq('key', 'birthday_discount_amount')
+          .maybeSingle();
+      final raw = row?['value'] as String?;
+      return raw != null ? double.tryParse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppConstants.currencySymbol;
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/birthday-reward'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(18, 16, 14, 18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.primaryColor, AppTheme.accentColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🎂', style: TextStyle(fontSize: 26)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'HAPPY BIRTHDAY, ${widget.firstName.toUpperCase()}!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Celebrate today with 7Dash ❤️',
+                        style: TextStyle(color: Colors.white70, fontSize: 12.5),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: widget.onDismiss,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            FutureBuilder<double?>(
+              future: _discountFuture,
+              builder: (context, snapshot) {
+                final amount = snapshot.data;
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your birthday reward',
+                            style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                          ),
+                          Text(
+                            amount != null
+                                ? '$c${amount.toStringAsFixed(0)} OFF'
+                                : '🎁 A gift is waiting',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'ORDER NOW',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

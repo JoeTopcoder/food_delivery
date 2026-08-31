@@ -45,7 +45,7 @@ class SmartOfferBanner extends ConsumerWidget {
           onTap: () => showCouponPopup(context, coupon, brain.userSegment),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors:
@@ -54,23 +54,37 @@ class SmartOfferBanner extends ConsumerWidget {
                     ? [const Color(0xFFFF6B35), const Color(0xFFFF8C5A)]
                     : [const Color(0xFF6366F1), const Color(0xFF818CF8)],
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.local_offer_rounded,
-                  color: Colors.white,
-                  size: 18,
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '${coupon.discountPercent}% OFF — Tap to view your code',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
