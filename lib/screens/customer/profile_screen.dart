@@ -140,6 +140,16 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               _showEditPhoneDialog(context, ref, currentUser),
                         ),
                         _MenuItem(
+                          icon: Icons.cake_rounded,
+                          color: const Color(0xFFEC4899),
+                          title: 'Birthday',
+                          sub: currentUser?.birthday != null
+                              ? DateFormat.yMMMd().format(currentUser!.birthday!)
+                              : "We'll celebrate it with you 🎂",
+                          onTap: () =>
+                              _showEditBirthdayDialog(context, ref, currentUser),
+                        ),
+                        _MenuItem(
                           icon: Icons.location_on_rounded,
                           color: const Color(0xFF7C3AED),
                           title: context.l10n.addressBook,
@@ -482,6 +492,34 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showEditBirthdayDialog(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic currentUser,
+  ) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: currentUser?.birthday ?? DateTime(now.year - 18, now.month, now.day),
+      // No impossible future birthdays, and a sane oldest-customer bound.
+      firstDate: DateTime(now.year - 120),
+      lastDate: now,
+      helpText: "What's your birthday?",
+    );
+    if (picked == null) return;
+    try {
+      final updated = await ref
+          .read(userServiceProvider)
+          .updateUserProfile(userId: currentUser!.id, birthday: picked);
+      if (updated != null) {
+        ref.read(userSessionOverrideProvider.notifier).state = updated;
+      }
+      if (context.mounted) AppSnackbar.success(context, 'Birthday saved 🎂');
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
   }
 }
 

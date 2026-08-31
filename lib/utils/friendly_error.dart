@@ -109,6 +109,9 @@ String friendlyError(Object? error) {
     return 'Your card could not be processed. Please use a different card.';
 
   // Supabase / Postgres
+  if (msg.contains('changed twice per year') || msg.contains('changed_twice_per_year')) {
+    return "You've already changed your birthday the maximum number of times this year. Contact support if you need it corrected.";
+  }
   if (msg.contains('duplicate key') || msg.contains('unique constraint')) {
     return 'This record already exists.';
   }

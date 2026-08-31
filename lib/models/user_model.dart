@@ -17,6 +17,7 @@ class User {
   final bool isActive;
   final String? referralCode;
   final String? referredBy;
+  final DateTime? birthday;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -34,6 +35,7 @@ class User {
     this.isActive = true,
     this.referralCode,
     this.referredBy,
+    this.birthday,
     required this.createdAt,
     this.updatedAt,
   });
@@ -55,6 +57,7 @@ class User {
     bool? isActive,
     String? referralCode,
     String? referredBy,
+    DateTime? birthday,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -72,6 +75,7 @@ class User {
       isActive: isActive ?? this.isActive,
       referralCode: referralCode ?? this.referralCode,
       referredBy: referredBy ?? this.referredBy,
+      birthday: birthday ?? this.birthday,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

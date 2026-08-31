@@ -833,6 +833,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onTap: () =>
                                 Navigator.of(context).pushNamed('/admin-surge'),
                           ),
+                          _GridAction(
+                            icon: Icons.cake_rounded,
+                            label: 'Birthday Campaign',
+                            color: const Color(0xFFEC4899),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-birthday-campaign'),
+                          ),
                         ],
                       ),
 

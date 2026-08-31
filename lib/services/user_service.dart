@@ -21,7 +21,7 @@ class UserService {
           .select(
             'id, email, name, phone, profile_image_url, role, '
             'onboarding_completed, address, latitude, longitude, '
-            'is_active, referral_code, referred_by, created_at, updated_at',
+            'is_active, referral_code, referred_by, birthday, created_at, updated_at',
           )
           .eq('id', userId)
           .single()
@@ -45,6 +45,7 @@ class UserService {
     double? latitude,
     double? longitude,
     String? profileImageUrl,
+    DateTime? birthday,
   }) async {
     try {
       AppLogger.info('Updating user profile: $userId');
@@ -60,6 +61,10 @@ class UserService {
       if (longitude != null) updateData['longitude'] = longitude;
       if (profileImageUrl != null) {
         updateData['profile_image_url'] = profileImageUrl;
+      }
+      if (birthday != null) {
+        // Column is a plain DATE — send just the date part.
+        updateData['birthday'] = birthday.toIso8601String().split('T').first;
       }
 
       final response = await _supabaseClient

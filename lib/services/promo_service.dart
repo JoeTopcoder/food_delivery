@@ -88,6 +88,20 @@ class PromoService {
     }
   }
 
+  /// Looks up a single promo code by its code string. RLS restricts this to
+  /// admins plus — via `self_select_own_birthday_promo` — a customer reading
+  /// their own linked birthday reward code (see 20260713000001_birthday_campaign.sql).
+  /// Returns null if not found or not visible to the current session.
+  Future<PromoCode?> getByCode(String code) async {
+    final res = await _client
+        .from('promo_codes')
+        .select()
+        .eq('code', code.trim().toUpperCase())
+        .maybeSingle();
+    if (res == null) return null;
+    return PromoCode.fromJson(res);
+  }
+
   Future<List<PromoCode>> listAll() async {
     final res = await _client
         .from('promo_codes')

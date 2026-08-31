@@ -29,11 +29,14 @@ class RestaurantCard extends StatelessWidget {
         margin: EdgeInsets.only(bottom: spacing),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,8 +45,8 @@ class RestaurantCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(Responsive.cardRadius(context)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
                   ),
                   child: restaurant.imageUrl != null &&
                       restaurant.imageUrl!.isNotEmpty
@@ -71,8 +74,14 @@ class RestaurantCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius:
-                          BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -108,8 +117,7 @@ class RestaurantCard extends StatelessWidget {
                       color: isOpen
                           ? AppTheme.successColor
                           : AppTheme.accentColor,
-                      borderRadius:
-                          BorderRadius.circular(Responsive.cardRadius(context) - 4),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       isOpen ? 'Open Now' : 'Closed',
@@ -152,8 +160,7 @@ class RestaurantCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(
-                              Responsive.cardRadius(context) - 2),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           'View Menu',
