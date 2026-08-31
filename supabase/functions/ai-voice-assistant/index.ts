@@ -828,7 +828,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Parse request ───────────────────────────────────────────────────────
-    const { message, role, order_id, restaurant_id, language, history } = await req.json()
+    const { message, role, order_id, restaurant_id, language, history, cart_restaurant_id, cart_item_count } = await req.json()
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return json({ error: 'message is required' }, 400)
     }
@@ -853,6 +853,21 @@ Deno.serve(async (req: Request) => {
         intent,
         action: 'escalate_to_support',
       })
+    }
+
+    // ── Talk to Order: build a real cart from natural language ─────────────
+    // Bypasses the advisory pipeline entirely — this path resolves the
+    // request against the real restaurants/menus tables and hands Flutter
+    // real ids to apply to the existing cart, instead of producing text.
+    if (role === 'customer' && isOrderingIntent(message, !!cart_restaurant_id || (cart_item_count ?? 0) > 0)) {
+      return await handleOrderBuilding(
+        serviceClient,
+        user.id,
+        message,
+        history,
+        cart_restaurant_id ?? null,
+        restaurant_id ?? null,
+      )
     }
 
     // ── Fetch full user profile (always, for customers) ────────────────────
@@ -1379,6 +1394,405 @@ async function getMenuContext(
     console.error('getMenuContext error:', e)
     return ''
   }
+}
+
+// ── Talk to Order: real cart-building from natural language ────────────────
+//
+// Unlike every intent above (which only ever produces advisory text), this
+// path actually resolves a request against the REAL restaurants/menus tables
+// and returns real menu_item_id + quantity + matched modifier ids for the
+// Flutter app to apply to the existing cart (CartNotifier) and navigate to
+// the real Cart screen. The model is used ONLY to extract what the customer
+// said in their own words (restaurant name, item names, quantities, budget)
+// — it never supplies an id or a price. Every id/price in the response comes
+// from a fresh DB read performed here, and the Flutter side re-fetches the
+// real MenuItem again before mutating the cart as a second freshness check.
+
+function isOrderingIntent(message: string, hasCartContext: boolean): boolean {
+  const m = message.trim().toLowerCase()
+  // Leading question words -> treat as Q&A, not a command, even if it
+  // mentions "usual" or a food noun (e.g. "what's my usual from KFC?" is
+  // asking, not ordering — stays on the advisory path).
+  if (/^(what|which|how|why|when|is |are |does |do i|did i|can you tell)/.test(m)) return false
+  if (/\b(order me|order from|get me|bring me|i want|i'd like|i would like|add .*(cart|order)|my usual|usual from|get my usual|order my usual)\b/.test(m)) return true
+  if (/\bunder \$?\d/.test(m) && /\bfrom\b/.test(m)) return true
+  // Mid-cart quick edits, only meaningful when there's already a cart to edit
+  // (e.g. the in-cart "Add by Voice" button) — "add two Cokes", "remove the
+  // fries", "change the chicken to large".
+  if (hasCartContext && /\b(add|remove|delete|change|make (it|that)|swap|instead|more|another)\b/.test(m)) return true
+  return false
+}
+
+interface OrderDraftItem {
+  name_as_said: string
+  quantity: number
+  size_or_modifiers: string | null
+}
+
+interface OrderDraft {
+  restaurant_name: string | null
+  wants_usual: boolean
+  usual_day_of_week: string | null
+  budget_cents: number | null
+  items: OrderDraftItem[]
+  clarification_needed: boolean
+}
+
+async function extractOrderIntent(message: string, history: any): Promise<OrderDraft | null> {
+  if (!OPENAI_API_KEY) return null
+  const priorTurns = Array.isArray(history)
+    ? history.slice(-4).map((h: any) => ({
+        role: h.role === 'assistant' ? 'assistant' : 'user',
+        content: String(h.content ?? ''),
+      }))
+    : []
+
+  const systemPrompt = `You extract structured order intent from a food-delivery customer's message. Do NOT invent menu items, restaurant names, prices, or ids — only extract what the customer actually said, in their own words. If the customer names no restaurant, leave restaurant_name null. If they didn't clearly ask for any specific item(s) or their "usual", set clarification_needed to true.
+
+Respond with ONLY this JSON shape, no other text:
+{
+  "restaurant_name": string | null,
+  "wants_usual": boolean,
+  "usual_day_of_week": string | null,
+  "budget_cents": number | null,
+  "items": [ { "name_as_said": string, "quantity": number, "size_or_modifiers": string | null } ],
+  "clarification_needed": boolean
+}
+
+Rules:
+- "budget_cents" — convert a stated dollar amount to cents (e.g. "under $30" -> 3000). Null if no budget mentioned.
+- "usual_day_of_week" — lowercase day name if mentioned (e.g. "friday"), else null.
+- "quantity" defaults to 1 if not stated. Words like "a"/"an"/"one" = 1, "two"/"couple" = 2, etc.
+- "size_or_modifiers" — freeform text of anything said about size/extras/no-X for that item (e.g. "large, extra gravy"), else null.
+- If wants_usual is true, items can be empty.`
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 400,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...priorTurns,
+          { role: 'user', content: message.trim() },
+        ],
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const raw = data.choices?.[0]?.message?.content
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return {
+      restaurant_name: typeof parsed.restaurant_name === 'string' && parsed.restaurant_name.trim() ? parsed.restaurant_name.trim() : null,
+      wants_usual: !!parsed.wants_usual,
+      usual_day_of_week: typeof parsed.usual_day_of_week === 'string' ? parsed.usual_day_of_week.toLowerCase() : null,
+      budget_cents: typeof parsed.budget_cents === 'number' ? parsed.budget_cents : null,
+      items: Array.isArray(parsed.items)
+        ? parsed.items
+            .map((i: any) => ({
+              name_as_said: String(i.name_as_said ?? '').trim(),
+              quantity: Number.isFinite(i.quantity) && i.quantity > 0 ? Math.floor(i.quantity) : 1,
+              size_or_modifiers: typeof i.size_or_modifiers === 'string' && i.size_or_modifiers.trim() ? i.size_or_modifiers : null,
+            }))
+            .filter((i: OrderDraftItem) => i.name_as_said.length > 0)
+        : [],
+      clarification_needed: !!parsed.clarification_needed,
+    }
+  } catch (e) {
+    console.error('extractOrderIntent error:', e)
+    return null
+  }
+}
+
+type RestaurantResolution =
+  | { status: 'resolved'; id: string; name: string }
+  | { status: 'ambiguous'; candidates: Array<{ id: string; name: string }> }
+  | { status: 'not_found' }
+  | { status: 'closed'; name: string }
+
+async function resolveRestaurant(
+  client: ReturnType<typeof createClient>,
+  nameOrNull: string | null,
+  cartRestaurantId: string | null,
+): Promise<RestaurantResolution> {
+  // No name mentioned but already shopping at a restaurant (in-cart "Add by
+  // Voice", or a short follow-up like "add two Cokes") — use that directly.
+  if (!nameOrNull && cartRestaurantId) {
+    const { data } = await client.from('restaurants').select('id, name, is_open').eq('id', cartRestaurantId).maybeSingle()
+    if (data) return { status: 'resolved', id: (data as any).id, name: (data as any).name }
+    return { status: 'not_found' }
+  }
+  if (!nameOrNull) return { status: 'not_found' }
+
+  const term = nameOrNull.replace(/[%_(),.\\]/g, '').trim()
+  if (!term) return { status: 'not_found' }
+
+  const { data } = await client
+    .from('restaurants')
+    .select('id, name, is_open')
+    .ilike('name', `%${term}%`)
+    .limit(5)
+
+  const matches = (data ?? []) as Array<{ id: string; name: string; is_open: boolean }>
+  if (matches.length === 0) return { status: 'not_found' }
+  if (matches.length === 1) {
+    const m = matches[0]
+    return m.is_open ? { status: 'resolved', id: m.id, name: m.name } : { status: 'closed', name: m.name }
+  }
+  // Exact (case-insensitive) name match among the candidates wins outright.
+  const exact = matches.find((m) => m.name.toLowerCase() === term.toLowerCase())
+  if (exact) {
+    return exact.is_open ? { status: 'resolved', id: exact.id, name: exact.name } : { status: 'closed', name: exact.name }
+  }
+  return { status: 'ambiguous', candidates: matches.map((m) => ({ id: m.id, name: m.name })) }
+}
+
+type ItemResolution =
+  | { status: 'resolved'; draftIndex: number; menuItemId: string; name: string; price: number; quantity: number; matchedSideIds: string[]; matchedOptionChoiceIds: string[] }
+  | { status: 'ambiguous'; draftIndex: number; nameAsSaid: string; candidates: Array<{ id: string; name: string; price: number }> }
+  | { status: 'not_found'; draftIndex: number; nameAsSaid: string }
+
+async function resolveMenuItemsForRestaurant(
+  client: ReturnType<typeof createClient>,
+  restaurantId: string,
+  itemDrafts: OrderDraftItem[],
+  budgetCents: number | null,
+): Promise<ItemResolution[]> {
+  const { data } = await client
+    .from('menus')
+    .select('id, name, price, discount, is_available, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))')
+    .eq('restaurant_id', restaurantId)
+    .eq('is_available', true)
+
+  const items = (data ?? []) as any[]
+  const budgetDollars = budgetCents != null ? budgetCents / 100 : null
+
+  const priceOf = (item: any) => {
+    const p = Number(item.price)
+    return item.discount ? p - (p * Number(item.discount)) / 100 : p
+  }
+
+  const results: ItemResolution[] = []
+  itemDrafts.forEach((draft, draftIndex) => {
+    const term = draft.name_as_said.toLowerCase()
+    let candidates = items.filter(
+      (i) => String(i.name).toLowerCase().includes(term) || term.includes(String(i.name).toLowerCase()),
+    )
+    if (budgetDollars != null) {
+      const withinBudget = candidates.filter((i) => priceOf(i) <= budgetDollars)
+      if (withinBudget.length > 0) candidates = withinBudget
+    }
+    if (candidates.length === 0) {
+      results.push({ status: 'not_found', draftIndex, nameAsSaid: draft.name_as_said })
+      return
+    }
+    if (candidates.length > 1) {
+      const exact = candidates.find((i) => String(i.name).toLowerCase() === term)
+      if (!exact) {
+        results.push({
+          status: 'ambiguous',
+          draftIndex,
+          nameAsSaid: draft.name_as_said,
+          candidates: candidates.slice(0, 5).map((i) => ({ id: i.id, name: i.name, price: priceOf(i) })),
+        })
+        return
+      }
+      candidates = [exact]
+    }
+    const match = candidates[0]
+
+    // Best-effort match of size/modifier text against this item's own sides
+    // and option choices — never invents a choice that doesn't exist on it.
+    const matchedSideIds: string[] = []
+    const matchedOptionChoiceIds: string[] = []
+    if (draft.size_or_modifiers) {
+      const modText = draft.size_or_modifiers.toLowerCase()
+      for (const side of match.menu_item_sides ?? []) {
+        if (modText.includes(String(side.name).toLowerCase())) matchedSideIds.push(side.id)
+      }
+      for (const group of match.menu_option_groups ?? []) {
+        for (const choice of group.menu_option_choices ?? []) {
+          if (modText.includes(String(choice.name).toLowerCase())) matchedOptionChoiceIds.push(choice.id)
+        }
+      }
+    }
+
+    results.push({
+      status: 'resolved',
+      draftIndex,
+      menuItemId: match.id,
+      name: match.name,
+      price: priceOf(match),
+      quantity: draft.quantity,
+      matchedSideIds,
+      matchedOptionChoiceIds,
+    })
+  })
+  return results
+}
+
+async function resolveUsualItems(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  restaurantId: string | null,
+  dayOfWeekName: string | null,
+  limit = 3,
+): Promise<Array<{ menuItemId: string; itemName: string }>> {
+  const dowMap: Record<string, number> = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  }
+  const dayOfWeek = dayOfWeekName && dowMap[dayOfWeekName] != null ? dowMap[dayOfWeekName] : null
+
+  const { data, error } = await client.rpc('get_usual_order_items', {
+    p_user_id: userId,
+    p_restaurant_id: restaurantId,
+    p_day_of_week: dayOfWeek,
+    p_limit: limit,
+  })
+  if (error) {
+    console.error('resolveUsualItems error:', error)
+    return []
+  }
+  return ((data ?? []) as any[]).map((r) => ({ menuItemId: r.menu_item_id, itemName: r.item_name }))
+}
+
+async function handleOrderBuilding(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  message: string,
+  history: any,
+  cartRestaurantId: string | null,
+  requestRestaurantId: string | null,
+): Promise<Response> {
+  const logAndReturn = async (payload: Record<string, unknown>) => {
+    // Fire-and-forget audit trail, matching every other branch in this file.
+    client
+      .from('ai_voice_sessions')
+      .insert({
+        user_id: userId,
+        role: 'customer',
+        order_id: null,
+        user_message: message.trim(),
+        ai_response: String(payload.response ?? ''),
+        tokens_used: 0,
+        intent: 'cart_help',
+      })
+      .then(() => {})
+    return json(payload)
+  }
+
+  const draft = await extractOrderIntent(message, history)
+
+  if (!draft || (draft.clarification_needed && !draft.restaurant_name && draft.items.length === 0 && !draft.wants_usual)) {
+    // Couldn't confidently extract an order — don't guess, don't mutate
+    // anything. Fall back to an honest text response.
+    return await logAndReturn({
+      response:
+        'I couldn\'t quite tell what you\'d like to order. Could you tell me the restaurant and item, like "jerk chicken from Island Grill"? You can also just search for it in the app.',
+      context: 'no_order',
+      intent: 'cart_help',
+      action: null,
+    })
+  }
+
+  const restaurantResolution = await resolveRestaurant(client, draft.restaurant_name, cartRestaurantId ?? requestRestaurantId)
+
+  if (restaurantResolution.status === 'not_found') {
+    return await logAndReturn({
+      response: draft.restaurant_name
+        ? `I couldn't find a restaurant called "${draft.restaurant_name}". Could you double-check the name, or tell me a different one?`
+        : 'Which restaurant would you like to order from?',
+      context: 'no_order', intent: 'cart_help', action: 'restaurant_clarification',
+    })
+  }
+  if (restaurantResolution.status === 'closed') {
+    return await logAndReturn({
+      response: `${restaurantResolution.name} is currently closed, so I can't add anything from there right now. Want me to find something similar that's open?`,
+      context: 'no_order', intent: 'cart_help', action: 'restaurant_clarification',
+    })
+  }
+  if (restaurantResolution.status === 'ambiguous') {
+    const names = restaurantResolution.candidates.map((c) => c.name).join(' and ')
+    return await logAndReturn({
+      response: `I found a couple of restaurants with similar names — ${names}. Which one did you mean?`,
+      context: 'no_order', intent: 'cart_help', action: 'restaurant_clarification',
+      restaurant_candidates: restaurantResolution.candidates,
+    })
+  }
+
+  const restaurant = restaurantResolution // { status: 'resolved', id, name }
+
+  // "My usual" — derive real recurring items from order history, never guess.
+  if (draft.wants_usual) {
+    const usual = await resolveUsualItems(client, userId, restaurant.id, draft.usual_day_of_week)
+    if (usual.length === 0) {
+      return await logAndReturn({
+        response: `I don't have enough order history at ${restaurant.name} yet to know your usual. What would you like to order?`,
+        context: 'no_order', intent: 'cart_help', action: 'item_clarification',
+      })
+    }
+    // Fold the usual item(s) in as extra item drafts, then resolve normally
+    // below so they still go through the same availability/price re-check.
+    draft.items = [
+      ...usual.map((u) => ({ name_as_said: u.itemName, quantity: 1, size_or_modifiers: null })),
+      ...draft.items,
+    ]
+  }
+
+  if (draft.items.length === 0) {
+    return await logAndReturn({
+      response: `What would you like from ${restaurant.name}?`,
+      context: 'no_order', intent: 'cart_help', action: 'item_clarification',
+    })
+  }
+
+  const itemResolutions = await resolveMenuItemsForRestaurant(client, restaurant.id, draft.items, draft.budget_cents)
+  const resolved = itemResolutions.filter((r) => r.status === 'resolved') as Extract<ItemResolution, { status: 'resolved' }>[]
+  const unresolved = itemResolutions.filter((r) => r.status !== 'resolved')
+
+  if (resolved.length === 0) {
+    const missed = unresolved.map((u) => (u as any).nameAsSaid).join(', ')
+    return await logAndReturn({
+      response: `I couldn't find ${missed} on ${restaurant.name}'s menu right now. Want to try a different item, or should I show you the full menu?`,
+      context: 'no_order', intent: 'cart_help', action: 'item_clarification',
+    })
+  }
+
+  if (unresolved.length > 0) {
+    // Partial success — tell the customer what worked so their next turn can
+    // clarify just the remainder. No cart mutation until everything resolves.
+    const resolvedNames = resolved.map((r) => r.name).join(', ')
+    const missedNames = unresolved.map((u) => (u as any).nameAsSaid).join(', ')
+    return await logAndReturn({
+      response: `I found ${resolvedNames} at ${restaurant.name}, but couldn't match "${missedNames}" — could you clarify that one? (I haven't added anything to your cart yet.)`,
+      context: 'no_order', intent: 'cart_help', action: 'item_clarification',
+    })
+  }
+
+  const itemCount = resolved.reduce((sum, r) => sum + r.quantity, 0)
+  return await logAndReturn({
+    response: `Got it — adding ${itemCount} item${itemCount === 1 ? '' : 's'} from ${restaurant.name} to your cart.`,
+    context: 'no_order',
+    intent: 'cart_help',
+    action: 'cart_ready',
+    cart_resolution: {
+      restaurant: { id: restaurant.id, name: restaurant.name },
+      items: resolved.map((r) => ({
+        menu_item_id: r.menuItemId,
+        quantity: r.quantity,
+        matched_side_ids: r.matchedSideIds,
+        matched_option_choice_ids: r.matchedOptionChoiceIds,
+      })),
+    },
+  })
 }
 
 async function getTopRestaurantsContext(
