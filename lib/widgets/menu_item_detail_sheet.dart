@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -69,7 +69,35 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
     }
     for (final group in item.optionGroups) {
       _selectedChoices[group.id] = {};
+      // Pre-select the obvious choice for a required single-select group so
+      // "Add Item" is live the moment the sheet opens. Without this the button
+      // starts disabled with no visible reason, and the customer has to hunt
+      // for which section is blocking them. Only ever auto-picks when there is
+      // no real decision to make (a single option) or the restaurant has
+      // explicitly marked a default; anything genuinely ambiguous is still
+      // left for the customer to choose.
+      if (group.isRequired && group.isSingleSelect) {
+        final choices = group.choices.where((c) => c.isAvailable).toList();
+        if (choices.isEmpty) continue;
+        if (choices.length == 1) {
+          _selectedChoices[group.id] = {choices.first.id};
+        } else {
+          // Cheapest free choice reads as the base/default configuration.
+          final free = choices.where((c) => c.price == 0).toList();
+          if (free.length == 1) _selectedChoices[group.id] = {free.first.id};
+        }
+      }
     }
+  }
+
+  /// Name of the first required group still awaiting a choice — drives the
+  /// hint under the action bar so a disabled button always explains itself.
+  String? get _missingRequirement {
+    for (final group in item.optionGroups) {
+      if (!group.isRequired) continue;
+      if ((_selectedChoices[group.id] ?? {}).isEmpty) return group.name;
+    }
+    return null;
   }
 
   @override
@@ -150,13 +178,52 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
         children: [
           // Drag handle
           Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 4),
+            margin: const EdgeInsets.only(top: 10, bottom: 2),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.outlineVariant,
               borderRadius: BorderRadius.circular(2),
             ),
+          ),
+
+          // Sticky title bar. The item name stays visible while the customer
+          // scrolls a long options list, and the explicit close button means
+          // dismissing doesn't depend on discovering the drag gesture.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+            child: Row(
+              children: [
+                const SizedBox(width: 34),
+                Expanded(
+                  child: Text(
+                    item.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
           // Scrollable content
           Flexible(
@@ -165,78 +232,90 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Item image — use same fallback URL as MenuItemCard
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                    child: Image.network(
-                      item.imageUrl?.isNotEmpty == true
-                          ? item.imageUrl!
-                          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500',
-                      height: 220,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        height: 220,
-                        width: double.infinity,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.fastfood_rounded,
-                          size: 64,
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Name + description
+                  // Compact summary row: thumbnail + description + price. The
+                  // name is already in the sticky header, so repeating it here
+                  // (and giving the photo a 220px hero) pushed the options —
+                  // the entire point of this sheet — below the fold.
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Text(
-                      item.name,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  if (item.description != null && item.description!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                      child: Text(
-                        item.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-
-                  // Price
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (item.discount != null && item.discount! > 0) ...[
-                          Text(
-                            '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              decoration: TextDecoration.lineThrough,
+                        if (item.imageUrl?.isNotEmpty == true)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                item.imageUrl!,
+                                height: 76,
+                                width: 76,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  height: 76,
+                                  width: 76,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.fastfood_rounded,
+                                    size: 28,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.priceColor,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (item.description != null &&
+                                  item.description!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    item.description!,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              Row(
+                                children: [
+                                  if (item.discount != null &&
+                                      item.discount! > 0) ...[
+                                    Text(
+                                      '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Text(
+                                    '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.priceColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -295,23 +374,31 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.edit_note_rounded,
                               size: 20,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Add special cooking instructions',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -327,16 +414,30 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'e.g. No onions, extra sauce...',
-                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          hintStyle: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                           filled: true,
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          fillColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderSide: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderSide: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -359,148 +460,192 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
             ),
             padding: EdgeInsets.fromLTRB(
               16,
-              12,
+              10,
               16,
               12 + MediaQuery.of(context).padding.bottom,
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Quantity selector
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: AppTheme.primaryColor,
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      InkWell(
-                        onTap: _quantity > 1
-                            ? () => setState(() => _quantity--)
-                            : null,
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(10),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Icon(
-                            Icons.remove,
-                            size: 20,
-                            color: _quantity > 1
-                                ? AppTheme.primaryColor
-                                : Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          '$_quantity',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => setState(() => _quantity++),
-                        borderRadius: const BorderRadius.horizontal(
-                          right: Radius.circular(10),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Icon(
-                            Icons.add,
-                            size: 20,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Add Item button
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: allRequiredSelected
-                        ? () {
-                            final instructions =
-                                _instructionsController.text.trim().isNotEmpty
-                                ? _instructionsController.text.trim()
-                                : null;
-                            Navigator.pop(
-                              context,
-                              MenuItemSheetResult(
-                                quantity: _quantity,
-                                selectedSides: chosenSides,
-                                selectedOptions: chosenOptions,
-                                specialInstructions: instructions,
-                              ),
-                            );
-                          }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      disabledBackgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
+                // A greyed-out button with no explanation is the single most
+                // common way this kind of sheet frustrates people. Name the
+                // section that's still blocking them instead.
+                if (_missingRequirement != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Subtotal',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            Text(
-                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Add Item',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 15,
+                          color: Theme.of(context).colorScheme.error,
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.shopping_cart_rounded, size: 18),
+                        Expanded(
+                          child: Text(
+                            'Choose your ${_missingRequirement!} to continue',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
+                Row(
+                  children: [
+                    // Quantity selector
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: AppTheme.primaryColor,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: _quantity > 1
+                                ? () => setState(() => _quantity--)
+                                : null,
+                            borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(10),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Icon(
+                                Icons.remove,
+                                size: 20,
+                                color: _quantity > 1
+                                    ? AppTheme.primaryColor
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              '$_quantity',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => setState(() => _quantity++),
+                            borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(10),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Icon(
+                                Icons.add,
+                                size: 20,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Add Item button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: allRequiredSelected
+                            ? () {
+                                final instructions =
+                                    _instructionsController.text
+                                        .trim()
+                                        .isNotEmpty
+                                    ? _instructionsController.text.trim()
+                                    : null;
+                                Navigator.pop(
+                                  context,
+                                  MenuItemSheetResult(
+                                    quantity: _quantity,
+                                    selectedSides: chosenSides,
+                                    selectedOptions: chosenOptions,
+                                    specialInstructions: instructions,
+                                  ),
+                                );
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          disabledBackgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant,
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Subtotal',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                Text(
+                                  '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Add Item',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.shopping_cart_rounded, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -536,8 +681,8 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
 
   Widget _buildSectionHeader(String title, bool isRequired) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      margin: const EdgeInsets.only(top: 14, bottom: 2),
       child: Row(
         children: [
           Flexible(
@@ -589,7 +734,9 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+        // Tight enough that a long options list (the reference's porridge has
+        // seven sides) reads as one scannable group instead of a scroll marathon.
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -627,7 +774,7 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                   border: Border.all(
                     color: isSelected
                         ? AppTheme.primaryColor
-                        : Colors.grey[400]!,
+                        : Theme.of(context).colorScheme.outline,
                     width: 2,
                   ),
                 ),
@@ -653,10 +800,12 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                   border: Border.all(
                     color: isSelected
                         ? AppTheme.primaryColor
-                        : Colors.grey[400]!,
+                        : Theme.of(context).colorScheme.outline,
                     width: 1.5,
                   ),
-                  color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : Colors.transparent,
                 ),
                 child: isSelected
                     ? const Icon(Icons.check, size: 14, color: Colors.white)
