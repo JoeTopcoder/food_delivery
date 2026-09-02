@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/menu_model.dart';
@@ -12,6 +12,7 @@ import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
 import '../../widgets/menu_item_detail_sheet.dart';
+import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'group_order_detail_screen.dart';
 
@@ -47,8 +48,12 @@ class _RestaurantDetailScreenState
   Future<void> _toggleFav() async {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null || _isFavLoading) return;
-    final isFavNow = _isFavOverride ??
-        (ref.read(isFavoriteProvider((userId, widget.restaurant.id))).valueOrNull ?? false);
+    final isFavNow =
+        _isFavOverride ??
+        (ref
+                .read(isFavoriteProvider((userId, widget.restaurant.id)))
+                .valueOrNull ??
+            false);
     setState(() {
       _isFavOverride = !isFavNow;
       _isFavLoading = true;
@@ -60,7 +65,11 @@ class _RestaurantDetailScreenState
       ref.invalidate(favoriteRestaurantsProvider(userId));
     } catch (_) {
       if (mounted) setState(() => _isFavOverride = isFavNow);
-      if (mounted) AppSnackbar.error(context, 'Could not update favourite. Please try again.');
+      if (mounted)
+        AppSnackbar.error(
+          context,
+          'Could not update favourite. Please try again.',
+        );
     } finally {
       if (mounted) setState(() => _isFavLoading = false);
     }
@@ -377,13 +386,16 @@ class _RestaurantDetailScreenState
                     final rating = widget.restaurant.rating != null
                         ? ' ⭐ ${widget.restaurant.rating}'
                         : '';
-                    SharePlus.instance.share(ShareParams(
-                      text: '🍽️ $name$rating\n'
-                          '$cuisine • Order on MealHub\n\n'
-                          'Use code NEWUSER for 30% off your first order!\n'
-                          'https://mealhub.app/restaurant/$id',
-                      subject: 'Check out $name on MealHub!',
-                    ));
+                    SharePlus.instance.share(
+                      ShareParams(
+                        text:
+                            '🍽️ $name$rating\n'
+                            '$cuisine • Order on MealHub\n\n'
+                            'Use code NEWUSER for 30% off your first order!\n'
+                            'https://mealhub.app/restaurant/$id',
+                        subject: 'Check out $name on MealHub!',
+                      ),
+                    );
                   },
                 ),
               ],
@@ -393,7 +405,9 @@ class _RestaurantDetailScreenState
         children: [
           SingleChildScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -482,7 +496,11 @@ class _RestaurantDetailScreenState
                                   ],
                                 ),
                                 padding: const EdgeInsets.all(8),
-                                child: const Icon(Icons.arrow_back, size: 24, color: Colors.black87),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  size: 24,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                     ),
@@ -494,8 +512,7 @@ class _RestaurantDetailScreenState
                           top: 40,
                           right: 68,
                           child: GestureDetector(
-                            onTap: () =>
-                                Navigator.pushNamed(context, '/cart'),
+                            onTap: () => Navigator.pushNamed(context, '/cart'),
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [
@@ -506,7 +523,8 @@ class _RestaurantDetailScreenState
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withValues(
-                                            alpha: 0.1),
+                                          alpha: 0.1,
+                                        ),
                                         blurRadius: 10,
                                       ),
                                     ],
@@ -598,7 +616,9 @@ class _RestaurantDetailScreenState
                               Icon(
                                 Icons.location_on_outlined,
                                 size: 16,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
@@ -669,7 +689,9 @@ class _RestaurantDetailScreenState
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
@@ -701,7 +723,9 @@ class _RestaurantDetailScreenState
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -773,19 +797,22 @@ class _RestaurantDetailScreenState
                         children: [
                           Flexible(
                             child: Text(
-                            widget.restaurant.cuisineType ?? 'Multi-cuisine',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              widget.restaurant.cuisineType ?? 'Multi-cuisine',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                             ),
-                          ),
                           ),
                           const SizedBox(width: 16),
                           Text(
-                            'Delivery: \$${widget.restaurant.deliveryFee ?? 0}',
+                            // toStringAsFixed(2), else a 6.0 fee renders as
+                            // "$6.0" — and hardcoding "$" ignores the app's
+                            // configured currency.
+                            'Delivery: ${AppConstants.currencySymbol}${(widget.restaurant.deliveryFee ?? 0).toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 13,
                               color: Theme.of(
@@ -874,39 +901,43 @@ class _RestaurantDetailScreenState
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Horizontal category tabs (underline indicator style)
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          height: 46,
-                          child: ListView.builder(
+                        // Menu section chips. Pills rather than underlines:
+                        // with many sections the selected one stays legible at
+                        // a glance, and the row reads as filters instead of a
+                        // second navigation bar competing with the app's tabs.
+                        SizedBox(
+                          height: 52,
+                          child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             itemCount: categories.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               final cat = categories[index];
                               final isActive = cat == activeCategory;
                               return GestureDetector(
                                 onTap: () =>
                                     setState(() => _selectedCategory = cat),
-                                child: Container(
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
+                                    horizontal: 18,
                                   ),
                                   decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: isActive
-                                            ? AppTheme.primaryColor
-                                            : Colors.transparent,
-                                        width: 2.5,
-                                      ),
+                                    color: isActive
+                                        ? AppTheme.primaryColor
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(
+                                      color: isActive
+                                          ? AppTheme.primaryColor
+                                          : Theme.of(context)
+                                                .colorScheme
+                                                .outlineVariant
+                                                .withValues(alpha: 0.5),
                                     ),
                                   ),
                                   child: Center(
@@ -914,12 +945,12 @@ class _RestaurantDetailScreenState
                                       cat,
                                       style: TextStyle(
                                         color: isActive
-                                            ? AppTheme.primaryColor
-                                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                                        fontWeight: isActive
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        fontSize: 14,
+                                            ? Colors.white
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13.5,
                                       ),
                                     ),
                                   ),
@@ -928,7 +959,37 @@ class _RestaurantDetailScreenState
                             },
                           ),
                         ),
-                        const SizedBox(height: 4),
+
+                        // Section heading — tells the customer which part of
+                        // the menu they're looking at once the chip row has
+                        // scrolled the active pill off screen.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                          child: Row(
+                            children: [
+                              Text(
+                                activeCategory,
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${activeItems.length} item${activeItems.length == 1 ? '' : 's'}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         // Items under selected category
                         ...activeItems.map(
                           (item) => MenuItemCard(
@@ -961,7 +1022,11 @@ class _RestaurantDetailScreenState
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: SafeArea(
@@ -1212,8 +1277,10 @@ class _RestaurantDetailScreenState
     if (cartNotifier.isDifferentRestaurant(item)) {
       final maxRestaurants =
           ref.read(maxRestaurantsPerOrderProvider).valueOrNull ?? 2;
-      final limitReached =
-          cartNotifier.wouldExceedRestaurantLimit(item, maxRestaurants);
+      final limitReached = cartNotifier.wouldExceedRestaurantLimit(
+        item,
+        maxRestaurants,
+      );
 
       final choice = await showDialog<String>(
         context: context,
@@ -1228,9 +1295,9 @@ class _RestaurantDetailScreenState
               Text(
                 limitReached
                     ? 'You can order from a maximum of $maxRestaurants restaurants '
-                        'at once. Clear your cart to add from this restaurant.'
+                          'at once. Clear your cart to add from this restaurant.'
                     : 'Your cart already has items from another restaurant. '
-                        'Add this item too, or clear & replace your cart.',
+                          'Add this item too, or clear & replace your cart.',
               ),
               const SizedBox(height: 16),
               SizedBox(
