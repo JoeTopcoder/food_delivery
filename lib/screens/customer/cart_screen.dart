@@ -11,7 +11,6 @@ import '../../providers/feature_providers.dart';
 import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
-import '../shared/ai_voice_screen.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -168,24 +167,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.mic_none_rounded),
-            tooltip: 'Add by voice',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AiVoiceScreen(
-                  role: 'customer',
-                  restaurantId: cartItems.isNotEmpty
-                      ? cartItems.first.menuItem.restaurantId
-                      : null,
-                  originFromCart: true,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: cartItems.isEmpty
           ? Center(
