@@ -13,9 +13,7 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../shared/chat_screen.dart';
 import '../../models/order_model.dart';
-import '../../models/menu_model.dart';
 import '../../core/utils/responsive.dart';
-import '../../widgets/restaurant_conflict_dialog.dart';
 
 /// Full-screen AI Voice Assistant.
 /// Works for all 3 roles: customer, driver, admin.
@@ -33,17 +31,11 @@ class AiVoiceScreen extends ConsumerStatefulWidget {
     this.orderId,
     this.restaurantId,
     this.activeOrders,
-    this.originFromCart = false,
   });
 
   final String role;
   final String? orderId;
   final String? restaurantId;
-
-  /// True when opened from the Cart screen's "Add by Voice" button — a
-  /// resolved order pops back to the existing Cart instead of pushing a new
-  /// one, and the cart's current restaurant is already known context.
-  final bool originFromCart;
 
   /// All non-terminal orders. When >1 and [orderId] is null, the user is
   /// prompted to pick one before the session starts.
@@ -137,16 +129,6 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
         // Dismiss the action so it doesn't repeat
         Future.microtask(
           () => ref.read(aiVoiceProvider.notifier).dismissAction(),
-        );
-      }
-
-      // Talk to Order: a real order was resolved — apply it to the real
-      // cart and take the customer straight there.
-      if (next.pendingCartResolution != null &&
-          next.pendingCartResolution != prev?.pendingCartResolution) {
-        _applyCartResolutionAndNavigate(
-          context,
-          next.pendingCartResolution!,
         );
       }
     });
@@ -374,108 +356,6 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.error(context, friendlyError(e));
-    }
-  }
-
-  /// Applies a Talk to Order resolution to the real cart (reusing the exact
-  /// same restaurant-conflict UX as the manual "add to cart" flow) and
-  /// navigates to the real Cart screen. Any item that went unavailable in
-  /// the brief window since resolution is skipped with a note, rather than
-  /// failing the whole order — the rest still makes it into the cart.
-  Future<void> _applyCartResolutionAndNavigate(
-    BuildContext context,
-    AiCartResolution resolution,
-  ) async {
-    ref.read(aiVoiceProvider.notifier).dismissCartResolution();
-    if (resolution.items.isEmpty) return;
-
-    final menuService = ref.read(menuServiceProvider);
-    final cartNotifier = ref.read(cartProvider.notifier);
-
-    // Re-fetch each real MenuItem right now — a second freshness check on
-    // top of the edge function's own DB read, and the only way to get the
-    // real sides/option objects the matched ids point to.
-    final resolvedItems = <MenuItem>[];
-    final quantities = <String, int>{};
-    final sideSelections = <String, List<MenuItemSide>>{};
-    final optionSelections = <String, Map<String, List<OptionChoice>>>{};
-    var skipped = 0;
-
-    for (final item in resolution.items) {
-      final menuItem = await menuService.getMenuItemByIdWithOptions(
-        item.menuItemId,
-      );
-      if (menuItem == null || !menuItem.isAvailable) {
-        skipped++;
-        continue;
-      }
-      resolvedItems.add(menuItem);
-      quantities[menuItem.id] = item.quantity;
-      sideSelections[menuItem.id] = (menuItem.sides ?? [])
-          .where((s) => item.matchedSideIds.contains(s.id))
-          .toList();
-      optionSelections[menuItem.id] = {
-        for (final group in menuItem.optionGroups)
-          group.id: group.choices
-              .where((c) => item.matchedOptionChoiceIds.contains(c.id))
-              .toList(),
-      }..removeWhere((_, choices) => choices.isEmpty);
-    }
-
-    if (resolvedItems.isEmpty) {
-      if (!context.mounted) return;
-      AppSnackbar.error(
-        context,
-        'Sorry, those items are no longer available.',
-      );
-      return;
-    }
-
-    // One restaurant-conflict check for the whole order (all resolved items
-    // share the same restaurant) — identical prompt to the manual flow.
-    final choice = await resolveRestaurantConflict(
-      context: context,
-      ref: ref,
-      item: resolvedItems.first,
-    );
-    if (choice == null) {
-      if (!context.mounted) return;
-      AppSnackbar.error(context, 'Cart unchanged — nothing was added.');
-      return;
-    }
-
-    for (var i = 0; i < resolvedItems.length; i++) {
-      final menuItem = resolvedItems[i];
-      final qty = quantities[menuItem.id] ?? 1;
-      final sides = sideSelections[menuItem.id];
-      final options = optionSelections[menuItem.id];
-      for (var q = 0; q < qty; q++) {
-        if (choice == RestaurantConflictChoice.replace && i == 0 && q == 0) {
-          cartNotifier.replaceWithItem(menuItem, sides: sides, options: options);
-        } else if (choice == RestaurantConflictChoice.addSecond) {
-          cartNotifier.addItemFromNewRestaurant(
-            menuItem,
-            sides: sides,
-            options: options,
-          );
-        } else {
-          cartNotifier.addItem(menuItem, sides: sides, options: options);
-        }
-      }
-    }
-
-    if (!context.mounted) return;
-    if (skipped > 0) {
-      AppSnackbar.error(
-        context,
-        '$skipped item${skipped == 1 ? '' : 's'} became unavailable, but the rest is in your cart.',
-      );
-    }
-
-    if (widget.originFromCart) {
-      Navigator.pop(context);
-    } else {
-      Navigator.pushNamed(context, '/cart');
     }
   }
 

@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/ai/ai_voice_service.dart';
 import '../services/ai/speech_service.dart';
-import 'user_provider.dart' show cartProvider;
 
 // ── Service providers ─────────────────────────────────────────────────────────
 
@@ -61,10 +60,6 @@ class AiVoiceState {
   /// Phase 3: non-null when a backend action was auto-executed (credit, fraud flag, etc.)
   final AiAction? pendingAction;
 
-  /// Talk to Order: non-null once the AI has fully resolved a real order —
-  /// the screen applies it to the real cart and navigates.
-  final AiCartResolution? pendingCartResolution;
-
   const AiVoiceState({
     this.status = AiVoiceStatus.idle,
     this.transcribedText = '',
@@ -80,7 +75,6 @@ class AiVoiceState {
     this.pendingDriverCallUserId,
     this.pendingDriverCallName,
     this.pendingAction,
-    this.pendingCartResolution,
   });
 
   AiVoiceState copyWith({
@@ -102,8 +96,6 @@ class AiVoiceState {
     bool clearDriverCall = false,
     AiAction? pendingAction,
     bool clearPendingAction = false,
-    AiCartResolution? pendingCartResolution,
-    bool clearCartResolution = false,
   }) => AiVoiceState(
     status: status ?? this.status,
     transcribedText: transcribedText ?? this.transcribedText,
@@ -127,9 +119,6 @@ class AiVoiceState {
     pendingAction: clearPendingAction
         ? null
         : (pendingAction ?? this.pendingAction),
-    pendingCartResolution: clearCartResolution
-        ? null
-        : (pendingCartResolution ?? this.pendingCartResolution),
   );
 }
 
@@ -145,26 +134,12 @@ class AiAction {
   const AiAction({required this.type, this.creditAmount, this.creditReason});
 }
 
-/// Talk to Order: a fully-resolved real order, ready to apply to the cart.
-class AiCartResolution {
-  final String restaurantId;
-  final String restaurantName;
-  final List<AiResolvedCartItem> items;
-
-  const AiCartResolution({
-    required this.restaurantId,
-    required this.restaurantName,
-    required this.items,
-  });
-}
-
 class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
-  AiVoiceNotifier(this._service, this._ref) : super(const AiVoiceState()) {
+  AiVoiceNotifier(this._service) : super(const AiVoiceState()) {
     _initSpeech();
   }
 
   final AiVoiceService _service;
-  final Ref _ref;
   final SpeechService _speech = SpeechService.instance;
 
   String? _currentRole;
@@ -305,9 +280,6 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
           )
           .toList();
 
-      final cart = _ref.read(cartProvider);
-      final cartRestaurantId = _ref.read(cartProvider.notifier).currentRestaurantId;
-
       final result = await _service.ask(
         message: text,
         role: _currentRole ?? 'customer',
@@ -315,8 +287,6 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
         restaurantId: _currentRestaurantId,
         language: lang,
         history: priorHistory,
-        cartRestaurantId: cartRestaurantId,
-        cartItemCount: cart.length,
       );
 
       _consecutiveErrors = 0;
@@ -356,16 +326,6 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
                 type: 'credit_issued',
                 creditAmount: result.creditAmount,
                 creditReason: result.creditReason,
-              )
-            : null,
-        pendingCartResolution:
-            result.action == 'cart_ready' &&
-                result.cartResolutionRestaurantId != null &&
-                result.cartResolutionItems != null
-            ? AiCartResolution(
-                restaurantId: result.cartResolutionRestaurantId!,
-                restaurantName: result.cartResolutionRestaurantName ?? '',
-                items: result.cartResolutionItems!,
               )
             : null,
       );
@@ -415,10 +375,6 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
   /// Phase 3: Called by UI after action banner is dismissed.
   void dismissAction() => state = state.copyWith(clearPendingAction: true);
 
-  /// Called by the screen once a resolved order has been applied to the cart.
-  void dismissCartResolution() =>
-      state = state.copyWith(clearCartResolution: true);
-
   String _greetingFor(String role) {
     switch (role) {
       case 'driver':
@@ -443,5 +399,5 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
 final aiVoiceProvider =
     StateNotifierProvider.autoDispose<AiVoiceNotifier, AiVoiceState>((ref) {
       final service = ref.watch(aiVoiceServiceProvider);
-      return AiVoiceNotifier(service, ref);
+      return AiVoiceNotifier(service);
     });

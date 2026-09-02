@@ -76,28 +76,6 @@ class MenuService {
     }
   }
 
-  // Get menu item by ID with its sides + option groups embedded — needed
-  // whenever a caller has to match modifier/size names against the item's
-  // real choices (e.g. Talk to Order resolving "extra gravy", "large").
-  Future<MenuItem?> getMenuItemByIdWithOptions(String menuItemId) async {
-    try {
-      final response = await _supabaseClient
-          .from(AppConstants.tableMenus)
-          .select(
-            '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
-          )
-          .eq('id', menuItemId)
-          .single();
-
-      final sidesJson =
-          response[AppConstants.tableMenuItemSides] as List? ?? [];
-      return MenuItem.fromJson({...response, 'sides': sidesJson});
-    } catch (e) {
-      AppLogger.error('Error fetching menu item with options: $e');
-      return null;
-    }
-  }
-
   // Search menu items
   Future<List<MenuItem>> searchMenuItems(String query) async {
     try {

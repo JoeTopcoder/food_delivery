@@ -26,34 +26,6 @@ class AiCancelOrder {
   );
 }
 
-/// One item Talk to Order resolved against the real menu — ids and
-/// quantity only, never a price or name invented by the model. The caller
-/// re-fetches the real [MenuItem] before mutating the cart.
-class AiResolvedCartItem {
-  final String menuItemId;
-  final int quantity;
-  final List<String> matchedSideIds;
-  final List<String> matchedOptionChoiceIds;
-
-  const AiResolvedCartItem({
-    required this.menuItemId,
-    required this.quantity,
-    this.matchedSideIds = const [],
-    this.matchedOptionChoiceIds = const [],
-  });
-
-  factory AiResolvedCartItem.fromJson(Map<String, dynamic> j) =>
-      AiResolvedCartItem(
-        menuItemId: j['menu_item_id'] as String,
-        quantity: (j['quantity'] as num?)?.toInt() ?? 1,
-        matchedSideIds:
-            (j['matched_side_ids'] as List?)?.cast<String>() ?? const [],
-        matchedOptionChoiceIds:
-            (j['matched_option_choice_ids'] as List?)?.cast<String>() ??
-            const [],
-      );
-}
-
 class AiVoiceResult {
   final String response;
   final bool hasOrderContext;
@@ -66,12 +38,6 @@ class AiVoiceResult {
   /// Non-null when AI wants to fire a driver call directly.
   final String? driverUserId;
   final String? driverName;
-
-  /// Non-null when Talk to Order successfully resolved a real order — the
-  /// app should apply these to the existing cart and navigate there.
-  final String? cartResolutionRestaurantId;
-  final String? cartResolutionRestaurantName;
-  final List<AiResolvedCartItem>? cartResolutionItems;
 
   // ── Phase 3 fields ───────────────────────────────────────────────────────
   /// Action type from edge function: credit_issued | fraud_flagged | null
@@ -106,9 +72,6 @@ class AiVoiceResult {
     this.sentiment = 'calm',
     this.isDelayed = false,
     this.delayMinutes = 0,
-    this.cartResolutionRestaurantId,
-    this.cartResolutionRestaurantName,
-    this.cartResolutionItems,
   });
 }
 
@@ -125,9 +88,6 @@ class AiVoiceService {
   /// [restaurantId] Optional — if provided, AI fetches menu & restaurant context.
   /// [language] BCP-47 language code, e.g. 'en', 'es'. Defaults to 'en'.
   /// [history]  Prior conversation turns for multi-turn memory.
-  /// [cartRestaurantId]/[cartItemCount] Current real-cart state, so Talk to
-  /// Order can resolve requests like "add two Cokes" without a restaurant
-  /// name and detect a restaurant-conflict before the app does.
   Future<AiVoiceResult> ask({
     required String message,
     required String role,
@@ -135,8 +95,6 @@ class AiVoiceService {
     String? restaurantId,
     String language = 'en',
     List<Map<String, String>> history = const [],
-    String? cartRestaurantId,
-    int? cartItemCount,
   }) async {
     try {
       // Force a session refresh so the SDK sends a fresh token.
@@ -159,8 +117,6 @@ class AiVoiceService {
           if (restaurantId != null) 'restaurant_id': restaurantId,
           'language': language,
           if (history.isNotEmpty) 'history': history,
-          if (cartRestaurantId != null) 'cart_restaurant_id': cartRestaurantId,
-          if (cartItemCount != null) 'cart_item_count': cartItemCount,
         },
         headers: {'Authorization': 'Bearer ${session.accessToken}'},
       );
@@ -198,27 +154,6 @@ class AiVoiceService {
         sentiment: data['sentiment'] as String? ?? 'calm',
         isDelayed: data['is_delayed'] as bool? ?? false,
         delayMinutes: (data['delay_minutes'] as num?)?.toInt() ?? 0,
-        cartResolutionRestaurantId: data['action'] == 'cart_ready'
-            ? (data['cart_resolution']
-                      as Map<String, dynamic>?)?['restaurant']?['id']
-                  as String?
-            : null,
-        cartResolutionRestaurantName: data['action'] == 'cart_ready'
-            ? (data['cart_resolution']
-                      as Map<String, dynamic>?)?['restaurant']?['name']
-                  as String?
-            : null,
-        cartResolutionItems: data['action'] == 'cart_ready'
-            ? ((data['cart_resolution']
-                          as Map<String, dynamic>?)?['items']
-                      as List?)
-                  ?.map(
-                    (i) => AiResolvedCartItem.fromJson(
-                      Map<String, dynamic>.from(i as Map),
-                    ),
-                  )
-                  .toList()
-            : null,
       );
     } on FunctionException catch (e) {
       AppLogger.error('AiVoiceService FunctionException: ${e.details}');

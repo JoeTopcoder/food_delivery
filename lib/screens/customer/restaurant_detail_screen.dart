@@ -12,7 +12,6 @@ import '../../providers/feature_providers.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/menu_item_card.dart';
 import '../../widgets/menu_item_detail_sheet.dart';
-import '../../widgets/restaurant_conflict_dialog.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'group_order_detail_screen.dart';
 
@@ -1210,29 +1209,76 @@ class _RestaurantDetailScreenState
 
     final cartNotifier = ref.read(cartProvider.notifier);
 
-    final choice = await resolveRestaurantConflict(
-      context: context,
-      ref: ref,
-      item: item,
-    );
-    if (choice == null) return; // cancelled
+    if (cartNotifier.isDifferentRestaurant(item)) {
+      final maxRestaurants =
+          ref.read(maxRestaurantsPerOrderProvider).valueOrNull ?? 2;
+      final limitReached =
+          cartNotifier.wouldExceedRestaurantLimit(item, maxRestaurants);
 
-    if (choice == RestaurantConflictChoice.replace) {
-      cartNotifier.replaceWithItem(
-        item,
-        sides: result.selectedSides,
-        options: result.selectedOptions,
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            limitReached ? 'Restaurant limit reached' : 'Add to order?',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                limitReached
+                    ? 'You can order from a maximum of $maxRestaurants restaurants '
+                        'at once. Clear your cart to add from this restaurant.'
+                    : 'Your cart already has items from another restaurant. '
+                        'Add this item too, or clear & replace your cart.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, 'replace'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade400,
+                    side: BorderSide(color: Colors.red.shade300),
+                  ),
+                  child: const Text('Clear & replace'),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: const Text('Cancel'),
+            ),
+            if (!limitReached)
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, 'add'),
+                child: const Text('Add to order'),
+              ),
+          ],
+        ),
       );
-    } else if (choice == RestaurantConflictChoice.addSecond) {
-      for (int i = 0; i < result.quantity; i++) {
-        cartNotifier.addItemFromNewRestaurant(
+
+      if (choice == null || choice == 'cancel') return;
+      if (choice == 'replace') {
+        cartNotifier.replaceWithItem(
           item,
           sides: result.selectedSides,
           options: result.selectedOptions,
         );
+      } else {
+        // Add to multi-restaurant cart
+        for (int i = 0; i < result.quantity; i++) {
+          cartNotifier.addItemFromNewRestaurant(
+            item,
+            sides: result.selectedSides,
+            options: result.selectedOptions,
+          );
+        }
       }
     } else {
-      // No conflict — same restaurant already in cart, or cart was empty.
+      // Add the item with the chosen quantity
       for (int i = 0; i < result.quantity; i++) {
         cartNotifier.addItem(
           item,
