@@ -101,7 +101,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   Future<void> _sendMoney() async {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
-    final wallet = ref.read(walletNotifierProvider).valueOrNull;
+    // Read the same live stream the wallet card renders. walletNotifierProvider
+    // only loads once in its constructor, so for anyone whose wallet row was
+    // created after app start it still reports 0 — which made the sheet show
+    // $0.00 and then reject every amount as "Insufficient wallet balance".
+    final wallet = ref.read(walletBalanceStreamProvider).valueOrNull;
 
     if (!mounted) return;
     await showModalBottomSheet(
@@ -2054,6 +2058,15 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
   final _noteCtrl = TextEditingController();
   bool _sending = false;
 
+  /// Live spendable balance, re-read from the same stream the wallet card
+  /// uses rather than trusting the value captured when this sheet opened —
+  /// that snapshot can be stale (or still 0, if the stream hadn't emitted
+  /// yet), which silently blocks perfectly valid transfers. Falls back to
+  /// the passed-in value only if the stream has no data at all.
+  double get _liveBalance =>
+      widget.ref.read(walletBalanceStreamProvider).valueOrNull?.balance ??
+      widget.currentBalance;
+
   @override
   void dispose() {
     _recipientCtrl.dispose();
@@ -2075,7 +2088,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
       AppSnackbar.error(context, 'Enter a valid amount');
       return;
     }
-    if (amount > widget.currentBalance) {
+    if (amount > _liveBalance) {
       AppSnackbar.error(context, 'Insufficient wallet balance');
       return;
     }
@@ -2109,22 +2122,33 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF1F2937) : Colors.white;
+    final media = MediaQuery.of(context);
 
     return Container(
+      // Cap the height and scroll the contents. This sheet is taller than a
+      // phone screen once the note field and disclaimer are in, so without a
+      // scroll view the Send Money button at the bottom is simply unreachable.
+      constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        // viewInsets.bottom clears the keyboard; padding.bottom clears the
+        // system navigation bar. Only the first was accounted for, so the
+        // Send Money button sat underneath the nav bar — visible, but taps
+        // there go to the system rather than the app, which reads as a
+        // completely dead button.
+        bottom: media.viewInsets.bottom + media.padding.bottom + 24,
         top: 8,
         left: 20,
         right: 20,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Drag handle
           Center(
             child: Container(
@@ -2161,7 +2185,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${AppConstants.currencySymbol}${widget.currentBalance.toStringAsFixed(2)}JMD',
+                  '${AppConstants.currencySymbol}${_liveBalance.toStringAsFixed(2)} ${AppConstants.currencyCode}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -2207,7 +2231,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
           // Amount field
           Text(
-            'Amount (JMD)',
+            'Amount (${AppConstants.currencyCode})',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).colorScheme.onSurface,
@@ -2313,7 +2337,8 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                     ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
