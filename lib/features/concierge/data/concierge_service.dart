@@ -119,4 +119,14 @@ class ConciergeService {
     }
     return const [];
   }
+
+  /// The draft's restaurant, needed to detect a cart conflict before applying.
+  Future<String?> draftRestaurantId(String draftId) async {
+    final row = await _client
+        .from('concierge_cart_drafts')
+        .select('restaurant_id')
+        .eq('id', draftId)
+        .maybeSingle();
+    return row?['restaurant_id'] as String?;
+  }
 }
