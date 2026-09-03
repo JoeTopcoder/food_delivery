@@ -2495,7 +2495,10 @@ class _ConciergeEntryCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        // Full width, but shorter: this sits between the banner carousel and
+        // the category row, so extra height here pushes browsing down the page
+        // for everyone who isn't using it.
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -2505,7 +2508,7 @@ class _ConciergeEntryCard extends StatelessWidget {
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: AppTheme.primaryColor.withValues(alpha: 0.35),
           ),
@@ -2513,19 +2516,19 @@ class _ConciergeEntryCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: const Icon(
                 Icons.restaurant_menu_rounded,
                 color: Colors.white,
-                size: 22,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2534,19 +2537,21 @@ class _ConciergeEntryCard extends StatelessWidget {
                   Text(
                     'Food Concierge',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       color: scheme.onSurface,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '"Spicy, no pork, under \$40, here by 7"',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       color: scheme.onSurfaceVariant,
+                      height: 1.15,
                     ),
                   ),
                 ],
@@ -2554,7 +2559,7 @@ class _ConciergeEntryCard extends StatelessWidget {
             ),
             Icon(
               Icons.arrow_forward_rounded,
-              size: 18,
+              size: 16,
               color: AppTheme.primaryColor,
             ),
           ],
