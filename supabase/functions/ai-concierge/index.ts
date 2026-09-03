@@ -69,75 +69,202 @@ interface Ctx {
   lng: number | null;
 }
 
+// Every query that can return a dish routes through these two helpers, so
+// "no pork" is implemented exactly once. Adding a new search path without them
+// would be the way a dietary constraint quietly stops being enforced.
+
+/** Applies exclusions/requirements to any menus query. */
+// deno-lint-ignore no-explicit-any
+function applyDietary(q: any, a: Record<string, unknown>) {
+  for (const ex of (a.dietary_exclusions as string[]) ?? []) {
+    const col = EXCLUSION_COLUMN[ex?.toLowerCase?.()];
+    // Explicitly FALSE only: NULL means "unclassified", and unknown can never
+    // satisfy an exclusion.
+    if (col) q = q.eq(col, false);
+  }
+  for (const req of (a.dietary_requirements as string[]) ?? []) {
+    const col = REQUIREMENT_COLUMN[req?.toLowerCase?.()];
+    if (col) q = q.eq(col, true);
+  }
+  return q;
+}
+
+/** Spice is the one flavour customers mean literally, so it gates rather than ranks. */
+function applyFlavorGate(
+  rows: Record<string, unknown>[],
+  a: Record<string, unknown>,
+) {
+  const flavors = ((a.flavor_tags as string[]) ?? []).map((f) =>
+    String(f).toLowerCase(),
+  );
+  let out = rows;
+  if (flavors.includes('spicy')) {
+    out = out.filter((i) => ((i.spice_rating as number) ?? -1) >= 2);
+  }
+  if (flavors.includes('mild')) {
+    out = out.filter((i) => ((i.spice_rating as number) ?? 99) <= 1);
+  }
+  return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // TOOLS
 // ════════════════════════════════════════════════════════════════════════════
 
-async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
-  const limit = Math.min(Number(a.limit) || 10, 20);
+/**
+ * Find dishes BY NAME across every restaurant.
+ *
+ * This is the tool a request like "jerk chicken and rice and peas" or "soup"
+ * actually needs, and its absence was the concierge's biggest accuracy bug: with
+ * only cuisine-based restaurant search available, the model guessed at cuisine
+ * labels, matched nothing, and told customers that dishes plainly present in the
+ * database did not exist (9 jerk dishes and 2 soups were all reported missing).
+ *
+ * Dietary filtering is applied here exactly as everywhere else — searching by
+ * name never becomes a way around an exclusion.
+ */
+async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
+  const raw = String(a.query ?? '').trim();
+  if (!raw) return { dishes: [] };
+  // Smaller default than the caller might ask for: every returned dish is
+  // tokens the model must read before it can answer, and latency the customer
+  // feels. Eight strong matches is plenty to choose one from.
+  const limit = Math.min(Number(a.limit) || 8, 15);
+
+  // Match on any significant word rather than the whole phrase: a customer
+  // asking for "jerk chicken and rice and peas" is describing a meal, not a
+  // single row, and an exact-phrase match finds nothing.
+  const stop = new Set([
+    'and', 'the', 'with', 'for', 'some', 'any', 'need', 'want', 'a', 'an',
+    'me', 'my', 'i', 'of', 'please', 'get', 'order', 'have',
+  ]);
+  const words = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !stop.has(w))
+    .slice(0, 6);
+  if (!words.length) return { dishes: [] };
+
+  const ors = words
+    .flatMap((w) => [`name.ilike.%${w}%`, `description.ilike.%${w}%`])
+    .join(',');
 
   let q = admin
-    .from('restaurants')
+    .from('menus')
     .select(
-      'id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, delivery_fee, minimum_order_amount',
+      'id, name, description, price, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified)',
     )
-    .eq('status', 'approved')
-    .limit(60);
+    .eq('is_available', true)
+    .eq('restaurants.is_verified', true)
+    .or(ors)
+    .limit(80);
 
-  if (typeof a.max_price_tier === 'number') {
-    q = q.lte('price_tier', a.max_price_tier);
-  }
-  if (Array.isArray(a.cuisines) && a.cuisines.length) {
-    q = q.in('cuisine_type', a.cuisines as string[]);
+  q = applyDietary(q, a);
+  if (typeof a.max_item_price_cents === 'number') {
+    q = q.lte('price', (a.max_item_price_cents as number) / 100);
   }
 
   const { data, error } = await q;
   if (error) throw error;
 
-  // A restaurant only qualifies if it can actually serve the request — i.e. it
-  // still has at least one AVAILABLE item that survives the dietary filter.
-  // Recommending a restaurant whose only spicy dish contains pork wastes the
-  // customer's time, so availability is proven here rather than assumed.
-  const exclusions = (a.dietary_exclusions as string[]) ?? [];
-  const requirements = (a.dietary_requirements as string[]) ?? [];
-  const flavors = (a.flavor_tags as string[]) ?? [];
+  let items = applyFlavorGate(data ?? [], a);
 
-  const results = [];
-  for (const r of data ?? []) {
-    const items = await filterMenuItemsRaw(r.id, {
-      dietary_exclusions: exclusions,
-      dietary_requirements: requirements,
-      flavor_tags: flavors,
-    });
-    if (items.length === 0) continue;
+  // Rank by how many of the customer's words the dish actually matches, so
+  // "jerk chicken" puts Jerk Chicken above Jerk Fish.
+  const scored = items.map((i) => {
+    const hay = `${i.name} ${i.description ?? ''}`.toLowerCase();
+    const hits = words.filter((w) => hay.includes(w)).length;
+    const nameHits = words.filter((w) =>
+      String(i.name).toLowerCase().includes(w),
+    ).length;
+    return { i, score: hits + nameHits * 2 };
+  });
+  scored.sort((x, y) => y.score - x.score);
 
-    results.push({
-      id: r.id,
+  return {
+    dishes: scored.slice(0, limit).map(({ i }) => {
+      const r = i.restaurants as Record<string, unknown>;
+      return {
+        ...shapeItem(i),
+        restaurant_id: r?.id,
+        restaurant_name: r?.name,
+        restaurant_is_open: r?.is_open === true,
+        eta_minutes: r?.estimated_delivery_time ?? 40,
+      };
+    }),
+  };
+}
+
+async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
+  const limit = Math.min(Number(a.limit) || 10, 20);
+
+  // Single grouped query rather than a per-restaurant probe. The previous
+  // version fetched every approved restaurant then ran one filtered menu query
+  // EACH — 38 sequential round trips per search, which was the bulk of the
+  // latency customers were feeling.
+  let q = admin
+    .from('menus')
+    .select(
+      'id, price, spice_rating, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, is_verified)',
+    )
+    .eq('is_available', true)
+    .eq('restaurants.is_verified', true)
+    .limit(1200);
+
+  q = applyDietary(q, a);
+  if (typeof a.max_price_tier === 'number') {
+    q = q.lte('restaurants.price_tier', a.max_price_tier);
+  }
+  if (Array.isArray(a.cuisines) && a.cuisines.length) {
+    q = q.in('restaurants.cuisine_type', a.cuisines as string[]);
+  }
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  const rows = applyFlavorGate(data ?? [], a);
+
+  // A restaurant only qualifies if it still has a matching available item, so
+  // we never recommend somewhere whose only spicy dish contains pork.
+  const byRestaurant = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const r = row.restaurants as Record<string, unknown>;
+    if (!r?.id) continue;
+    const id = r.id as string;
+    const existing = byRestaurant.get(id);
+    if (existing) {
+      existing.matching_item_count = (existing.matching_item_count as number) + 1;
+      continue;
+    }
+    byRestaurant.set(id, {
+      id,
       name: r.name,
       rating: r.rating,
       price_tier: r.price_tier,
       cuisines: r.cuisine_type ? [r.cuisine_type] : [],
       badges: [] as string[],
       is_open: r.is_open === true,
+      eta_minutes: r.estimated_delivery_time ?? 40,
       distance_km:
         ctx.lat != null && ctx.lng != null && r.latitude && r.longitude
-          ? haversineKm(ctx.lat, ctx.lng, r.latitude, r.longitude)
+          ? haversineKm(ctx.lat, ctx.lng, r.latitude as number, r.longitude as number)
           : null,
-      matching_item_count: items.length,
+      matching_item_count: 1,
     });
-    if (results.length >= limit) break;
   }
 
+  const results = [...byRestaurant.values()];
   // Open first, then closest, then best rated.
   results.sort((x, y) => {
     if (x.is_open !== y.is_open) return x.is_open ? -1 : 1;
-    if (x.distance_km != null && y.distance_km != null) {
-      return x.distance_km - y.distance_km;
-    }
-    return (y.rating ?? 0) - (x.rating ?? 0);
+    const dx = x.distance_km as number | null;
+    const dy = y.distance_km as number | null;
+    if (dx != null && dy != null) return dx - dy;
+    return ((y.rating as number) ?? 0) - ((x.rating as number) ?? 0);
   });
 
-  return { restaurants: results };
+  return { restaurants: results.slice(0, limit) };
 }
 
 function haversineKm(a: number, b: number, c: number, d: number) {
@@ -199,18 +326,7 @@ async function filterMenuItemsRaw(
     .eq('restaurant_id', restaurantId)
     .eq('is_available', true);
 
-  // Exclusions: the column must be explicitly FALSE. NULL ("unclassified") is
-  // rejected too — unknown is not the same as absent, and treating it as absent
-  // is precisely how a "no pork" order ends up containing pork.
-  for (const ex of (a.dietary_exclusions as string[]) ?? []) {
-    const col = EXCLUSION_COLUMN[ex?.toLowerCase?.()];
-    if (col) q = q.eq(col, false);
-  }
-
-  for (const req of (a.dietary_requirements as string[]) ?? []) {
-    const col = REQUIREMENT_COLUMN[req?.toLowerCase?.()];
-    if (col) q = q.eq(col, true);
-  }
+  q = applyDietary(q, a);
 
   if (typeof a.max_item_price_cents === 'number') {
     q = q.lte('price', (a.max_item_price_cents as number) / 100);
@@ -219,21 +335,7 @@ async function filterMenuItemsRaw(
   const { data, error } = await q.limit(120);
   if (error) throw error;
 
-  let items = data ?? [];
-
-  // Flavour is a ranking signal rather than a hard gate, except "spicy", which
-  // customers mean literally.
-  const flavors = ((a.flavor_tags as string[]) ?? []).map((f) =>
-    f.toLowerCase(),
-  );
-  if (flavors.includes('spicy')) {
-    items = items.filter((i) => (i.spice_rating ?? -1) >= 2);
-  }
-  if (flavors.includes('mild')) {
-    items = items.filter((i) => (i.spice_rating ?? 99) <= 1);
-  }
-
-  return items;
+  return applyFlavorGate(data ?? [], a);
 }
 
 async function getMenu(_ctx: Ctx, a: Record<string, unknown>) {
@@ -321,21 +423,44 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     return { cart_draft_id: null, line_items: [], validation_errors: validationErrors };
   }
 
+  // A stated budget is a constraint, not a hint. Storing it on the draft makes
+  // it enforceable at finalize time rather than depending on the model to
+  // check — which it demonstrably does not: asked for "$50" it assembled
+  // $65.45, and for "under $40" it assembled $49.46.
+  const budgetCents =
+    typeof a.budget_cents === 'number' && a.budget_cents > 0
+      ? Math.round(a.budget_cents)
+      : null;
+
   const { data: draft, error: insErr } = await admin
     .from('concierge_cart_drafts')
     .insert({
       user_id: ctx.userId,
       restaurant_id: restaurantId,
       line_items: lineItems,
-      constraints: a.constraints ?? null,
+      constraints: {
+        ...(a.constraints as Record<string, unknown> ?? {}),
+        budget_cents: budgetCents,
+      },
     })
     .select('id')
     .single();
   if (insErr) throw insErr;
 
+  // Price immediately and report the budget verdict in the same breath, so the
+  // model finds out it overspent while it can still fix it.
+  const priced = await priceCart(ctx, { cart_draft_id: draft.id });
+
   return {
     cart_draft_id: draft.id,
     line_items: lineItems,
+    total_cents: priced.total_cents,
+    budget_cents: budgetCents,
+    within_budget: priced.within_budget,
+    over_budget_by_cents: priced.over_budget_by_cents,
+    instruction: priced.within_budget === false
+      ? 'OVER BUDGET. Rebuild with fewer or cheaper items before finalizing — finalize_cart will refuse this cart.'
+      : undefined,
     validation_errors: validationErrors.length ? validationErrors : undefined,
   };
 }
@@ -402,6 +527,12 @@ async function priceCart(ctx: Ctx, a: Record<string, unknown>) {
 
   const total = Math.max(0, subtotal - discount) + fees + delivery + tip;
 
+  // Budget covers the TOTAL the customer pays, not just the food — someone with
+  // $40 does not have $40 plus fees.
+  const budget = (draft.constraints as Record<string, unknown> | null)
+    ?.budget_cents as number | null | undefined;
+  const withinBudget = typeof budget === 'number' ? total <= budget : null;
+
   return {
     subtotal_cents: subtotal,
     discount_cents: discount,
@@ -413,6 +544,10 @@ async function priceCart(ctx: Ctx, a: Record<string, unknown>) {
     currency: 'USD',
     minimum_order_cents: toCents(r?.minimum_order_amount),
     meets_minimum: subtotal >= toCents(r?.minimum_order_amount),
+    budget_cents: typeof budget === 'number' ? budget : undefined,
+    within_budget: withinBudget,
+    over_budget_by_cents:
+      withinBudget === false ? total - (budget as number) : undefined,
     repriced_items: stale.length ? stale : undefined,
   };
 }
@@ -521,6 +656,17 @@ async function applyPromotion(ctx: Ctx, a: Record<string, unknown>) {
 async function finalizeCart(ctx: Ctx, a: Record<string, unknown>) {
   const draft = await loadDraft(ctx, a.cart_draft_id as string);
   const priced = await priceCart(ctx, { cart_draft_id: draft.id });
+
+  // Hard stop. The customer named a number; handing them a cart above it is a
+  // failure of the request, not a detail to mention afterwards.
+  if (priced.within_budget === false) {
+    throw new Error(
+      `Total $${(priced.total_cents / 100).toFixed(2)} exceeds the customer's ` +
+        `budget of $${((priced.budget_cents as number) / 100).toFixed(2)}. ` +
+        'Rebuild the cart with fewer or cheaper items.',
+    );
+  }
+
   if (!priced.meets_minimum) {
     throw new Error(
       `Order is below this restaurant's minimum of $${(priced.minimum_order_cents / 100).toFixed(2)}`,
@@ -790,6 +936,7 @@ const TOOL_IMPLS: Record<
   string,
   (ctx: Ctx, a: Record<string, unknown>) => Promise<unknown>
 > = {
+  search_dishes: searchDishes,
   search_restaurants: searchRestaurants,
   check_delivery_eta: checkDeliveryEta,
   get_menu: getMenu,
@@ -803,6 +950,29 @@ const TOOL_IMPLS: Record<
 };
 
 const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'search_dishes',
+      description:
+        'FIND DISHES BY NAME across all restaurants. Use this FIRST whenever the customer names a food ("jerk chicken", "soup", "burger", "rice and peas"). Returns matching dishes with their restaurant. Do not try to guess a cuisine and use search_restaurants instead — that will miss dishes that exist.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The food the customer named, in their words.',
+          },
+          dietary_exclusions: { type: 'array', items: { type: 'string' } },
+          dietary_requirements: { type: 'array', items: { type: 'string' } },
+          flavor_tags: { type: 'array', items: { type: 'string' } },
+          max_item_price_cents: { type: 'integer' },
+          limit: { type: 'integer' },
+        },
+        required: ['query'],
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -887,6 +1057,11 @@ const TOOLS = [
               required: ['item_id', 'qty'],
             },
           },
+          budget_cents: {
+            type: 'integer',
+            description:
+              "The customer's stated budget in cents, if they gave one. ALWAYS pass this when a number was mentioned — it is enforced, and finalize_cart will refuse a cart above it.",
+          },
         },
         required: ['restaurant_id', 'items'],
       },
@@ -964,7 +1139,26 @@ const TOOLS = [
 const SYSTEM_PROMPT = `You are the 7Dash Food Concierge. You turn a natural request into a ready-to-confirm cart.
 
 WHAT YOU DO
-Understand the request, search real restaurants, compare them, verify delivery timing, choose dishes, build a cart draft, price it, apply the best eligible promotion, finalize, and hand off to checkout.
+Understand the request, find real dishes, choose the best ones, build a cart draft, price it, apply the best eligible promotion, finalize, and hand off to checkout.
+
+HOW TO SEARCH — THIS MATTERS
+- If the customer NAMES A FOOD ("jerk chicken", "soup", "burger", "rice and peas"), call search_dishes with their words. That searches every menu by name.
+- Only use search_restaurants when they describe a KIND of place rather than a dish ("somewhere cheap", "Italian", "something spicy") with no specific food named.
+- NEVER conclude a dish is unavailable after a single search. If search_dishes returns nothing, try the core noun alone ("jerk chicken" -> "jerk", "chicken"; "rice and peas" -> "rice"). Only say something is unavailable once a simplified search has also come back empty.
+- Do not guess cuisine labels. Guessing a cuisine and finding nothing is not evidence the food is missing.
+
+FINISH THE JOB — ONE ANSWER, NOT A MENU
+Hand back ONE built cart. Never present options 1/2/3 and ask which they prefer; they asked you to handle it, and a numbered list is you refusing to decide. Pick the single best match, build it, price it, finalize it, hand off.
+
+Only ask a question when a genuine blocker stops you: nothing viable within budget, or a stated dietary need cannot be met.
+
+If the customer gives no constraints ("anything", "something nice"), that is permission to choose. Pick something well rated and get on with it.
+
+BE FAST
+Do not browse. One search, pick from those results, build. Do not call get_menu or filter_menu_items to "double check" a dish that search_dishes already returned — it came from the same database and is already filtered. Do not call check_delivery_eta when the search result already carries eta_minutes. Every extra call is seconds the customer waits.
+
+WRITING THE REPLY
+2-3 sentences. Name the restaurant, the dishes, the total from price_cart, and the ETA. Do not write markdown links or URLs of any kind — the app renders its own checkout button.
 
 HARD RULES
 - You do not invent restaurants, dishes, prices, or ids. Everything comes from tool results.
@@ -975,8 +1169,8 @@ HARD RULES
 - If an item's dietary_source is "ai", the dietary flags were inferred from the menu description, not confirmed by the restaurant. When the customer's request was dietary (pork, shellfish, allergens), say so in one short sentence so they can check.
 - You never place an order or take payment. handoff_to_checkout is as far as you go; the customer confirms and pays there.
 
-BUDGET
-Treat a stated budget as covering the order total, not just the food. Use price_cart to check, and if you are over, adjust before finalizing.
+BUDGET — ENFORCED, NOT ADVISORY
+If the customer names any amount, pass it as budget_cents to build_cart_draft. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
 STYLE
 Be brief and concrete. Name the restaurant and the dishes, give the total once you have it from price_cart, and say when it should arrive. No filler.`;
