@@ -921,6 +921,63 @@ async function handleClassify(token: string, body: Record<string, unknown>) {
   });
 }
 
+/**
+ * Whisper transcription of a short recording. Audio arrives base64-encoded,
+ * is forwarded straight to OpenAI, and is never written to storage or logged —
+ * there is no reason to retain a customer's voice once it is text.
+ */
+async function handleTranscribe(body: Record<string, unknown>) {
+  const b64 = String(body.audio_base64 ?? '');
+  if (!b64) return json({ error: 'No audio supplied' }, 400);
+
+  // ~10MB of base64 is far more than a spoken order needs; anything larger is
+  // a bug or an abuse attempt rather than a request.
+  if (b64.length > 10_000_000) return json({ error: 'Recording too long' }, 413);
+
+  let bytes: Uint8Array;
+  try {
+    const bin = atob(b64);
+    bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  } catch {
+    return json({ error: 'Malformed audio' }, 400);
+  }
+
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: 'audio/m4a' }), 'audio.m4a');
+  form.append('model', 'whisper-1');
+  // The customer is ordering food, so nudge the decoder toward the domain and
+  // away from generic near-silence hallucinations.
+  form.append(
+    'prompt',
+    'A customer ordering food delivery, naming dishes, restaurants, a budget and dietary needs.',
+  );
+
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) {
+    return json({ error: `Transcription failed (${res.status})` }, 502);
+  }
+
+  const out = await res.json();
+  const text = String(out.text ?? '').trim();
+
+  // Whisper emits a small set of stock phrases when handed near-silence.
+  // Returning those as if the customer said them produces a baffling reply, so
+  // treat them as "nothing was captured".
+  const noise = new Set([
+    'you', 'thank you', 'thanks for watching!', 'thank you.', 'bye.', '.', 'the',
+  ]);
+  if (!text || noise.has(text.toLowerCase())) {
+    return json({ text: '', empty: true });
+  }
+
+  return json({ text });
+}
+
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -1195,6 +1252,15 @@ Deno.serve(async (req) => {
     const peek = await req.clone().json().catch(() => ({}));
     if (peek?.mode === 'classify') {
       return await handleClassify(token, peek);
+    }
+    // Voice input for the concierge. Transcription is server-side so the
+    // OpenAI key never ships in the client, and Whisper is the ONLY transcript
+    // — the on-device recogniser is not consulted at all. On this project's own
+    // test hardware its offline language pack is broken and listen() hangs
+    // indefinitely rather than erroring, which previously stalled the entire
+    // capture on an engine whose output wasn't trusted anyway.
+    if (peek?.mode === 'transcribe') {
+      return await handleTranscribe(peek);
     }
 
     let claims: { sub?: string; role?: string };

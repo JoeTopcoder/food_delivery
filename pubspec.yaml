@@ -40,6 +40,13 @@ dependencies:
   # State Management
   riverpod: ^2.6.1
   flutter_riverpod: ^2.6.1
+
+  # Concierge voice input. record MUST stay on 7.x: 5.x/6.x resolve a
+  # record_linux/record_platform_interface pair that don't actually implement
+  # each other's interface, which fails kernel compilation even for
+  # Android-only builds.
+  record: ^7.1.1
+  path_provider: ^2.1.6
   
   # Backend & Database
   supabase_flutter: ^2.1.0

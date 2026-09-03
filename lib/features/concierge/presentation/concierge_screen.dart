@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
@@ -50,6 +52,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
   void dispose() {
     _controller.dispose();
     _scroll.dispose();
+    _recorder.dispose();
     super.dispose();
   }
 
@@ -90,6 +93,91 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       if (mounted) setState(() => _busy = false);
       _scrollToEnd();
     }
+  }
+
+  // ── Voice input ───────────────────────────────────────────────────────────
+  // Press and hold to talk, release to send. The hold defines the recording
+  // window directly, which is far more reliable than silence detection — that
+  // cut clips short mid-sentence in earlier work on this app.
+  //
+  // No on-device speech recogniser is involved at all: Whisper transcribes the
+  // recording server-side. On this project's test hardware the on-device engine
+  // hangs indefinitely rather than erroring, and its output was never trusted
+  // anyway, so consulting it could only add failure modes.
+
+  final AudioRecorder _recorder = AudioRecorder();
+  String? _recordingPath;
+  bool _recording = false;
+  int? _activePointer;
+
+  Future<void> _startRecording(int pointer) async {
+    if (_busy || _recording) return;
+    _activePointer = pointer;
+    try {
+      if (!await _recorder.hasPermission()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Microphone access is needed to talk to the concierge.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      _recordingPath =
+          '${dir.path}/concierge_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: _recordingPath!,
+      );
+      if (mounted) setState(() => _recording = true);
+    } catch (e) {
+      _recordingPath = null;
+      if (mounted) setState(() => _recording = false);
+    }
+  }
+
+  /// Ends the hold. [send] is false when the gesture was cancelled (finger
+  /// dragged off), in which case the clip is discarded rather than sent.
+  Future<void> _stopRecording(int pointer, {required bool send}) async {
+    // Only the finger that began the hold may end it.
+    if (_activePointer != pointer) return;
+    _activePointer = null;
+    if (!_recording) return;
+    setState(() {
+      _recording = false;
+      if (send) _busy = true;
+    });
+
+    String? path;
+    try {
+      path = await _recorder.stop();
+    } catch (_) {
+      path = _recordingPath;
+    }
+    _recordingPath = null;
+
+    if (!send || path == null) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
+
+    final text = await ref.read(conciergeServiceProvider).transcribe(path);
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (text == null || text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Didn't catch that — hold and speak again."),
+        ),
+      );
+      return;
+    }
+    await _send(text);
   }
 
   /// Moves a concierge draft into the REAL cart, then opens it.
@@ -242,8 +330,9 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          "I'll find it, check it's available, build your cart and apply any "
-          'discount you qualify for. You confirm and pay as normal.',
+          "Type it, or hold the mic and say it. I'll find it, check it's "
+          'available, build your cart and apply any discount you qualify for. '
+          'You confirm and pay as normal.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -321,6 +410,46 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
             ),
           ),
           const SizedBox(width: 8),
+          // Raw Listener rather than GestureDetector: a tap recognizer cancels
+          // the whole gesture after a few pixels of movement (kTouchSlop),
+          // which happens on any real multi-second hold and makes the button
+          // feel broken. Nothing modal opens while the finger is down either —
+          // that disrupts the same pointer's own release event.
+          Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (e) => _startRecording(e.pointer),
+            onPointerUp: (e) => _stopRecording(e.pointer, send: true),
+            onPointerCancel: (e) => _stopRecording(e.pointer, send: false),
+            child: AnimatedScale(
+              scale: _recording ? 1.18 : 1.0,
+              duration: const Duration(milliseconds: 120),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _recording
+                      ? const Color(0xFFE0521A)
+                      : (_busy ? scheme.outlineVariant : AppTheme.primaryColor),
+                  boxShadow: _recording
+                      ? [
+                          BoxShadow(
+                            color: const Color(
+                              0xFFE0521A,
+                            ).withValues(alpha: 0.5),
+                            blurRadius: 16,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: const Icon(Icons.mic_rounded, color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Typing stays available — voice is an additional way in, not a
+          // replacement for the keyboard.
           CircleAvatar(
             radius: 23,
             backgroundColor: _busy

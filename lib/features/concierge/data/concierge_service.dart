@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../utils/app_logger.dart';
 
@@ -118,6 +121,42 @@ class ConciergeService {
           .toList();
     }
     return const [];
+  }
+
+  /// Transcribes a recording server-side via Whisper.
+  ///
+  /// Returns null when nothing usable was captured — including Whisper's stock
+  /// near-silence outputs ("You", "Thanks for watching!"), which the server
+  /// filters, since replying to those produces a baffling answer to something
+  /// the customer never said.
+  ///
+  /// The file is deleted as soon as it has been read, whatever the outcome: a
+  /// recording of someone's voice has no reason to outlive its transcription.
+  Future<String?> transcribe(String filePath) async {
+    final file = File(filePath);
+    try {
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.length < 2000) return null; // too short to contain speech
+
+      final res = await _client.functions.invoke(
+        'ai-concierge',
+        body: {'mode': 'transcribe', 'audio_base64': base64Encode(bytes)},
+      );
+      final data = res.data;
+      if (data is! Map || data['error'] != null) return null;
+      final text = (data['text'] ?? '').toString().trim();
+      return text.isEmpty ? null : text;
+    } catch (e) {
+      AppLogger.error('Transcription failed: $e');
+      return null;
+    } finally {
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {
+        // Best effort — a leftover temp file is not worth failing the turn over.
+      }
+    }
   }
 
   /// The draft's restaurant, needed to detect a cart conflict before applying.
