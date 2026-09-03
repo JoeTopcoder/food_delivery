@@ -45,7 +45,9 @@ class SmartOfferBanner extends ConsumerWidget {
           onTap: () => showCouponPopup(context, coupon, brain.userSegment),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // Slimmer: this sits between the search bar and the banner
+            // carousel, so its height pushes everything below it down the page.
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors:
@@ -54,19 +56,19 @@ class SmartOfferBanner extends ConsumerWidget {
                     ? [const Color(0xFFFF6B35), const Color(0xFFFF8C5A)]
                     : [const Color(0xFF6366F1), const Color(0xFF818CF8)],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
@@ -74,24 +76,27 @@ class SmartOfferBanner extends ConsumerWidget {
                   child: const Icon(
                     Icons.local_offer_rounded,
                     color: Colors.white,
-                    size: 16,
+                    size: 13,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${coupon.discountPercent}% OFF — Tap to view your code',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
+                      height: 1.1,
                     ),
                   ),
                 ),
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: Colors.white70,
-                  size: 14,
+                  size: 12,
                 ),
               ],
             ),
@@ -430,29 +435,34 @@ class SmartRecommendationSection extends StatelessWidget {
             ],
           ),
         ),
-        LayoutBuilder(builder: (context, _) {
-          final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(155.0, 195.0);
-          final listH = (cardW * 1.38).clamp(210.0, 265.0);
-          return SizedBox(
-            height: listH,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: recommendations.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final rec = recommendations[index];
-                return RepaintBoundary(
-                  child: _SmartRestaurantCard(
-                    rec: rec,
-                    cardWidth: cardW,
-                    onTap: () => onTap?.call(rec),
-                  ),
-                );
-              },
-            ),
-          );
-        }),
+        LayoutBuilder(
+          builder: (context, _) {
+            final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(
+              155.0,
+              195.0,
+            );
+            final listH = (cardW * 1.38).clamp(210.0, 265.0);
+            return SizedBox(
+              height: listH,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: recommendations.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final rec = recommendations[index];
+                  return RepaintBoundary(
+                    child: _SmartRestaurantCard(
+                      rec: rec,
+                      cardWidth: cardW,
+                      onTap: () => onTap?.call(rec),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 8),
       ],
     );
@@ -691,15 +701,17 @@ class SmartHomeSections extends ConsumerWidget {
               accentColor: const Color(0xFF6366F1),
               recommendations: brain.forYou,
               onTap: onRestaurantTap,
-              onSeeAll: brain.forYou.isEmpty ? null : () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SmartSectionViewAllScreen(
-                    title: 'Made for You',
-                    recommendations: brain.forYou,
-                  ),
-                ),
-              ),
+              onSeeAll: brain.forYou.isEmpty
+                  ? null
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SmartSectionViewAllScreen(
+                          title: 'Made for You',
+                          recommendations: brain.forYou,
+                        ),
+                      ),
+                    ),
             ),
 
             // "Because you love [cuisine]" — behavior-based
@@ -786,25 +798,30 @@ class _SmartSectionsLoading extends StatelessWidget {
             ),
           ),
         ),
-        LayoutBuilder(builder: (context, _) {
-          final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(155.0, 195.0);
-          return SizedBox(
-            height: (cardW * 1.38).clamp(210.0, 265.0),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 3,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (_, _) => Container(
-                width: cardW,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
+        LayoutBuilder(
+          builder: (context, _) {
+            final cardW = (MediaQuery.of(context).size.width * 0.46).clamp(
+              155.0,
+              195.0,
+            );
+            return SizedBox(
+              height: (cardW * 1.38).clamp(210.0, 265.0),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 3,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (_, _) => Container(
+                  width: cardW,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          },
+        ),
       ],
     );
   }
@@ -954,8 +971,11 @@ class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.notifications_active_rounded,
-                      color: Colors.white, size: 16),
+                  Icon(
+                    Icons.notifications_active_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   SizedBox(width: 5),
                   Text(
                     'OFFER',
@@ -1042,7 +1062,9 @@ class _SmartSectionViewAllScreenState
   Future<void> _load() async {
     final service = ref.read(restaurantServiceProvider);
     final results = await Future.wait(
-      widget.recommendations.map((r) => service.getRestaurantById(r.restaurantId)),
+      widget.recommendations.map(
+        (r) => service.getRestaurantById(r.restaurantId),
+      ),
     );
     if (mounted) {
       setState(() {
@@ -1065,25 +1087,25 @@ class _SmartSectionViewAllScreenState
       body: _restaurants == null
           ? const Center(child: CircularProgressIndicator())
           : _restaurants!.isEmpty
-              ? const Center(child: Text('Nothing to show right now.'))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                  itemCount: _restaurants!.length,
-                  itemBuilder: (context, i) {
-                    final r = _restaurants![i];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: RestaurantCard(
-                        restaurant: r,
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/restaurant-detail',
-                          arguments: r,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          ? const Center(child: Text('Nothing to show right now.'))
+          : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              itemCount: _restaurants!.length,
+              itemBuilder: (context, i) {
+                final r = _restaurants![i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: RestaurantCard(
+                    restaurant: r,
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/restaurant-detail',
+                      arguments: r,
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
