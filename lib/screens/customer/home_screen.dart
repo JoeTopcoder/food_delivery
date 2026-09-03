@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -52,7 +52,11 @@ const double _kRadiusMd = 14;
 const double _kRadiusLg = 18;
 const double _kRadiusPill = 999;
 final List<BoxShadow> _kSoftShadow = [
-  BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4)),
+  BoxShadow(
+    color: Colors.black.withValues(alpha: 0.06),
+    blurRadius: 14,
+    offset: const Offset(0, 4),
+  ),
 ];
 LinearGradient _kBrandGradient() => LinearGradient(
   colors: [AppTheme.primaryColor, const Color(0xFFFF8C42)],
@@ -534,7 +538,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     // Birthday banner replaces the regular promo banners in that slot —
     // they're mutually exclusive, not stacked. Once dismissed (or if there's
     // no birthday match), the regular banners take over the slot again.
-    final showBirthdayBanner = !_birthdayBannerDismissed &&
+    final showBirthdayBanner =
+        !_birthdayBannerDismissed &&
         currentUser?.birthday != null &&
         isBirthdayToday(currentUser!.birthday!);
 
@@ -593,7 +598,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
                 Consumer(
                   builder: (context, ref, _) {
-                    final isPeak = ref.watch(isPeakHourProvider).valueOrNull ??
+                    final isPeak =
+                        ref.watch(isPeakHourProvider).valueOrNull ??
                         AppConstants.isPeakHour;
                     if (!isPeak) return const SizedBox.shrink();
                     return Row(
@@ -696,7 +702,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             child: GestureDetector(
               onTap: () => Navigator.pushNamed(context, '/address-book'),
               child: Container(
-                margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                margin: EdgeInsets.symmetric(
+                  horizontal: Responsive.horizontalPadding(context),
+                ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 9,
@@ -704,7 +712,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(_kRadiusMd),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.12)),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -770,7 +780,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
                 child: _BirthdayBanner(
                   firstName: (currentUser.name ?? 'there').split(' ').first,
-                  onDismiss: () => setState(() => _birthdayBannerDismissed = true),
+                  onDismiss: () =>
+                      setState(() => _birthdayBannerDismissed = true),
                 ),
               ),
             ),
@@ -778,7 +789,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           // Search bar + Taxi button
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.horizontalPadding(context),
+              ),
               child: search_bar.CustomSearchBar(
                 hintText: 'Search for restaurant or food',
                 onChanged: (q) {
@@ -814,6 +827,24 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 6)),
             ],
 
+            // Food Concierge entry point. Sits directly under the banners,
+            // above browsing, because it is an alternative to browsing: a
+            // customer who already knows what they want shouldn't have to
+            // navigate categories to get it.
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  Responsive.horizontalPadding(context),
+                  6,
+                  Responsive.horizontalPadding(context),
+                  10,
+                ),
+                child: _ConciergeEntryCard(
+                  onTap: () => Navigator.of(context).pushNamed('/concierge'),
+                ),
+              ),
+            ),
+
             // Browse by Category (right below banners)
             SliverToBoxAdapter(
               child: Padding(
@@ -845,7 +876,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           : _fallbackCategories;
                       return ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
                         addAutomaticKeepAlives: false,
                         addRepaintBoundaries: false,
                         padding: EdgeInsets.symmetric(
@@ -920,7 +953,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.horizontalPadding(context),
+                    ),
                     child: Text(
                       'More Services',
                       style: TextStyle(
@@ -934,7 +969,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.horizontalPadding(context),
+                    ),
                     child: Row(
                       children: [
                         _ServiceCard(
@@ -942,7 +979,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           label: 'Book a Ride',
                           color: const Color(0xFF1E40AF),
                           enabled: ref.watch(serviceEnabledProvider('rides')),
-                          onTap: () => Navigator.pushNamed(context, '/ride-home'),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/ride-home'),
                         ),
                         const SizedBox(width: 12),
                         _ServiceCard(
@@ -952,7 +990,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           enabled: ref.watch(serviceEnabledProvider('grocery')),
                           onTap: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const GroceryScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const GroceryScreen(),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -960,8 +1000,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           icon: Icons.local_car_wash,
                           label: 'Car Services',
                           color: const Color(0xFF7C3AED),
-                          enabled: ref.watch(serviceEnabledProvider('car_service')),
-                          onTap: () => Navigator.pushNamed(context, '/car-services'),
+                          enabled: ref.watch(
+                            serviceEnabledProvider('car_service'),
+                          ),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/car-services'),
                         ),
                         const SizedBox(width: 12),
                         _ServiceCard(
@@ -1044,7 +1087,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               data: (restaurants) {
                 final display = restaurants.take(15).toList();
                 return SliverPadding(
-                  padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.horizontalPadding(context),
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final r = display[index];
@@ -1111,10 +1156,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+            vertical: 8,
+          ),
           child: Text(
             'Search Results',
-            style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: Responsive.headingMedium(context),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -1126,7 +1177,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             );
           }
           return SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final r = restaurants[index];
@@ -1220,7 +1273,10 @@ class _HorizontalRestaurantRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+            vertical: 8,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -1264,9 +1320,13 @@ class _HorizontalRestaurantRow extends StatelessWidget {
           height: 230,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             addAutomaticKeepAlives: false,
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             itemCount: restaurants.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
@@ -1311,7 +1371,12 @@ class _RestaurantSectionViewAllScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView.builder(
-        padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 32),
+        padding: EdgeInsets.fromLTRB(
+          Responsive.horizontalPadding(context),
+          12,
+          Responsive.horizontalPadding(context),
+          32,
+        ),
         itemCount: restaurants.length,
         itemBuilder: (context, i) {
           final r = restaurants[i];
@@ -1356,118 +1421,125 @@ class _CompactRestaurantCard extends StatelessWidget {
               ? (MediaQuery.of(context).size.width * 0.48).clamp(160.0, 200.0)
               : constraints.maxWidth;
           return Container(
-        width: cardW,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(_kRadiusLg),
-          boxShadow: _kSoftShadow,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(_kRadiusLg),
-              ),
-              child:
-                  restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      restaurant.imageUrl!,
-                      height: 110,
-                      width: cardW,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                      loadingBuilder: (_, child, progress) =>
-                          progress == null ? child : _placeholder(),
-                    )
-                  : _placeholder(),
+            width: cardW,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(_kRadiusLg),
+              boxShadow: _kSoftShadow,
             ),
-            Padding(
-              padding: EdgeInsets.all(Responsive.cardPadding(context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    restaurant.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: Responsive.bodyText(context),
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(_kRadiusLg),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    restaurant.cuisineType ?? 'Multi-cuisine',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
+                  child:
+                      restaurant.imageUrl != null &&
+                          restaurant.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          restaurant.imageUrl!,
+                          height: 110,
+                          width: cardW,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : _placeholder(),
+                        )
+                      : _placeholder(),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
+                      Text(
+                        restaurant.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: Responsive.bodyText(context),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(_kRadiusPill),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        restaurant.cuisineType ?? 'Multi-cuisine',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: Colors.amber,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
                             ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${restaurant.rating ?? '-'}',
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(_kRadiusPill),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: Colors.amber,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${restaurant.rating ?? '-'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 13,
+                            color: Colors.grey[700],
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              '${restaurant.estimatedDeliveryTime ?? 30} min',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 11,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 13,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          '${restaurant.estimatedDeliveryTime ?? 30} min',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );  // Container
-        },  // LayoutBuilder builder
-      ),  // LayoutBuilder
-    );  // GestureDetector
+          ); // Container
+        }, // LayoutBuilder builder
+      ), // LayoutBuilder
+    ); // GestureDetector
   }
 
   Widget _placeholder() => Container(
@@ -1585,7 +1657,9 @@ class _DynamicBannerCarouselState
                       decoration: BoxDecoration(
                         color: _currentPage == i
                             ? AppTheme.primaryColor
-                            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
+                            : Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(_kRadiusPill),
                       ),
                     ),
@@ -1655,7 +1729,9 @@ class _DynamicBannerCarouselState
         }
       },
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+        margin: EdgeInsets.symmetric(
+          horizontal: Responsive.horizontalPadding(context),
+        ),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_kRadiusLg),
@@ -1975,7 +2051,9 @@ class _AdPopupDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(_kRadiusMd),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.35,
+                            ),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           ),
@@ -2096,8 +2174,10 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardWidth =
-        (MediaQuery.of(context).size.width * 0.38).clamp(130.0, 160.0);
+    final cardWidth = (MediaQuery.of(context).size.width * 0.38).clamp(
+      130.0,
+      160.0,
+    );
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Stack(
@@ -2228,9 +2308,7 @@ class _CategoryImage extends StatelessWidget {
                 child: Text(emoji, style: const TextStyle(fontSize: 22)),
               ),
             )
-          : Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
-            ),
+          : Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
     );
   }
 }
@@ -2330,7 +2408,11 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                   onTap: widget.onDismiss,
                   child: const Padding(
                     padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -2348,7 +2430,10 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                         children: [
                           const Text(
                             'Your birthday reward',
-                            style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                            ),
                           ),
                           Text(
                             amount != null
@@ -2364,7 +2449,10 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(999),
@@ -2382,6 +2470,92 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                   ],
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Home-screen entry to the Food Concierge.
+///
+/// Phrased as an invitation to state a need ("spicy, no pork, under $40")
+/// rather than as a generic "AI" button, because the whole value is that the
+/// customer can express constraints browsing cannot capture.
+class _ConciergeEntryCard extends StatelessWidget {
+  const _ConciergeEntryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primaryColor.withValues(alpha: 0.18),
+              AppTheme.primaryColor.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Food Concierge',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '"Spicy, no pork, under \$40, here by 7"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: 18,
+              color: AppTheme.primaryColor,
             ),
           ],
         ),
