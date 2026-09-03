@@ -124,6 +124,11 @@ interface Ctx {
   /// previously had no concept of the wallet at all and built a $74 cart
   /// against a $38 balance.
   walletCents?: number | null;
+  /// What is in the customer's REAL cart right now, sent by the client (the
+  /// cart is client-side, so the server cannot read it). Lets a follow-up
+  /// "add a drink" extend the existing order instead of starting a new one.
+  cartItems?: { item_id: string; qty: number }[];
+  cartRestaurantId?: string | null;
 }
 
 // Every query that can return a dish routes through these two helpers, so
@@ -459,8 +464,26 @@ function shapeItem(i: Record<string, unknown>) {
 
 async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   const restaurantId = a.restaurant_id as string;
-  const requested = (a.items as Array<Record<string, unknown>>) ?? [];
+  let requested = (a.items as Array<Record<string, unknown>>) ?? [];
   if (!requested.length) throw new Error('No items supplied');
+
+  // A follow-up ("add a drink") should EXTEND the current order, not replace
+  // it. When the model is adding to an existing cart from the same restaurant,
+  // fold those items in so the draft represents the complete intended order —
+  // which is also what lets the quoted total reflect everything, not just the
+  // new item.
+  if (a.add_to_existing_cart === true && (ctx.cartItems?.length ?? 0) > 0) {
+    const merged = new Map<string, number>();
+    for (const c of ctx.cartItems!) {
+      merged.set(c.item_id, (merged.get(c.item_id) ?? 0) + c.qty);
+    }
+    for (const r of requested) {
+      const id = r.item_id as string;
+      const qty = Math.max(1, Math.min(Number(r.qty) || 1, 20));
+      merged.set(id, (merged.get(id) ?? 0) + qty);
+    }
+    requested = [...merged.entries()].map(([item_id, qty]) => ({ item_id, qty }));
+  }
 
   // Re-read every item from the database. The model supplies ids and
   // quantities only; names and prices come from the menu, never from the model.
@@ -1270,6 +1293,11 @@ const TOOLS = [
             description:
               "The customer's stated budget in cents, if they gave one. Enforced — an over-budget cart is refused.",
           },
+          add_to_existing_cart: {
+            type: 'boolean',
+            description:
+              "Set true when the customer is ADDING to the order already in their cart ('also add a drink', 'add fries to that'). Pass ONLY the new items; what is already in the cart is folded in for you and the total covers everything. Set false (or omit) when they want a fresh order instead.",
+          },
         },
         required: ['restaurant_id', 'items'],
       },
@@ -1510,6 +1538,9 @@ Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have
 
 When they do name an amount, pass it as budget_cents.
 
+ADDING TO AN EXISTING ORDER
+If the customer already has items in their cart and asks for something MORE ("also add a Coke", "add fries"), that is an addition, not a new order. Call place_in_cart with add_to_existing_cart:true and only the new items — the existing ones are folded in for you and the total will cover everything. Never start a fresh order that silently drops what they already chose.
+
 THE WALLET IS A BUDGET. If the customer refers to paying with their wallet or balance — "use my wallet", "order something with my balance", "whatever my wallet covers" — their wallet balance IS the budget: pass it as budget_cents. It is given to you above; never guess or assume it. If their balance cannot cover anything available, say so plainly with the balance and the cheapest option, rather than building a cart they cannot pay for. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
 STYLE
@@ -1572,22 +1603,56 @@ Deno.serve(async (req) => {
       .eq('user_id', claims.sub)
       .maybeSingle();
 
+    const body = await req.json();
+
+    const rawCart = Array.isArray(body.cart_items) ? body.cart_items : [];
     ctx = {
       userId: claims.sub,
       lat: profile?.latitude ?? null,
       lng: profile?.longitude ?? null,
       walletCents: wallet?.balance != null ? toCents(wallet.balance) : null,
+      cartItems: rawCart
+        .filter((c: Record<string, unknown>) => typeof c?.item_id === 'string')
+        .map((c: Record<string, unknown>) => ({
+          item_id: c.item_id as string,
+          qty: Math.max(1, Math.min(Number(c.qty) || 1, 20)),
+        })),
+      cartRestaurantId: body.cart_restaurant_id ?? null,
     };
-
-    const body = await req.json();
     // Facts the model must not invent, supplied fresh each request.
     const walletLine = ctx.walletCents != null
       ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents).`
       : 'The customer has no wallet balance.';
 
+    let cartLine = 'The customer cart is currently empty.';
+    if ((ctx.cartItems?.length ?? 0) > 0) {
+      const { data: cartRows } = await admin
+        .from('menus')
+        .select('id, name, restaurant_id, restaurants(name)')
+        .in('id', ctx.cartItems!.map((c) => c.item_id));
+      const nameById = new Map((cartRows ?? []).map((r) => [r.id, r]));
+      const described = ctx.cartItems!
+        .map((c) => {
+          const row = nameById.get(c.item_id);
+          return row ? `${c.qty} x ${row.name}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+      const restName =
+        (cartRows?.[0]?.restaurants as Record<string, unknown> | undefined)?.name;
+      if (described) {
+        cartLine =
+          `The customer ALREADY has these in their cart` +
+          (restName ? ` from ${restName}` : '') +
+          `: ${described}. If they ask to add something, call place_in_cart ` +
+          `with add_to_existing_cart:true and ONLY the new items.`;
+      }
+    }
+
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'system', content: walletLine },
+      { role: 'system', content: cartLine },
       ...(Array.isArray(body.history) ? body.history : []),
       { role: 'user', content: String(body.message ?? '') },
     ];
