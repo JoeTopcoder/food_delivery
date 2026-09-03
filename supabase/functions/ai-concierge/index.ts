@@ -40,6 +40,45 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // arithmetic path that a customer will be charged from.
 const toCents = (n: number | null | undefined) => Math.round((n ?? 0) * 100);
 
+/**
+ * Fee inputs, read from the same app_config rows the Flutter client loads, so
+ * an admin changing a fee moves both screens together instead of silently
+ * desynchronising the concierge's quote from the cart's charge.
+ *
+ * The literals mirror AppConstants' own compile-time defaults and are used only
+ * when a row is absent.
+ */
+let _feeCache: {
+  stripeRate: number;
+  stripeFixedCents: number;
+  platformFlatCents: number;
+  defaultDeliveryCents: number;
+} | null = null;
+
+async function getFeeConfig() {
+  if (_feeCache) return _feeCache;
+  const { data } = await admin
+    .from('app_config')
+    .select('key, value')
+    .in('key', ['default_delivery_fee']);
+
+  const rows = new Map((data ?? []).map((r) => [r.key, r.value]));
+  const num = (k: string, fallback: number) => {
+    const v = Number(rows.get(k));
+    return Number.isFinite(v) ? v : fallback;
+  };
+
+  _feeCache = {
+    // Fixed in AppConstants rather than configurable: they are Stripe's own
+    // pricing plus the platform's flat margin.
+    stripeRate: 0.029,
+    stripeFixedCents: 30,
+    platformFlatCents: 100,
+    defaultDeliveryCents: toCents(num('default_delivery_fee', 5.0)),
+  };
+  return _feeCache;
+}
+
 // ── dietary mapping ─────────────────────────────────────────────────────────
 // Maps a contract exclusion onto the column that answers it. Anything not in
 // this map is not a filter we can honour, and is reported as unsupported rather
@@ -510,8 +549,26 @@ async function priceCart(ctx: Ctx, a: Record<string, unknown>) {
     .eq('id', draft.restaurant_id)
     .single();
 
-  const delivery = toCents(r?.delivery_fee);
-  const fees = toCents(r?.service_fee);
+  // Fees MUST match what the cart screen shows, or the concierge quotes one
+  // price and the customer is charged another. This previously used the
+  // restaurant's own delivery_fee/service_fee columns, which are not the
+  // customer-facing fees at all — quoting $3.00 + $1.50 where the cart
+  // charged $5.00 + $1.62.
+  const cfg = await getFeeConfig();
+
+  // Customer-facing platform service fee, identical to
+  // AppConstants.calculateServiceFee: (subtotal x 2.9%) + $0.30 + $1.00.
+  const fees = Math.round(
+    subtotal * cfg.stripeRate + cfg.stripeFixedCents + cfg.platformFlatCents,
+  );
+
+  // The cart derives delivery from distance when it has the customer's
+  // coordinates, and otherwise falls back to default_delivery_fee. That ladder
+  // (peak rates, surge, per-mile, min/max) lives client-side; duplicating it
+  // here would create a second pricing implementation and re-introduce exactly
+  // this class of drift. The concierge therefore quotes the configured default,
+  // which is what the cart itself uses whenever no address is saved.
+  const delivery = cfg.defaultDeliveryCents;
   const tip = Math.max(0, Number(a.tip_cents) || 0);
 
   // Discount is recomputed here from the stored code so it can never be
