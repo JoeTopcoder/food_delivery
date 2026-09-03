@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
+import '../../../models/menu_model.dart';
+import '../../../providers/user_provider.dart';
+import '../../../services/food/menu_service.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
 import '../data/concierge_service.dart';
@@ -89,6 +92,86 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
     }
   }
 
+  /// Moves a concierge draft into the REAL cart, then opens it.
+  ///
+  /// This step is the whole point of the feature and was missing: the concierge
+  /// built and priced a server-side draft, then navigated to /cart — which
+  /// still held whatever was there before. The customer was shown one order and
+  /// handed a different one.
+  ///
+  /// Everything goes through the existing CartNotifier rather than any parallel
+  /// path, so merging, restaurant rules and persistence behave exactly as they
+  /// do for a manual add.
+  Future<void> _applyDraftAndOpenCart(String draftId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final service = ref.read(conciergeServiceProvider);
+      final lines = await service.draftLineItems(draftId);
+      if (lines.isEmpty) throw Exception('That order is no longer available');
+
+      final menuService = MenuService(Supabase.instance.client);
+      final cart = ref.read(cartProvider.notifier);
+
+      // Re-read each item from the menu rather than trusting the draft's
+      // snapshot, so the cart carries real current prices and options.
+      final resolved = <MenuItem, int>{};
+      for (final line in lines) {
+        final id = line['item_id']?.toString();
+        if (id == null) continue;
+        final item = await menuService.getMenuItemById(id);
+        if (item == null) continue;
+        final qty = (line['qty'] as num?)?.toInt() ?? 1;
+        resolved[item] = qty;
+      }
+      if (resolved.isEmpty) {
+        throw Exception('Those items are no longer on the menu');
+      }
+
+      // The concierge picks a single restaurant, so a non-empty cart from
+      // somewhere else is a genuine conflict. Ask rather than silently
+      // discarding something the customer chose themselves.
+      final first = resolved.keys.first;
+      if (cart.isDifferentRestaurant(first) && mounted) {
+        final replace = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Start a new order?'),
+            content: const Text(
+              'Your cart has items from another restaurant. Adding this order '
+              'will clear them.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Keep my cart'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+        );
+        if (replace != true) return;
+        cart.clearCart();
+      }
+
+      resolved.forEach((item, qty) {
+        for (var i = 0; i < qty; i++) {
+          cart.addItem(item);
+        }
+      });
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamed('/cart');
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
@@ -118,10 +201,16 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
                     itemCount: _turns.length + (_busy ? 1 : 0),
                     itemBuilder: (context, i) {
                       if (i >= _turns.length) return const _ThinkingBubble();
+                      final t = _turns[i];
+                      final draftId = t.reply?.cartDraftId;
                       return _TurnBubble(
-                        turn: _turns[i],
-                        onCheckout: () =>
-                            Navigator.of(context).pushNamed('/cart'),
+                        turn: t,
+                        // Applies the draft to the real cart first — navigating
+                        // straight to /cart was what showed the customer one
+                        // order and delivered whatever was already in there.
+                        onCheckout: draftId == null
+                            ? null
+                            : () => _applyDraftAndOpenCart(draftId),
                       );
                     },
                   ),
@@ -294,7 +383,10 @@ class _TurnBubble extends StatelessWidget {
   const _TurnBubble({required this.turn, required this.onCheckout});
 
   final _Turn turn;
-  final VoidCallback onCheckout;
+
+  /// Null when this turn produced no cart draft — there is nothing to check
+  /// out, so the button must not appear at all.
+  final VoidCallback? onCheckout;
 
   String _money(int cents) =>
       '${AppConstants.currencySymbol}${(cents / 100).toStringAsFixed(2)}';
@@ -352,7 +444,7 @@ class _TurnBubble extends StatelessWidget {
 
             // Totals are rendered from the server's figures, never parsed out
             // of the assistant's sentence.
-            if (pricing != null) ...[
+            if (pricing != null && onCheckout != null) ...[
               const SizedBox(height: 12),
               Divider(height: 1, color: scheme.outlineVariant),
               const SizedBox(height: 10),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/responsive.dart';
 import '../../config/app_constants.dart';
@@ -64,9 +64,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final restaurant = restaurantAsync.valueOrNull;
 
     // Multi-restaurant feature flags
-    final multiEnabled = ref.watch(multiRestaurantEnabledProvider).valueOrNull ?? false;
+    final multiEnabled =
+        ref.watch(multiRestaurantEnabledProvider).valueOrNull ?? false;
     final extraStopFee = ref.watch(extraStopFeeProvider).valueOrNull ?? 2.0;
-    final totalExtraStopFee = isMultiRestaurant ? extraStopFee * (restaurantCount - 1) : 0.0;
+    final totalExtraStopFee = isMultiRestaurant
+        ? extraStopFee * (restaurantCount - 1)
+        : 0.0;
 
     // Admin-configured delivery fee (local haversine + admin config)
     final delAddr = defaultAddrAsync?.valueOrNull;
@@ -75,14 +78,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final hasCoords = delLat != null && delLng != null;
 
     // AI cart recommendations — fetch when multi-restaurant is enabled & cart has items
-    final cartRestaurantIds = cartItems.map((i) => i.menuItem.restaurantId).toSet().toList();
-    final cartRecs = (multiEnabled && currentUserId != null && cartRestaurantIds.isNotEmpty)
-        ? (ref.watch(cartRecommendationsProvider((
-              userId: currentUserId,
-              cartRestaurantIds: cartRestaurantIds,
-              lat: delLat,
-              lng: delLng,
-            ))).valueOrNull ?? [])
+    final cartRestaurantIds = cartItems
+        .map((i) => i.menuItem.restaurantId)
+        .toSet()
+        .toList();
+    final cartRecs =
+        (multiEnabled && currentUserId != null && cartRestaurantIds.isNotEmpty)
+        ? (ref
+                  .watch(
+                    cartRecommendationsProvider((
+                      userId: currentUserId,
+                      cartRestaurantIds: cartRestaurantIds,
+                      lat: delLat,
+                      lng: delLng,
+                    )),
+                  )
+                  .valueOrNull ??
+              [])
         : <CartRecommendation>[];
 
     // For multi-restaurant: calculate fee from each restaurant → customer and sum.
@@ -104,7 +116,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         }
         final fa = ref.watch(deliveryFeeProvider(feeKey));
         if (fa.isLoading) feeLoading = true;
-        multiTotal += fa.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+        multiTotal +=
+            fa.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
       }
       baseDeliveryFee = multiTotal;
     } else {
@@ -117,7 +130,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           : const AsyncValue<DeliveryFeeResult?>.data(null);
       if (hasRestCoords && !isPickup && feeAsync.isLoading) feeLoading = true;
       final feeResult = feeAsync.valueOrNull;
-      baseDeliveryFee = feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+      baseDeliveryFee =
+          feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
       distanceKm = feeResult?.distanceKm;
     }
 
@@ -208,7 +222,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           : Stack(
               children: [
                 SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   child: Column(
                     children: [
                       // ── Delivery / Pickup Toggle ──────────────────────
@@ -219,10 +235,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           Responsive.horizontalPadding(context),
                           0,
                         ),
-                        padding: EdgeInsets.all(Responsive.spacingSmall(context) * 0.5),
+                        padding: EdgeInsets.all(
+                          Responsive.spacingSmall(context) * 0.5,
+                        ),
                         decoration: BoxDecoration(
                           color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.cardRadius(context),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -240,7 +260,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     color: !isPickup
                                         ? AppTheme.primaryColor
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.cardRadius(context) - 2,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -259,7 +281,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         'Delivery',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          fontSize: Responsive.bodyText(context),
+                                          fontSize: Responsive.bodyText(
+                                            context,
+                                          ),
                                           color: !isPickup
                                               ? Colors.white
                                               : Theme.of(
@@ -286,7 +310,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     color: isPickup
                                         ? AppTheme.primaryColor
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.cardRadius(context) - 2,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -305,7 +331,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         'Pickup',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          fontSize: Responsive.bodyText(context),
+                                          fontSize: Responsive.bodyText(
+                                            context,
+                                          ),
                                           color: isPickup
                                               ? Colors.white
                                               : Theme.of(
@@ -332,12 +360,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             Responsive.horizontalPadding(context),
                             0,
                           ),
-                          padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                          padding: EdgeInsets.all(
+                            Responsive.cardPadding(context),
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(
                               0xFF10B981,
                             ).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context),
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -389,12 +421,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               Responsive.horizontalPadding(context),
                               0,
                             ),
-                            padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                            padding: EdgeInsets.all(
+                              Responsive.cardPadding(context),
+                            ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor.withValues(
                                 alpha: 0.07,
                               ),
-                              borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context),
+                              ),
                             ),
                             child: Row(
                               children: [
@@ -412,7 +448,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       Text(
                                         'Deliver to',
                                         style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                           color: Theme.of(
                                             context,
                                           ).colorScheme.onSurfaceVariant,
@@ -421,7 +459,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       Text(
                                         deliveryAddress,
                                         style: TextStyle(
-                                          fontSize: Responsive.bodyText(context),
+                                          fontSize: Responsive.bodyText(
+                                            context,
+                                          ),
                                           fontWeight: FontWeight.w600,
                                           color: Theme.of(
                                             context,
@@ -461,11 +501,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.restaurant_rounded, color: AppTheme.primaryColor, size: 18),
+                              Icon(
+                                Icons.restaurant_rounded,
+                                color: AppTheme.primaryColor,
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -486,9 +532,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ...cartNotifier.itemsByRestaurant.entries.map((entry) {
                           final restId = entry.key;
                           final items = entry.value;
-                          final restSubtotal = cartNotifier.subtotalForRestaurant(restId);
-                          final restAsync = ref.watch(restaurantByIdProvider(restId));
-                          final restName = restAsync.valueOrNull?.name ?? 'Restaurant';
+                          final restSubtotal = cartNotifier
+                              .subtotalForRestaurant(restId);
+                          final restAsync = ref.watch(
+                            restaurantByIdProvider(restId),
+                          );
+                          final restName =
+                              restAsync.valueOrNull?.name ?? 'Restaurant';
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -502,15 +552,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 ),
                                 padding: EdgeInsets.symmetric(
                                   horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.6,
+                                  vertical:
+                                      Responsive.spacingSmall(context) * 0.6,
                                 ),
                                 decoration: BoxDecoration(
                                   color: scheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.cardRadius(context),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.store_rounded, size: 16, color: scheme.onSurfaceVariant),
+                                    Icon(
+                                      Icons.store_rounded,
+                                      size: 16,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
@@ -518,7 +575,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
                                         style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                           fontWeight: FontWeight.w700,
                                           color: scheme.onSurface,
                                         ),
@@ -538,40 +597,68 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         showDialog<bool>(
                                           context: context,
                                           builder: (_) => AlertDialog(
-                                            title: const Text('Remove restaurant?'),
-                                            content: Text('Remove all items from $restName?'),
+                                            title: const Text(
+                                              'Remove restaurant?',
+                                            ),
+                                            content: Text(
+                                              'Remove all items from $restName?',
+                                            ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
                                                 child: const Text('Cancel'),
                                               ),
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: const Text('Remove', style: TextStyle(color: Colors.red)),
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: const Text(
+                                                  'Remove',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
                                         ).then((confirmed) {
                                           if (confirmed == true) {
-                                            ref.read(cartProvider.notifier).removeRestaurantGroup(restId);
+                                            ref
+                                                .read(cartProvider.notifier)
+                                                .removeRestaurantGroup(restId);
                                           }
                                         });
                                       },
-                                      child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.red.shade400,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               // Items under this restaurant
-                              ...items.map((cartItem) => _CartItemWidget(
-                                name: cartItem.menuItem.name,
-                                imageUrl: cartItem.menuItem.imageUrl,
-                                quantity: cartItem.quantity,
-                                price: cartItem.menuItem.discountedPrice,
-                                customizationSummary: _buildCustomizationSummary(cartItem),
-                                onRemove: () => ref.read(cartProvider.notifier).removeItem(cartItem.menuItem.id),
-                                onQuantityChanged: (q) => ref.read(cartProvider.notifier).updateQuantity(cartItem.menuItem.id, q),
-                              )),
+                              ...items.map(
+                                (cartItem) => _CartItemWidget(
+                                  name: cartItem.menuItem.name,
+                                  imageUrl: cartItem.menuItem.imageUrl,
+                                  quantity: cartItem.quantity,
+                                  price: cartItem.menuItem.discountedPrice,
+                                  customizationSummary:
+                                      _buildCustomizationSummary(cartItem),
+                                  onRemove: () => ref
+                                      .read(cartProvider.notifier)
+                                      .removeItem(cartItem.menuItem.id),
+                                  onQuantityChanged: (q) => ref
+                                      .read(cartProvider.notifier)
+                                      .updateQuantity(cartItem.menuItem.id, q),
+                                ),
+                              ),
                             ],
                           );
                         })
@@ -587,9 +674,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               imageUrl: cartItem.menuItem.imageUrl,
                               quantity: cartItem.quantity,
                               price: cartItem.menuItem.discountedPrice,
-                              customizationSummary: _buildCustomizationSummary(cartItem),
-                              onRemove: () => ref.read(cartProvider.notifier).removeItem(cartItem.menuItem.id),
-                              onQuantityChanged: (q) => ref.read(cartProvider.notifier).updateQuantity(cartItem.menuItem.id, q),
+                              customizationSummary: _buildCustomizationSummary(
+                                cartItem,
+                              ),
+                              onRemove: () => ref
+                                  .read(cartProvider.notifier)
+                                  .removeItem(cartItem.menuItem.id),
+                              onQuantityChanged: (q) => ref
+                                  .read(cartProvider.notifier)
+                                  .updateQuantity(cartItem.menuItem.id, q),
                             );
                           },
                         ),
@@ -599,11 +692,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
                       // Price Breakdown
                       Container(
-                        margin: EdgeInsets.all(Responsive.horizontalPadding(context)),
-                        padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                        margin: EdgeInsets.all(
+                          Responsive.horizontalPadding(context),
+                        ),
+                        padding: EdgeInsets.all(
+                          Responsive.cardPadding(context),
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.cardRadius(context),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -612,13 +711,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.5,
+                                  vertical:
+                                      Responsive.spacingSmall(context) * 0.5,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFF10B981,
                                   ).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.cardRadius(context) - 2,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -632,7 +734,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       child: Text(
                                         'Group Order – 40% delivery discount ($groupParticipantCount members)',
                                         style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                           fontWeight: FontWeight.w600,
                                           color: const Color(0xFF10B981),
                                         ),
@@ -648,13 +752,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.5,
+                                  vertical:
+                                      Responsive.spacingSmall(context) * 0.5,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFF6C63FF,
                                   ).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                  borderRadius: BorderRadius.circular(
+                                    Responsive.cardRadius(context) - 2,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -738,8 +845,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                       ),
 
-                      // Bottom padding to clear the sticky checkout button
-                      const SizedBox(height: 80),
+                      // Clears the sticky bar, which now carries the total as
+                      // well as the button and is correspondingly taller.
+                      const SizedBox(height: 130),
                     ],
                   ),
                 ),
@@ -755,33 +863,78 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         top: BorderSide(color: scheme.outlineVariant),
                       ),
                     ),
-                    padding: EdgeInsets.all(Responsive.horizontalPadding(context)),
+                    padding: EdgeInsets.all(
+                      Responsive.horizontalPadding(context),
+                    ),
                     child: SafeArea(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (isMultiRestaurant) {
-                            Navigator.pushNamed(context, '/multi-restaurant-checkout');
-                          } else {
-                            Navigator.pushNamed(context, '/checkout');
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: Responsive.buttonHeight(context) * 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Total pinned alongside the button. The full
+                          // breakdown lives up in the scroll view, which meant
+                          // the customer had to scroll to see what they were
+                          // about to pay — on the one screen where the number
+                          // should never be out of sight.
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    fontSize: Responsive.bodyText(context),
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                Text(
+                                  '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize:
+                                        Responsive.bodyText(context) * 1.15,
+                                    fontWeight: FontWeight.w800,
+                                    color: scheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: Responsive.bodyText(context),
+                          ElevatedButton(
+                            onPressed: () {
+                              if (isMultiRestaurant) {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/multi-restaurant-checkout',
+                                );
+                              } else {
+                                Navigator.pushNamed(context, '/checkout');
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                vertical:
+                                    Responsive.buttonHeight(context) * 0.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context),
+                                ),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: Responsive.bodyText(context),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ),
@@ -831,24 +984,28 @@ class _CartItemWidget extends StatelessWidget {
             height: Responsive.cartItemImageSize(context),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+              borderRadius: BorderRadius.circular(
+                Responsive.cardRadius(context) - 2,
+              ),
             ),
             child: ClipRRect(
-                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                child: Image.network(
-                  imageUrl?.isNotEmpty == true
-                      ? imageUrl!
-                      : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.fastfood_rounded,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+              borderRadius: BorderRadius.circular(
+                Responsive.cardRadius(context) - 2,
+              ),
+              child: Image.network(
+                imageUrl?.isNotEmpty == true
+                    ? imageUrl!
+                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    Icons.fastfood_rounded,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -950,7 +1107,9 @@ class _PriceRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: isBold ? Responsive.bodyText(context) : Responsive.smallText(context),
+              fontSize: isBold
+                  ? Responsive.bodyText(context)
+                  : Responsive.smallText(context),
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: Theme.of(
                 context,
@@ -963,7 +1122,9 @@ class _PriceRow extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: isBold ? Responsive.bodyText(context) : Responsive.smallText(context),
+            fontSize: isBold
+                ? Responsive.bodyText(context)
+                : Responsive.smallText(context),
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color: valueColor ?? Theme.of(context).colorScheme.onSurface,
           ),
@@ -1003,7 +1164,11 @@ class _CartRecommendationBanner extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.primaryColor),
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 16,
+                  color: AppTheme.primaryColor,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Add from a nearby restaurant',
@@ -1068,14 +1233,20 @@ class _RecommendationCard extends StatelessWidget {
                 children: [
                   Text(
                     rec.restaurantName,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     rec.reason,
-                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1083,27 +1254,44 @@ class _RecommendationCard extends StatelessWidget {
                   Row(
                     children: [
                       if (rec.rating != null) ...[
-                        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 12,
+                          color: Color(0xFFF59E0B),
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           rec.rating!.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(width: 8),
                       ],
                       if (rec.distanceKm != null) ...[
-                        Icon(Icons.place_outlined, size: 12, color: scheme.onSurfaceVariant),
+                        Icon(
+                          Icons.place_outlined,
+                          size: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${rec.distanceKm!.toStringAsFixed(1)} km',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(width: 8),
                       ],
                       if (rec.estimatedDeliveryTime != null)
                         Text(
                           '${rec.estimatedDeliveryTime} min',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
                     ],
                   ),
@@ -1112,7 +1300,11 @@ class _RecommendationCard extends StatelessWidget {
             ),
 
             // CTA arrow
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryColor),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppTheme.primaryColor,
+            ),
           ],
         ),
       ),
@@ -1123,12 +1315,16 @@ class _RecommendationCard extends StatelessWidget {
 class _PlaceholderThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.restaurant_rounded, color: AppTheme.primaryColor, size: 24),
-      );
+    width: 52,
+    height: 52,
+    decoration: BoxDecoration(
+      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(
+      Icons.restaurant_rounded,
+      color: AppTheme.primaryColor,
+      size: 24,
+    ),
+  );
 }
