@@ -1619,12 +1619,35 @@ Deno.serve(async (req) => {
         })),
       cartRestaurantId: body.cart_restaurant_id ?? null,
     };
+
+    // A follow-up usually happens BEFORE the customer has tapped through to
+    // the cart, so the real cart is still empty and there is nothing to merge
+    // with. The previous turn's draft is the live order at that moment, so it
+    // becomes the base instead. Ownership is checked, and only an unconsumed
+    // draft counts — once handed to the cart, the cart is authoritative again.
+    if ((ctx.cartItems?.length ?? 0) === 0 && body.active_draft_id) {
+      const { data: prev } = await admin
+        .from('concierge_cart_drafts')
+        .select('user_id, restaurant_id, line_items, status')
+        .eq('id', String(body.active_draft_id))
+        .maybeSingle();
+      if (prev && prev.user_id === ctx.userId) {
+        const lines = (prev.line_items as Record<string, unknown>[]) ?? [];
+        if (lines.length > 0) {
+          ctx.cartItems = lines.map((l) => ({
+            item_id: String(l.item_id),
+            qty: Number(l.qty) || 1,
+          }));
+          ctx.cartRestaurantId = prev.restaurant_id as string;
+        }
+      }
+    }
     // Facts the model must not invent, supplied fresh each request.
     const walletLine = ctx.walletCents != null
       ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents).`
       : 'The customer has no wallet balance.';
 
-    let cartLine = 'The customer cart is currently empty.';
+    let cartLine = 'The customer has no order in progress.';
     if ((ctx.cartItems?.length ?? 0) > 0) {
       const { data: cartRows } = await admin
         .from('menus')
@@ -1642,7 +1665,7 @@ Deno.serve(async (req) => {
         (cartRows?.[0]?.restaurants as Record<string, unknown> | undefined)?.name;
       if (described) {
         cartLine =
-          `The customer ALREADY has these in their cart` +
+          `The customer's CURRENT ORDER already contains` +
           (restName ? ` from ${restName}` : '') +
           `: ${described}. If they ask to add something, call place_in_cart ` +
           `with add_to_existing_cart:true and ONLY the new items.`;

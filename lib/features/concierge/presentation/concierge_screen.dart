@@ -42,6 +42,10 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
   final List<_Turn> _turns = [];
   bool _busy = false;
 
+  /// Draft from the latest assistant turn, so a follow-up extends that order
+  /// rather than starting a fresh one.
+  String? _lastDraftId;
+
   static const _examples = [
     'Dinner for two, something spicy, no pork, under \$40',
     'I want jerk chicken delivered before 7',
@@ -91,10 +95,17 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
             cartRestaurantId: cart.isEmpty
                 ? null
                 : cart.first.menuItem.restaurantId,
+            // Most recent draft from this conversation — the order in
+            // progress, which the customer has usually not yet sent to the
+            // cart when they ask to add something to it.
+            activeDraftId: _lastDraftId,
           );
 
       if (!mounted) return;
-      setState(() => _turns.add(_Turn.assistant(reply)));
+      setState(() {
+        _turns.add(_Turn.assistant(reply));
+        if (reply.cartDraftId != null) _lastDraftId = reply.cartDraftId;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(
@@ -269,6 +280,9 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       });
 
       if (!mounted) return;
+      // The cart is authoritative from here; stop treating the draft as the
+      // order in progress or it would be merged in a second time.
+      _lastDraftId = null;
       Navigator.of(context).pushNamed('/cart');
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
