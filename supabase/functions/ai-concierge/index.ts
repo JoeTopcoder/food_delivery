@@ -106,6 +106,18 @@ interface Ctx {
   userId: string;
   lat: number | null;
   lng: number | null;
+  /// Result of the first successful place_in_cart in THIS request. The model
+  /// was observed calling it six and seven times in a row — sometimes in
+  /// parallel across restaurants — each building and consuming another draft.
+  /// Once an order is placed, further attempts return this instead of doing
+  /// the work again.
+  placed?: Record<string, unknown>;
+  /// How many times place_in_cart has been refused this request. Budget
+  /// enforcement is correct, but an unbounded retry loop is not: the model was
+  /// inventing a budget for vague phrasing ("nothing too expensive"), getting
+  /// refused, and trying again — six identical drafts and 55 seconds for one
+  /// salad. After a couple of refusals it is told to stop and explain.
+  rejections?: number;
 }
 
 // Every query that can return a dish routes through these two helpers, so
@@ -245,7 +257,7 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
   let q = admin
     .from('menus')
     .select(
-      'id, price, spice_rating, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, is_verified)',
+      'id, name, price, spice_rating, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, is_verified)',
     )
     .eq('is_available', true)
     .eq('restaurants.is_verified', true)
@@ -274,6 +286,19 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
     const existing = byRestaurant.get(id);
     if (existing) {
       existing.matching_item_count = (existing.matching_item_count as number) + 1;
+      // Carry a few real, already-filtered dishes on each restaurant. Without
+      // them the model had to call filter_menu_items per restaurant to see what
+      // was actually orderable — one run did that eighteen times in a row, and
+      // every one of those is a round trip the customer waits through.
+      const sample = existing.sample_items as Record<string, unknown>[];
+      if (sample.length < 6) {
+        sample.push({
+          id: row.id,
+          name: row.name,
+          price_cents: toCents(row.price as number),
+          spice_rating: row.spice_rating,
+        });
+      }
       continue;
     }
     byRestaurant.set(id, {
@@ -290,6 +315,14 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
           ? haversineKm(ctx.lat, ctx.lng, r.latitude as number, r.longitude as number)
           : null,
       matching_item_count: 1,
+      sample_items: [
+        {
+          id: row.id,
+          name: row.name,
+          price_cents: toCents(row.price as number),
+          spice_rating: row.spice_rating,
+        },
+      ],
     });
   }
 
@@ -502,6 +535,117 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
       : undefined,
     validation_errors: validationErrors.length ? validationErrors : undefined,
   };
+}
+
+/**
+ * Build + price + best promotion + finalize + handoff, in ONE tool call.
+ *
+ * Once the model has chosen items, every remaining step is deterministic, yet
+ * each was costing a separate LLM round trip — and latency here tracks round
+ * trips almost exactly (2 calls ~4s, 7 calls ~18s, 24 calls ~33s). Collapsing
+ * the tail removes 3-4 of them from every successful order.
+ *
+ * It also removes a class of mistake rather than just time: the model was
+ * observed calling handoff_to_checkout before finalize_cart, finalizing twice,
+ * and re-pricing a draft it had just built. None of that is possible now.
+ */
+async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
+  // Already done in this request — hand back the same order rather than
+  // building a second one the customer never asked for.
+  if (ctx.placed) {
+    return {
+      ...ctx.placed,
+      already_placed: true,
+      instruction:
+        'This order is ALREADY in the cart. Do not call place_in_cart again. Reply to the customer now.',
+    };
+  }
+
+  const built = await buildCartDraft(ctx, a);
+  const draftId = built.cart_draft_id;
+  if (!draftId) return built; // nothing valid to place; errors already explained
+
+  // Best eligible promotion, applied automatically. The customer should never
+  // miss a discount because the assistant forgot to look.
+  let appliedPromo: Record<string, unknown> | null = null;
+  try {
+    const { promotions } = await getEligiblePromotions(ctx, {
+      cart_draft_id: draftId,
+    });
+    if (promotions.length > 0) {
+      const best = promotions[0]; // getEligiblePromotions sorts best-first
+      const res = await applyPromotion(ctx, {
+        cart_draft_id: draftId,
+        code: best.code,
+      });
+      if (res.applied) {
+        appliedPromo = { code: best.code, savings_cents: best.savings_cents };
+      }
+    }
+  } catch {
+    // A promotion failure must never cost the customer their order.
+  }
+
+  const priced = await priceCart(ctx, { cart_draft_id: draftId });
+
+  // Budget and minimum are enforced here rather than reported: finalize_cart
+  // would refuse anyway, so failing now saves another round trip and tells the
+  // model exactly what to change.
+  if (priced.within_budget === false) {
+    ctx.rejections = (ctx.rejections ?? 0) + 1;
+    const giveUp = ctx.rejections >= 2;
+    return {
+      cart_draft_id: draftId,
+      placed: false,
+      total_cents: priced.total_cents,
+      budget_cents: priced.budget_cents,
+      reason: 'over_budget',
+      instruction: giveUp
+        ? `Still over budget at $${(priced.total_cents / 100).toFixed(2)}. STOP ` +
+          'calling tools. Tell the customer the cheapest option you found and ' +
+          'what it costs, and let them decide.'
+        : `Total $${(priced.total_cents / 100).toFixed(2)} is over the customer's ` +
+          'budget. Try ONCE more with cheaper items.',
+    };
+  }
+  if (!priced.meets_minimum) {
+    return {
+      cart_draft_id: draftId,
+      placed: false,
+      reason: 'below_minimum',
+      minimum_order_cents: priced.minimum_order_cents,
+      instruction:
+        'Order is below this restaurant\'s minimum. Add another item or choose ' +
+        'a different restaurant.',
+    };
+  }
+
+  await admin
+    .from('concierge_cart_drafts')
+    .update({ status: 'consumed', updated_at: new Date().toISOString() })
+    .eq('id', draftId);
+
+  const { data: rest } = await admin
+    .from('restaurants')
+    .select('name, estimated_delivery_time')
+    .eq('id', a.restaurant_id as string)
+    .single();
+
+  const result = {
+    cart_draft_id: draftId,
+    cart_id: draftId,
+    placed: true,
+    line_items: built.line_items,
+    restaurant_name: rest?.name,
+    eta_minutes: rest?.estimated_delivery_time ?? 40,
+    applied_promotion: appliedPromo,
+    pricing: priced,
+    checkout_url: '/cart',
+    instruction:
+      'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
+  };
+  ctx.placed = result;
+  return result;
 }
 
 /** Loads a draft and proves the caller owns it. */
@@ -1052,6 +1196,7 @@ const TOOL_IMPLS: Record<
 > = {
   search_dishes: searchDishes,
   search_restaurants: searchRestaurants,
+  place_in_cart: placeInCart,
   check_delivery_eta: checkDeliveryEta,
   get_menu: getMenu,
   filter_menu_items: filterMenuItems,
@@ -1064,6 +1209,37 @@ const TOOL_IMPLS: Record<
 };
 
 const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'place_in_cart',
+      description:
+        'FINISH THE ORDER in one call: builds the cart, prices it, applies the best eligible promotion automatically, enforces budget and minimum, and hands off to checkout. Use this INSTEAD of build_cart_draft/price_cart/get_eligible_promotions/apply_promotion/finalize_cart/handoff_to_checkout — those are five extra round trips the customer waits through. If it returns placed:false, call it again with different items.',
+      parameters: {
+        type: 'object',
+        properties: {
+          restaurant_id: { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                item_id: { type: 'string' },
+                qty: { type: 'integer' },
+              },
+              required: ['item_id', 'qty'],
+            },
+          },
+          budget_cents: {
+            type: 'integer',
+            description:
+              "The customer's stated budget in cents, if they gave one. Enforced — an over-budget cart is refused.",
+          },
+        },
+        required: ['restaurant_id', 'items'],
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -1253,7 +1429,7 @@ const TOOLS = [
 const SYSTEM_PROMPT = `You are the 7Dash Food Concierge. You turn a natural request into a ready-to-confirm cart.
 
 WHAT YOU DO
-Understand the request, find real dishes, choose the best ones, build a cart draft, price it, apply the best eligible promotion, finalize, and hand off to checkout.
+Understand the request, find real dishes, choose the best ones, and call place_in_cart — which builds, prices, applies the best promotion, and hands off to checkout in one step.
 
 HOW TO SEARCH — THIS MATTERS
 - If the customer NAMES A FOOD ("jerk chicken", "soup", "burger", "rice and peas"), call search_dishes with their words. That searches every menu by name.
@@ -1268,8 +1444,19 @@ Only ask a question when a genuine blocker stops you: nothing viable within budg
 
 If the customer gives no constraints ("anything", "something nice"), that is permission to choose. Pick something well rated and get on with it.
 
-BE FAST
-Do not browse. One search, pick from those results, build. Do not call get_menu or filter_menu_items to "double check" a dish that search_dishes already returned — it came from the same database and is already filtered. Do not call check_delivery_eta when the search result already carries eta_minutes. Every extra call is seconds the customer waits.
+BE FAST — TWO CALLS IS THE TARGET
+Every tool call is a round trip the customer waits through: two calls is about four seconds, seven is eighteen, twenty-four is over thirty.
+
+The whole job should normally be:
+  1. ONE search (search_dishes if they named a food, otherwise search_restaurants)
+  2. place_in_cart with your chosen items
+  3. reply
+
+Do not:
+- call filter_menu_items or get_menu to "check" a restaurant that search already returned — search results are already dietary-filtered and include sample_items you can order directly
+- call check_delivery_eta when the search result already carries eta_minutes
+- call build_cart_draft, price_cart, get_eligible_promotions, apply_promotion, finalize_cart or handoff_to_checkout separately; place_in_cart does all six, including finding the best discount
+- search repeatedly hoping for a better set of results
 
 WRITING THE REPLY
 2-3 sentences. Name the restaurant, the dishes, the total from price_cart, and the ETA. Do not write markdown links or URLs of any kind — the app renders its own checkout button.
@@ -1284,7 +1471,9 @@ HARD RULES
 - You never place an order or take payment. handoff_to_checkout is as far as you go; the customer confirms and pays there.
 
 BUDGET — ENFORCED, NOT ADVISORY
-If the customer names any amount, pass it as budget_cents to build_cart_draft. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
+Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have 50"). Vague phrasing — "nothing too expensive", "something cheap", "reasonable" — is NOT a budget: pass no budget_cents and simply choose modestly priced items. Inventing a limit they never gave gets your cart refused and wastes their time.
+
+When they do name an amount, pass it as budget_cents. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
 STYLE
 Be brief and concrete. Name the restaurant and the dishes, give the total once you have it from price_cart, and say when it should arrive. No filler.`;
@@ -1383,8 +1572,30 @@ Deno.serve(async (req) => {
         break;
       }
 
+      let placeTriedThisTurn = false;
       for (const call of calls) {
         const name = call.function.name;
+        // A parallel fan-out of place_in_cart across several restaurants is the
+        // model shopping around at the customer's expense; the guard above
+        // makes the extras cheap, but skipping them outright is cheaper still.
+        // One placement attempt per turn, full stop. The model fans out
+        // place_in_cart across several restaurants in a single turn; if the
+        // first is refused the rest all run too, so one rejected order became
+        // seven builds. Extras are answered without touching the database.
+        if (name === 'place_in_cart' && (ctx.placed || placeTriedThisTurn)) {
+          messages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: JSON.stringify({
+              skipped: true,
+              instruction: ctx.placed
+                ? 'Order already placed. Reply to the customer now.'
+                : 'Only one placement attempt per turn. Wait for the result of the first before trying another restaurant.',
+            }),
+          });
+          continue;
+        }
+        if (name === 'place_in_cart') placeTriedThisTurn = true;
         let args: Record<string, unknown> = {};
         try {
           args = JSON.parse(call.function.arguments || '{}');
