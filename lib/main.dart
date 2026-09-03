@@ -42,6 +42,7 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/all_restaurants_screen.dart';
 import 'screens/customer/restaurant_detail_screen.dart';
 import 'screens/customer/cart_screen.dart';
+import 'features/concierge/presentation/concierge_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
 import 'screens/customer/grocery_checkout_screen.dart';
@@ -502,7 +503,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   }
 
   // Set at build time via --dart-define=WEB_MODE=restaurant|admin|full
-  static const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
+  static const _webMode = String.fromEnvironment(
+    'WEB_MODE',
+    defaultValue: 'full',
+  );
 
   static Widget _getHomeForRole(String? role) {
     switch (role) {
@@ -706,7 +710,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['admin'],
-                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) ? const AdminWebApp() : const AdminDashboardScreen(),
+                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin'))
+                      ? const AdminWebApp()
+                      : const AdminDashboardScreen(),
                 ),
               );
             case '/admin-users':
@@ -746,7 +752,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['restaurant'],
-                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) ? const RestaurantWebApp() : const RestaurantDashboardScreen(),
+                  child:
+                      (kIsWeb &&
+                          (_webMode == 'full' || _webMode == 'restaurant'))
+                      ? const RestaurantWebApp()
+                      : const RestaurantDashboardScreen(),
                 ),
               );
             case '/restaurant-orders':
@@ -790,13 +800,21 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
               return MaterialPageRoute(
-                builder: (context) => RestaurantDetailScreen(restaurant: restaurant),
+                builder: (context) =>
+                    RestaurantDetailScreen(restaurant: restaurant),
               );
             case '/cart':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: CartScreen(),
+                ),
+              );
+            case '/concierge':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: ConciergeScreen(),
                 ),
               );
             case '/grocery-cart':
@@ -1922,9 +1940,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (_) => const SubscriptionTermsScreen(),
               );
             case '/about':
-              return MaterialPageRoute(
-                builder: (_) => const AboutScreen(),
-              );
+              return MaterialPageRoute(builder: (_) => const AboutScreen());
             case '/data-deletion-request':
               return MaterialPageRoute(
                 builder: (_) => const DataDeletionRequestScreen(),
