@@ -969,8 +969,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.horizontalPadding(context),
+                    // Extra trailing space: the floating AI button sits over
+                    // the right edge of this row, so without somewhere to
+                    // scroll to, the last card stays permanently underneath it.
+                    padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context),
+                      0,
+                      Responsive.horizontalPadding(context) + 64,
+                      0,
                     ),
                     child: Row(
                       children: [
@@ -1146,7 +1152,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          // Clears the floating AI button so the last row of content can be
+          // scrolled out from under it rather than sitting there permanently.
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
@@ -2174,9 +2182,13 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardWidth = (MediaQuery.of(context).size.width * 0.38).clamp(
-      130.0,
-      160.0,
+    // Wide enough for the longest real label. At the old 0.38/160 clamp a
+    // 384dp phone gave the text ~72dp after the icon and padding, and
+    // "Book a Ride" needs ~78 — so it ellipsised to "Book a Ri…" on the
+    // device rather than at some edge case.
+    final cardWidth = (MediaQuery.of(context).size.width * 0.45).clamp(
+      150.0,
+      195.0,
     );
     return GestureDetector(
       onTap: enabled ? onTap : null,
