@@ -394,12 +394,13 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
         12,
         10,
         12,
-        // Both insets: the keyboard AND the system nav bar. Missing the latter
-        // puts the send button underneath the nav bar, where taps go to the
-        // system rather than the app.
-        10 +
-            MediaQuery.of(context).viewInsets.bottom +
-            MediaQuery.of(context).padding.bottom,
+        // Nav-bar inset ONLY. Scaffold.resizeToAvoidBottomInset (on by
+        // default) already shrinks the body by the keyboard height, so adding
+        // viewInsets.bottom here counted the keyboard twice and overflowed the
+        // column the moment the keyboard opened. padding.bottom is itself 0
+        // while the keyboard covers the nav bar, so this stays correct in both
+        // states.
+        10 + MediaQuery.of(context).padding.bottom,
       ),
       child: Row(
         children: [
