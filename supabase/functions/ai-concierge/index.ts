@@ -185,6 +185,30 @@ function applyFlavorGate(
  * Dietary filtering is applied here exactly as everywhere else — searching by
  * name never becomes a way around an exclusion.
  */
+/**
+ * Generic words customers use for a whole part of the menu, mapped to the
+ * categories that actually hold those items. Without this, "a juice" matched
+ * only dishes with "juice" in the name — so a menu containing Sea Grape Punch,
+ * Horchata, Mango Lassi, Sorrel Drink and Lemonade returned almost nothing,
+ * because none of them are spelled "juice".
+ */
+const CATEGORY_SYNONYMS: Record<string, string[]> = {
+  juice: ['Drinks', 'Beverages'],
+  drink: ['Drinks', 'Beverages'],
+  drinks: ['Drinks', 'Beverages'],
+  beverage: ['Drinks', 'Beverages'],
+  soda: ['Drinks', 'Beverages'],
+  smoothie: ['Drinks', 'Beverages'],
+  water: ['Drinks', 'Beverages'],
+  dessert: ['Dessert', 'Desserts'],
+  sweet: ['Dessert', 'Desserts'],
+  cake: ['Dessert', 'Desserts'],
+  starter: ['Appetizers', 'Starters'],
+  appetizer: ['Appetizers', 'Starters'],
+  side: ['Sides'],
+  sides: ['Sides'],
+};
+
 async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   const raw = String(a.query ?? '').trim();
   if (!raw) return { dishes: [] };
@@ -208,19 +232,39 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
     .slice(0, 6);
   if (!words.length) return { dishes: [] };
 
-  const ors = words
-    .flatMap((w) => [`name.ilike.%${w}%`, `description.ilike.%${w}%`])
-    .join(',');
+  // Match the category as well as the name/description, and expand generic
+  // words ("juice") into the categories that hold them, so asking for a whole
+  // part of the menu returns that part of the menu.
+  const categories = new Set<string>();
+  for (const w of words) {
+    for (const c of CATEGORY_SYNONYMS[w] ?? []) categories.add(c);
+  }
+
+  const ors = [
+    ...words.flatMap((w) => [
+      `name.ilike.%${w}%`,
+      `description.ilike.%${w}%`,
+      `category.ilike.%${w}%`,
+    ]),
+    ...[...categories].map((c) => `category.ilike.${c}`),
+  ].join(',');
 
   let q = admin
     .from('menus')
     .select(
-      'id, name, description, price, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified)',
+      'id, name, description, price, category, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified)',
     )
     .eq('is_available', true)
     .eq('restaurants.is_verified', true)
     .or(ors)
     .limit(80);
+
+  // Scope to one restaurant when asked. Adding "a juice" to an order should
+  // look at THAT restaurant's drinks, not every drink in the city — the
+  // customer is extending one order, not starting a second delivery.
+  if (typeof a.restaurant_id === 'string' && a.restaurant_id) {
+    q = q.eq('restaurant_id', a.restaurant_id);
+  }
 
   q = applyDietary(q, a);
   if (typeof a.max_item_price_cents === 'number') {
@@ -235,7 +279,8 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   // Rank by how many of the customer's words the dish actually matches, so
   // "jerk chicken" puts Jerk Chicken above Jerk Fish.
   const scored = items.map((i) => {
-    const hay = `${i.name} ${i.description ?? ''}`.toLowerCase();
+    const hay =
+      `${i.name} ${i.description ?? ''} ${i.category ?? ''}`.toLowerCase();
     const hits = words.filter((w) => hay.includes(w)).length;
     const nameHits = words.filter((w) =>
       String(i.name).toLowerCase().includes(w),
@@ -1314,7 +1359,12 @@ const TOOLS = [
         properties: {
           query: {
             type: 'string',
-            description: 'The food the customer named, in their words.',
+            description: 'The food the customer named, in their words. Generic words work: "juice", "drink", "dessert", "side" return that whole part of the menu.',
+          },
+          restaurant_id: {
+            type: 'string',
+            description:
+              "Restrict to one restaurant. ALWAYS set this when adding to an order already in progress, so you see that restaurant's full range rather than one lucky name match elsewhere.",
           },
           dietary_exclusions: { type: 'array', items: { type: 'string' } },
           dietary_requirements: { type: 'array', items: { type: 'string' } },
@@ -1539,7 +1589,11 @@ Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have
 When they do name an amount, pass it as budget_cents.
 
 ADDING TO AN EXISTING ORDER
-If the customer already has items in their cart and asks for something MORE ("also add a Coke", "add fries"), that is an addition, not a new order. Call place_in_cart with add_to_existing_cart:true and only the new items — the existing ones are folded in for you and the total will cover everything. Never start a fresh order that silently drops what they already chose.
+If the customer already has items in their cart and asks for something MORE ("also add a Coke", "add fries", "and a juice"), that is an addition, not a new order.
+
+First call search_dishes with restaurant_id set to the restaurant they are already ordering from, so you see that restaurant's full range. Asking for "a juice" means every drink on that menu — Sea Grape Punch, Lemonade, Sorrel, Mango Lassi — not whichever single item happens to have "juice" in its name. Pick the best fit and mention what you chose.
+
+Then call place_in_cart with add_to_existing_cart:true and only the NEW items — the existing ones are folded in for you and the total will cover everything. Never start a fresh order that silently drops what they already chose.
 
 THE WALLET IS A BUDGET. If the customer refers to paying with their wallet or balance — "use my wallet", "order something with my balance", "whatever my wallet covers" — their wallet balance IS the budget: pass it as budget_cents. It is given to you above; never guess or assume it. If their balance cannot cover anything available, say so plainly with the balance and the cheapest option, rather than building a cart they cannot pay for. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
