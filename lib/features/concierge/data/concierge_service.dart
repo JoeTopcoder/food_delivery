@@ -76,6 +76,7 @@ class ConciergeService {
     List<Map<String, String>> history = const [],
     List<Map<String, dynamic>> cartItems = const [],
     String? cartRestaurantId,
+    String? activeDraftId,
   }) async {
     try {
       final res = await _client.functions.invoke(
@@ -88,6 +89,10 @@ class ConciergeService {
           // rather than starting a new one that drops what's already there.
           'cart_items': cartItems,
           'cart_restaurant_id': cartRestaurantId,
+          // The order in progress. A follow-up normally arrives before the
+          // customer has tapped through to the cart, so the cart is still
+          // empty and this draft is the only record of what they just ordered.
+          'active_draft_id': activeDraftId,
         },
       );
 
