@@ -118,6 +118,12 @@ interface Ctx {
   /// refused, and trying again — six identical drafts and 55 seconds for one
   /// salad. After a couple of refusals it is told to stop and explain.
   rejections?: number;
+  /// The customer's real wallet balance in cents, read server-side. The model
+  /// is told this figure but can never set it, so "order something with my
+  /// wallet balance" becomes an enforceable budget instead of a guess — it
+  /// previously had no concept of the wallet at all and built a $74 cart
+  /// against a $38 balance.
+  walletCents?: number | null;
 }
 
 // Every query that can return a dish routes through these two helpers, so
@@ -1502,7 +1508,9 @@ HARD RULES
 BUDGET — ENFORCED, NOT ADVISORY
 Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have 50"). Vague phrasing — "nothing too expensive", "something cheap", "reasonable" — is NOT a budget: pass no budget_cents and simply choose modestly priced items. Inventing a limit they never gave gets your cart refused and wastes their time.
 
-When they do name an amount, pass it as budget_cents. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
+When they do name an amount, pass it as budget_cents.
+
+THE WALLET IS A BUDGET. If the customer refers to paying with their wallet or balance — "use my wallet", "order something with my balance", "whatever my wallet covers" — their wallet balance IS the budget: pass it as budget_cents. It is given to you above; never guess or assume it. If their balance cannot cover anything available, say so plainly with the balance and the cheapest option, rather than building a cart they cannot pay for. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
 STYLE
 Be brief and concrete. Name the restaurant and the dishes, give the total once you have it from price_cart, and say when it should arrive. No filler.`;
@@ -1556,15 +1564,30 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    // Wallet balance, read from the database rather than accepted from the
+    // caller. wallets.balance is authoritative everywhere else in the app.
+    const { data: wallet } = await admin
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
     ctx = {
       userId: claims.sub,
       lat: profile?.latitude ?? null,
       lng: profile?.longitude ?? null,
+      walletCents: wallet?.balance != null ? toCents(wallet.balance) : null,
     };
 
     const body = await req.json();
+    // Facts the model must not invent, supplied fresh each request.
+    const walletLine = ctx.walletCents != null
+      ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents).`
+      : 'The customer has no wallet balance.';
+
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: walletLine },
       ...(Array.isArray(body.history) ? body.history : []),
       { role: 'user', content: String(body.message ?? '') },
     ];
