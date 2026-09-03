@@ -76,9 +76,22 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
           {'role': t.isUser ? 'user' : 'assistant', 'content': t.text},
       ];
 
+      // Send what is actually in the cart so the concierge can add to the
+      // existing order instead of replacing it.
+      final cart = ref.read(cartProvider);
       final reply = await ref
           .read(conciergeServiceProvider)
-          .ask(message: text, history: history);
+          .ask(
+            message: text,
+            history: history,
+            cartItems: [
+              for (final c in cart)
+                {'item_id': c.menuItem.id, 'qty': c.quantity},
+            ],
+            cartRestaurantId: cart.isEmpty
+                ? null
+                : cart.first.menuItem.restaurantId,
+          );
 
       if (!mounted) return;
       setState(() => _turns.add(_Turn.assistant(reply)));
@@ -245,6 +258,10 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
         cart.clearCart();
       }
 
+      // Replace, don't append. The draft represents the complete intended
+      // order (a follow-up "add a drink" comes back containing the earlier
+      // items too), so appending would double everything already in the cart.
+      cart.clearCart();
       resolved.forEach((item, qty) {
         for (var i = 0; i < qty; i++) {
           cart.addItem(item);
@@ -450,14 +467,24 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
           const SizedBox(width: 8),
           // Typing stays available — voice is an additional way in, not a
           // replacement for the keyboard.
-          CircleAvatar(
-            radius: 23,
-            backgroundColor: _busy
-                ? scheme.outlineVariant
-                : AppTheme.primaryColor,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_upward_rounded, color: Colors.white),
-              onPressed: _busy ? null : () => _send(),
+          // A plain sized Container rather than CircleAvatar + IconButton:
+          // IconButton enforces a 48x48 minimum, which overflowed the 46px
+          // avatar by two pixels on each axis and painted the striped overflow
+          // warning. This also matches the mic button beside it exactly, so the
+          // pair reads as one control rather than two different widgets.
+          GestureDetector(
+            onTap: _busy ? null : () => _send(),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _busy ? scheme.outlineVariant : AppTheme.primaryColor,
+              ),
+              child: const Icon(
+                Icons.arrow_upward_rounded,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -653,16 +680,23 @@ class _TurnBubble extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: bold ? 14.5 : 13,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-              color:
-                  highlight ??
-                  (bold ? scheme.onSurface : scheme.onSurfaceVariant),
+          // Flexible: a long promotion label would otherwise push the amount
+          // off the row rather than eliding.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: bold ? 14.5 : 13,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                color:
+                    highlight ??
+                    (bold ? scheme.onSurface : scheme.onSurfaceVariant),
+              ),
             ),
           ),
+          const SizedBox(width: 12),
           Text(
             value,
             style: TextStyle(

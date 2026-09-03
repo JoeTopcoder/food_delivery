@@ -74,11 +74,21 @@ class ConciergeService {
   Future<ConciergeReply> ask({
     required String message,
     List<Map<String, String>> history = const [],
+    List<Map<String, dynamic>> cartItems = const [],
+    String? cartRestaurantId,
   }) async {
     try {
       final res = await _client.functions.invoke(
         'ai-concierge',
-        body: {'message': message, 'history': history},
+        body: {
+          'message': message,
+          'history': history,
+          // The cart is client-side, so the server cannot read it. Sending it
+          // lets a follow-up ("also add a drink") extend the existing order
+          // rather than starting a new one that drops what's already there.
+          'cart_items': cartItems,
+          'cart_restaurant_id': cartRestaurantId,
+        },
       );
 
       final data = res.data;
