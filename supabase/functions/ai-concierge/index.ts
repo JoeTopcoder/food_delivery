@@ -297,6 +297,7 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
           name: row.name,
           price_cents: toCents(row.price as number),
           spice_rating: row.spice_rating,
+          restaurant_id: id,
         });
       }
       continue;
@@ -321,6 +322,7 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
           name: row.name,
           price_cents: toCents(row.price as number),
           spice_rating: row.spice_rating,
+          restaurant_id: id,
         },
       ],
     });
@@ -467,15 +469,35 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   const lineItems: Record<string, unknown>[] = [];
   const validationErrors: string[] = [];
 
+  // Trust the ITEMS over the restaurant_id argument. The item ids came from a
+  // search result and are real rows; the restaurant_id is the model's
+  // bookkeeping, and it routinely pairs items with the wrong one — every
+  // attempt at one order failed with "belongs to a different restaurant" while
+  // the items themselves were perfectly valid.
+  //
+  // Deriving the restaurant from the items is also stricter where it matters:
+  // they must ALL belong to one restaurant, so a genuinely mixed cart is still
+  // rejected rather than silently split.
+  const restaurantIds = new Set(
+    (rows ?? []).map((r) => r.restaurant_id as string),
+  );
+  if (restaurantIds.size > 1) {
+    return {
+      cart_draft_id: null,
+      line_items: [],
+      validation_errors: [
+        'Those items come from different restaurants. Choose items from one restaurant.',
+      ],
+    };
+  }
+  const effectiveRestaurantId =
+    restaurantIds.size === 1 ? [...restaurantIds][0] : restaurantId;
+
   for (const r of requested) {
     const row = byId.get(r.item_id as string);
     const qty = Math.max(1, Math.min(Number(r.qty) || 1, 20));
     if (!row) {
       validationErrors.push(`Item ${r.item_id} not found`);
-      continue;
-    }
-    if (row.restaurant_id !== restaurantId) {
-      validationErrors.push(`${row.name} belongs to a different restaurant`);
       continue;
     }
     if (!row.is_available) {
@@ -508,7 +530,7 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     .from('concierge_cart_drafts')
     .insert({
       user_id: ctx.userId,
-      restaurant_id: restaurantId,
+      restaurant_id: effectiveRestaurantId,
       line_items: lineItems,
       constraints: {
         ...(a.constraints as Record<string, unknown> ?? {}),
@@ -625,11 +647,18 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     .update({ status: 'consumed', updated_at: new Date().toISOString() })
     .eq('id', draftId);
 
+  // Read the restaurant off the DRAFT, not the model's argument — the draft
+  // carries the one derived from the actual items.
+  const { data: draftRow } = await admin
+    .from('concierge_cart_drafts')
+    .select('restaurant_id')
+    .eq('id', draftId)
+    .single();
   const { data: rest } = await admin
     .from('restaurants')
     .select('name, estimated_delivery_time')
-    .eq('id', a.restaurant_id as string)
-    .single();
+    .eq('id', draftRow?.restaurant_id ?? (a.restaurant_id as string))
+    .maybeSingle();
 
   const result = {
     cart_draft_id: draftId,
@@ -1619,7 +1648,15 @@ Deno.serve(async (req) => {
         if (r?.cart_id) draftId = r.cart_id as string;
         if (r?.checkout_url) checkoutUrl = r.checkout_url as string;
 
-        toolTrace.push({ name, args });
+        // Record a short outcome per call, not just the name: a failing tool
+        // and a refusing tool look identical in a name-only trace, which is
+        // what made an unplaceable order hard to diagnose.
+        const rs = JSON.stringify(result);
+        toolTrace.push({
+          name,
+          args,
+          result: rs.length > 400 ? rs.slice(0, 400) + '…' : rs,
+        });
         messages.push({
           role: 'tool',
           tool_call_id: call.id,
