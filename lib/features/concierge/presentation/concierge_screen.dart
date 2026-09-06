@@ -66,9 +66,27 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
   List<String> get _examples =>
       widget.grocery ? _groceryExamples : _foodExamples;
 
-  /// Grocery keeps its own cart, exactly as the rest of the app does.
-  StateNotifierProvider<dynamic, List<CartItem>> get _cartProvider =>
-      widget.grocery ? groceryCartProvider : cartProvider;
+  /// Grocery keeps its own cart, exactly as the rest of the app does. Read
+  /// through explicit accessors rather than one dynamically-typed provider:
+  /// the two notifiers do NOT share an interface — GroceryCartNotifier has no
+  /// isDifferentRestaurant — so a dynamic call compiled fine and then threw
+  /// NoSuchMethodError at runtime, surfacing as "something went wrong".
+  List<CartItem> _readCart() =>
+      widget.grocery ? ref.read(groceryCartProvider) : ref.read(cartProvider);
+
+  void _clearCart() => widget.grocery
+      ? ref.read(groceryCartProvider.notifier).clearCart()
+      : ref.read(cartProvider.notifier).clearCart();
+
+  void _addToCart(MenuItem item) => widget.grocery
+      ? ref.read(groceryCartProvider.notifier).addItem(item)
+      : ref.read(cartProvider.notifier).addItem(item);
+
+  /// Only the food cart enforces one restaurant per order; a grocery basket
+  /// has no equivalent rule, and asking about it there would be nonsense.
+  bool _wouldSwitchRestaurant(MenuItem item) => widget.grocery
+      ? false
+      : ref.read(cartProvider.notifier).isDifferentRestaurant(item);
 
   @override
   void dispose() {
@@ -100,7 +118,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
 
       // Send what is actually in the cart so the concierge can add to the
       // existing order instead of replacing it.
-      final cart = ref.read(_cartProvider);
+      final cart = _readCart();
       final reply = await ref
           .read(conciergeServiceProvider)
           .ask(
@@ -242,7 +260,6 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       if (lines.isEmpty) throw Exception('That order is no longer available');
 
       final menuService = MenuService(Supabase.instance.client);
-      final cart = ref.read(_cartProvider.notifier);
 
       // Re-read each item from the menu rather than trusting the draft's
       // snapshot, so the cart carries real current prices and options.
@@ -263,7 +280,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       // somewhere else is a genuine conflict. Ask rather than silently
       // discarding something the customer chose themselves.
       final first = resolved.keys.first;
-      if (cart.isDifferentRestaurant(first) && mounted) {
+      if (_wouldSwitchRestaurant(first) && mounted) {
         final replace = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -285,16 +302,15 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
           ),
         );
         if (replace != true) return;
-        cart.clearCart();
       }
 
       // Replace, don't append. The draft represents the complete intended
       // order (a follow-up "add a drink" comes back containing the earlier
       // items too), so appending would double everything already in the cart.
-      cart.clearCart();
+      _clearCart();
       resolved.forEach((item, qty) {
         for (var i = 0; i < qty; i++) {
-          cart.addItem(item);
+          _addToCart(item);
         }
       });
 
@@ -306,7 +322,15 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
         context,
       ).pushNamed(widget.grocery ? '/grocery-cart' : '/cart');
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      // Show our own explanations verbatim ("Those items are no longer on the
+      // menu") rather than flattening them to a generic apology — the reason
+      // is the useful part, both for the customer and for diagnosing this.
+      final raw = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : '';
+      messenger.showSnackBar(
+        SnackBar(content: Text(raw.isNotEmpty ? raw : friendlyError(e))),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
