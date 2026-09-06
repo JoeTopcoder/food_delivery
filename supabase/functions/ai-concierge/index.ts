@@ -1663,6 +1663,14 @@ Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have
 
 When they do name an amount, pass it as budget_cents.
 
+USE THEIR HABITS
+You are given what this customer usually orders. Lean on it:
+- "My usual", "the usual", "same as last time" means the items at the top of that list — order them without interrogating the customer.
+- When several options fit equally, choose the one they already order, or a place they already order from. That is the difference between a concierge and a search box.
+- When you pick something because they usually order it, say so in a few words ("your usual jerk chicken") so it reads as recognition rather than a coincidence.
+- It never overrides an explicit request: asked for something new, get them the new thing. Habits break ties, they do not make decisions.
+- If they have no history, just choose well and say nothing about it.
+
 ADDING TO AN EXISTING ORDER
 If the customer already has items in their cart and asks for something MORE ("also add a Coke", "add fries", "and a juice"), that is an addition, not a new order.
 
@@ -1792,6 +1800,34 @@ Deno.serve(async (req) => {
       ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
       : 'The customer has no wallet balance recorded.';
 
+    // Habits are injected as context rather than exposed as a tool: they are
+    // wanted on essentially every request, and a tool call is a round trip the
+    // customer waits through.
+    let habitLine = 'No ordering history for this customer yet.';
+    try {
+      const { data: habits } = await admin.rpc('get_customer_habits', {
+        p_user_id: ctx.userId,
+        p_store_type: ctx.storeType ?? 'food',
+        p_limit: 10,
+      });
+      if (Array.isArray(habits) && habits.length > 0) {
+        const described = habits
+          .map(
+            (h: Record<string, unknown>) =>
+              `${h.item_name} (${h.store_name}, id ${h.menu_item_id}, ordered ${h.times_ordered}x)`,
+          )
+          .join('; ');
+        habitLine =
+          `What this customer usually orders, most frequent first: ${described}. ` +
+          'Use it to break ties and to resolve "my usual" or "the usual" — those ' +
+          'mean the items at the top of this list. Prefer a place they already ' +
+          'order from when nothing else separates the options. Never let it ' +
+          'override what they actually asked for, and never mention ids to them.';
+      }
+    } catch (_) {
+      // History is a nicety; failing to load it must not fail the request.
+    }
+
     let cartLine = 'The customer has no order in progress.';
     if ((ctx.cartItems?.length ?? 0) > 0) {
       const { data: cartRows } = await admin
@@ -1843,6 +1879,7 @@ For a big basket, summarise in the reply — how many items, which sections, the
       ...(groceryLine ? [{ role: 'system', content: groceryLine }] : []),
       { role: 'system', content: walletLine },
       { role: 'system', content: cartLine },
+      { role: 'system', content: habitLine },
       ...(Array.isArray(body.history) ? body.history : []),
       { role: 'user', content: String(body.message ?? '') },
     ];
