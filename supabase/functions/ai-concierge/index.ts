@@ -115,6 +115,24 @@ function asUuid(v: unknown): string | null {
   return typeof v === 'string' && UUID_RE.test(v.trim()) ? v.trim() : null;
 }
 
+/**
+ * Did the customer actually raise a spending limit? Only then may one be
+ * enforced. Matches an amount ("$40", "40 dollars", "under 30"), a spending
+ * word ("budget", "cheap", "spend"), or a reference to their wallet.
+ */
+function mentionsSpendingLimit(text: string): boolean {
+  const t = text.toLowerCase();
+  if (/\$\s*\d/.test(t)) return true;
+  if (/\d+\s*(dollars?|bucks?|usd)/.test(t)) return true;
+  if (/(under|below|less than|max|maximum|up to|within|no more than)\s+\$?\d/.test(t)) {
+    return true;
+  }
+  if (/(budget|wallet|balance|afford|spend|cheap|cheaper|inexpensive)/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 interface Ctx {
   userId: string;
   lat: number | null;
@@ -147,6 +165,11 @@ interface Ctx {
   /// a food request could return tinned goods and a grocery request could
   /// return a sit-down entree.
   storeType?: 'food' | 'grocery';
+  /// Whether a spending limit is legitimate for this request at all. The model
+  /// kept passing the wallet balance as budget_cents for requests that never
+  /// mentioned money — capping "a month of groceries" at a $38 wallet and then
+  /// refusing its own basket. Prompting did not hold, so the server decides.
+  budgetAllowed?: boolean;
 }
 
 // Every query that can return a dish routes through these two helpers, so
@@ -499,8 +522,11 @@ async function filterMenuItemsRaw(
 }
 
 async function getMenu(_ctx: Ctx, a: Record<string, unknown>) {
-  const items = await filterMenuItemsRaw(a.restaurant_id as string, {});
-  return { items: items.map(shapeItem) };
+  // Pass the constraints through rather than returning everything: a customer
+  // who said "no pork" must not be shown pork to choose from, and a bulk shop
+  // is exactly where an unfiltered list would get one slipped in.
+  const items = await filterMenuItemsRaw(asUuid(a.restaurant_id) ?? '', a);
+  return { items: items.map(shapeItem), count: items.length };
 }
 
 async function filterMenuItems(_ctx: Ctx, a: Record<string, unknown>) {
@@ -527,6 +553,7 @@ function shapeItem(i: Record<string, unknown>) {
     price_cents: toCents(i.price as number),
     currency: 'USD',
     tags: i.flavor_tags ?? [],
+    category: i.category ?? null,
     allergens,
     spice_rating: i.spice_rating,
     // Provenance travels with the item so the UI can caveat an AI-inferred
@@ -637,7 +664,9 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   // check — which it demonstrably does not: asked for "$50" it assembled
   // $65.45, and for "under $40" it assembled $49.46.
   const budgetCents =
-    typeof a.budget_cents === 'number' && a.budget_cents > 0
+    ctx.budgetAllowed === true &&
+    typeof a.budget_cents === 'number' &&
+    a.budget_cents > 0
       ? Math.round(a.budget_cents)
       : null;
 
@@ -1472,10 +1501,15 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'get_menu',
-      description: 'Full available menu for a restaurant.',
+      description:
+        "The store's FULL catalogue with categories. Use this for a big or open-ended shop — a week's or month's groceries, \"everything for the week\", stocking up — where you need to see the whole range and compose across sections rather than search for one dish at a time.",
       parameters: {
         type: 'object',
-        properties: { restaurant_id: { type: 'string' } },
+        properties: {
+          restaurant_id: { type: 'string' },
+          dietary_exclusions: { type: 'array', items: { type: 'string' } },
+          dietary_requirements: { type: 'array', items: { type: 'string' } },
+        },
         required: ['restaurant_id'],
       },
     },
@@ -1636,7 +1670,9 @@ First call search_dishes with restaurant_id set to the restaurant they are alrea
 
 Then call place_in_cart with add_to_existing_cart:true and only the NEW items — the existing ones are folded in for you and the total will cover everything. Never start a fresh order that silently drops what they already chose.
 
-THE WALLET IS A BUDGET. If the customer refers to paying with their wallet or balance — "use my wallet", "order something with my balance", "whatever my wallet covers" — their wallet balance IS the budget: pass it as budget_cents. It is given to you above; never guess or assume it. If their balance cannot cover anything available, say so plainly with the balance and the cheapest option, rather than building a cart they cannot pay for. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
+THE WALLET IS A BUDGET ONLY WHEN THEY INVOKE IT. If the customer refers to paying with their wallet or balance — "use my wallet", "order something with my balance", "whatever my wallet covers" — then that balance IS the budget: pass it as budget_cents, taken from the figure given above, never guessed.
+
+Otherwise the wallet is NOT a limit. A customer who says "order a month of groceries" has said nothing about how they intend to pay, and capping them at their current wallet balance is inventing a constraint they never gave. Checkout handles payment; your job is to build what they asked for. It covers the TOTAL including delivery and fees, not just the food. build_cart_draft tells you immediately whether you are within it, and finalize_cart will REFUSE a cart that is over. If you are over, rebuild with fewer or cheaper items — do not finalize and mention the overspend afterwards.
 
 STYLE
 Be brief and concrete. Name the restaurant and the dishes, give the total once you have it from price_cart, and say when it should arrive. No filler.`;
@@ -1714,6 +1750,19 @@ Deno.serve(async (req) => {
         })),
       cartRestaurantId: body.cart_restaurant_id ?? null,
       storeType: body.store_type === 'grocery' ? 'grocery' : 'food',
+      // A budget is only real if the customer actually raised one: an amount,
+      // a spending word, or their wallet. Conversation history counts, so a
+      // limit set on an earlier turn still applies to a follow-up.
+      budgetAllowed: mentionsSpendingLimit(
+        [
+          String(body.message ?? ''),
+          ...(Array.isArray(body.history)
+            ? body.history
+                .filter((h: Record<string, unknown>) => h?.role === 'user')
+                .map((h: Record<string, unknown>) => String(h.content ?? ''))
+            : []),
+        ].join(' '),
+      ),
     };
 
     // A follow-up usually happens BEFORE the customer has tapped through to
@@ -1740,8 +1789,8 @@ Deno.serve(async (req) => {
     }
     // Facts the model must not invent, supplied fresh each request.
     const walletLine = ctx.walletCents != null
-      ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents).`
-      : 'The customer has no wallet balance.';
+      ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
+      : 'The customer has no wallet balance recorded.';
 
     let cartLine = 'The customer has no order in progress.';
     if ((ctx.cartItems?.length ?? 0) > 0) {
@@ -1775,7 +1824,18 @@ A NAMED LIST is literal. "Milk, bread and eggs" means those three things — get
 
 A MEAL-SHAPED REQUEST means INGREDIENTS TO COOK. "Something for dinner" is a protein plus a starch plus a vegetable — chicken and rice and onions, not flour and crisps. "Breakfast" is eggs, bread, butter, milk. Choose things that combine into the meal they named; a basket of snacks is not dinner. Never pick two versions of the same staple (whole milk AND skim milk) unless they asked.
 
-Everything else is unchanged: real items only, server-enforced dietary filters, enforced budgets, and one built basket rather than a menu of options.`
+Everything else is unchanged: real items only, server-enforced dietary filters, enforced budgets, and one built basket rather than a menu of options.
+BIG SHOPS — A WEEK, A MONTH, "STOCK US UP"
+These are a different job from "milk and eggs". Call get_menu once to see the whole catalogue, then compose a basket that actually covers the period:
+
+- Cover the sections a household needs — protein, staples (rice/flour/pasta), produce, dairy, canned goods, frozen, and household supplies. A month of only snacks is a failed shop.
+- Use REAL quantities. A month for two people is not one bag of rice and one milk. Think in weeks: several litres of milk, multiple loaves, a few kilos of rice, meat for many meals. Perishables scale less than dry goods — nobody wants a month of fresh bananas at once.
+- Expect 20-40 line items. A dozen is a top-up, not a month.
+- "For us" with no number means assume a household of two and SAY that you assumed it, so they can correct you.
+- These baskets are expensive. If a budget or wallet balance applies it is still enforced — if you cannot fit a full month inside it, build the best basket you can within the limit and say plainly that it covers part of the period rather than silently dropping half the list.
+
+For a big basket, summarise in the reply — how many items, which sections, the total. Do not recite thirty lines back at them.
+`
       : null;
 
     const messages: Record<string, unknown>[] = [
