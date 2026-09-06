@@ -77,6 +77,7 @@ class ConciergeService {
     List<Map<String, dynamic>> cartItems = const [],
     String? cartRestaurantId,
     String? activeDraftId,
+    String storeType = 'food',
   }) async {
     try {
       final res = await _client.functions.invoke(
@@ -93,6 +94,9 @@ class ConciergeService {
           // customer has tapped through to the cart, so the cart is still
           // empty and this draft is the only record of what they just ordered.
           'active_draft_id': activeDraftId,
+          // Groceries and restaurants share the same tables, separated only by
+          // store_type, so this keeps each side of the app in its own lane.
+          'store_type': storeType,
         },
       );
 

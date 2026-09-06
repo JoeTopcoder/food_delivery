@@ -102,6 +102,19 @@ const REQUIREMENT_COLUMN: Record<string, string> = {
   kosher: 'is_kosher',
 };
 
+/**
+ * The model sometimes passes a restaurant or dish NAME where an id belongs
+ * ("The Burger Joint" as a restaurant_id), which Postgres rejects outright:
+ * `invalid input syntax for type uuid`. That surfaced as an opaque failure and
+ * a retry loop, so anything that is not a real uuid is treated as "not
+ * supplied" instead of being sent to the database.
+ */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function asUuid(v: unknown): string | null {
+  return typeof v === 'string' && UUID_RE.test(v.trim()) ? v.trim() : null;
+}
+
 interface Ctx {
   userId: string;
   lat: number | null;
@@ -129,11 +142,27 @@ interface Ctx {
   /// "add a drink" extend the existing order instead of starting a new one.
   cartItems?: { item_id: string; qty: number }[];
   cartRestaurantId?: string | null;
+  /// Which side of the app is asking. Groceries and restaurants share the
+  /// restaurants/menus tables, separated only by store_type, so without this
+  /// a food request could return tinned goods and a grocery request could
+  /// return a sit-down entree.
+  storeType?: 'food' | 'grocery';
 }
 
 // Every query that can return a dish routes through these two helpers, so
 // "no pork" is implemented exactly once. Adding a new search path without them
 // would be the way a dietary constraint quietly stops being enforced.
+
+/**
+ * Restricts a query to the stores belonging to the calling side of the app.
+ * 'both' stores appear in either, since they genuinely sell both.
+ */
+// deno-lint-ignore no-explicit-any
+function applyStoreType(q: any, ctx: Ctx) {
+  return ctx.storeType === 'grocery'
+    ? q.in('restaurants.store_type', ['grocery', 'both'])
+    : q.in('restaurants.store_type', ['food', 'both']);
+}
 
 /** Applies exclusions/requirements to any menus query. */
 // deno-lint-ignore no-explicit-any
@@ -252,7 +281,7 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   let q = admin
     .from('menus')
     .select(
-      'id, name, description, price, category, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified)',
+      'id, name, description, price, category, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified, store_type)',
     )
     .eq('is_available', true)
     .eq('restaurants.is_verified', true)
@@ -262,10 +291,10 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   // Scope to one restaurant when asked. Adding "a juice" to an order should
   // look at THAT restaurant's drinks, not every drink in the city — the
   // customer is extending one order, not starting a second delivery.
-  if (typeof a.restaurant_id === 'string' && a.restaurant_id) {
-    q = q.eq('restaurant_id', a.restaurant_id);
-  }
+  const scopeId = asUuid(a.restaurant_id);
+  if (scopeId) q = q.eq('restaurant_id', scopeId);
 
+  q = applyStoreType(q, ctx);
   q = applyDietary(q, a);
   if (typeof a.max_item_price_cents === 'number') {
     q = q.lte('price', (a.max_item_price_cents as number) / 100);
@@ -313,12 +342,13 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
   let q = admin
     .from('menus')
     .select(
-      'id, name, price, spice_rating, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, is_verified)',
+      'id, name, price, spice_rating, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, rating, price_tier, cuisine_type, is_open, latitude, longitude, estimated_delivery_time, is_verified, store_type)',
     )
     .eq('is_available', true)
     .eq('restaurants.is_verified', true)
     .limit(1200);
 
+  q = applyStoreType(q, ctx);
   q = applyDietary(q, a);
   if (typeof a.max_price_tier === 'number') {
     q = q.lte('restaurants.price_tier', a.max_price_tier);
@@ -508,7 +538,7 @@ function shapeItem(i: Record<string, unknown>) {
 }
 
 async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
-  const restaurantId = a.restaurant_id as string;
+  const restaurantId = asUuid(a.restaurant_id);
   let requested = (a.items as Array<Record<string, unknown>>) ?? [];
   if (!requested.length) throw new Error('No items supplied');
 
@@ -532,7 +562,18 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
 
   // Re-read every item from the database. The model supplies ids and
   // quantities only; names and prices come from the menu, never from the model.
-  const ids = requested.map((r) => r.item_id as string);
+  const ids = requested
+    .map((r) => asUuid(r.item_id))
+    .filter((v): v is string => v !== null);
+  if (ids.length === 0) {
+    return {
+      cart_draft_id: null,
+      line_items: [],
+      validation_errors: [
+        'Item ids must be the id values returned by search, not names.',
+      ],
+    };
+  }
   const { data: rows, error } = await admin
     .from('menus')
     .select('id, name, price, is_available, restaurant_id')
@@ -731,7 +772,7 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   const { data: rest } = await admin
     .from('restaurants')
     .select('name, estimated_delivery_time')
-    .eq('id', draftRow?.restaurant_id ?? (a.restaurant_id as string))
+    .eq('id', draftRow?.restaurant_id ?? asUuid(a.restaurant_id) ?? '')
     .maybeSingle();
 
   const result = {
@@ -1672,6 +1713,7 @@ Deno.serve(async (req) => {
           qty: Math.max(1, Math.min(Number(c.qty) || 1, 20)),
         })),
       cartRestaurantId: body.cart_restaurant_id ?? null,
+      storeType: body.store_type === 'grocery' ? 'grocery' : 'food',
     };
 
     // A follow-up usually happens BEFORE the customer has tapped through to
@@ -1726,8 +1768,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    const groceryLine = ctx.storeType === 'grocery'
+      ? 'You are shopping GROCERIES right now, not restaurant meals. The customer is filling a shopping basket: expect staples, brands, pack sizes and multiples ("two milk", "a pack of rice"). Quantity matters more than pairing, there is no "dinner for two" to compose, and delivery timing is usually less urgent. Everything else — real items only, server-enforced dietary filters, budgets, one built basket rather than a menu of options — is unchanged.'
+      : null;
+
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
+      ...(groceryLine ? [{ role: 'system', content: groceryLine }] : []),
       { role: 'system', content: walletLine },
       { role: 'system', content: cartLine },
       ...(Array.isArray(body.history) ? body.history : []),
