@@ -817,6 +817,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: ConciergeScreen(),
                 ),
               );
+            case '/grocery-concierge':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: ConciergeScreen(grocery: true),
+                ),
+              );
             case '/grocery-cart':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(

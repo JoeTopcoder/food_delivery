@@ -30,7 +30,12 @@ class _Turn {
 /// server's own figures — rather than from the assistant's prose, so what the
 /// customer is asked to pay can never drift from what the database computed.
 class ConciergeScreen extends ConsumerStatefulWidget {
-  const ConciergeScreen({super.key});
+  /// Same screen for both verticals. Groceries differ only in which stores are
+  /// searched and which cart the result lands in, so a second copy of this
+  /// screen would be two places to fix every future bug.
+  const ConciergeScreen({super.key, this.grocery = false});
+
+  final bool grocery;
 
   @override
   ConsumerState<ConciergeScreen> createState() => _ConciergeScreenState();
@@ -46,11 +51,24 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
   /// rather than starting a fresh one.
   String? _lastDraftId;
 
-  static const _examples = [
+  static const _foodExamples = [
     'Dinner for two, something spicy, no pork, under \$40',
     'I want jerk chicken delivered before 7',
     'Something vegetarian and light, nothing too expensive',
   ];
+
+  static const _groceryExamples = [
+    'Milk, bread and eggs',
+    'Snacks and drinks for the weekend, under \$30',
+    'Whatever I need for breakfast',
+  ];
+
+  List<String> get _examples =>
+      widget.grocery ? _groceryExamples : _foodExamples;
+
+  /// Grocery keeps its own cart, exactly as the rest of the app does.
+  StateNotifierProvider<dynamic, List<CartItem>> get _cartProvider =>
+      widget.grocery ? groceryCartProvider : cartProvider;
 
   @override
   void dispose() {
@@ -82,7 +100,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
 
       // Send what is actually in the cart so the concierge can add to the
       // existing order instead of replacing it.
-      final cart = ref.read(cartProvider);
+      final cart = ref.read(_cartProvider);
       final reply = await ref
           .read(conciergeServiceProvider)
           .ask(
@@ -99,6 +117,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
             // progress, which the customer has usually not yet sent to the
             // cart when they ask to add something to it.
             activeDraftId: _lastDraftId,
+            storeType: widget.grocery ? 'grocery' : 'food',
           );
 
       if (!mounted) return;
@@ -223,7 +242,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       if (lines.isEmpty) throw Exception('That order is no longer available');
 
       final menuService = MenuService(Supabase.instance.client);
-      final cart = ref.read(cartProvider.notifier);
+      final cart = ref.read(_cartProvider.notifier);
 
       // Re-read each item from the menu rather than trusting the draft's
       // snapshot, so the cart carries real current prices and options.
@@ -283,7 +302,9 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
       // The cart is authoritative from here; stop treating the draft as the
       // order in progress or it would be merged in a second time.
       _lastDraftId = null;
-      Navigator.of(context).pushNamed('/cart');
+      Navigator.of(
+        context,
+      ).pushNamed(widget.grocery ? '/grocery-cart' : '/cart');
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
     } finally {
@@ -308,7 +329,10 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Food Concierge'), centerTitle: true),
+      appBar: AppBar(
+        title: Text(widget.grocery ? 'Grocery Concierge' : 'Food Concierge'),
+        centerTitle: true,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -330,6 +354,7 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
                         onCheckout: draftId == null
                             ? null
                             : () => _applyDraftAndOpenCart(draftId),
+                        grocery: widget.grocery,
                       );
                     },
                   ),
@@ -551,9 +576,16 @@ class _ThinkingBubble extends StatelessWidget {
 }
 
 class _TurnBubble extends StatelessWidget {
-  const _TurnBubble({required this.turn, required this.onCheckout});
+  const _TurnBubble({
+    required this.turn,
+    required this.onCheckout,
+    this.grocery = false,
+  });
 
   final _Turn turn;
+
+  /// Only changes the button wording — a grocery order is a basket, not a meal.
+  final bool grocery;
 
   /// Null when this turn produced no cart draft — there is nothing to check
   /// out, so the button must not appear at all.
@@ -661,9 +693,9 @@ class _TurnBubble extends StatelessWidget {
                     ),
                   ),
                   onPressed: onCheckout,
-                  child: const Text(
-                    'Review & checkout',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  child: Text(
+                    grocery ? 'Review basket' : 'Review & checkout',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

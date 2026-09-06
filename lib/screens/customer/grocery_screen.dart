@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
@@ -123,6 +123,20 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     ),
                     const SizedBox(height: 20),
                   ],
+                ),
+              ),
+            ),
+
+            // ── Concierge entry ─────────────────────────────────────
+            // Directly under the search field: it is the alternative to
+            // searching, for someone who would rather say what they need than
+            // hunt for each item.
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _GroceryConciergeCard(
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/grocery-concierge'),
                 ),
               ),
             ),
@@ -981,10 +995,87 @@ class _GroceryCategoryImage extends StatelessWidget {
                 child: Text(emoji, style: const TextStyle(fontSize: 28)),
               ),
             )
-          : Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 28)),
-            ),
+          : Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
     );
   }
 }
 
+/// Grocery-screen entry to the Concierge. Mirrors the food home card in shape
+/// and height so the two read as the same feature in two places.
+class _GroceryConciergeCard extends StatelessWidget {
+  const _GroceryConciergeCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const accent = Color(0xFF059669); // matches the grocery service colour
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              accent.withValues(alpha: 0.18),
+              accent.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(
+                Icons.shopping_basket_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Grocery Concierge',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '"Milk, bread and eggs" — it builds the basket',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded, size: 16, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+}
