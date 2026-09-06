@@ -1769,7 +1769,13 @@ Deno.serve(async (req) => {
     }
 
     const groceryLine = ctx.storeType === 'grocery'
-      ? 'You are shopping GROCERIES right now, not restaurant meals. The customer is filling a shopping basket: expect staples, brands, pack sizes and multiples ("two milk", "a pack of rice"). Quantity matters more than pairing, there is no "dinner for two" to compose, and delivery timing is usually less urgent. Everything else — real items only, server-enforced dietary filters, budgets, one built basket rather than a menu of options — is unchanged.'
+      ? `You are shopping GROCERIES, not ordering restaurant meals. The customer is filling a basket: expect staples, brands, pack sizes and multiples ("two milk", "a pack of rice").
+
+A NAMED LIST is literal. "Milk, bread and eggs" means those three things — get each one, do not substitute or embellish.
+
+A MEAL-SHAPED REQUEST means INGREDIENTS TO COOK. "Something for dinner" is a protein plus a starch plus a vegetable — chicken and rice and onions, not flour and crisps. "Breakfast" is eggs, bread, butter, milk. Choose things that combine into the meal they named; a basket of snacks is not dinner. Never pick two versions of the same staple (whole milk AND skim milk) unless they asked.
+
+Everything else is unchanged: real items only, server-enforced dietary filters, enforced budgets, and one built basket rather than a menu of options.`
       : null;
 
     const messages: Record<string, unknown>[] = [
