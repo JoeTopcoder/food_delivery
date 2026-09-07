@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -40,7 +40,9 @@ class DeliveryHistoryScreen extends ConsumerWidget {
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             slivers: [
               SliverAppBar(
                 pinned: true,
@@ -68,7 +70,12 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                   }
 
                   return SliverPadding(
-                    padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
+                    padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context),
+                      8,
+                      Responsive.horizontalPadding(context),
+                      24,
+                    ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final delivery = deliveries[index];
@@ -118,7 +125,9 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
-                                          fontSize: Responsive.bodyText(context),
+                                          fontSize: Responsive.bodyText(
+                                            context,
+                                          ),
                                           color: Colors.white,
                                         ),
                                       ),

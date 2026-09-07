@@ -44,8 +44,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         bottom: TabBar(
           controller: _tabCtrl,
           tabs: const [
-            Tab(icon: Icon(Icons.restaurant_rounded, size: 18), text: 'Restaurants'),
-            Tab(icon: Icon(Icons.local_laundry_service_rounded, size: 18), text: 'Laundry'),
+            Tab(
+              icon: Icon(Icons.restaurant_rounded, size: 18),
+              text: 'Restaurants',
+            ),
+            Tab(
+              icon: Icon(Icons.local_laundry_service_rounded, size: 18),
+              text: 'Laundry',
+            ),
             Tab(icon: Icon(Icons.car_repair, size: 18), text: 'Car Services'),
           ],
         ),
@@ -88,7 +94,8 @@ class _RestaurantFavourites extends ConsumerWidget {
           padding: EdgeInsets.all(Responsive.cardPadding(context)),
           itemCount: favorites.length,
           itemBuilder: (context, index) {
-            final restaurantData = favorites[index]['restaurants'] as Map<String, dynamic>?;
+            final restaurantData =
+                favorites[index]['restaurants'] as Map<String, dynamic>?;
             if (restaurantData == null) return const SizedBox.shrink();
             final restaurant = Restaurant.fromJson(restaurantData);
             return _FavCard(
@@ -99,11 +106,17 @@ class _RestaurantFavourites extends ConsumerWidget {
               trailing: '${restaurant.estimatedDeliveryTime ?? 30} min',
               trailingIcon: Icons.access_time,
               placeholderIcon: Icons.restaurant,
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
-              )),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      RestaurantDetailScreen(restaurant: restaurant),
+                ),
+              ),
               onUnfavourite: () async {
-                await ref.read(favoritesServiceProvider).toggleFavorite(userId, restaurant.id);
+                await ref
+                    .read(favoritesServiceProvider)
+                    .toggleFavorite(userId, restaurant.id);
                 ref.invalidate(favoriteRestaurantsProvider(userId));
               },
             );
@@ -191,7 +204,8 @@ class _CarServiceFavourites extends ConsumerWidget {
           padding: EdgeInsets.all(Responsive.cardPadding(context)),
           itemCount: rows.length,
           itemBuilder: (context, index) {
-            final p = rows[index]['car_service_providers'] as Map<String, dynamic>?;
+            final p =
+                rows[index]['car_service_providers'] as Map<String, dynamic>?;
             if (p == null) return const SizedBox.shrink();
             return _FavCard(
               imageUrl: p['profile_image_url'] as String?,
@@ -268,9 +282,11 @@ class _FavCard extends StatelessWidget {
                 child: imageUrl != null
                     ? Image.network(
                         imageUrl!,
-                        width: 72, height: 72,
+                        width: 72,
+                        height: 72,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(placeholderIcon),
+                        errorBuilder: (_, __, ___) =>
+                            _placeholder(placeholderIcon),
                       )
                     : _placeholder(placeholderIcon),
               ),
@@ -281,7 +297,10 @@ class _FavCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -289,7 +308,10 @@ class _FavCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         subtitle!,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -298,17 +320,34 @@ class _FavCard extends StatelessWidget {
                       const SizedBox(height: 5),
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 15),
+                          const Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFF59E0B),
+                            size: 15,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             rating!.toStringAsFixed(1),
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
                           if (trailing != null && trailingIcon != null) ...[
                             const SizedBox(width: 10),
-                            Icon(trailingIcon, color: Colors.grey.shade500, size: 13),
+                            Icon(
+                              trailingIcon,
+                              color: Colors.grey.shade500,
+                              size: 13,
+                            ),
                             const SizedBox(width: 3),
-                            Text(trailing!, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                            Text(
+                              trailing!,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ],
                       ),
@@ -318,7 +357,11 @@ class _FavCard extends StatelessWidget {
               ),
               // Unfavourite button
               IconButton(
-                icon: const Icon(Icons.favorite_rounded, color: Colors.red, size: 22),
+                icon: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.red,
+                  size: 22,
+                ),
                 onPressed: onUnfavourite,
               ),
             ],
@@ -329,13 +372,14 @@ class _FavCard extends StatelessWidget {
   }
 
   Widget _placeholder(IconData icon) => Container(
-        width: 72, height: 72,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: Colors.grey.shade400, size: 30),
-      );
+    width: 72,
+    height: 72,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(icon, color: Colors.grey.shade400, size: 30),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,26 +390,34 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
   final String hint;
-  const _EmptyState({required this.icon, required this.message, required this.hint});
+  const _EmptyState({
+    required this.icon,
+    required this.message,
+    required this.hint,
+  });
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 64, color: Colors.grey.shade300),
-              const SizedBox(height: 16),
-              Text(message,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text(hint,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                  textAlign: TextAlign.center),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            textAlign: TextAlign.center,
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(
+            hint,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
 }

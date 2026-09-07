@@ -592,7 +592,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
+                          'Proceed to Checkout - ${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -796,13 +796,17 @@ class _SuggestedItems extends ConsumerWidget {
     final shown = suggestions.take(10).toList();
 
     // Card width = 42 % of screen, clamped for tiny → tablet
-    final cardW = (MediaQuery.of(context).size.width * 0.42)
-        .clamp(140.0, 200.0);
+    final cardW = (MediaQuery.of(context).size.width * 0.42).clamp(
+      140.0,
+      200.0,
+    );
     // Card total height is screen-proportional — no manual content maths.
     // The image section uses Expanded to fill whatever space is left after
     // the fixed-height text + button area. Nothing can overflow.
-    final cardH = (MediaQuery.of(context).size.width * 0.58)
-        .clamp(200.0, 260.0);
+    final cardH = (MediaQuery.of(context).size.width * 0.58).clamp(
+      200.0,
+      260.0,
+    );
     // Image fills whatever remains after the fixed 110 dp text+button area
     final imgH = (cardH - 110).clamp(88.0, 150.0);
 
@@ -989,15 +993,15 @@ class _SuggestionCard extends ConsumerWidget {
               child: ElevatedButton.icon(
                 onPressed: inCart
                     ? null
-                    : () => ref
-                        .read(groceryCartProvider.notifier)
-                        .addItem(item),
+                    : () =>
+                          ref.read(groceryCartProvider.notifier).addItem(item),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: inCart
                       ? scheme.surfaceContainerHighest
                       : const Color(0xFF2BA84A),
-                  foregroundColor:
-                      inCart ? scheme.onSurfaceVariant : Colors.white,
+                  foregroundColor: inCart
+                      ? scheme.onSurfaceVariant
+                      : Colors.white,
                   elevation: 0,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,

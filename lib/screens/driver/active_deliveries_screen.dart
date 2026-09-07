@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -98,15 +98,21 @@ class _ActiveDeliveriesScreenState
         }
 
         final deliveriesAsync = ref.watch(activeDeliveriesProvider(driver.id));
-        final multiTasksAsync = ref.watch(activeDeliveryTasksProvider(driver.id));
-        ref.watch(deliveryTaskRealtimeProvider(driver.id)); // keep realtime alive
+        final multiTasksAsync = ref.watch(
+          activeDeliveryTasksProvider(driver.id),
+        );
+        ref.watch(
+          deliveryTaskRealtimeProvider(driver.id),
+        ); // keep realtime alive
         final locationService = ref.read(locationServiceProvider);
         final isTracking = ref.watch(isTrackingProvider);
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             slivers: [
               // ── App Bar ────────────────────────────────────────────
               SliverAppBar(
@@ -165,13 +171,18 @@ class _ActiveDeliveriesScreenState
                     children: [
                       Padding(
                         padding: EdgeInsets.fromLTRB(
-                          Responsive.horizontalPadding(context), 12,
-                          Responsive.horizontalPadding(context), 6,
+                          Responsive.horizontalPadding(context),
+                          12,
+                          Responsive.horizontalPadding(context),
+                          6,
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.route_rounded,
-                                color: AppTheme.primaryColor, size: 16),
+                            Icon(
+                              Icons.route_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 16,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               'Multi-Stop Deliveries',
@@ -187,8 +198,9 @@ class _ActiveDeliveriesScreenState
                       ...multiTasksAsync.valueOrNull!.map((task) {
                         final stops = ((task['delivery_stops'] as List?) ?? [])
                             .cast<Map<String, dynamic>>();
-                        final completedStops =
-                            stops.where((s) => s['status'] == 'completed').length;
+                        final completedStops = stops
+                            .where((s) => s['status'] == 'completed')
+                            .length;
                         final earning =
                             (task['driver_earning'] as num?)?.toDouble() ?? 0.0;
                         return GestureDetector(
@@ -203,16 +215,24 @@ class _ActiveDeliveriesScreenState
                           ),
                           child: Container(
                             margin: EdgeInsets.fromLTRB(
-                              Responsive.horizontalPadding(context), 0,
-                              Responsive.horizontalPadding(context), 8,
+                              Responsive.horizontalPadding(context),
+                              0,
+                              Responsive.horizontalPadding(context),
+                              8,
                             ),
-                            padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                            padding: EdgeInsets.all(
+                              Responsive.cardPadding(context),
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E2030),
                               borderRadius: BorderRadius.circular(
-                                  Responsive.cardRadius(context)),
+                                Responsive.cardRadius(context),
+                              ),
                               border: Border.all(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
                             ),
                             child: Row(
                               children: [
@@ -220,16 +240,22 @@ class _ActiveDeliveriesScreenState
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                                    color: AppTheme.primaryColor.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Icon(Icons.route_rounded,
-                                      color: AppTheme.primaryColor, size: 22),
+                                  child: Icon(
+                                    Icons.route_rounded,
+                                    color: AppTheme.primaryColor,
+                                    size: 22,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${stops.length - 1} Pickup${stops.length - 1 != 1 ? "s" : ""} + 1 Drop-off',
@@ -250,8 +276,10 @@ class _ActiveDeliveriesScreenState
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right_rounded,
-                                    color: Colors.white38),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Colors.white38,
+                                ),
                               ],
                             ),
                           ),
@@ -274,7 +302,12 @@ class _ActiveDeliveriesScreenState
                     );
                   }
                   return SliverPadding(
-                    padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 24),
+                    padding: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context),
+                      8,
+                      Responsive.horizontalPadding(context),
+                      24,
+                    ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final delivery = deliveries[index];
@@ -1096,7 +1129,8 @@ class _DeliveryMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                  urlTemplate:
+                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'sevendash.app',
                 ),
@@ -1159,7 +1193,8 @@ class _DeliveryMap extends StatelessWidget {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'sevendash.app',
               ),

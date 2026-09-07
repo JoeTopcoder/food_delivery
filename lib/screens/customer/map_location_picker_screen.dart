@@ -63,8 +63,10 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
   void initState() {
     super.initState();
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _selectedPosition =
-          LatLng(widget.initialLatitude!, widget.initialLongitude!);
+      _selectedPosition = LatLng(
+        widget.initialLatitude!,
+        widget.initialLongitude!,
+      );
       _locatingUser = false;
       _reverseGeocode(_selectedPosition!);
     } else {
@@ -88,8 +90,10 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
       if (mounted) setState(() => _searchResults = []);
       return;
     }
-    _searchDebounce =
-        Timer(const Duration(milliseconds: 500), () => _runSearch(query));
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () => _runSearch(query),
+    );
   }
 
   Future<void> _runSearch(String query) async {
@@ -100,12 +104,15 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
         'https://nominatim.openstreetmap.org/search'
         '?format=json&q=${Uri.encodeComponent(query)}&limit=5&addressdetails=1',
       );
-      final response =
-          await http.get(url, headers: {'User-Agent': 'sevendash.app'});
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'sevendash.app'},
+      );
       if (!mounted) return;
       if (response.statusCode == 200) {
         final results = List<Map<String, dynamic>>.from(
-            json.decode(response.body) as List);
+          json.decode(response.body) as List,
+        );
         setState(() => _searchResults = results);
       }
     } catch (_) {
@@ -192,8 +199,11 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
         // for parcels this is often "Lot 14 Block 5" or similar.
         final featureName = data['name'] as String?;
         final formatted = addr != null
-            ? _formatAddress(addr,
-                extratags: extratags, featureName: featureName)
+            ? _formatAddress(
+                addr,
+                extratags: extratags,
+                featureName: featureName,
+              )
             : null;
         if (formatted != null && formatted.isNotEmpty) {
           setState(() => _address = formatted);
@@ -222,10 +232,9 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
     String e(String key) => (extratags?[key] as String? ?? '').trim();
 
     // Lot / parcel number: check OSM feature name, extratags ref, then house_number
-    final lotFromName =
-        (featureName != null && featureName.trim().isNotEmpty)
-            ? featureName.trim()
-            : '';
+    final lotFromName = (featureName != null && featureName.trim().isNotEmpty)
+        ? featureName.trim()
+        : '';
     final lotFromRef = e('ref');
     final houseNumber = e('addr:housenumber').isNotEmpty
         ? e('addr:housenumber')
@@ -235,21 +244,22 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
     final lotPart = lotFromName.isNotEmpty
         ? lotFromName
         : lotFromRef.isNotEmpty
-            ? 'Lot $lotFromRef'
-            : houseNumber;
+        ? 'Lot $lotFromRef'
+        : houseNumber;
 
     final road = s('road').isNotEmpty ? s('road') : s('pedestrian');
 
-    final neighbourhood =
-        s('neighbourhood').isNotEmpty ? s('neighbourhood') : s('suburb');
+    final neighbourhood = s('neighbourhood').isNotEmpty
+        ? s('neighbourhood')
+        : s('suburb');
 
     final city = s('city').isNotEmpty
         ? s('city')
         : s('town').isNotEmpty
-            ? s('town')
-            : s('village').isNotEmpty
-                ? s('village')
-                : s('county');
+        ? s('town')
+        : s('village').isNotEmpty
+        ? s('village')
+        : s('county');
 
     // Join number to road with a space ("12 Main Street"),
     // but named lots use a comma ("Lot 14, Main Street").
@@ -257,11 +267,12 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
     final streetPart = lotPart.isNotEmpty && road.isNotEmpty
         ? (isPlainNumber ? '$lotPart $road' : '$lotPart, $road')
         : lotPart.isNotEmpty
-            ? lotPart
-            : road;
+        ? lotPart
+        : road;
 
     // Skip neighbourhood when it's already embedded in the road name
-    final neighbourhoodRedundant = neighbourhood.isEmpty ||
+    final neighbourhoodRedundant =
+        neighbourhood.isEmpty ||
         road.toLowerCase().contains(neighbourhood.toLowerCase());
 
     final localityPart = [
@@ -365,13 +376,15 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                                       width: 16,
                                       height: 16,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2),
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   )
                                 : null,
                             border: InputBorder.none,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                            ),
                             filled: true,
                             fillColor: Theme.of(context).cardColor,
                           ),
@@ -391,8 +404,10 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                               final r = _searchResults[i];
                               return ListTile(
                                 dense: true,
-                                leading: const Icon(Icons.location_on_outlined,
-                                    size: 18),
+                                leading: const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 18,
+                                ),
                                 title: Text(
                                   r['display_name'] as String? ?? '',
                                   maxLines: 2,
@@ -469,7 +484,9 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                               borderRadius: BorderRadius.circular(10),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10, horizontal: 12),
+                              vertical: 10,
+                              horizontal: 12,
+                            ),
                             isDense: true,
                           ),
                         ),
@@ -487,9 +504,9 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                                   ? Text(
                                       'Finding address...',
                                       style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     )
@@ -510,7 +527,8 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: _loadingAddress ||
+                            onPressed:
+                                _loadingAddress ||
                                     _locatingUser ||
                                     _selectedPosition == null
                                 ? null

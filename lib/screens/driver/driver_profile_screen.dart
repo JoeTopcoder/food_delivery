@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,13 +103,25 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: Colors.white),
-              title: const Text('Camera', style: TextStyle(color: Colors.white)),
+              leading: const Icon(
+                Icons.camera_alt_rounded,
+                color: Colors.white,
+              ),
+              title: const Text(
+                'Camera',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: Colors.white),
-              title: const Text('Gallery', style: TextStyle(color: Colors.white)),
+              leading: const Icon(
+                Icons.photo_library_rounded,
+                color: Colors.white,
+              ),
+              title: const Text(
+                'Gallery',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
@@ -126,20 +138,33 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     return File(xFile.path);
   }
 
-  Future<String?> _uploadDoc(File file, String driverId, String subfolder) async {
+  Future<String?> _uploadDoc(
+    File file,
+    String driverId,
+    String subfolder,
+  ) async {
     final bytes = await file.readAsBytes();
     final ext = file.path.split('.').last.toLowerCase();
-    final path = '$driverId/$subfolder/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final path =
+        '$driverId/$subfolder/${DateTime.now().millisecondsSinceEpoch}.$ext';
     await SupabaseConfig.client.storage
         .from('driver-documents')
-        .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
     return SupabaseConfig.client.storage
         .from('driver-documents')
         .getPublicUrl(path);
   }
 
   // Upload a file to storage — returns the URL, or null on failure (non-fatal).
-  Future<String?> _tryUploadDoc(File file, String driverId, String subfolder) async {
+  Future<String?> _tryUploadDoc(
+    File file,
+    String driverId,
+    String subfolder,
+  ) async {
     try {
       return await _uploadDoc(file, driverId, subfolder);
     } catch (e) {
@@ -155,13 +180,22 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
     // ── Identity document ──────────────────────────────────────────────────
     if (_idFrontFile != null) {
-      _idFrontUrl = await _tryUploadDoc(_idFrontFile!, driver.id, 'identity/front');
+      _idFrontUrl = await _tryUploadDoc(
+        _idFrontFile!,
+        driver.id,
+        'identity/front',
+      );
     }
     if (_idBackFile != null) {
-      _idBackUrl = await _tryUploadDoc(_idBackFile!, driver.id, 'identity/back');
+      _idBackUrl = await _tryUploadDoc(
+        _idBackFile!,
+        driver.id,
+        'identity/back',
+      );
     }
     // Save whenever doc number is filled OR we have any photo URL (new or existing)
-    final hasIdData = _docNumber.text.trim().isNotEmpty ||
+    final hasIdData =
+        _docNumber.text.trim().isNotEmpty ||
         _idFrontUrl != null ||
         _idBackUrl != null;
     if (hasIdData) {
@@ -169,7 +203,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
         await svc.saveIdentityDocument(
           driverId: driver.id,
           documentType: _docType,
-          documentNumber: _docNumber.text.trim().isEmpty ? null : _docNumber.text.trim(),
+          documentNumber: _docNumber.text.trim().isEmpty
+              ? null
+              : _docNumber.text.trim(),
           frontPhotoUrl: _idFrontUrl,
           backPhotoUrl: _idBackUrl,
         );
@@ -181,12 +217,21 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
     // ── Driver licence ─────────────────────────────────────────────────────
     if (_licenseFrontFile != null) {
-      _licenseFrontUrl = await _tryUploadDoc(_licenseFrontFile!, driver.id, 'license/front');
+      _licenseFrontUrl = await _tryUploadDoc(
+        _licenseFrontFile!,
+        driver.id,
+        'license/front',
+      );
     }
     if (_licenseBackFile != null) {
-      _licenseBackUrl = await _tryUploadDoc(_licenseBackFile!, driver.id, 'license/back');
+      _licenseBackUrl = await _tryUploadDoc(
+        _licenseBackFile!,
+        driver.id,
+        'license/back',
+      );
     }
-    final hasLicenseData = _licenseNumberController.text.trim().isNotEmpty ||
+    final hasLicenseData =
+        _licenseNumberController.text.trim().isNotEmpty ||
         _licenseFrontUrl != null ||
         _licenseBackUrl != null;
     if (hasLicenseData) {
@@ -207,7 +252,11 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
     // ── Vehicle registration ───────────────────────────────────────────────
     if (_vehicleRegFile != null) {
-      _vehicleRegUrl = await _tryUploadDoc(_vehicleRegFile!, driver.id, 'vehicle/registration');
+      _vehicleRegUrl = await _tryUploadDoc(
+        _vehicleRegFile!,
+        driver.id,
+        'vehicle/registration',
+      );
     }
     // Always save vehicle — type and plate are always available
     try {
@@ -228,15 +277,20 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
     if (_insFile != null) {
       _insUrl = await _tryUploadDoc(_insFile!, driver.id, 'insurance');
     }
-    final hasInsData = _insProvider.text.trim().isNotEmpty ||
+    final hasInsData =
+        _insProvider.text.trim().isNotEmpty ||
         _policyNumber.text.trim().isNotEmpty ||
         _insUrl != null;
     if (hasInsData) {
       try {
         await svc.saveInsurance(
           driverId: driver.id,
-          insuranceProvider: _insProvider.text.trim().isEmpty ? null : _insProvider.text.trim(),
-          policyNumber: _policyNumber.text.trim().isEmpty ? null : _policyNumber.text.trim(),
+          insuranceProvider: _insProvider.text.trim().isEmpty
+              ? null
+              : _insProvider.text.trim(),
+          policyNumber: _policyNumber.text.trim().isEmpty
+              ? null
+              : _policyNumber.text.trim(),
           documentPhotoUrl: _insUrl,
         );
       } catch (e) {
@@ -258,7 +312,10 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
       if (ok) {
         AppSnackbar.success(context, 'Documents saved successfully!');
       } else {
-        AppSnackbar.error(context, 'Some sections could not be saved. Check your connection and try again.');
+        AppSnackbar.error(
+          context,
+          'Some sections could not be saved. Check your connection and try again.',
+        );
       }
     } catch (e) {
       AppLogger.error('Save docs error: $e');
@@ -303,7 +360,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
             onPressed: () => Navigator.of(dialogCtx).pop(true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -331,7 +390,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
       if (!authState.isAuthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (context.mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/signin', (_) => false);
           }
         });
       }
@@ -343,7 +404,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
     final driverProfileAsync = ref.watch(driverProfileProvider(currentUserId));
     final docsAsync = driverProfileAsync.valueOrNull != null
-        ? ref.watch(driverVerificationDocsProvider(driverProfileAsync.valueOrNull!.id))
+        ? ref.watch(
+            driverVerificationDocsProvider(driverProfileAsync.valueOrNull!.id),
+          )
         : null;
 
     return driverProfileAsync.when(
@@ -357,8 +420,10 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
 
         // Pre-fill existing doc URLs from DB
         final docs = docsAsync?.valueOrNull;
-        final existingIdDoc = (docs?['identity_documents'] as List?)?.isNotEmpty == true
-            ? (docs!['identity_documents'] as List).first as Map<String, dynamic>
+        final existingIdDoc =
+            (docs?['identity_documents'] as List?)?.isNotEmpty == true
+            ? (docs!['identity_documents'] as List).first
+                  as Map<String, dynamic>
             : null;
         final existingLicense = docs?['license'] as Map<String, dynamic>?;
         final existingVehicle = docs?['vehicle'] as Map<String, dynamic>?;
@@ -367,7 +432,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
         return Scaffold(
           backgroundColor: _kBg,
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             slivers: [
               // ── Hero App Bar ────────────────────────────────────────
               SliverAppBar(
@@ -380,24 +447,39 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                   IconButton(
                     icon: const Icon(Icons.translate_rounded, size: 20),
                     tooltip: 'App Settings',
-                    onPressed: () => Navigator.of(context).pushNamed('/settings'),
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/settings'),
                   ),
                   GestureDetector(
-                    onTap: () => ref.read(authNotifierProvider.notifier).signOut(),
+                    onTap: () =>
+                        ref.read(authNotifierProvider.notifier).signOut(),
                     child: Container(
-                      margin: const EdgeInsets.only(right: 14, top: 8, bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      margin: const EdgeInsets.only(
+                        right: 14,
+                        top: 8,
+                        bottom: 8,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+                          color: const Color(
+                            0xFFEF4444,
+                          ).withValues(alpha: 0.25),
                         ),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.logout_rounded, size: 15, color: Color(0xFFEF4444)),
+                          Icon(
+                            Icons.logout_rounded,
+                            size: 15,
+                            color: Color(0xFFEF4444),
+                          ),
                           SizedBox(width: 5),
                           Text(
                             'Sign Out',
@@ -422,13 +504,21 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                 ),
                 title: Text(
                   context.l10n.driverProfile,
-                  style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.3),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 0, Responsive.horizontalPadding(context), 32),
+                  padding: EdgeInsets.fromLTRB(
+                    Responsive.horizontalPadding(context),
+                    0,
+                    Responsive.horizontalPadding(context),
+                    32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -483,11 +573,15 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                         child: Column(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: _kDark,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF2A2D3E)),
+                                border: Border.all(
+                                  color: const Color(0xFF2A2D3E),
+                                ),
                               ),
                               child: DropdownButtonFormField<String>(
                                 initialValue: _selectedVehicleType,
@@ -514,11 +608,21 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   border: InputBorder.none,
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'bike', child: Text('Motorcycle / Bike')),
-                                  DropdownMenuItem(value: 'scooter', child: Text('Scooter')),
-                                  DropdownMenuItem(value: 'car', child: Text('Car')),
+                                  DropdownMenuItem(
+                                    value: 'bike',
+                                    child: Text('Motorcycle / Bike'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'scooter',
+                                    child: Text('Scooter'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'car',
+                                    child: Text('Car'),
+                                  ),
                                 ],
-                                onChanged: (v) => setState(() => _selectedVehicleType = v!),
+                                onChanged: (v) =>
+                                    setState(() => _selectedVehicleType = v!),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -547,18 +651,32 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                             : () async {
                                 setState(() => _saving = true);
                                 try {
-                                  await ref.read(driverServiceProvider).updateDriverProfile(
-                                    driverId: driver.id,
-                                    vehicleType: _selectedVehicleType,
-                                    vehicleNumber: _vehicleNumberController.text.trim(),
-                                    licenseNumber: _licenseNumberController.text.trim(),
+                                  await ref
+                                      .read(driverServiceProvider)
+                                      .updateDriverProfile(
+                                        driverId: driver.id,
+                                        vehicleType: _selectedVehicleType,
+                                        vehicleNumber: _vehicleNumberController
+                                            .text
+                                            .trim(),
+                                        licenseNumber: _licenseNumberController
+                                            .text
+                                            .trim(),
+                                      );
+                                  ref.invalidate(
+                                    driverProfileProvider(currentUserId),
                                   );
-                                  ref.invalidate(driverProfileProvider(currentUserId));
                                   if (context.mounted)
-                                    AppSnackbar.success(context, 'Vehicle info updated!');
+                                    AppSnackbar.success(
+                                      context,
+                                      'Vehicle info updated!',
+                                    );
                                 } catch (e) {
                                   if (context.mounted)
-                                    AppSnackbar.error(context, friendlyError(e));
+                                    AppSnackbar.error(
+                                      context,
+                                      friendlyError(e),
+                                    );
                                 } finally {
                                   if (mounted) setState(() => _saving = false);
                                 }
@@ -570,32 +688,56 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                       _SectionCard(
                         title: 'Identity Document',
                         icon: Icons.credit_card_rounded,
-                        statusBadge: _docBadge(existingIdDoc?['verification_status']),
+                        statusBadge: _docBadge(
+                          existingIdDoc?['verification_status'],
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Document type
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: _kDark,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF2A2D3E)),
+                                border: Border.all(
+                                  color: const Color(0xFF2A2D3E),
+                                ),
                               ),
                               child: DropdownButtonFormField<String>(
                                 initialValue: _docType,
                                 dropdownColor: _kCard,
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
                                 decoration: const InputDecoration(
                                   labelText: 'Document Type',
-                                  labelStyle: TextStyle(color: _kMuted, fontSize: 13),
+                                  labelStyle: TextStyle(
+                                    color: _kMuted,
+                                    fontSize: 13,
+                                  ),
                                   border: InputBorder.none,
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'national_id', child: Text('National ID')),
-                                  DropdownMenuItem(value: 'passport', child: Text('Passport')),
-                                  DropdownMenuItem(value: 'driving_permit', child: Text('Driving Permit')),
-                                  DropdownMenuItem(value: 'voters_id', child: Text("Voter's ID")),
+                                  DropdownMenuItem(
+                                    value: 'national_id',
+                                    child: Text('National ID'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'passport',
+                                    child: Text('Passport'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'driving_permit',
+                                    child: Text('Driving Permit'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'voters_id',
+                                    child: Text("Voter's ID"),
+                                  ),
                                 ],
                                 onChanged: (v) => setState(() => _docType = v!),
                               ),
@@ -614,10 +756,13 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   child: _PhotoUploadTile(
                                     label: 'Front Side',
                                     file: _idFrontFile,
-                                    existingUrl: existingIdDoc?['front_photo_url'] as String?,
+                                    existingUrl:
+                                        existingIdDoc?['front_photo_url']
+                                            as String?,
                                     onTap: () async {
                                       final f = await _pickImage();
-                                      if (f != null) setState(() => _idFrontFile = f);
+                                      if (f != null)
+                                        setState(() => _idFrontFile = f);
                                     },
                                   ),
                                 ),
@@ -626,10 +771,13 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   child: _PhotoUploadTile(
                                     label: 'Back Side',
                                     file: _idBackFile,
-                                    existingUrl: existingIdDoc?['back_photo_url'] as String?,
+                                    existingUrl:
+                                        existingIdDoc?['back_photo_url']
+                                            as String?,
                                     onTap: () async {
                                       final f = await _pickImage();
-                                      if (f != null) setState(() => _idBackFile = f);
+                                      if (f != null)
+                                        setState(() => _idBackFile = f);
                                     },
                                   ),
                                 ),
@@ -644,7 +792,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                       _SectionCard(
                         title: "Driver's Licence",
                         icon: Icons.badge_rounded,
-                        statusBadge: _docBadge(existingLicense?['verification_status']),
+                        statusBadge: _docBadge(
+                          existingLicense?['verification_status'],
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -654,10 +804,13 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   child: _PhotoUploadTile(
                                     label: 'Front Side',
                                     file: _licenseFrontFile,
-                                    existingUrl: existingLicense?['front_photo_url'] as String?,
+                                    existingUrl:
+                                        existingLicense?['front_photo_url']
+                                            as String?,
                                     onTap: () async {
                                       final f = await _pickImage();
-                                      if (f != null) setState(() => _licenseFrontFile = f);
+                                      if (f != null)
+                                        setState(() => _licenseFrontFile = f);
                                     },
                                   ),
                                 ),
@@ -666,18 +819,26 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                                   child: _PhotoUploadTile(
                                     label: 'Back Side',
                                     file: _licenseBackFile,
-                                    existingUrl: existingLicense?['back_photo_url'] as String?,
+                                    existingUrl:
+                                        existingLicense?['back_photo_url']
+                                            as String?,
                                     onTap: () async {
                                       final f = await _pickImage();
-                                      if (f != null) setState(() => _licenseBackFile = f);
+                                      if (f != null)
+                                        setState(() => _licenseBackFile = f);
                                     },
                                   ),
                                 ),
                               ],
                             ),
-                            if (existingLicense?['rejection_notes'] != null) ...[
+                            if (existingLicense?['rejection_notes'] !=
+                                null) ...[
                               const SizedBox(height: 10),
-                              _RejectionNote(note: existingLicense!['rejection_notes'] as String),
+                              _RejectionNote(
+                                note:
+                                    existingLicense!['rejection_notes']
+                                        as String,
+                              ),
                             ],
                           ],
                         ),
@@ -688,23 +849,33 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                       _SectionCard(
                         title: 'Vehicle Registration',
                         icon: Icons.directions_car_filled_rounded,
-                        statusBadge: _docBadge(existingVehicle?['verification_status']),
+                        statusBadge: _docBadge(
+                          existingVehicle?['verification_status'],
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _PhotoUploadTile(
                               label: 'Registration Document',
                               file: _vehicleRegFile,
-                              existingUrl: existingVehicle?['registration_photo_url'] as String?,
+                              existingUrl:
+                                  existingVehicle?['registration_photo_url']
+                                      as String?,
                               wide: true,
                               onTap: () async {
                                 final f = await _pickImage();
-                                if (f != null) setState(() => _vehicleRegFile = f);
+                                if (f != null)
+                                  setState(() => _vehicleRegFile = f);
                               },
                             ),
-                            if (existingVehicle?['rejection_notes'] != null) ...[
+                            if (existingVehicle?['rejection_notes'] !=
+                                null) ...[
                               const SizedBox(height: 10),
-                              _RejectionNote(note: existingVehicle!['rejection_notes'] as String),
+                              _RejectionNote(
+                                note:
+                                    existingVehicle!['rejection_notes']
+                                        as String,
+                              ),
                             ],
                           ],
                         ),
@@ -715,7 +886,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                       _SectionCard(
                         title: 'Insurance',
                         icon: Icons.security_rounded,
-                        statusBadge: _docBadge(existingIns?['verification_status']),
+                        statusBadge: _docBadge(
+                          existingIns?['verification_status'],
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -736,7 +909,8 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                             _PhotoUploadTile(
                               label: 'Insurance Document',
                               file: _insFile,
-                              existingUrl: existingIns?['document_photo_url'] as String?,
+                              existingUrl:
+                                  existingIns?['document_photo_url'] as String?,
                               wide: true,
                               onTap: () async {
                                 final f = await _pickImage();
@@ -745,7 +919,9 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
                             ),
                             if (existingIns?['rejection_notes'] != null) ...[
                               const SizedBox(height: 10),
-                              _RejectionNote(note: existingIns!['rejection_notes'] as String),
+                              _RejectionNote(
+                                note: existingIns!['rejection_notes'] as String,
+                              ),
                             ],
                           ],
                         ),
@@ -843,7 +1019,11 @@ class _DriverProfileScreenState extends ConsumerState<DriverProfileScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
@@ -880,7 +1060,8 @@ class _VerificationStatusBanner extends StatelessWidget {
         icon = const Color(0xFFF59E0B);
         iconData = Icons.hourglass_top_rounded;
         title = 'Under Review';
-        subtitle = 'Our team is reviewing your documents. This takes 24-48 hours.';
+        subtitle =
+            'Our team is reviewing your documents. This takes 24-48 hours.';
         break;
       case 'rejected':
         bg = const Color(0xFFEF4444).withValues(alpha: 0.1);
@@ -888,7 +1069,9 @@ class _VerificationStatusBanner extends StatelessWidget {
         icon = const Color(0xFFEF4444);
         iconData = Icons.cancel_rounded;
         title = 'Application Rejected';
-        subtitle = driver.rejectionReason ?? 'Please re-upload your documents and resubmit.';
+        subtitle =
+            driver.rejectionReason ??
+            'Please re-upload your documents and resubmit.';
         break;
       case 'suspended':
         bg = const Color(0xFFEF4444).withValues(alpha: 0.1);
@@ -896,7 +1079,8 @@ class _VerificationStatusBanner extends StatelessWidget {
         icon = const Color(0xFFEF4444);
         iconData = Icons.block_rounded;
         title = 'Account Suspended';
-        subtitle = driver.rejectionReason ?? 'Please contact support for assistance.';
+        subtitle =
+            driver.rejectionReason ?? 'Please contact support for assistance.';
         break;
       case 'expired_documents':
         bg = const Color(0xFFF59E0B).withValues(alpha: 0.1);
@@ -941,7 +1125,10 @@ class _VerificationStatusBanner extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: Responsive.smallText(context), color: _kMuted),
+                  style: TextStyle(
+                    fontSize: Responsive.smallText(context),
+                    color: _kMuted,
+                  ),
                 ),
               ],
             ),
@@ -1081,12 +1268,18 @@ class _RejectionNote extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFEF4444).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
+        border: Border.all(
+          color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFFEF4444), size: 14),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFFEF4444),
+            size: 14,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1129,20 +1322,28 @@ class _ActionButton extends StatelessWidget {
             ? const SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : Icon(icon ?? Icons.save_rounded, size: 18),
         label: loading
             ? const SizedBox.shrink()
             : Text(
                 label,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           foregroundColor: Colors.white,
           disabledBackgroundColor: bg.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           elevation: 0,
         ),
       ),
@@ -1212,15 +1413,24 @@ class _HeroHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: [AppTheme.primaryColor, const Color(0xFF6366F1)],
+                        colors: [
+                          AppTheme.primaryColor,
+                          const Color(0xFF6366F1),
+                        ],
                       ),
                     ),
                     child: CircleAvatar(
                       radius: 38,
                       backgroundColor: const Color(0xFF1E2030),
-                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
+                      backgroundImage: imageUrl != null
+                          ? NetworkImage(imageUrl!)
+                          : null,
                       child: imageUrl == null
-                          ? const Icon(Icons.person_rounded, size: 38, color: Color(0xFF6B7280))
+                          ? const Icon(
+                              Icons.person_rounded,
+                              size: 38,
+                              color: Color(0xFF6B7280),
+                            )
                           : null,
                     ),
                   ),
@@ -1247,18 +1457,23 @@ class _HeroHeader extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: (isAvailable
-                                    ? const Color(0xFF22C55E)
-                                    : const Color(0xFF6B7280))
-                                .withValues(alpha: 0.15),
+                            color:
+                                (isAvailable
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF6B7280))
+                                    .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: (isAvailable
-                                      ? const Color(0xFF22C55E)
-                                      : const Color(0xFF6B7280))
-                                  .withValues(alpha: 0.35),
+                              color:
+                                  (isAvailable
+                                          ? const Color(0xFF22C55E)
+                                          : const Color(0xFF6B7280))
+                                      .withValues(alpha: 0.35),
                             ),
                           ),
                           child: Row(
@@ -1340,7 +1555,10 @@ class _QuickStat extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+            ),
           ],
         ),
       ),
@@ -1375,7 +1593,12 @@ class _SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(Responsive.cardPadding(context), Responsive.cardPadding(context), Responsive.cardPadding(context), 12),
+            padding: EdgeInsets.fromLTRB(
+              Responsive.cardPadding(context),
+              Responsive.cardPadding(context),
+              Responsive.cardPadding(context),
+              12,
+            ),
             child: Row(
               children: [
                 Container(
@@ -1405,7 +1628,10 @@ class _SectionCard extends StatelessWidget {
             ),
           ),
           const Divider(color: _kBorder, height: 1),
-          Padding(padding: EdgeInsets.all(Responsive.cardPadding(context)), child: child),
+          Padding(
+            padding: EdgeInsets.all(Responsive.cardPadding(context)),
+            child: child,
+          ),
         ],
       ),
     );
@@ -1431,11 +1657,19 @@ class _StyledField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: _kMuted, fontWeight: FontWeight.w600, fontSize: 13),
+        labelStyle: const TextStyle(
+          color: _kMuted,
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
         hintStyle: const TextStyle(color: Color(0xFF4B5563), fontSize: 13),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 20),
         filled: true,
@@ -1452,7 +1686,10 @@ class _StyledField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -1469,15 +1706,24 @@ class _DeleteAccountButton extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 18),
+        icon: const Icon(
+          Icons.delete_forever_rounded,
+          color: Color(0xFFEF4444),
+          size: 18,
+        ),
         label: const Text(
           'Delete Account',
-          style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: Color(0xFFEF4444),
+            fontWeight: FontWeight.w700,
+          ),
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFFEF4444)),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
       ),
     );

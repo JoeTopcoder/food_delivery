@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -108,7 +108,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +265,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         fontSize: 13,
                       ),
                       filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(

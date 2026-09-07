@@ -368,7 +368,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '\$${widget.amount.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${widget.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,

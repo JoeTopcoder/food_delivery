@@ -1712,7 +1712,7 @@ class _DynamicBannerCarouselState
                       content: Text(
                         promo.discountType == 'percentage'
                             ? '${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)}% off applied!'
-                            : '\$${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)} off applied!',
+                            : '${AppConstants.currencySymbol}${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)} off applied!',
                       ),
                       duration: const Duration(seconds: 2),
                     ),

@@ -31,6 +31,7 @@ class PaymentScreen extends ConsumerStatefulWidget {
   final String? restaurantName;
   final int? itemCount;
   final String type;
+
   /// If provided the screen skips the server createStripeCheckout call and
   /// uses this secret directly (e.g. subscription flow which already has one).
   final String? preloadedClientSecret;
@@ -103,8 +104,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
         if (!mounted) return;
         setState(() {
           _clientSecret = widget.preloadedClientSecret;
-          _paymentIntentId =
-              _extractPaymentIntentId(widget.preloadedClientSecret!);
+          _paymentIntentId = _extractPaymentIntentId(
+            widget.preloadedClientSecret!,
+          );
           _state = _PayState.ready;
         });
         return;
@@ -237,7 +239,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
     setState(() => _state = _PayState.success);
     _checkCtrl.forward();
     Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) Navigator.of(context).pop({'status': 'paid', 'payment_intent_id': _paymentIntentId});
+      if (mounted)
+        Navigator.of(
+          context,
+        ).pop({'status': 'paid', 'payment_intent_id': _paymentIntentId});
     });
   }
 
@@ -519,7 +524,12 @@ class _CardFormViewState extends State<_CardFormView> {
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset + navBarHeight),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            20 + bottomInset + navBarHeight,
+          ),
           decoration: BoxDecoration(
             color: _kBg,
             boxShadow: [

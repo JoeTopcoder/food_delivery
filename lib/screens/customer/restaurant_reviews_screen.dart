@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
@@ -23,7 +23,10 @@ class RestaurantReviewsScreen extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('$restaurantName Reviews', overflow: TextOverflow.ellipsis), elevation: 0),
+      appBar: AppBar(
+        title: Text('$restaurantName Reviews', overflow: TextOverflow.ellipsis),
+        elevation: 0,
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: ref
             .read(restaurantServiceProvider)
@@ -45,7 +48,9 @@ class RestaurantReviewsScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.all(16),
             itemCount: reviews.length,
             itemBuilder: (context, index) {
