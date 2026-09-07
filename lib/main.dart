@@ -42,6 +42,7 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/all_restaurants_screen.dart';
 import 'screens/customer/restaurant_detail_screen.dart';
 import 'screens/customer/cart_screen.dart';
+import 'screens/admin/admin_margin_screen.dart';
 import 'features/concierge/presentation/concierge_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
@@ -713,6 +714,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin'))
                       ? const AdminWebApp()
                       : const AdminDashboardScreen(),
+                ),
+              );
+            case '/admin-margins':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMarginScreen(),
                 ),
               );
             case '/admin-users':

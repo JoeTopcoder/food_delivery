@@ -875,8 +875,15 @@ async function priceCart(ctx: Ctx, a: Record<string, unknown>) {
 
   // Customer-facing platform service fee, identical to
   // AppConstants.calculateServiceFee: (subtotal x 2.9%) + $0.30 + $1.00.
+  // Must match AppConstants.calculateServiceFee exactly or the concierge quotes
+  // one price and the cart charges another. Stripe's percentage applies to the
+  // TOTAL captured, and this fee is part of that total, so it is solved rather
+  // than approximated:
+  //   f = ((subtotal + delivery) * rate + fixed + flat) / (1 - rate)
+  const feeBase = subtotal + cfg.defaultDeliveryCents;
   const fees = Math.round(
-    subtotal * cfg.stripeRate + cfg.stripeFixedCents + cfg.platformFlatCents,
+    (feeBase * cfg.stripeRate + cfg.stripeFixedCents + cfg.platformFlatCents) /
+      (1 - cfg.stripeRate),
   );
 
   // The cart derives delivery from distance when it has the customer's

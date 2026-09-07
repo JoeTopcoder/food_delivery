@@ -231,7 +231,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: activeFee,
+    );
 
     // Zone-based tax: look up the delivery zone only when coords are known.
     final taxKey = (!isPickup && delLat != null && delLng != null)

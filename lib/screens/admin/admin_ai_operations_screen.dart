@@ -13,7 +13,8 @@ class AdminAiOperationsScreen extends StatefulWidget {
   const AdminAiOperationsScreen({super.key});
 
   @override
-  State<AdminAiOperationsScreen> createState() => _AdminAiOperationsScreenState();
+  State<AdminAiOperationsScreen> createState() =>
+      _AdminAiOperationsScreenState();
 }
 
 class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
@@ -30,10 +31,17 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       // status ascending sorts active, paused, planned — built agents surface first.
-      final agents = await _client.from('ai_agents').select().order('status').order('name');
+      final agents = await _client
+          .from('ai_agents')
+          .select()
+          .order('status')
+          .order('name');
       final runs = await _client
           .from('ai_agent_runs')
           .select()
@@ -47,15 +55,23 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
     }
   }
 
   int _runsToday(String slug) {
     final today = DateTime.now();
     return _runs.where((r) {
-      if (r['agent_name'] == null || !(r['agent_name'] as String).startsWith(slug)) return false;
-      final created = DateTime.tryParse(r['created_at'] as String? ?? '')?.toLocal();
+      if (r['agent_name'] == null ||
+          !(r['agent_name'] as String).startsWith(slug))
+        return false;
+      final created = DateTime.tryParse(
+        r['created_at'] as String? ?? '',
+      )?.toLocal();
       return created != null &&
           created.year == today.year &&
           created.month == today.month &&
@@ -66,12 +82,18 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
   Future<void> _toggleStatus(Map<String, dynamic> agent) async {
     final newStatus = agent['status'] == 'active' ? 'paused' : 'active';
     try {
-      await _client.from('ai_agents').update({'status': newStatus}).eq('id', agent['id']);
+      await _client
+          .from('ai_agents')
+          .update({'status': newStatus})
+          .eq('id', agent['id']);
       setState(() => agent['status'] = newStatus);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not update: $e'), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+          content: Text('Could not update: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
       );
     }
   }
@@ -81,7 +103,9 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
@@ -90,9 +114,15 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
           controller: ctrl,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
           children: [
-            Text(run['agent_name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              run['agent_name'] ?? '',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
-            Text('${run['entity_type']} · ${run['entity_id']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              '${run['entity_type']} · ${run['entity_id']}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 12),
             _StatusChip(status: run['status'] as String? ?? 'pending'),
             const SizedBox(height: 16),
@@ -104,7 +134,10 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
             ),
             if (run['output'] != null) ...[
               const SizedBox(height: 16),
-              const Text('Output', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                'Output',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 4),
               SelectableText(
                 encoder.convert(run['output']),
@@ -113,9 +146,18 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
             ],
             if (run['error'] != null) ...[
               const SizedBox(height: 16),
-              const Text('Error', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+              const Text(
+                'Error',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red,
+                ),
+              ),
               const SizedBox(height: 4),
-              SelectableText(run['error'], style: const TextStyle(fontSize: 12, color: Colors.red)),
+              SelectableText(
+                run['error'],
+                style: const TextStyle(fontSize: 12, color: Colors.red),
+              ),
             ],
           ],
         ),
@@ -127,13 +169,17 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Operations', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        title: const Text(
+          'AI Operations',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.priority_high_rounded),
             tooltip: 'Escalation Queue',
-            onPressed: () => Navigator.of(context).pushNamed('/admin-escalation-queue'),
+            onPressed: () =>
+                Navigator.of(context).pushNamed('/admin-escalation-queue'),
           ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -141,51 +187,81 @@ class _AdminAiOperationsScreenState extends State<AdminAiOperationsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!)))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      const Text('Agents', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      if (_agents.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No agents registered yet.', style: TextStyle(color: Colors.grey))),
-                        )
-                      else
-                        ..._agents.map((a) => _AgentCard(
-                              agent: a,
-                              runsToday: _runsToday(a['slug'] as String),
-                              onToggle: () => _toggleStatus(a),
-                              // Active/paused agents have a real screen registered in
-                              // main.dart. Planned agents' routes are destinations, not
-                              // live links yet — open an honest "not built" page instead
-                              // of pushNamed()'ing a route nothing handles.
-                              onOpen: () {
-                                if (a['status'] != 'planned' && a['route'] != null) {
-                                  Navigator.of(context).pushNamed(a['route'] as String);
-                                } else {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => AdminAgentComingSoonScreen(agent: a)),
-                                  );
-                                }
-                              },
-                            )),
-                      const SizedBox(height: 24),
-                      const Text('Recent Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      if (_runs.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No agent runs logged yet.', style: TextStyle(color: Colors.grey))),
-                        )
-                      else
-                        ..._runs.map((r) => _RunTile(run: r, onTap: () => _showRunDetail(r))),
-                    ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(_error!),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text(
+                    'Agents',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  if (_agents.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No agents registered yet.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._agents.map(
+                      (a) => _AgentCard(
+                        agent: a,
+                        runsToday: _runsToday(a['slug'] as String),
+                        onToggle: () => _toggleStatus(a),
+                        // Active/paused agents have a real screen registered in
+                        // main.dart. Planned agents' routes are destinations, not
+                        // live links yet — open an honest "not built" page instead
+                        // of pushNamed()'ing a route nothing handles.
+                        onOpen: () {
+                          if (a['status'] != 'planned' && a['route'] != null) {
+                            Navigator.of(
+                              context,
+                            ).pushNamed(a['route'] as String);
+                          } else {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    AdminAgentComingSoonScreen(agent: a),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Recent Activity',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_runs.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No agent runs logged yet.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._runs.map(
+                      (r) => _RunTile(run: r, onTap: () => _showRunDetail(r)),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -196,7 +272,12 @@ class _AgentCard extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback? onOpen;
 
-  const _AgentCard({required this.agent, required this.runsToday, required this.onToggle, this.onOpen});
+  const _AgentCard({
+    required this.agent,
+    required this.runsToday,
+    required this.onToggle,
+    this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +287,10 @@ class _AgentCard extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: Opacity(
         opacity: planned ? 0.75 : 1,
         child: Padding(
@@ -219,12 +303,17 @@ class _AgentCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (planned ? Colors.grey : const Color(0xFF7C3AED)).withValues(alpha: 0.1),
+                      color: (planned ? Colors.grey : const Color(0xFF7C3AED))
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      planned ? Icons.hourglass_empty_rounded : Icons.auto_awesome,
-                      color: planned ? Colors.grey[600] : const Color(0xFF7C3AED),
+                      planned
+                          ? Icons.hourglass_empty_rounded
+                          : Icons.auto_awesome,
+                      color: planned
+                          ? Colors.grey[600]
+                          : const Color(0xFF7C3AED),
                       size: 20,
                     ),
                   ),
@@ -233,46 +322,82 @@ class _AgentCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(agent['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        Text(agent['department'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(
+                          agent['name'] ?? '',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          agent['department'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   if (!planned)
-                    Switch(value: active, onChanged: (_) => onToggle(), activeThumbColor: AppTheme.primaryColor),
+                    Switch(
+                      value: active,
+                      onChanged: (_) => onToggle(),
+                      activeThumbColor: AppTheme.primaryColor,
+                    ),
                 ],
               ),
               if (agent['description'] != null) ...[
                 const SizedBox(height: 8),
-                Text(agent['description'], style: const TextStyle(fontSize: 12, height: 1.4)),
+                Text(
+                  agent['description'],
+                  style: const TextStyle(fontSize: 12, height: 1.4),
+                ),
               ],
               const SizedBox(height: 10),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: planned
                           ? const Color(0xFFF3F4F6)
-                          : (active ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7)),
+                          : (active
+                                ? const Color(0xFFDCFCE7)
+                                : const Color(0xFFFEF3C7)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      planned ? 'Not Built Yet' : (active ? 'Active' : 'Paused'),
+                      planned
+                          ? 'Not Built Yet'
+                          : (active ? 'Active' : 'Paused'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: planned ? Colors.grey[700] : (active ? const Color(0xFF16A34A) : const Color(0xFFB45309)),
+                        color: planned
+                            ? Colors.grey[700]
+                            : (active
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFB45309)),
                       ),
                     ),
                   ),
                   if (!planned) ...[
                     const SizedBox(width: 8),
-                    Text('$runsToday run${runsToday == 1 ? '' : 's'} today', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text(
+                      '$runsToday run${runsToday == 1 ? '' : 's'} today',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
                   ],
                   const Spacer(),
                   if (onOpen != null)
-                    TextButton(onPressed: onOpen, child: const Text('Open', style: TextStyle(fontSize: 12))),
+                    TextButton(
+                      onPressed: onOpen,
+                      child: const Text('Open', style: TextStyle(fontSize: 12)),
+                    ),
                 ],
               ),
             ],
@@ -304,9 +429,18 @@ class _RunTile extends StatelessWidget {
       onTap: onTap,
       dense: true,
       contentPadding: EdgeInsets.zero,
-      leading: _StatusChip(status: run['status'] as String? ?? 'pending', compact: true),
-      title: Text(run['agent_name'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      subtitle: Text('${run['entity_type'] ?? ''} · ${_fmt(run['created_at'] as String?)}', style: const TextStyle(fontSize: 11)),
+      leading: _StatusChip(
+        status: run['status'] as String? ?? 'pending',
+        compact: true,
+      ),
+      title: Text(
+        run['agent_name'] ?? '',
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        '${run['entity_type'] ?? ''} · ${_fmt(run['created_at'] as String?)}',
+        style: const TextStyle(fontSize: 11),
+      ),
       trailing: const Icon(Icons.chevron_right, size: 18),
     );
   }
@@ -325,12 +459,26 @@ class _StatusChip extends StatelessWidget {
       _ => const Color(0xFFF59E0B),
     };
     if (compact) {
-      return Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle));
+      return Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-      child: Text(status, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

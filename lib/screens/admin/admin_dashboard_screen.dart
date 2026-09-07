@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -48,7 +48,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         onRefresh: _refresh,
         color: AppTheme.primaryColor,
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // ── Hero Header ───────────────────────────────────────────────
             SliverToBoxAdapter(
@@ -96,7 +98,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     'Welcome back, ${currentUser?.name?.split(' ').first ?? 'Admin'}',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: Responsive.headingMedium(context),
+                                      fontSize: Responsive.headingMedium(
+                                        context,
+                                      ),
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: -0.3,
                                     ),
@@ -307,7 +311,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // ── KPI metrics ────────────────────────────────────
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Row(
                           children: [
                             _KpiCard(
@@ -329,6 +335,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               onTap: () => Navigator.of(
                                 context,
                               ).pushNamed('/admin-orders'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Margins',
+                              value: '10-25%',
+                              icon: Icons.percent_rounded,
+                              color: const Color(0xFF10B981),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-margins'),
                             ),
                             const SizedBox(width: 10),
                             _KpiCard(
@@ -411,7 +427,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if ((restaurants['pending'] ?? 0) > 0 ||
                           (drivers['pending'] ?? 0) > 0) ...[
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: Responsive.horizontalPadding(context),
+                          ),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -474,7 +492,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // ── Quick Actions ──────────────────────────────────
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Text(
                           'Quick Actions',
                           style: TextStyle(
@@ -487,7 +507,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 10),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Row(
                           children: [
                             Expanded(
@@ -677,9 +699,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.category_rounded,
                             label: 'Categories',
                             color: const Color(0xFFD97706),
-                            onTap: () => Navigator.of(
-                              context,
-                            ).pushNamed('/admin-categories').then((_) => _refresh()),
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/admin-categories')
+                                .then((_) => _refresh()),
                           ),
                         ],
                       ),
@@ -823,8 +845,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.mark_email_read_rounded,
                             label: 'Email Blast',
                             color: const Color(0xFF0EA5E9),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-email-notifications'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-email-notifications'),
                           ),
                           _GridAction(
                             icon: Icons.bolt_rounded,
@@ -1131,7 +1154,9 @@ class _CategoryRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+          ),
           child: Text(
             title,
             style: TextStyle(
@@ -1149,7 +1174,9 @@ class _CategoryRow extends StatelessWidget {
           height: 56,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             itemCount: children.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => children[i],
