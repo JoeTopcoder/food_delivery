@@ -338,6 +338,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                             const SizedBox(width: 10),
                             _KpiCard(
+                              label: 'Survival',
+                              value: 'Break-even',
+                              icon: Icons.speed_rounded,
+                              color: const Color(0xFFEF4444),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-survival'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
                               label: 'Margins',
                               value: '10-25%',
                               icon: Icons.percent_rounded,
