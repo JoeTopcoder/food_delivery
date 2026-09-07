@@ -384,47 +384,10 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order", details: orderErr?.message }, 500);
     }
 
-    // ── 5b. Consume the promotion ────────────────────────────────────────
-    // A code that is accepted but never marked used can be spent on every
-    // order forever. One test account was holding 125 unused coupons, which
-    // without this is 125 infinite discounts.
-    //
-    // Done AFTER the order exists so a failed order cannot burn a customer's
-    // coupon, and deliberately non-fatal: an order that is already placed and
-    // paid must not be failed because bookkeeping did not settle. A coupon
-    // that escapes consumption is a smaller problem than a lost order, and it
-    // is logged rather than swallowed.
-    if (promoCode && promoCode.trim().length > 0 && discount > 0) {
-      const code = promoCode.trim().toUpperCase();
-      try {
-        // Personal coupon: mark used by THIS customer only, and only if it is
-        // still unused — two concurrent orders cannot both spend it.
-        const { data: consumed } = await admin
-          .from("user_coupons")
-          .update({ is_used: true, used_at: new Date().toISOString() })
-          .eq("user_id", userId)
-          .eq("is_used", false)
-          .ilike("code", code)
-          .select("id");
-
-        if (!consumed || consumed.length === 0) {
-          // General code: count the redemption instead.
-          const { data: promoRow } = await admin
-            .from("promo_codes")
-            .select("id, usage_count")
-            .ilike("code", code)
-            .maybeSingle();
-          if (promoRow) {
-            await admin
-              .from("promo_codes")
-              .update({ usage_count: (promoRow.usage_count ?? 0) + 1 })
-              .eq("id", promoRow.id);
-          }
-        }
-      } catch (e) {
-        console.error("promo consumption failed", code, e);
-      }
-    }
+    // Promotion consumption is NOT done here. trg_mark_user_coupon_used already
+    // fires on orders and marks the customer's coupon used; doing it again in
+    // this function would be two owners of one rule, and the next person to
+    // change redemption would have to find both.
 
     // ── 6. Batch insert order items ──────────────────────────────────────
     // Single INSERT instead of N round-trips — critical at scale.
