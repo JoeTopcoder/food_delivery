@@ -45,6 +45,10 @@ import 'screens/customer/cart_screen.dart';
 import 'screens/admin/admin_margin_screen.dart';
 import 'screens/admin/admin_survival_screen.dart';
 import 'features/concierge/presentation/concierge_screen.dart';
+import 'features/lunch/presentation/lunch_menu_screen.dart';
+import 'features/lunch/presentation/lunch_cart_screen.dart';
+import 'features/lunch/presentation/lunch_checkout_screen.dart';
+import 'features/lunch/presentation/lunch_orders_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
 import 'screens/customer/grocery_checkout_screen.dart';
@@ -838,6 +842,34 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: ConciergeScreen(grocery: true),
+                ),
+              );
+            case '/lunch':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: LunchMenuScreen(),
+                ),
+              );
+            case '/lunch-cart':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: LunchCartScreen(),
+                ),
+              );
+            case '/lunch-checkout':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: LunchCheckoutScreen(),
+                ),
+              );
+            case '/lunch-orders':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: LunchOrdersScreen(),
                 ),
               );
             case '/grocery-cart':
