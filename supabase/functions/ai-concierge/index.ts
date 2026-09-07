@@ -738,27 +738,40 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   const draftId = built.cart_draft_id;
   if (!draftId) return built; // nothing valid to place; errors already explained
 
-  // Best promotion the customer already holds, applied automatically. Only
-  // their own unused coupons qualify — see getEligiblePromotions — so this
-  // spends an entitlement they have rather than inventing one.
-  let appliedPromo: Record<string, unknown> | null = null;
+  // Coupons are OFFERED, not spent. A coupon is single-use, so applying one
+  // unasked burns a customer's entitlement on an order that may not have needed
+  // it — and a discount appearing on a bill nobody requested is unsettling even
+  // when it is in their favour. Manual checkout makes them enter a code; the
+  // concierge should not be more presumptuous than the rest of the app.
+  //
+  // The best available saving is surfaced so the customer can say "use my
+  // coupon", which applies it through the normal path.
+  let availablePromo: Record<string, unknown> | null = null;
   try {
     const { promotions } = await getEligiblePromotions(ctx, {
       cart_draft_id: draftId,
     });
     if (promotions.length > 0) {
-      const best = promotions[0]; // getEligiblePromotions sorts best-first
-      const res = await applyPromotion(ctx, {
-        cart_draft_id: draftId,
+      const best = promotions[0]; // sorted best-first
+      availablePromo = {
         code: best.code,
-      });
-      if (res.applied) {
-        appliedPromo = { code: best.code, savings_cents: best.savings_cents };
-      }
+        savings_cents: best.savings_cents,
+        description: best.description,
+      };
     }
   } catch {
-    // A promotion failure must never cost the customer their order.
+    // Looking up a coupon must never cost the customer their order.
   }
+  const appliedPromo: Record<string, unknown> | null =
+    a.apply_promo_code === true && availablePromo
+      ? await (async () => {
+          const res = await applyPromotion(ctx, {
+            cart_draft_id: draftId,
+            code: availablePromo!.code as string,
+          });
+          return res.applied ? availablePromo : null;
+        })()
+      : null;
 
   const priced = await priceCart(ctx, { cart_draft_id: draftId });
 
@@ -820,11 +833,15 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     restaurant_name: rest?.name,
     eta_minutes: rest?.estimated_delivery_time ?? 40,
     applied_promotion: appliedPromo,
+    // Not applied — offered. The model mentions it; the customer decides.
+    available_promotion: appliedPromo ? null : availablePromo,
     pricing: priced,
     checkout_url: '/cart',
     instruction: appliedPromo
-      ? 'Done. Tell the customer what you ordered, the total and the ETA, AND that you applied one of their coupons and what it saved — a discount they did not ask for must never just appear on the bill. Do not call any more tools.'
-      : 'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
+      ? 'Done. Tell the customer what you ordered, the total and the ETA, and that their coupon was applied and what it saved. Do not call any more tools.'
+      : availablePromo
+        ? 'Done. Tell the customer what you ordered, the total and the ETA, then mention in ONE short sentence that they have a coupon worth the stated saving and can say the word to use it. Do NOT apply it yourself. Do not call any more tools.'
+        : 'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
   };
   ctx.placed = result;
   return result;
@@ -1439,6 +1456,11 @@ const TOOLS = [
             type: 'integer',
             description:
               "The customer's stated budget in cents, if they gave one. Enforced — an over-budget cart is refused.",
+          },
+          apply_promo_code: {
+            type: 'boolean',
+            description:
+              'Set true ONLY when the customer has asked to use their coupon or discount. Never set it on your own initiative — a coupon is single use and spending it unasked wastes their entitlement.',
           },
           add_to_existing_cart: {
             type: 'boolean',
