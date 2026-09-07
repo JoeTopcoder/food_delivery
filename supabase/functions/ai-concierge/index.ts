@@ -53,6 +53,8 @@ let _feeCache: {
   stripeFixedCents: number;
   platformFlatCents: number;
   defaultDeliveryCents: number;
+  currencySymbol: string;
+  currencyCode: string;
 } | null = null;
 
 async function getFeeConfig() {
@@ -60,7 +62,7 @@ async function getFeeConfig() {
   const { data } = await admin
     .from('app_config')
     .select('key, value')
-    .in('key', ['default_delivery_fee']);
+    .in('key', ['default_delivery_fee', 'currency_symbol', 'currency_code']);
 
   const rows = new Map((data ?? []).map((r) => [r.key, r.value]));
   const num = (k: string, fallback: number) => {
@@ -69,12 +71,17 @@ async function getFeeConfig() {
   };
 
   _feeCache = {
-    // Fixed in AppConstants rather than configurable: they are Stripe's own
-    // pricing plus the platform's flat margin.
+    // Must mirror AppConstants exactly or the concierge quotes one price and
+    // the cart charges another. The percentage is currency-independent; the two
+    // cash components were redenominated to JMD with everything else
+    // (US$0.30 -> J$46.50, US$1.00 -> J$155) and should be reset to the real
+    // figures when payments move to NCB.
     stripeRate: 0.029,
-    stripeFixedCents: 30,
-    platformFlatCents: 100,
-    defaultDeliveryCents: toCents(num('default_delivery_fee', 5.0)),
+    stripeFixedCents: 4650,
+    platformFlatCents: 15500,
+    defaultDeliveryCents: toCents(num('default_delivery_fee', 775)),
+    currencySymbol: String(rows.get('currency_symbol') ?? 'J$'),
+    currencyCode: String(rows.get('currency_code') ?? 'JMD'),
   };
   return _feeCache;
 }
@@ -1803,8 +1810,18 @@ Deno.serve(async (req) => {
       }
     }
     // Facts the model must not invent, supplied fresh each request.
+    const cfgForPrompt = await getFeeConfig();
+    const currencyLine =
+      `All prices are in ${cfgForPrompt.currencyCode}, written with the symbol ` +
+      `"${cfgForPrompt.currencySymbol}". Tool results give money in CENTS: ` +
+      `divide by 100 before quoting it. 156766 cents is ` +
+      `${cfgForPrompt.currencySymbol}1,567.66 — not ${cfgForPrompt.currencySymbol}156.77 ` +
+      `and never "$". Jamaican prices are large numbers; a main course costing ` +
+      `${cfgForPrompt.currencySymbol}2,000 is normal, so do not assume a figure ` +
+      'is wrong because it looks big.';
+
     const walletLine = ctx.walletCents != null
-      ? `The customer's 7Dash wallet balance is $${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
+      ? `The customer's 7Dash wallet balance is ${cfgForPrompt.currencySymbol}${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
       : 'The customer has no wallet balance recorded.';
 
     // Habits are injected as context rather than exposed as a tool: they are
@@ -1883,6 +1900,7 @@ For a big basket, summarise in the reply — how many items, which sections, the
 
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: currencyLine },
       ...(groceryLine ? [{ role: 'system', content: groceryLine }] : []),
       { role: 'system', content: walletLine },
       { role: 'system', content: cartLine },
