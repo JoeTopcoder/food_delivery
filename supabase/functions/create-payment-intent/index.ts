@@ -32,13 +32,34 @@ serve(async (req) => {
       { apiVersion: "2023-10-16" }
     );
 
+    // The platform prices in JMD but this Stripe account settles in USD, so the
+    // amount is converted at the boundary. Without this a J$2,790 order would
+    // be charged as US$2,790 — roughly 155x — against live cards.
+    //
+    // Remove this conversion when payments move to NCB and the processor
+    // actually settles in JMD; at that point the amount passes through
+    // unchanged and `currency` becomes "jmd".
+    const FX_JMD_PER_USD = 155;
+    const requested = String(currency ?? "usd").toLowerCase();
+    const chargeCurrency = requested === "jmd" ? "usd" : requested;
+    const chargeAmount = requested === "jmd"
+      ? Math.round(amount / FX_JMD_PER_USD)
+      : Math.round(amount);
+
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount), // in cents
-      currency: currency || "usd",
+      amount: chargeAmount, // in the smallest unit of chargeCurrency
+      currency: chargeCurrency,
       customer: customer.id,
       automatic_payment_methods: { enabled: true },
-      metadata: { email },
+      metadata: {
+        email,
+        // Recorded so a JMD-priced order can be reconciled against a USD
+        // capture without guesswork.
+        presented_currency: requested,
+        presented_amount: String(Math.round(amount)),
+        fx_jmd_per_usd: requested === "jmd" ? String(FX_JMD_PER_USD) : "",
+      },
     });
 
     return new Response(

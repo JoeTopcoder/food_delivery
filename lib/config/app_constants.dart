@@ -160,8 +160,11 @@
   static int pageSize = 20;
 
   // Currency — overridden from app_config table at startup
-  static String currencySymbol = '\$';
-  static String currencyCode = 'USD';
+  // Compile-time fallbacks only — both are overwritten from app_config at
+  // startup, which is the authority. They match the configured values so a
+  // first frame rendered before config loads is not briefly wrong.
+  static String currencySymbol = 'J\$';
+  static String currencyCode = 'JMD';
   static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
 
@@ -175,10 +178,19 @@
   static double platformServiceFeeRate = 0.05;
   static double platformCommissionCap = 0.85;
 
-  // Platform service fee components: (subtotal × 2.9%) + $0.30 + $1.00
-  static const double stripeFeeRate = 0.029;  // Stripe processing rate
-  static const double stripeFixedFee = 0.30;  // Stripe per-transaction fixed
-  static const double platformFlatFee = 1.00; // Platform margin per transaction
+  // Platform service fee components, in JMD:
+  //   (subtotal × 2.9%) + J$46.50 + J$155
+  //
+  // The rate is a percentage and is currency-independent. The two cash amounts
+  // are not: they were US$0.30 and US$1.00 and have been redenominated at 155
+  // JMD/USD alongside the rest of the platform, so the economics are unchanged.
+  //
+  // The fixed component is the processor's per-transaction charge. When this
+  // moves from Stripe to NCB it should be reset to whatever NCB actually
+  // charges rather than left as a converted Stripe figure.
+  static const double stripeFeeRate = 0.029; // processor percentage
+  static const double stripeFixedFee = 46.50; // processor per-transaction (JMD)
+  static const double platformFlatFee = 155.00; // platform margin (JMD)
 
   /// Customer-facing platform service fee.
   ///
