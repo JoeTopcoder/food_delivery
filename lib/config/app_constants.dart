@@ -181,9 +181,26 @@
   static const double platformFlatFee = 1.00; // Platform margin per transaction
 
   /// Customer-facing platform service fee.
-  /// Formula: (subtotal × 2.9%) + $0.30 + $1.00
-  static double calculateServiceFee(double subtotal) {
-    final fee = (subtotal * stripeFeeRate) + stripeFixedFee + platformFlatFee;
+  ///
+  /// Recovers Stripe's cut plus the platform's flat margin. Stripe charges its
+  /// percentage on the TOTAL amount captured — food + delivery + this fee —
+  /// but the old formula applied it to the subtotal alone, so every order
+  /// under-recovered (about $0.20 on a $25 order, $0.35 on a $220 one) and the
+  /// gap widened with basket size.
+  ///
+  /// The fee sits inside the amount it is charged on, so it is solved rather
+  /// than approximated:
+  ///   f = (subtotal + other + f) * rate + fixed + flat
+  ///   f = ((subtotal + other) * rate + fixed + flat) / (1 - rate)
+  ///
+  /// [otherCharges] is everything else being captured on the same transaction
+  /// (delivery, extra-stop fees). Callers that pass nothing get the same
+  /// correct recovery on the subtotal alone.
+  static double calculateServiceFee(double subtotal, {double otherCharges = 0}) {
+    final base = subtotal + otherCharges;
+    final fee =
+        ((base * stripeFeeRate) + stripeFixedFee + platformFlatFee) /
+        (1 - stripeFeeRate);
     return double.parse(fee.toStringAsFixed(2));
   }
 

@@ -96,7 +96,10 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
         !isPickup;
     final effectiveFee = subDeliveryFree ? 0.0 : totalActiveFee;
 
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: totalActiveFee,
+    );
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + effectiveFee + platformServiceFee + tax;
 

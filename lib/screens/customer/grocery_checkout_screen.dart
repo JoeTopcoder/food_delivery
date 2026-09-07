@@ -200,7 +200,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final subDeliveryFree = subEligible;
     if (subDeliveryFree) activeFee = 0.0;
 
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: activeFee,
+    );
 
     // Tax: controlled by tax_enabled + tax_rate in app_config (DB toggle).
     // No tax for pickup. taxEnabled is the master on/off switch.
