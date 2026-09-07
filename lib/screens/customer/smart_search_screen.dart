@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -424,7 +424,7 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
 
                   // Price range
                   Text(
-                    'Delivery Fee: \$${_priceRange.start.toInt()} - \$${_priceRange.end.toInt()}',
+                    'Delivery Fee: \$${_priceRange.start.toInt()} - ${AppConstants.currencySymbol}${_priceRange.end.toInt()}',
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   RangeSlider(
@@ -736,7 +736,10 @@ class _MenuItemsSearchTab extends ConsumerWidget {
                   children: [
                     const Text(
                       'Recommended for You',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(

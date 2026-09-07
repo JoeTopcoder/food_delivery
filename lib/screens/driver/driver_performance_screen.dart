@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/driver_intelligence_models.dart';
@@ -57,7 +57,9 @@ class DriverPerformanceScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: CustomScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         slivers: [
           const SliverAppBar(
             pinned: true,
@@ -269,7 +271,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '\$${AppConstants.driverRatePerMile.toStringAsFixed(2)}/mile',
+                                    '${AppConstants.currencySymbol}${AppConstants.driverRatePerMile.toStringAsFixed(2)}/mile',
                                     style: const TextStyle(
                                       color: Color(0xFF22C55E),
                                       fontWeight: FontWeight.w800,

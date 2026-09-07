@@ -1,4 +1,4 @@
-﻿// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,7 +96,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     _paymentPhoneCtrl.text = currentUser.phone ?? '';
   }
 
-  Future<void> _applyPromo(double subtotal, {double deliveryFee = 0, double taxAmount = 0}) async {
+  Future<void> _applyPromo(
+    double subtotal, {
+    double deliveryFee = 0,
+    double taxAmount = 0,
+  }) async {
     final code = _promoCtrl.text.trim();
     if (code.isEmpty) return;
     setState(() {
@@ -108,7 +112,12 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       // No single restaurant_id — a grocery cart can span multiple stores —
       // so restaurant-scoped codes (e.g. a banner promotion) aren't checked
       // against a specific store here.
-      final promo = await service.validateCode(code, subtotal, deliveryFee: deliveryFee, taxAmount: taxAmount);
+      final promo = await service.validateCode(
+        code,
+        subtotal,
+        deliveryFee: deliveryFee,
+        taxAmount: taxAmount,
+      );
       if (!mounted) return;
       if (promo == null) {
         setState(() => _promoError = 'Invalid or expired code');
@@ -211,7 +220,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         ? AppConstants.taxRate
         : 0.0;
     final tax = subtotal * effectiveTaxRate;
-    final promoDiscount = appliedPromo?.computeDiscount(subtotal, deliveryFee: activeFee, taxAmount: tax) ?? 0.0;
+    final promoDiscount =
+        appliedPromo?.computeDiscount(
+          subtotal,
+          deliveryFee: activeFee,
+          taxAmount: tax,
+        ) ??
+        0.0;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -248,7 +263,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: EdgeInsets.only(
               bottom: 180,
               left: Responsive.horizontalPadding(context),
@@ -393,7 +410,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                                   selectedAddressIdProvider
                                                       .notifier,
                                                 )
-                                                .state = sel ? null : a.id;
+                                                .state = sel
+                                                ? null
+                                                : a.id;
                                             setState(
                                               () => _addressConfirmed = false,
                                             );
@@ -413,7 +432,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -500,7 +523,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     children: [
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletBalanceStreamProvider);
+                          final walletAsync = ref.watch(
+                            walletBalanceStreamProvider,
+                          );
                           final balance =
                               walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
@@ -550,10 +575,14 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Theme.of(context).colorScheme.outlineVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   child: Column(
@@ -604,43 +633,32 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                           });
                                         },
                                         onDelete: () async {
-                                          final confirm =
-                                              await showDialog<bool>(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  title: const Text(
-                                                    'Remove Card',
-                                                  ),
-                                                  content: Text(
-                                                    'Remove card ending in ${card.lastFour}?',
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            ctx,
-                                                            false,
-                                                          ),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                      ),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            ctx,
-                                                            true,
-                                                          ),
-                                                      child: const Text(
-                                                        'Remove',
-                                                        style: TextStyle(
-                                                          color: Colors.red,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('Remove Card'),
+                                              content: Text(
+                                                'Remove card ending in ${card.lastFour}?',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx, false),
+                                                  child: const Text('Cancel'),
                                                 ),
-                                              );
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx, true),
+                                                  child: const Text(
+                                                    'Remove',
+                                                    style: TextStyle(
+                                                      color: Colors.red,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
                                           if (confirm == true) {
                                             final svc = ref.read(
                                               paymentServiceProvider,
@@ -649,12 +667,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                             if (_selectedSavedCard?.id ==
                                                 card.id) {
                                               setState(
-                                                () =>
-                                                    _selectedSavedCard = null,
+                                                () => _selectedSavedCard = null,
                                               );
                                             }
                                             ref.invalidate(
-                                              savedCardsProvider(currentUserId!),
+                                              savedCardsProvider(
+                                                currentUserId!,
+                                              ),
                                             );
                                           }
                                         },
@@ -755,7 +774,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             ElevatedButton(
                               onPressed: _applyingPromo
                                   ? null
-                                  : () => _applyPromo(subtotal, deliveryFee: activeFee, taxAmount: tax),
+                                  : () => _applyPromo(
+                                      subtotal,
+                                      deliveryFee: activeFee,
+                                      taxAmount: tax,
+                                    ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
@@ -814,7 +837,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                     onChanged: (v) {
                                       ref
                                           .read(redeemPointsProvider.notifier)
-                                          .state = v ? maxPts : 0;
+                                          .state = v
+                                          ? maxPts
+                                          : 0;
                                     },
                                     activeThumbColor: const Color(0xFF6366F1),
                                   ),
@@ -870,7 +895,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                 'Driver will verify with a one-time PIN',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -898,7 +925,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                         Text(
                           '100% goes directly to your driver',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -920,11 +949,15 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                   ),
                                   selected: _driverTip == 0,
                                   selectedColor: AppTheme.primaryColor,
-                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   labelStyle: TextStyle(
                                     color: _driverTip == 0
                                         ? Colors.white
-                                        : Theme.of(context).colorScheme.onSurface,
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                   ),
                                   onSelected: (_) => setState(() {
                                     _driverTip = 0;
@@ -950,11 +983,15 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                     ),
                                     selected: sel,
                                     selectedColor: const Color(0xFF10B981),
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
                                     labelStyle: TextStyle(
                                       color: sel
                                           ? Colors.white
-                                          : Theme.of(context).colorScheme.onSurface,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                     ),
                                     onSelected: (_) => setState(() {
                                       _driverTip = sel ? 0 : amount;
@@ -973,14 +1010,18 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            prefixText: '\$ ',
+                            prefixText: '${AppConstants.currencySymbol} ',
                             hintText: 'Custom tip amount',
                             filled: true,
-                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.outlineVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -1090,7 +1131,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
                           valueColor: const Color(0xFFEA580C),
                         ),
-                      Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
+                      Divider(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        height: 16,
+                      ),
                       _SummaryRow(
                         'Total',
                         '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
@@ -1110,7 +1154,12 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
             right: 0,
             child: Container(
               color: Theme.of(context).cardColor,
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 16),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                8,
+                Responsive.horizontalPadding(context),
+                16,
+              ),
               child: SafeArea(
                 top: false,
                 child: Column(
@@ -1132,7 +1181,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             'I agree to the MealHub terms and conditions',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1291,11 +1342,12 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
 
     if (_selectedPayment == 'wallet') {
       final walletBalance =
-          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ??
+          0;
       if (walletBalance < grandTotal) {
         AppSnackbar.error(
           context,
-          'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). Top up or choose another payment method.',
+          'Insufficient wallet balance (${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}). Top up or choose another payment method.',
         );
         return;
       }
@@ -1494,19 +1546,23 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
           }
           if (redeemPts > 0) {
             try {
-              await ref.read(loyaltyServiceProvider).redeemPoints(
-                userId: userId,
-                orderId: orderIds.first,
-                points: redeemPts,
-              );
+              await ref
+                  .read(loyaltyServiceProvider)
+                  .redeemPoints(
+                    userId: userId,
+                    orderId: orderIds.first,
+                    points: redeemPts,
+                  );
             } catch (_) {}
           }
           try {
-            await ref.read(loyaltyServiceProvider).earnPoints(
-              userId: userId,
-              orderId: orderIds.first,
-              orderTotal: runningTotal,
-            );
+            await ref
+                .read(loyaltyServiceProvider)
+                .earnPoints(
+                  userId: userId,
+                  orderId: orderIds.first,
+                  orderTotal: runningTotal,
+                );
           } catch (_) {}
 
           if (outstandingDebt > 0) {
@@ -1537,11 +1593,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
             ref.invalidate(activeSubscriptionProvider);
           }
           for (final oid in orderIds) {
-            ref.read(behaviorTrackingProvider).trackOrderCompleted(
-              userId,
-              oid,
-              runningTotal / orderIds.length,
-            );
+            ref
+                .read(behaviorTrackingProvider)
+                .trackOrderCompleted(
+                  userId,
+                  oid,
+                  runningTotal / orderIds.length,
+                );
           }
           if (userId.isNotEmpty) ref.invalidate(loyaltyAccountProvider(userId));
           ref.invalidate(brainEngineProvider);
@@ -1556,7 +1614,6 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       if (mounted) setState(() => _placingOrder = false);
     }
   }
-
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────
@@ -1686,7 +1743,10 @@ class _Section extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1724,10 +1784,14 @@ class _AddressChip extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8, bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: isSelected
+            ? AppTheme.primaryColor
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+          color: isSelected
+              ? AppTheme.primaryColor
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Text(
@@ -1771,7 +1835,9 @@ class _TimeChip extends StatelessWidget {
                 : Theme.of(context).colorScheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Theme.of(context).colorScheme.outlineVariant,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -1791,7 +1857,10 @@ class _TimeChip extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1829,7 +1898,9 @@ class _PaymentTile extends StatelessWidget {
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1926,7 +1997,9 @@ class _SavedCardTile extends StatelessWidget {
               : Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2070,9 +2143,9 @@ class _SummaryRow extends StatelessWidget {
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
                 fontSize: isBold ? 15 : 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(
-                  alpha: isBold ? 1.0 : 0.75,
-                ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
               ),
               overflow: TextOverflow.ellipsis,
             ),

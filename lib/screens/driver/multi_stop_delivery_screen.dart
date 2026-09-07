@@ -71,8 +71,10 @@ class _MultiStopDeliveryScreenState
           action == 'arrived' ? 'Marked as arrived' : 'Stop completed',
         );
         // If all stops completed (task done), pop back
-        final allStops = (data['all_stops'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-        final allDone = allStops.isNotEmpty &&
+        final allStops =
+            (data['all_stops'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+        final allDone =
+            allStops.isNotEmpty &&
             allStops.every((s) => s['status'] == 'completed');
         if (allDone && mounted) {
           Navigator.pop(context);
@@ -125,23 +127,31 @@ class _MultiStopDeliveryScreenState
           );
           if (task == null) {
             return const Center(
-              child: Text('Task not found', style: TextStyle(color: Colors.white)),
+              child: Text(
+                'Task not found',
+                style: TextStyle(color: Colors.white),
+              ),
             );
           }
 
-          final stops = ((task['delivery_stops'] as List?) ?? [])
-              .cast<Map<String, dynamic>>()
-            ..sort((a, b) =>
-                (a['sequence_number'] as int).compareTo(b['sequence_number'] as int));
+          final stops =
+              ((task['delivery_stops'] as List?) ?? [])
+                  .cast<Map<String, dynamic>>()
+                ..sort(
+                  (a, b) => (a['sequence_number'] as int).compareTo(
+                    b['sequence_number'] as int,
+                  ),
+                );
 
-          final pickupStops =
-              stops.where((s) => s['stop_type'] == 'pickup').toList();
+          final pickupStops = stops
+              .where((s) => s['stop_type'] == 'pickup')
+              .toList();
 
-          final allPickupsDone = pickupStops
-              .every((s) => s['status'] == 'completed');
+          final allPickupsDone = pickupStops.every(
+            (s) => s['status'] == 'completed',
+          );
           final earning = (task['driver_earning'] as num?)?.toDouble() ?? 0.0;
-          final distKm =
-              (task['total_distance_km'] as num?)?.toDouble() ?? 0.0;
+          final distKm = (task['total_distance_km'] as num?)?.toDouble() ?? 0.0;
           final etaMin = task['estimated_duration_minutes'] as int? ?? 0;
 
           return Column(
@@ -152,16 +162,20 @@ class _MultiStopDeliveryScreenState
                 padding: EdgeInsets.all(Responsive.cardPadding(context)),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(Responsive.cardRadius(context)),
+                  borderRadius: BorderRadius.circular(
+                    Responsive.cardRadius(context),
+                  ),
                   border: Border.all(
                     color: AppTheme.primaryColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.monetization_on_rounded,
-                        color: AppTheme.primaryColor, size: 22),
+                    Icon(
+                      Icons.monetization_on_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 22,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -203,7 +217,8 @@ class _MultiStopDeliveryScreenState
                     final stop = stops[index];
                     final isPickup = stop['stop_type'] == 'pickup';
                     final status = stop['status'] as String? ?? 'pending';
-                    final address = stop['address'] as String? ?? 'Unknown address';
+                    final address =
+                        stop['address'] as String? ?? 'Unknown address';
                     final lat = (stop['latitude'] as num?)?.toDouble();
                     final lng = (stop['longitude'] as num?)?.toDouble();
                     final isDropoff = !isPickup;
@@ -212,25 +227,28 @@ class _MultiStopDeliveryScreenState
                     final statusColor = status == 'completed'
                         ? const Color(0xFF22C55E)
                         : status == 'arrived'
-                            ? const Color(0xFFF59E0B)
-                            : Colors.white38;
+                        ? const Color(0xFFF59E0B)
+                        : Colors.white38;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E2030),
                         borderRadius: BorderRadius.circular(
-                            Responsive.cardRadius(context)),
+                          Responsive.cardRadius(context),
+                        ),
                         border: Border.all(
                           color: status == 'completed'
                               ? const Color(0xFF22C55E).withValues(alpha: 0.4)
                               : status == 'arrived'
-                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
-                                  : Colors.white12,
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                              : Colors.white12,
                         ),
                       ),
                       child: Padding(
-                        padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                        padding: EdgeInsets.all(
+                          Responsive.cardPadding(context),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -243,8 +261,10 @@ class _MultiStopDeliveryScreenState
                                   decoration: BoxDecoration(
                                     color: statusColor.withValues(alpha: 0.15),
                                     shape: BoxShape.circle,
-                                    border:
-                                        Border.all(color: statusColor, width: 1.5),
+                                    border: Border.all(
+                                      color: statusColor,
+                                      width: 1.5,
+                                    ),
                                   ),
                                   child: Center(
                                     child: Text(
@@ -260,7 +280,8 @@ class _MultiStopDeliveryScreenState
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -283,16 +304,21 @@ class _MultiStopDeliveryScreenState
                                                   ? AppTheme.primaryColor
                                                   : const Color(0xFF22C55E),
                                               fontWeight: FontWeight.w700,
-                                              fontSize: Responsive.smallText(context),
+                                              fontSize: Responsive.smallText(
+                                                context,
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 7, vertical: 2),
+                                              horizontal: 7,
+                                              vertical: 2,
+                                            ),
                                             decoration: BoxDecoration(
-                                              color:
-                                                  statusColor.withValues(alpha: 0.12),
+                                              color: statusColor.withValues(
+                                                alpha: 0.12,
+                                              ),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                             ),
@@ -312,7 +338,9 @@ class _MultiStopDeliveryScreenState
                                         address,
                                         style: TextStyle(
                                           color: Colors.white70,
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -327,17 +355,23 @@ class _MultiStopDeliveryScreenState
                               const SizedBox(height: 10),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 6),
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                      color: Colors.orange.withValues(alpha: 0.3)),
+                                    color: Colors.orange.withValues(alpha: 0.3),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.lock_rounded,
-                                        color: Colors.orange, size: 14),
+                                    const Icon(
+                                      Icons.lock_rounded,
+                                      color: Colors.orange,
+                                      size: 14,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       'Complete all pickups first',
@@ -360,19 +394,25 @@ class _MultiStopDeliveryScreenState
                                   if (lat != null && lng != null)
                                     Expanded(
                                       child: OutlinedButton.icon(
-                                        onPressed: () => _openNavigation(lat, lng),
-                                        icon: const Icon(Icons.navigation_rounded,
-                                            size: 16),
+                                        onPressed: () =>
+                                            _openNavigation(lat, lng),
+                                        icon: const Icon(
+                                          Icons.navigation_rounded,
+                                          size: 16,
+                                        ),
                                         label: const Text('Navigate'),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.white70,
                                           side: const BorderSide(
-                                              color: Colors.white24),
+                                            color: Colors.white24,
+                                          ),
                                           padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
+                                            vertical: 8,
+                                          ),
                                           textStyle: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -384,22 +424,24 @@ class _MultiStopDeliveryScreenState
                                       onPressed: _processing || dropoffBlocked
                                           ? null
                                           : () => _updateStop(
-                                                stop['id'] as String,
-                                                status == 'arrived'
-                                                    ? 'completed'
-                                                    : 'arrived',
-                                              ),
+                                              stop['id'] as String,
+                                              status == 'arrived'
+                                                  ? 'completed'
+                                                  : 'arrived',
+                                            ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: status == 'arrived'
                                             ? const Color(0xFF22C55E)
                                             : AppTheme.primaryColor,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 8),
+                                          vertical: 8,
+                                        ),
                                         elevation: 0,
                                         textStyle: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                       child: _processing
                                           ? const SizedBox(
@@ -413,8 +455,8 @@ class _MultiStopDeliveryScreenState
                                           : Text(
                                               status == 'arrived'
                                                   ? (isPickup
-                                                      ? 'Picked Up'
-                                                      : 'Delivered')
+                                                        ? 'Picked Up'
+                                                        : 'Delivered')
                                                   : 'Arrived',
                                             ),
                                     ),
@@ -425,8 +467,11 @@ class _MultiStopDeliveryScreenState
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  const Icon(Icons.check_circle_rounded,
-                                      color: Color(0xFF22C55E), size: 16),
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Color(0xFF22C55E),
+                                    size: 16,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     isPickup ? 'Picked up' : 'Delivered',
@@ -452,9 +497,8 @@ class _MultiStopDeliveryScreenState
         loading: () => const Center(
           child: AppLoadingIndicator(message: 'Loading delivery task…'),
         ),
-        error: (err, _) => Center(
-          child: AppErrorState(message: friendlyError(err)),
-        ),
+        error: (err, _) =>
+            Center(child: AppErrorState(message: friendlyError(err))),
       ),
     );
   }

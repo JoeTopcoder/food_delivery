@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -438,7 +438,10 @@ class _DeliverySubscriptionTabState
               if (activeSub == null) ...[
                 Text(
                   'Choose your plan',
-                  style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: Responsive.headingMedium(context),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
@@ -480,7 +483,10 @@ class _DeliverySubscriptionTabState
               // FAQ
               Text(
                 'How it works',
-                style: TextStyle(fontSize: Responsive.headingSmall(context), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: Responsive.headingSmall(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               _FaqItem(

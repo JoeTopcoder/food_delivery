@@ -178,7 +178,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           : notifications.isEmpty
           ? const _EmptyNotifications()
           : ListView.builder(
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 24),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                12,
+                Responsive.horizontalPadding(context),
+                24,
+              ),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final n = notifications[index];

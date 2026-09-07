@@ -1,4 +1,4 @@
-﻿// driver_wallet_screen.dart — Full Stripe Connect wallet screen
+// driver_wallet_screen.dart — Full Stripe Connect wallet screen
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -8,10 +8,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/stripe/earnings_provider.dart';
 import '../../services/payment/payout_service.dart'
-    show
-        StripePayoutService,
-        PayoutRecord,
-        DriverPayoutMethod;
+    show StripePayoutService, PayoutRecord, DriverPayoutMethod;
 import '../../utils/friendly_error.dart';
 import '../../utils/safe_state_mixin.dart';
 import '../../config/app_constants.dart';
@@ -171,7 +168,10 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
             amountCents: netCents,
             payoutMethod: payoutType == 'instant' ? 'instant' : 'standard',
           );
-      if (pr == null) throw Exception(ref.read(earningsProvider('driver')).error ?? 'Payout failed');
+      if (pr == null)
+        throw Exception(
+          ref.read(earningsProvider('driver')).error ?? 'Payout failed',
+        );
       ref.invalidate(payoutHistoryProvider(driver.id));
       setState(
         () => _successMessage =
@@ -239,7 +239,9 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
           ref.read(earningsProvider('driver').notifier).load();
         },
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             SliverAppBar(
               floating: true,
@@ -251,7 +253,12 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
               ),
             ),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 32),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                8,
+                Responsive.horizontalPadding(context),
+                32,
+              ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Balance card

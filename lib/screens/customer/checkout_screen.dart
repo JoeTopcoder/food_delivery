@@ -1,4 +1,4 @@
-﻿// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
@@ -245,7 +245,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         : null;
     final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
     final tax = subtotal * effectiveTaxRate;
-    final promoDiscount = appliedPromo?.computeDiscount(subtotal, deliveryFee: activeFee, taxAmount: tax) ?? 0.0;
+    final promoDiscount =
+        appliedPromo?.computeDiscount(
+          subtotal,
+          deliveryFee: activeFee,
+          taxAmount: tax,
+        ) ??
+        0.0;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -289,7 +295,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: EdgeInsets.only(
               bottom: Responsive.bottomPaddingForFixedButton(context),
               left: Responsive.horizontalPadding(context),
@@ -308,7 +316,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       padding: EdgeInsets.all(Responsive.spacingSmall(context)),
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.cardRadius(context) - 2,
+                        ),
                         border: Border.all(
                           color: const Color(
                             0xFF10B981,
@@ -400,11 +410,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
+                          padding: EdgeInsets.all(
+                            Responsive.spacingSmall(context),
+                          ),
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context) - 2,
+                            ),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -477,13 +495,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           if (isClosed) ...[
                             Container(
                               width: double.infinity,
-                              padding: EdgeInsets.all(Responsive.spacingSmall(context)),
-                              margin: EdgeInsets.only(bottom: Responsive.spacing(context)),
+                              padding: EdgeInsets.all(
+                                Responsive.spacingSmall(context),
+                              ),
+                              margin: EdgeInsets.only(
+                                bottom: Responsive.spacing(context),
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.accentColor.withValues(
                                   alpha: 0.08,
                                 ),
-                                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context) - 2,
+                                ),
                                 border: Border.all(
                                   color: AppTheme.accentColor.withValues(
                                     alpha: 0.3,
@@ -547,7 +571,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       // Wallet payment option
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletBalanceStreamProvider);
+                          final walletAsync = ref.watch(
+                            walletBalanceStreamProvider,
+                          );
                           final walletBalance =
                               walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
@@ -596,12 +622,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               if (verifiedCards.isEmpty) {
                                 return Container(
                                   width: double.infinity,
-                                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                                  padding: EdgeInsets.all(
+                                    Responsive.cardPadding(context),
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.cardRadius(context),
+                                    ),
                                     border: Border.all(
-                                      color: Theme.of(context).colorScheme.outlineVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   child: Column(
@@ -623,7 +657,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                       Text(
                                         'Add a card from your Wallet first',
                                         style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                           color: Colors.grey.shade700,
                                         ),
                                       ),
@@ -728,12 +764,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     children: [
                       if (appliedPromo != null)
                         Container(
-                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
+                          padding: EdgeInsets.all(
+                            Responsive.spacingSmall(context),
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(
                               0xFF10B981,
                             ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context) - 2,
+                            ),
                             border: Border.all(
                               color: const Color(
                                 0xFF10B981,
@@ -799,11 +839,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               onPressed: _applyingPromo
                                   ? null
                                   : () => _applyPromo(
-                                        subtotal,
-                                        restaurantId: restaurantId,
-                                        deliveryFee: activeFee,
-                                        taxAmount: tax,
-                                      ),
+                                      subtotal,
+                                      restaurantId: restaurantId,
+                                      deliveryFee: activeFee,
+                                      taxAmount: tax,
+                                    ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
@@ -852,11 +892,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               children: [
                                 Flexible(
                                   child: Text(
-                                  'You have ${account.points} pts '
-                                  '(= \$${account.redemptionValue.toStringAsFixed(2)})',
-                                  style: const TextStyle(fontSize: 13),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                    'You have ${account.points} pts '
+                                    '(= \$${account.redemptionValue.toStringAsFixed(2)})',
+                                    style: const TextStyle(fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Switch(
@@ -922,7 +962,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 'Driver will verify with a one-time PIN',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -950,7 +992,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         Text(
                           '100% goes directly to your driver',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -973,11 +1017,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   ),
                                   selected: _driverTip == 0,
                                   selectedColor: AppTheme.primaryColor,
-                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   labelStyle: TextStyle(
                                     color: _driverTip == 0
                                         ? Colors.white
-                                        : Theme.of(context).colorScheme.onSurface,
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                   ),
                                   onSelected: (_) {
                                     setState(() {
@@ -1005,11 +1053,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     ),
                                     selected: isSelected,
                                     selectedColor: const Color(0xFF10B981),
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
                                     labelStyle: TextStyle(
                                       color: isSelected
                                           ? Colors.white
-                                          : Theme.of(context).colorScheme.onSurface,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                     ),
                                     onSelected: (_) {
                                       setState(() {
@@ -1030,14 +1082,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            prefixText: '\$ ',
+                            prefixText: '${AppConstants.currencySymbol} ',
                             hintText: 'Custom tip amount',
                             filled: true,
-                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.outlineVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -1084,7 +1140,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   padding: EdgeInsets.all(Responsive.cardPadding(context)),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.cardRadius(context),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -1165,7 +1223,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
                           valueColor: const Color(0xFFEA580C),
                         ),
-                      Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
+                      Divider(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        height: 16,
+                      ),
                       _SummaryRow(
                         'Total',
                         '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
@@ -1213,7 +1274,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             'I agree to the MealHub terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1388,11 +1451,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     // Wallet: block order if balance is too low (must cover order + outstanding debt)
     if (_selectedPayment == 'wallet') {
       final walletBalance =
-          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ??
+          0;
       if (walletBalance < grandTotal) {
         AppSnackbar.error(
           context,
-          'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
+          'Insufficient wallet balance (${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}). '
           'Top up \$${(grandTotal - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
         );
         return;
@@ -1518,7 +1582,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       if (_selectedPayment == 'stripe') {
         final savedCard = _selectedSavedCard;
         savedCardPmId = savedCard?.stripePaymentMethodId;
-        if (savedCard == null || savedCardPmId == null || savedCardPmId.isEmpty) {
+        if (savedCard == null ||
+            savedCardPmId == null ||
+            savedCardPmId.isEmpty) {
           setState(() => _placingOrder = false);
           if (!mounted) return;
           AppSnackbar.warning(
@@ -1723,7 +1789,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       }
     }
   }
-
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────
@@ -1861,7 +1926,10 @@ class _Section extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1896,16 +1964,23 @@ class _AddressChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(right: Responsive.spacing(context) * 0.5, bottom: Responsive.spacing(context) * 0.5),
+      margin: EdgeInsets.only(
+        right: Responsive.spacing(context) * 0.5,
+        bottom: Responsive.spacing(context) * 0.5,
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.spacingSmall(context),
         vertical: Responsive.spacingSmall(context) * 0.5,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: isSelected
+            ? AppTheme.primaryColor
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+          color: isSelected
+              ? AppTheme.primaryColor
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Text(
@@ -1947,9 +2022,13 @@ class _TimeChip extends StatelessWidget {
             color: selected
                 ? AppTheme.primaryColor.withValues(alpha: 0.08)
                 : Theme.of(context).colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+            borderRadius: BorderRadius.circular(
+              Responsive.cardRadius(context) - 2,
+            ),
             border: Border.all(
-              color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Theme.of(context).colorScheme.outlineVariant,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -1969,7 +2048,10 @@ class _TimeChip extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: Responsive.bodyText(context) * 0.75, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: Responsive.bodyText(context) * 0.75,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -2008,9 +2090,13 @@ class _PaymentTile extends StatelessWidget {
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
               : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+          borderRadius: BorderRadius.circular(
+            Responsive.cardRadius(context) - 2,
+          ),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2110,7 +2196,9 @@ class _SavedCardTile extends StatelessWidget {
               : Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2256,7 +2344,9 @@ class _SummaryRow extends StatelessWidget {
               label,
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
-                fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
+                fontSize: isBold
+                    ? Responsive.headingSmall(context)
+                    : Responsive.smallText(context),
                 color: Theme.of(
                   context,
                 ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
@@ -2269,7 +2359,9 @@ class _SummaryRow extends StatelessWidget {
             value,
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
+              fontSize: isBold
+                  ? Responsive.headingSmall(context)
+                  : Responsive.smallText(context),
               color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),

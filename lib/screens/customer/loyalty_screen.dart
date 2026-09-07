@@ -175,7 +175,9 @@ class LoyaltyScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: _tierProgress(tier, totalEarned),
-                            backgroundColor: Theme.of(context).colorScheme.outlineVariant,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.outlineVariant,
                             color: _tierColor(tier),
                             minHeight: 6,
                           ),
@@ -184,7 +186,9 @@ class LoyaltyScreen extends ConsumerWidget {
                         Text(
                           '$pointsToNext more points to $nextTier',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
