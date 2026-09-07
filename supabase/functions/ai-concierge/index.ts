@@ -738,8 +738,9 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   const draftId = built.cart_draft_id;
   if (!draftId) return built; // nothing valid to place; errors already explained
 
-  // Best eligible promotion, applied automatically. The customer should never
-  // miss a discount because the assistant forgot to look.
+  // Best promotion the customer already holds, applied automatically. Only
+  // their own unused coupons qualify — see getEligiblePromotions — so this
+  // spends an entitlement they have rather than inventing one.
   let appliedPromo: Record<string, unknown> | null = null;
   try {
     const { promotions } = await getEligiblePromotions(ctx, {
@@ -821,8 +822,9 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     applied_promotion: appliedPromo,
     pricing: priced,
     checkout_url: '/cart',
-    instruction:
-      'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
+    instruction: appliedPromo
+      ? 'Done. Tell the customer what you ordered, the total and the ETA, AND that you applied one of their coupons and what it saved — a discount they did not ask for must never just appear on the bill. Do not call any more tools.'
+      : 'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
   };
   ctx.placed = result;
   return result;
@@ -975,6 +977,19 @@ async function computeDiscountCents(
   return Math.max(0, Math.min(d, subtotalCents));
 }
 
+/**
+ * Promotions THIS customer actually holds.
+ *
+ * Originally this returned any active row in promo_codes, which was wrong: that
+ * table is the pool of codes a customer must be given and then enter, and there
+ * are 526 active ones. Auto-applying the largest turned the concierge into a
+ * machine that handed every shopper a discount nobody issued them — a straight
+ * revenue leak, and the reason a discount appeared on an order that had not
+ * asked for one.
+ *
+ * Eligibility now means an unused user_coupons row belonging to this customer,
+ * which is the same thing validate-promo treats as a personal entitlement.
+ */
 async function getEligiblePromotions(ctx: Ctx, a: Record<string, unknown>) {
   const draft = await loadDraft(ctx, a.cart_draft_id as string);
   const lines = (draft.line_items as Record<string, unknown>[]) ?? [];
@@ -983,15 +998,19 @@ async function getEligiblePromotions(ctx: Ctx, a: Record<string, unknown>) {
     0,
   );
 
-  const { data: codes } = await admin
-    .from('promo_codes')
-    .select('code, description, restaurant_id, min_order_amount')
-    .eq('is_active', true)
-    .or(`restaurant_id.is.null,restaurant_id.eq.${draft.restaurant_id}`)
-    .limit(60);
+  const { data: coupons } = await admin
+    .from('user_coupons')
+    .select('code, reason, min_order, expires_at, is_used, user_id')
+    .eq('user_id', ctx.userId)
+    .eq('is_used', false)
+    .limit(50);
 
+  const now = Date.now();
   const promotions = [];
-  for (const c of codes ?? []) {
+  for (const c of coupons ?? []) {
+    if (c.expires_at && new Date(c.expires_at).getTime() < now) continue;
+    if (c.min_order && subtotal < toCents(c.min_order)) continue;
+
     const savings = await computeDiscountCents(
       c.code,
       subtotal,
@@ -1000,14 +1019,13 @@ async function getEligiblePromotions(ctx: Ctx, a: Record<string, unknown>) {
     if (savings > 0) {
       promotions.push({
         code: c.code,
-        description: c.description,
+        description: c.reason ?? 'Your coupon',
         savings_cents: savings,
         stackable: false,
       });
     }
   }
 
-  // Best saving first — the concierge should never quietly apply a worse code.
   promotions.sort((x, y) => y.savings_cents - x.savings_cents);
   return { promotions: promotions.slice(0, 10) };
 }
