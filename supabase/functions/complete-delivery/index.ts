@@ -131,6 +131,26 @@ Deno.serve(async (request) => {
 
     if (driverId) {
       const driverPayPercent = await getConfig("driver_pay_percent", 0.80);
+
+      // Record what this delivery actually paid the driver, on the ORDER.
+      // The figure was already being computed to credit the driver's earnings
+      // but was never written back, so every order reported driver cost of
+      // zero — which made margin look 60-70% instead of the real 15-20% and
+      // left profitability unmeasurable.
+      {
+        const orderDeliveryFee = Number(order.delivery_fee) || 0;
+        const orderTip = Number(order.driver_tip) || 0;
+        const basePay = round2(orderDeliveryFee * driverPayPercent);
+        await admin
+          .from("orders")
+          .update({
+            driver_base_pay: basePay,
+            // Tip is included in what the driver receives, and the margin
+            // report nets it back out on both sides.
+            driver_total_pay: round2(basePay + orderTip),
+          })
+          .eq("id", orderId);
+      }
       const bonusPerOrder = await getConfig("driver_bonus_per_order", 0);
 
       // Fetch all delivered orders for this driver
