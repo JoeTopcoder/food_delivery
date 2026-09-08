@@ -103,7 +103,7 @@ class _WebAdminMealhubPageState extends ConsumerState<WebAdminMealhubPage> {
     if (mounted) {
       setState(() => _saving = false);
       if (ok) {
-        AppSnackbar.success(context, 'Quickdash+ settings saved');
+        AppSnackbar.success(context, 'QuickDash+ settings saved');
       } else {
         AppSnackbar.error(context, 'Some settings failed to save');
       }
@@ -123,7 +123,7 @@ class _WebAdminMealhubPageState extends ConsumerState<WebAdminMealhubPage> {
           // ── Header ─────────────────────────────────────────────────────
           Row(children: [
             const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Quickdash+', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+              Text('QuickDash+', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
               Text('Subscription plan configuration', style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
             ])),
             IconButton(icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)), onPressed: () => ref.invalidate(_webSubConfigProvider)),

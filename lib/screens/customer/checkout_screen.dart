@@ -233,7 +233,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
 
-    // ── Quickdash+ subscription benefit ──────────────────────────────
+    // ── QuickDash+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subEligible =
         activeSub != null &&
@@ -1223,7 +1223,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         rawFee > 0
                             ? _SummaryRow(
                                 subServiceDiscount > 0
-                                    ? 'Pickup Fee (Quickdash+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                    ? 'Pickup Fee (QuickDash+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
                                     : 'Pickup Fee',
                                 '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
                                 valueColor: subServiceDiscount > 0
@@ -1242,7 +1242,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       else
                         _SummaryRow(
                           subDeliveryFree
-                              ? 'Delivery (Quickdash+ FREE)'
+                              ? 'Delivery (QuickDash+ FREE)'
                               : 'Delivery${feeResult?.calculation == 'distance_based'
                                     ? ''
                                     : feeResult?.restaurantOverride != null
@@ -1330,7 +1330,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the Quickdash terms and conditions',
+                            'I agree to the QuickDash terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
                               color: Theme.of(

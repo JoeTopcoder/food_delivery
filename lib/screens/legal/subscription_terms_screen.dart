@@ -11,19 +11,19 @@ class SubscriptionTermsScreen extends StatelessWidget {
       lastUpdated: 'June 2026',
       sections: [
         LegalSection(
-          heading: '1. Quickdash+ Subscription Plans',
+          heading: '1. QuickDash+ Subscription Plans',
           body:
-              'Quickdash offers optional subscription plans ("Quickdash+") that provide delivery benefits for a recurring monthly fee. Current plans are displayed in the app on the Subscription screen. Plan details, pricing, and included benefits are subject to change with prior notice.',
+              'QuickDash offers optional subscription plans ("QuickDash+") that provide delivery benefits for a recurring monthly fee. Current plans are displayed in the app on the Subscription screen. Plan details, pricing, and included benefits are subject to change with prior notice.',
         ),
         LegalSection(
           heading: '2. Billing',
           body:
-              'Your subscription is billed monthly on the date you first subscribed. The charge appears as "Quickdash+" or "SevenDash Technologies" on your payment statement. All charges are in USD unless otherwise indicated. By subscribing, you authorize Quickdash to charge your selected payment method automatically each billing period.',
+              'Your subscription is billed monthly on the date you first subscribed. The charge appears as "QuickDash+" or "SevenDash Technologies" on your payment statement. All charges are in USD unless otherwise indicated. By subscribing, you authorize QuickDash to charge your selected payment method automatically each billing period.',
         ),
         LegalSection(
           heading: '3. What Is Included',
           body:
-              'Each plan includes a set number of free or reduced-fee deliveries per month, as described on the plan selection screen. Delivery benefits apply to eligible food and grocery orders placed through the Quickdash app. Benefits do not carry over to the following month and are not transferable.',
+              'Each plan includes a set number of free or reduced-fee deliveries per month, as described on the plan selection screen. Delivery benefits apply to eligible food and grocery orders placed through the QuickDash app. Benefits do not carry over to the following month and are not transferable.',
         ),
         LegalSection(
           heading: '4. Free Trial',
@@ -58,7 +58,7 @@ class SubscriptionTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '10. Apple & Google Billing',
           body:
-              'If you subscribed through the Apple App Store or Google Play Store, billing is managed by Apple or Google under their respective terms. To cancel or manage your subscription, visit your App Store or Play Store subscription settings. Quickdash cannot process refunds for in-app purchases made through these stores; contact Apple or Google support.',
+              'If you subscribed through the Apple App Store or Google Play Store, billing is managed by Apple or Google under their respective terms. To cancel or manage your subscription, visit your App Store or Play Store subscription settings. QuickDash cannot process refunds for in-app purchases made through these stores; contact Apple or Google support.',
         ),
         LegalSection(
           heading: '11. Contact',

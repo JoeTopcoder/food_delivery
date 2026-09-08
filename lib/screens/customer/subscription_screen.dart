@@ -26,7 +26,7 @@ class SubscriptionScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Quickdash+',
+          'QuickDash+',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         foregroundColor: Theme.of(context).colorScheme.onSurface,
@@ -112,7 +112,7 @@ class _DeliverySubscriptionTabState
         if (activated) {
           AppSnackbar.success(
             context,
-            'Quickdash+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
+            'QuickDash+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
           );
         } else {
           AppSnackbar.warning(
@@ -135,7 +135,7 @@ class _DeliverySubscriptionTabState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Quickdash+?'),
+        title: const Text('Cancel QuickDash+?'),
         content: const Text(
           'You\'ll keep your remaining deliveries and benefits until '
           'the end of your current billing period. No further charges.',
@@ -240,7 +240,7 @@ class _DeliverySubscriptionTabState
         if (activated) {
           AppSnackbar.success(
             context,
-            'Switched to Quickdash ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
+            'Switched to QuickDash ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
           );
         } else {
           AppSnackbar.warning(
@@ -288,7 +288,7 @@ class _DeliverySubscriptionTabState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Quickdash+',
+                      'QuickDash+',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -333,7 +333,7 @@ class _DeliverySubscriptionTabState
                       label: Text(
                         _subscribingPlan == 'change'
                             ? 'Switching...'
-                            : 'Switch to Quickdash ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
+                            : 'Switch to QuickDash ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF528BFF),
@@ -445,7 +445,7 @@ class _DeliverySubscriptionTabState
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
-                  title: 'Quickdash Basic',
+                  title: 'QuickDash Basic',
                   price: AppConstants.subscriptionBasicPrice,
                   deliveries: AppConstants.subscriptionBasicDeliveries,
                   perks: const [
@@ -461,7 +461,7 @@ class _DeliverySubscriptionTabState
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
-                  title: 'Quickdash Pro',
+                  title: 'QuickDash Pro',
                   price: AppConstants.subscriptionProPrice,
                   deliveries: AppConstants.subscriptionProDeliveries,
                   perks: const [

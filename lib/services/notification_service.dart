@@ -40,7 +40,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final params = CallKitParams(
       id: callId,
       nameCaller: callerName,
-      appName: 'Quickdash',
+      appName: 'QuickDash',
       type: 0, // 0 = audio call
       duration: 60000,
       textAccept: 'Answer',
@@ -393,7 +393,7 @@ class NotificationService {
 
     // Show a local notification — fall back to data fields when the FCM
     // message has no notification block (data-only messages from edge functions).
-    final title = notification?.title ?? message.data['title'] as String? ?? 'Quickdash';
+    final title = notification?.title ?? message.data['title'] as String? ?? 'QuickDash';
     final body  = notification?.body  ?? message.data['body']  as String? ?? '';
     if (title.isNotEmpty || body.isNotEmpty) {
       showNotification(title: title, body: body, data: message.data);
@@ -510,7 +510,7 @@ class NotificationService {
       final params = CallKitParams(
         id: callId,
         nameCaller: callerName,
-        appName: 'Quickdash',
+        appName: 'QuickDash',
         type: 0,
         duration: 60000,
         textAccept: 'Answer',

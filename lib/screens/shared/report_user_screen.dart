@@ -103,7 +103,7 @@ class _ReportUserScreenState extends ConsumerState<ReportUserScreen> {
             const Text('Report Submitted', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
-              'Thank you for helping keep Quickdash safe. Our trust & safety team will review your report and take appropriate action.',
+              'Thank you for helping keep QuickDash safe. Our trust & safety team will review your report and take appropriate action.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, height: 1.6),
             ),
@@ -139,7 +139,7 @@ class _ReportUserScreenState extends ConsumerState<ReportUserScreen> {
                 leading: const CircleAvatar(child: Icon(Icons.person)),
                 title: Text('Reporting: ${widget.reportedUserName}',
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Quickdash Trust & Safety', style: TextStyle(fontSize: 12)),
+                subtitle: const Text('QuickDash Trust & Safety', style: TextStyle(fontSize: 12)),
               ),
             ),
             const SizedBox(height: 16),

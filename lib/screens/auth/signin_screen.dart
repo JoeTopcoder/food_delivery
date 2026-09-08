@@ -226,7 +226,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ],
                       ),
                       child: Image.asset(
-                        'assets/images/mealhub_logo.png',
+                        'assets/images/quickdash_logo.png',
                         width: double.infinity,
                         height: double.infinity,
                         fit: BoxFit.cover,
@@ -244,7 +244,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Food. Fast. Delivered.',
+                      'Good Food. Faster.',
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,

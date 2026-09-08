@@ -169,10 +169,10 @@ class _GroupOrderDetailScreenState
     SharePlus.instance.share(
       ShareParams(
         text:
-            '🍽️ Join my group order "${group.name}" on Quickdash!\n\n'
+            '🍽️ Join my group order "${group.name}" on QuickDash!\n\n'
             'Tap the link to join instantly:\n$link\n\n'
-            'Or open Quickdash → Group Orders → Join → enter code: ${group.inviteCode}',
-        subject: 'Join my Quickdash group order!',
+            'Or open QuickDash → Group Orders → Join → enter code: ${group.inviteCode}',
+        subject: 'Join my QuickDash group order!',
       ),
     );
   }

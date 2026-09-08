@@ -64,9 +64,9 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
   };
 
   static const _hints = <String, String>{
-    'subscription_basic_price': 'Monthly price for Quickdash Basic',
+    'subscription_basic_price': 'Monthly price for QuickDash Basic',
     'subscription_basic_deliveries': 'Free deliveries per month (Basic)',
-    'subscription_pro_price': 'Monthly price for Quickdash Pro',
+    'subscription_pro_price': 'Monthly price for QuickDash Pro',
     'subscription_pro_deliveries': 'Free deliveries per month (Pro)',
     'subscription_min_cart': 'Order must exceed this to use free delivery',
     'subscription_service_fee_discount': '0.50 = 50% off service fee',
@@ -119,7 +119,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     ok
-        ? AppSnackbar.success(context, 'Quickdash+ settings saved')
+        ? AppSnackbar.success(context, 'QuickDash+ settings saved')
         : AppSnackbar.error(context, 'Some values failed to save');
   }
 
@@ -131,7 +131,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Quickdash+ Plans',
+          'QuickDash+ Plans',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF528BFF),
@@ -164,7 +164,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
 
                 // Basic Plan section
                 _SectionHeader(
-                  title: 'Quickdash Basic',
+                  title: 'QuickDash Basic',
                   color: const Color(0xFF2196F3),
                 ),
                 const SizedBox(height: 8),
@@ -188,7 +188,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
 
                 // Pro Plan section
                 _SectionHeader(
-                  title: 'Quickdash Pro',
+                  title: 'QuickDash Pro',
                   color: const Color(0xFF528BFF),
                 ),
                 const SizedBox(height: 8),
@@ -328,7 +328,7 @@ class _StatsBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Quickdash+ Subscribers',
+                  'QuickDash+ Subscribers',
                   style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 const SizedBox(height: 4),

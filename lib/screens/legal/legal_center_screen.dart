@@ -27,7 +27,7 @@ class LegalCenterScreen extends StatelessWidget {
             icon: Icons.description_outlined,
             iconColor: const Color(0xFF155EEF),
             title: 'Terms & Conditions',
-            subtitle: 'Rules governing use of Quickdash services',
+            subtitle: 'Rules governing use of QuickDash services',
             onTap: () => Navigator.of(context).pushNamed('/terms'),
           ),
           LegalTile(
@@ -48,7 +48,7 @@ class LegalCenterScreen extends StatelessWidget {
             icon: Icons.card_membership_outlined,
             iconColor: const Color(0xFF528BFF),
             title: 'Subscription Terms',
-            subtitle: 'Billing, renewals, and cancellation for Quickdash+',
+            subtitle: 'Billing, renewals, and cancellation for QuickDash+',
             onTap: () => Navigator.of(context).pushNamed('/subscription-terms'),
           ),
           const SizedBox(height: 8),
@@ -73,7 +73,7 @@ class LegalCenterScreen extends StatelessWidget {
             icon: Icons.headset_mic_outlined,
             iconColor: const Color(0xFF0EA5E9),
             title: 'Contact Support',
-            subtitle: 'Get help from the Quickdash team',
+            subtitle: 'Get help from the QuickDash team',
             onTap: () => Navigator.of(context).pushNamed('/contact-support'),
           ),
           LegalTile(
@@ -88,7 +88,7 @@ class LegalCenterScreen extends StatelessWidget {
           LegalTile(
             icon: Icons.info_outline,
             iconColor: const Color(0xFF6B7280),
-            title: 'About Quickdash',
+            title: 'About QuickDash',
             subtitle: 'App version, company info, and open-source notices',
             onTap: () => Navigator.of(context).pushNamed('/about'),
           ),

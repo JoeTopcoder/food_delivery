@@ -1150,7 +1150,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                       else
                         _SummaryRow(
                           subDeliveryFree
-                              ? 'Delivery (Quickdash+ FREE)'
+                              ? 'Delivery (QuickDash+ FREE)'
                               : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
                           anyFeeLoading
                               ? 'Calculating…'
@@ -1229,7 +1229,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the Quickdash terms and conditions',
+                            'I agree to the QuickDash terms and conditions',
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(

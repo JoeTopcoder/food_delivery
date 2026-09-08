@@ -25,7 +25,7 @@ BEGIN
       AND (p.prosrc LIKE '%MealHub%' OR p.prosrc LIKE '%7Dash%')
   LOOP
     v_def := pg_get_functiondef(r.oid);
-    v_new := replace(replace(v_def, 'MealHub', 'Quickdash'), '7Dash', 'Quickdash');
+    v_new := replace(replace(v_def, 'MealHub', 'QuickDash'), '7Dash', 'QuickDash');
 
     IF v_new <> v_def THEN
       EXECUTE v_new;

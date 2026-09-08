@@ -18,7 +18,7 @@
     <!-- Strip MEDIA_PROJECTION injected by io.agora.rtc:full-screen-sharing — not used by this app -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove"/>
     <application
-        android:label="Quickdash"
+        android:label="QuickDash"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">

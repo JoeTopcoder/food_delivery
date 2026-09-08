@@ -1,4 +1,4 @@
-// business-intelligence-agent — Business Intelligence Agent (Quickdash AI Operations)
+// business-intelligence-agent — Business Intelligence Agent (QuickDash AI Operations)
 // Ask-a-question interface over real business data. The model NEVER writes or
 // runs its own SQL — it can only call the fixed, parameterized query
 // functions below (OpenAI tool-calling), each of which is a plain, bounded
@@ -247,7 +247,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'recent_agent_findings',
-      description: `Look up what a specific Quickdash AI agent has found/reported recently, from the shared agent audit trail. Use this when the question is about what another agent (e.g. Fraud & Risk, Restaurant Success, Driver Compliance) has flagged, not about raw business data. Valid agent_name values: ${KNOWN_AGENT_SLUGS.join(', ')}.`,
+      description: `Look up what a specific QuickDash AI agent has found/reported recently, from the shared agent audit trail. Use this when the question is about what another agent (e.g. Fraud & Risk, Restaurant Success, Driver Compliance) has flagged, not about raw business data. Valid agent_name values: ${KNOWN_AGENT_SLUGS.join(', ')}.`,
       parameters: {
         type: 'object',
         properties: {
@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
     const messages: any[] = [
       {
         role: 'system',
-        content: `You are the Quickdash Business Intelligence Agent. Today's date is ${today}. Answer the admin's question using ONLY the tools available — never guess, estimate, or state a figure you did not get from a tool call. For questions about raw business numbers (revenue, orders, cancellations), use the direct query tools. For questions about what another Quickdash agent has flagged or found (e.g. "why is X restaurant flagged", "what has Fraud & Risk seen lately"), use recent_agent_findings to pull real findings from that agent's own audit trail — never guess at what another agent "probably" thinks. If a question needs data outside what the tools provide, say so plainly instead of guessing. Cite the actual numbers in your answer (e.g. "$1,234.56 across 42 orders"). Keep answers concise and direct.`,
+        content: `You are the QuickDash Business Intelligence Agent. Today's date is ${today}. Answer the admin's question using ONLY the tools available — never guess, estimate, or state a figure you did not get from a tool call. For questions about raw business numbers (revenue, orders, cancellations), use the direct query tools. For questions about what another QuickDash agent has flagged or found (e.g. "why is X restaurant flagged", "what has Fraud & Risk seen lately"), use recent_agent_findings to pull real findings from that agent's own audit trail — never guess at what another agent "probably" thinks. If a question needs data outside what the tools provide, say so plainly instead of guessing. Cite the actual numbers in your answer (e.g. "$1,234.56 across 42 orders"). Keep answers concise and direct.`,
       },
       { role: 'user', content: question },
     ]

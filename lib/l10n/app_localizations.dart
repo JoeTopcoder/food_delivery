@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// The application title
   ///
   /// In en, this message translates to:
-  /// **'Quickdash'**
+  /// **'QuickDash'**
   String get appTitle;
 
   /// No description provided for @home.

@@ -1,4 +1,4 @@
-// driver-performance-agent — Driver Performance Agent (Quickdash AI Operations)
+// driver-performance-agent — Driver Performance Agent (QuickDash AI Operations)
 // Read-only. Ranks approved drivers by a deterministic score computed from
 // this-window order data (cancellation rate, delivery time) — NOT from the
 // drivers.rating/acceptance_rate/on_time_rate columns, which are unpopulated
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the Quickdash Driver Performance Agent. You're given 30-day metrics for every approved driver, ranked by a deterministic at_risk_score (higher = more concerning). compliance_flag comes from a different Quickdash agent (Driver Compliance) — "expired" means their license has already lapsed and is the single most urgent thing to mention regardless of their delivery performance; "expiring_soon" is worth a mention too. Write a short briefing (100-150 words): name the 1-3 drivers most worth checking in on and the specific reason (cancellation rate, slow delivery time, or compliance flag — cite the actual numbers), and note any standout performer. Drivers with order_count under 3 and no compliance flag have insufficient data — don't flag them. You may ONLY ever recommend a check-in, coaching conversation, or compliance follow-up — never recommend deactivation or suspension, that decision requires a formal human review. Never invent a number not present in the data. Plain text, no markdown.`,
+              content: `You are the QuickDash Driver Performance Agent. You're given 30-day metrics for every approved driver, ranked by a deterministic at_risk_score (higher = more concerning). compliance_flag comes from a different QuickDash agent (Driver Compliance) — "expired" means their license has already lapsed and is the single most urgent thing to mention regardless of their delivery performance; "expiring_soon" is worth a mention too. Write a short briefing (100-150 words): name the 1-3 drivers most worth checking in on and the specific reason (cancellation rate, slow delivery time, or compliance flag — cite the actual numbers), and note any standout performer. Drivers with order_count under 3 and no compliance flag have insufficient data — don't flag them. You may ONLY ever recommend a check-in, coaching conversation, or compliance follow-up — never recommend deactivation or suspension, that decision requires a formal human review. Never invent a number not present in the data. Plain text, no markdown.`,
             },
             { role: 'user', content: JSON.stringify(metrics) },
           ],

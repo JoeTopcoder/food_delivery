@@ -417,7 +417,7 @@ class AppConfigService {
     // Lunipay (deprecated - Stripe only)
     // Legacy Lunipay config removed
 
-    // Subscription (Quickdash+)
+    // Subscription (QuickDash+)
     AppConstants.subscriptionBasicPrice = _double(
       c,
       'subscription_basic_price',

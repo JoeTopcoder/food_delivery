@@ -2,7 +2,7 @@
 import '../../config/app_constants.dart';
 import '../../utils/app_theme.dart';
 
-/// Showcases the Quickdash restaurant partnership offer.
+/// Showcases the QuickDash restaurant partnership offer.
 /// Shown during onboarding and accessible from the restaurant dashboard.
 class RestaurantOfferScreen extends StatelessWidget {
   /// If true, shows "Get Started" CTA that pops back to signup/setup.
@@ -83,7 +83,7 @@ class RestaurantOfferScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'Grow Your\nRestaurant with\nQuickdash',
+                        'Grow Your\nRestaurant with\nQuickDash',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 30,
@@ -220,7 +220,7 @@ class RestaurantOfferScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  'Quickdash',
+                                  'QuickDash',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 12,

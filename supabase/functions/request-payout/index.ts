@@ -33,7 +33,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: 'Quickdash',
+          app: 'QuickDash',
         },
       },
       { idempotencyKey: `transfer_${pr.id}` },
@@ -59,7 +59,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: 'Quickdash',
+          app: 'QuickDash',
         },
       }
       if (isInstant) payoutParams.method = 'instant'
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
         instant_fee_cents: instantFeeCents,
         requested_by: user.id,
         idempotency_key: idempotencyKey,
-        metadata: { source: 'user_request', payout_method, app: 'Quickdash' },
+        metadata: { source: 'user_request', payout_method, app: 'QuickDash' },
       })
       .select('*')
       .single()

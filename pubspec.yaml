@@ -1,5 +1,5 @@
 name: food_driver
-description: "Quickdash — multi-vertical delivery platform."
+description: "QuickDash — multi-vertical delivery platform."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -170,7 +170,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/mealhub_logo.png
+    - assets/images/quickdash_logo.png
     - assets/adi-registration.properties
 
   # To add custom fonts to your application, add a fonts section here,

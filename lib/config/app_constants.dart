@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'Quickdash';
+  static const String appName = 'QuickDash';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -40,7 +40,7 @@
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
-  static const String appDisplayName = 'Quickdash';
+  static const String appDisplayName = 'QuickDash';
   static const String businessLegalName = 'SevenDash Technologies Limited';
   static const String supportEmailAddress = 'support@7dash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
@@ -329,7 +329,7 @@
   // customer rather than by us.
   static List<double> presetTips = [200, 300, 500, 1000];
 
-  // Subscription (Quickdash+) — overridden from app_config table
+  // Subscription (QuickDash+) — overridden from app_config table
   static double subscriptionBasicPrice = 12.0;
   static int subscriptionBasicDeliveries = 9;
   static double subscriptionProPrice = 24.0;

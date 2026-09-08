@@ -239,7 +239,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             child: ClipOval(
                               child: Image.asset(
-                                'assets/images/mealhub_logo.png',
+                                'assets/images/quickdash_logo.png',
                                 width: double.infinity,
                                 height: double.infinity,
                                 fit: BoxFit.cover,
@@ -284,7 +284,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'Food. Fast. Delivered.',
+                            'Good Food. Faster.',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -789,7 +789,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                         ),
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/images/mealhub_logo.png',
+                            'assets/images/quickdash_logo.png',
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
@@ -829,7 +829,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Food. Fast. Delivered.',
+                            'Good Food. Faster.',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.85),

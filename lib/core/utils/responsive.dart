@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Responsive design utilities for the Quickdash app.
+/// Responsive design utilities for the QuickDash app.
 /// Provides breakpoints, spacing, and adaptive values across all device sizes.
 class Responsive {
   // ─── Screen Size Getters ─────────────────────────────────────────────────

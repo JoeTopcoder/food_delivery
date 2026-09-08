@@ -109,7 +109,7 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
     (
       label: 'SUBSCRIPTIONS',
       items: [
-        (icon: Icons.card_membership_rounded, label: 'Quickdash+', page: _AdminPage.quickdash),
+        (icon: Icons.card_membership_rounded, label: 'QuickDash+', page: _AdminPage.quickdash),
         (icon: Icons.restaurant_menu_rounded, label: 'Meal Plans', page: _AdminPage.mealPlans),
       ]
     ),

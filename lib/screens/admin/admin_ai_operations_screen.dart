@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/app_theme.dart';
 import 'admin_agent_coming_soon_screen.dart';
 
-/// AI Operations hub — the "app inside the app" for Quickdash's AI agents.
+/// AI Operations hub — the "app inside the app" for QuickDash's AI agents.
 /// Lists every registered agent (ai_agents) with a live pause/resume control,
 /// and a cross-agent audit trail (ai_agent_runs). New agents plug into this
 /// same screen by adding a row to ai_agents — no new UI required.

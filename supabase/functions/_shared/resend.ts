@@ -11,12 +11,12 @@ import { serviceClient } from '../stripe-shared/supabase.ts'
 declare const Deno: { env: { get(key: string): string | undefined } }
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const FALLBACK_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Quickdash <onboarding@resend.dev>'
+const FALLBACK_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') ?? 'QuickDash <onboarding@resend.dev>'
 
 export async function getDefaultFromEmail(): Promise<string> {
   const { data } = await serviceClient.from('app_config').select('value').eq('key', 'support_email').maybeSingle()
   const email = data?.value ? String(data.value).replace(/"/g, '').trim() : null
-  return email ? `Quickdash <${email}>` : FALLBACK_FROM_EMAIL
+  return email ? `QuickDash <${email}>` : FALLBACK_FROM_EMAIL
 }
 
 export interface SendEmailArgs {
