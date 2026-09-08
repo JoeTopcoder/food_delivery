@@ -976,11 +976,17 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                   horizontal: 3,
                                 ),
                                 child: ChoiceChip(
-                                  label: const Text(
-                                    'No Tip',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'None',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                   selected: _driverTip == 0,
@@ -1010,11 +1016,17 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                     horizontal: 3,
                                   ),
                                   child: ChoiceChip(
-                                    label: Text(
-                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                                    labelPadding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    label: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                     selected: sel,

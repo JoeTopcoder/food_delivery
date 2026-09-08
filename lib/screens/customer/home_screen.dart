@@ -697,72 +697,96 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ],
           ),
 
-          // Location picker
+          // Location picker, with the Food Concierge sitting beside it.
+          //
+          // The concierge used to be a full-width card lower down the page.
+          // Up here it is one square button next to the address — the two
+          // things a customer settles before anything else is where the food
+          // goes and how they are going to find it.
           SliverToBoxAdapter(
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/address-book'),
-              child: Container(
-                margin: EdgeInsets.symmetric(
-                  horizontal: Responsive.horizontalPadding(context),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(_kRadiusMd),
-                  border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.horizontalPadding(context),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/address-book'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(_kRadiusMd),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.location_on,
+                                color: AppTheme.primaryColor,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Deliver to',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    userAddress,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.location_on,
-                        color: AppTheme.primaryColor,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Deliver to',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          Text(
-                            userAddress,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ],
-                ),
+                  const SizedBox(width: 8),
+                  _ConciergeIconButton(
+                    onTap: () => Navigator.of(context).pushNamed('/concierge'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -826,24 +850,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 6)),
             ],
-
-            // Food Concierge entry point. Sits directly under the banners,
-            // above browsing, because it is an alternative to browsing: a
-            // customer who already knows what they want shouldn't have to
-            // navigate categories to get it.
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  Responsive.horizontalPadding(context),
-                  6,
-                  Responsive.horizontalPadding(context),
-                  10,
-                ),
-                child: _ConciergeEntryCard(
-                  onTap: () => Navigator.of(context).pushNamed('/concierge'),
-                ),
-              ),
-            ),
 
             // Browse by Category (right below banners)
             SliverToBoxAdapter(
@@ -2492,89 +2498,50 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
 
 /// Home-screen entry to the Food Concierge.
 ///
-/// Phrased as an invitation to state a need ("spicy, no pork, under $40")
-/// rather than as a generic "AI" button, because the whole value is that the
-/// customer can express constraints browsing cannot capture.
-class _ConciergeEntryCard extends StatelessWidget {
-  const _ConciergeEntryCard({required this.onTap});
+/// Sits beside the delivery address as a single square button, sized to match
+/// the AI assistant button it replaced on this screen. It was a full-width
+/// card in the feed; up here it is reachable without scrolling and costs the
+/// page no height at all, because the address row was already this tall.
+class _ConciergeIconButton extends StatelessWidget {
+  const _ConciergeIconButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        // Full width, but shorter: this sits between the banner carousel and
-        // the category row, so extra height here pushes browsing down the page
-        // for everyone who isn't using it.
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primaryColor.withValues(alpha: 0.18),
-              AppTheme.primaryColor.withValues(alpha: 0.06),
+    return Tooltip(
+      message: 'Food Concierge',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_kRadiusMd),
+        child: Container(
+          // Square, and the same height as the address card beside it: the two
+          // read as one row rather than as a button stuck onto a field.
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryColor,
+                AppTheme.primaryColor.withValues(alpha: 0.82),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(_kRadiusMd),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withValues(alpha: 0.32),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
             ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+          child: const Icon(
+            Icons.restaurant_menu_rounded,
+            color: Colors.white,
+            size: 24,
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Icon(
-                Icons.restaurant_menu_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Food Concierge',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: scheme.onSurface,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    '"Spicy, no pork, under \$40, here by 7"',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: scheme.onSurfaceVariant,
-                      height: 1.15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: 16,
-              color: AppTheme.primaryColor,
-            ),
-          ],
         ),
       ),
     );
