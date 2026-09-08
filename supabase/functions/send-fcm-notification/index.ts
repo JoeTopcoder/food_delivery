@@ -177,6 +177,146 @@ async function sendFcm(msg: FcmMessage): Promise<Record<string, unknown>> {
 
 // ── Main handler ────────────────────────────────────────────────────────────
 
+
+// ── WhatsApp outbox drain ───────────────────────────────────────────────────
+// Folded in here rather than shipped as its own function: the project is at
+// its 100-function ceiling, and this is the same job — delivering an order
+// update to a customer — down a different pipe. Reached with {mode:
+// "drain_whatsapp"}; every other request behaves exactly as before.
+//
+// Configure ONE of:
+//   Twilio      TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
+//   Meta Cloud  WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
+// With neither, this reports how many messages are waiting rather than
+// returning 200 and quietly doing nothing.
+
+/** Jamaican numbers are stored locally as often as not; providers want E.164. */
+function toE164(raw: string): string | null {
+  const digits = raw.replace(/[^\d+]/g, "");
+  if (digits.startsWith("+")) return digits;
+  const bare = digits.replace(/\D/g, "");
+  if (bare.length === 10) return `+1${bare}`;
+  if (bare.length === 11 && bare.startsWith("1")) return `+${bare}`;
+  if (bare.length > 11) return `+${bare}`;
+  return null;
+}
+
+async function waSendTwilio(to: string, text: string): Promise<string> {
+  const sid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
+  const tok = Deno.env.get("TWILIO_AUTH_TOKEN")!;
+  const from = Deno.env.get("TWILIO_WHATSAPP_FROM")!;
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${sid}:${tok}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        From: `whatsapp:${from}`,
+        To: `whatsapp:${to}`,
+        Body: text,
+      }),
+    },
+  );
+  const d = await res.json();
+  if (!res.ok) throw new Error(d.message ?? `Twilio ${res.status}`);
+  return d.sid;
+}
+
+async function waSendMeta(to: string, text: string): Promise<string> {
+  const token = Deno.env.get("WHATSAPP_TOKEN")!;
+  const phoneId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID")!;
+  const res = await fetch(
+    `https://graph.facebook.com/v20.0/${phoneId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body: text },
+      }),
+    },
+  );
+  const d = await res.json();
+  if (!res.ok) throw new Error(d.error?.message ?? `Meta ${res.status}`);
+  return d.messages?.[0]?.id;
+}
+
+async function drainWhatsappOutbox() {
+  const hasTwilio = !!(Deno.env.get("TWILIO_ACCOUNT_SID") &&
+    Deno.env.get("TWILIO_AUTH_TOKEN") && Deno.env.get("TWILIO_WHATSAPP_FROM"));
+  const hasMeta = !!(Deno.env.get("WHATSAPP_TOKEN") &&
+    Deno.env.get("WHATSAPP_PHONE_NUMBER_ID"));
+
+  const { data: queued } = await admin
+    .from("whatsapp_outbox")
+    .select("id, to_phone, body, attempts")
+    .eq("status", "queued")
+    .lt("attempts", 5)
+    .order("created_at")
+    .limit(50);
+
+  if (!hasTwilio && !hasMeta) {
+    return {
+      configured: false,
+      waiting: queued?.length ?? 0,
+      message:
+        "No WhatsApp provider configured. Set TWILIO_ACCOUNT_SID/" +
+        "TWILIO_AUTH_TOKEN/TWILIO_WHATSAPP_FROM, or WHATSAPP_TOKEN/" +
+        "WHATSAPP_PHONE_NUMBER_ID. Messages stay queued until then.",
+    };
+  }
+
+  let sent = 0, failed = 0, skipped = 0;
+  for (const row of queued ?? []) {
+    const to = toE164(row.to_phone as string);
+    if (!to) {
+      await admin.from("whatsapp_outbox").update({
+        status: "skipped",
+        last_error: `Cannot parse phone "${row.to_phone}"`,
+      }).eq("id", row.id);
+      skipped++;
+      continue;
+    }
+    try {
+      const providerId = hasTwilio
+        ? await waSendTwilio(to, row.body as string)
+        : await waSendMeta(to, row.body as string);
+      await admin.from("whatsapp_outbox").update({
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        provider_id: providerId,
+        attempts: (row.attempts as number) + 1,
+      }).eq("id", row.id);
+      sent++;
+    } catch (e) {
+      const attempts = (row.attempts as number) + 1;
+      // Five tries, then stop. A permanently bad number should not be retried
+      // forever.
+      await admin.from("whatsapp_outbox").update({
+        status: attempts >= 5 ? "failed" : "queued",
+        attempts,
+        last_error: String(e),
+      }).eq("id", row.id);
+      failed++;
+    }
+  }
+  return {
+    configured: true,
+    provider: hasTwilio ? "twilio" : "meta",
+    sent,
+    failed,
+    skipped,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -189,13 +329,21 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Missing authorization header" }, 401);
     }
 
+    const payload = await req.json();
+
+    // WhatsApp drain mode. Checked before the FCM argument validation below,
+    // which would otherwise reject it for having no title.
+    if (payload?.mode === "drain_whatsapp") {
+      return json(await drainWhatsappOutbox());
+    }
+
     const {
       token,   // FCM device token (send to specific device)
       topic,   // FCM topic (send to topic subscribers)
       title,
       body,
       data,
-    } = await req.json();
+    } = payload;
 
     if (!title || !body) {
       return json({ error: "title and body are required" }, 400);
