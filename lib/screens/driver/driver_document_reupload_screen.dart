@@ -28,7 +28,7 @@ class _DriverDocumentReuploadScreenState
     extends ConsumerState<DriverDocumentReuploadScreen>
     with SafeConsumerStateMixin<DriverDocumentReuploadScreen> {
   static const _bg = Color(0xFF0F1117);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   final _picker = ImagePicker();
   bool _loading = false;
@@ -481,13 +481,13 @@ class _Btn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: onTap,
-    icon: Icon(icon, size: 15, color: const Color(0xFF6C63FF)),
+    icon: Icon(icon, size: 15, color: const Color(0xFF528BFF)),
     label: Text(
       label,
-      style: const TextStyle(color: Color(0xFF6C63FF), fontSize: 12),
+      style: const TextStyle(color: Color(0xFF528BFF), fontSize: 12),
     ),
     style: OutlinedButton.styleFrom(
-      side: const BorderSide(color: Color(0xFF6C63FF)),
+      side: const BorderSide(color: Color(0xFF528BFF)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),

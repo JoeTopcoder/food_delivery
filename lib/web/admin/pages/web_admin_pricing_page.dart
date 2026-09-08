@@ -169,7 +169,7 @@ class _WebAdminPricingPageState extends ConsumerState<WebAdminPricingPage> {
                     _Section(
                       title: 'Card Verification',
                       icon: Icons.credit_card_rounded,
-                      color: const Color(0xFF8B5CF6),
+                      color: const Color(0xFF528BFF),
                       children: _cardVerifKeys.map((k) => _FieldRow(key: ValueKey(k), label: _labels[k] ?? k, controller: _controllers[k]!)).toList(),
                     ),
                     const SizedBox(height: 16),

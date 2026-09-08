@@ -712,7 +712,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         _MiniStat(
                           label: 'Success',
                           value: _completionRate(driver),
-                          color: const Color(0xFF8B5CF6),
+                          color: const Color(0xFF528BFF),
                         ),
                         const _VertDivider(),
                         _MiniStat(
@@ -805,7 +805,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       child: _ServiceCard(
                         icon: Icons.inventory_2_rounded,
                         label: 'Packages',
-                        color: const Color(0xFF7C3AED),
+                        color: const Color(0xFF155EEF),
                         isEnabled: activeServices.contains('package_delivery'),
                         isLoading: _togglingServices.contains(
                           'package_delivery',
@@ -975,7 +975,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               _ActionCard(
                 icon: Icons.inventory_2_rounded,
                 label: 'Packages',
-                color: const Color(0xFF7C3AED),
+                color: const Color(0xFF155EEF),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DriverPackagesScreen(),

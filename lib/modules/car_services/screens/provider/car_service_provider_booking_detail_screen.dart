@@ -280,7 +280,7 @@ class _State extends ConsumerState<CarServiceProviderBookingDetailScreen> {
           'Start Service',
           'in_progress',
           Icons.play_circle_rounded,
-          const Color(0xFF7C3AED),
+          const Color(0xFF155EEF),
         );
         break;
       case CarServiceBookingStatus.inProgress:
@@ -352,7 +352,7 @@ class _StatusBanner extends StatelessWidget {
         return (const Color(0xFFE0F2FE), const Color(0xFF0891B2));
       case CarServiceBookingStatus.arrived:
       case CarServiceBookingStatus.inProgress:
-        return (const Color(0xFFEDE9FE), const Color(0xFF7C3AED));
+        return (const Color(0xFFEDE9FE), const Color(0xFF155EEF));
       case CarServiceBookingStatus.completed:
         return (const Color(0xFFDCFCE7), const Color(0xFF166534));
       case CarServiceBookingStatus.cancelled:

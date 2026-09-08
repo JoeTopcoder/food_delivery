@@ -293,7 +293,7 @@ class _SummarySection extends StatelessWidget {
               label: '30d Revenue',
               value: '$cur${fmt.format(summary.revenueMonth)}',
               sub: '${summary.ordersMonth} orders',
-              color: const Color(0xFF8B5CF6),
+              color: const Color(0xFF528BFF),
             ),
           ],
         ),

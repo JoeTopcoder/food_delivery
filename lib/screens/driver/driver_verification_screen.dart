@@ -28,7 +28,7 @@ class _DriverVerificationScreenState
     with SafeConsumerStateMixin<DriverVerificationScreen> {
   static const _bg = Color(0xFF0F1117);
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
   static const _steps = 8;
 
   late int _currentStep;
@@ -915,7 +915,7 @@ class _StepProgressBar extends StatelessWidget {
       child: FractionallySizedBox(
         alignment: Alignment.centerLeft,
         widthFactor: (currentStep + 1) / totalSteps,
-        child: Container(color: const Color(0xFF6C63FF)),
+        child: Container(color: const Color(0xFF528BFF)),
       ),
     );
   }
@@ -987,7 +987,7 @@ class _BottomBar extends StatelessWidget {
         child: ElevatedButton(
           onPressed: loading ? null : onNext,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6C63FF),
+            backgroundColor: const Color(0xFF528BFF),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
@@ -1051,7 +1051,7 @@ class _DarkField extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+        borderSide: const BorderSide(color: Color(0xFF528BFF)),
       ),
     ),
   );
@@ -1167,13 +1167,13 @@ class _OutlineBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: onTap,
-    icon: Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
+    icon: Icon(icon, size: 16, color: const Color(0xFF528BFF)),
     label: Text(
       label,
-      style: const TextStyle(color: Color(0xFF6C63FF), fontSize: 13),
+      style: const TextStyle(color: Color(0xFF528BFF), fontSize: 13),
     ),
     style: OutlinedButton.styleFrom(
-      side: const BorderSide(color: Color(0xFF6C63FF)),
+      side: const BorderSide(color: Color(0xFF528BFF)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     ),
@@ -1202,10 +1202,10 @@ class _ServiceTile extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: selected
-            ? const Color(0xFF6C63FF).withValues(alpha: 0.15)
+            ? const Color(0xFF528BFF).withValues(alpha: 0.15)
             : const Color(0xFF1C1F2E),
         border: Border.all(
-          color: selected ? const Color(0xFF6C63FF) : Colors.white12,
+          color: selected ? const Color(0xFF528BFF) : Colors.white12,
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -1215,7 +1215,7 @@ class _ServiceTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: selected ? const Color(0xFF6C63FF) : Colors.white10,
+              color: selected ? const Color(0xFF528BFF) : Colors.white10,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.white, size: 22),
@@ -1241,7 +1241,7 @@ class _ServiceTile extends StatelessWidget {
             ),
           ),
           if (selected)
-            const Icon(Icons.check_circle, color: Color(0xFF6C63FF)),
+            const Icon(Icons.check_circle, color: Color(0xFF528BFF)),
         ],
       ),
     ),
@@ -1268,7 +1268,7 @@ class _ConsentTile extends StatelessWidget {
     value: value,
     onChanged: onChanged,
     checkColor: Colors.white,
-    activeColor: const Color(0xFF6C63FF),
+    activeColor: const Color(0xFF528BFF),
     controlAffinity: ListTileControlAffinity.leading,
   );
 }

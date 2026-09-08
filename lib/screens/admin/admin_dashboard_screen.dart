@@ -393,7 +393,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               label: 'Rides',
                               value: '${rides['total_rides'] ?? 0}',
                               icon: Icons.directions_car_rounded,
-                              color: const Color(0xFF8B5CF6),
+                              color: const Color(0xFF528BFF),
                               badge: rides['active_rides'] != null
                                   ? '${rides['active_rides']} live'
                                   : null,
@@ -620,7 +620,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.account_balance_rounded,
                             label: 'Financials',
-                            color: const Color(0xFF8B5CF6),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-financials'),
@@ -644,7 +644,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.psychology_rounded,
                             label: 'AI Engine',
-                            color: const Color(0xFF8B5CF6),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai-panel'),
@@ -660,7 +660,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.loyalty_rounded,
                             label: 'Loyalty',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-loyalty'),
@@ -684,7 +684,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.card_membership_rounded,
                             label: 'MealHub+',
-                            color: const Color(0xFF6C63FF),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-mealhub'),
@@ -700,7 +700,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.inventory_2_rounded,
                             label: 'Shipping Cos',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-shipping-companies'),
@@ -773,7 +773,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.car_repair,
                             label: 'Car Services',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin/car-services'),
@@ -790,7 +790,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.inventory_2_rounded,
                             label: 'Deliveries Hub',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-packages'),
@@ -806,7 +806,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.qr_code_scanner_rounded,
                             label: 'Package Records',
-                            color: const Color(0xFFA855F7),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-packages/records'),
@@ -814,7 +814,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.business_rounded,
                             label: 'Shipping Cos',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-shipping-companies'),
@@ -838,7 +838,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.campaign_rounded,
                             label: 'Banners',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-banners'),
@@ -934,7 +934,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.smart_toy_rounded,
                             label: 'AI Ops Hub',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai-operations'),
@@ -942,7 +942,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.schedule_rounded,
                             label: 'Workflow Station',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-workflow-station'),
@@ -950,7 +950,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.forum_rounded,
                             label: 'Ask AI',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai/ask'),

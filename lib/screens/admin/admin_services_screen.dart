@@ -71,7 +71,7 @@ class AdminServicesScreen extends ConsumerWidget {
       label: 'Car Services',
       subtitle: 'Car wash & detailing bookings',
       icon: Icons.car_repair_rounded,
-      color: Color(0xFF7C3AED),
+      color: Color(0xFF155EEF),
     ),
   ];
 

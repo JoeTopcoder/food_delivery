@@ -209,7 +209,7 @@ class _WebAdminOnlyScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.admin_panel_settings_rounded,
-                size: 64, color: Color(0xFF7C3AED)),
+                size: 64, color: Color(0xFF155EEF)),
             const SizedBox(height: 24),
             const Text(
               'Admin Access Only',

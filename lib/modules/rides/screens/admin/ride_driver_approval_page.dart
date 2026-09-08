@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../providers/driver_provider.dart';
 import '../../../../providers/admin_provider.dart';
 
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 

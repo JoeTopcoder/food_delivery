@@ -152,7 +152,7 @@ class _AdminCustomerRetentionScreenState extends State<AdminCustomerRetentionScr
             const SizedBox(height: 20),
             Card(
               elevation: 0,
-              color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+              color: const Color(0xFF155EEF).withValues(alpha: 0.06),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFEDE9FE))),
               child: Padding(padding: const EdgeInsets.all(16), child: Text(_narrative!, style: const TextStyle(fontSize: 14, height: 1.5))),
             ),
@@ -291,7 +291,7 @@ class _OutreachSheetState extends State<_OutreachSheet> {
             const SizedBox(height: 16),
             Row(
               children: [
-                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
                 const SizedBox(width: 6),
                 Expanded(child: Text('Win-back email — ${widget.customer['customer']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
               ],

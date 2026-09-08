@@ -262,7 +262,7 @@ class _NotifCard extends StatelessWidget {
         return const Color(0xFF10B981);
       case 'promotion':
       case 'retention_outreach':
-        return const Color(0xFF7C3AED);
+        return const Color(0xFF155EEF);
       default:
         return AppTheme.primaryColor;
     }

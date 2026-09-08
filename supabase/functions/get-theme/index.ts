@@ -7,20 +7,24 @@ const corsHeaders = {
 };
 
 // Default fallback palette — mirrors AppTheme constants
+// Cobalt Blue + Coral. Blue carries the technology, payment and delivery side;
+// coral carries appetite. Kept in step with RemoteTheme.defaults in
+// lib/utils/theme_service.dart and the app_theme row — three copies of one
+// palette, and the row is what actually reaches the app.
 const DEFAULT_THEME = {
-  primaryColor: "#7C3AED",
-  secondaryColor: "#004E89",
-  accentColor: "#E74C3C",
-  backgroundColor: "#F7F8FA",
-  errorColor: "#E63946",
-  successColor: "#06A77D",
-  warningColor: "#FFA630",
-  priceColor: "#E74C3C",
-  textPrimary: "#111827",
-  textSecondary: "#374151",
-  textLight: "#4B5563",
-  borderColor: "#E5E7EB",
-  dividerColor: "#F3F4F6",
+  primaryColor: "#155EEF",     // Cobalt Blue
+  secondaryColor: "#0B1220",   // Midnight Navy
+  accentColor: "#FF6B5A",      // Coral
+  backgroundColor: "#F8FAFC",  // Soft White
+  errorColor: "#D92D20",
+  successColor: "#12B76A",     // Emerald
+  warningColor: "#F79009",
+  priceColor: "#FF6B5A",       // Coral — prices should read warm, not technical
+  textPrimary: "#101828",      // Charcoal
+  textSecondary: "#475467",
+  textLight: "#667085",
+  borderColor: "#EAECF0",
+  dividerColor: "#F2F4F7",
 };
 
 Deno.serve(async (req: Request) => {

@@ -525,7 +525,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
   bool _updating = false;
 
   static Color _statusColor(String status) => switch (status) {
-    'ready' => const Color(0xFF8B5CF6),
+    'ready' => const Color(0xFF528BFF),
     'preparing' => const Color(0xFFF59E0B),
     'accepted' => const Color(0xFF3B82F6),
     'cancelled' => Colors.red,
@@ -630,7 +630,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                         if (ro.status == 'preparing')
                           ElevatedButton(
                             onPressed: () => _updateStatus('ready'),
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF528BFF), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                             child: const Text('Ready'),
                           ),
                         if (ro.status == 'pending' || ro.status == 'accepted')

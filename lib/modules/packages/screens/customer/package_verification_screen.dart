@@ -91,7 +91,7 @@ class _PackageVerificationScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.company.name),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -104,15 +104,15 @@ class _PackageVerificationScreenState
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
+                color: const Color(0xFF155EEF).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.2)),
+                    color: const Color(0xFF155EEF).withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.warehouse,
-                      color: Color(0xFF7C3AED), size: 32),
+                      color: Color(0xFF155EEF), size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -155,13 +155,13 @@ class _PackageVerificationScreenState
                 labelText: 'Tracking Number',
                 hintText: 'e.g. APZ-001122',
                 prefixIcon:
-                    const Icon(Icons.qr_code, color: Color(0xFF7C3AED)),
+                    const Icon(Icons.qr_code, color: Color(0xFF155EEF)),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(
-                      color: Color(0xFF7C3AED), width: 2),
+                      color: Color(0xFF155EEF), width: 2),
                 ),
                 errorText: _error,
                 errorMaxLines: 3,
@@ -191,7 +191,7 @@ class _PackageVerificationScreenState
                   style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF155EEF),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),

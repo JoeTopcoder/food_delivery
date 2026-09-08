@@ -730,7 +730,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: const Color(
-                                0xFF6C63FF,
+                                0xFF528BFF,
                               ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(
                                 Responsive.cardRadius(context) - 2,
@@ -740,7 +740,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               children: [
                                 const Icon(
                                   Icons.star_rounded,
-                                  color: Color(0xFF6C63FF),
+                                  color: Color(0xFF528BFF),
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
@@ -749,7 +749,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   style: TextStyle(
                                     fontSize: Responsive.smallText(context),
                                     fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF6C63FF),
+                                    color: const Color(0xFF528BFF),
                                   ),
                                 ),
                               ],
@@ -780,7 +780,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       : 'Pickup Fee',
                                   '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
                                   valueColor: subServiceDiscount > 0
-                                      ? const Color(0xFF6C63FF)
+                                      ? const Color(0xFF528BFF)
                                       : const Color(0xFF10B981),
                                 )
                               : const SizedBox.shrink()
@@ -797,7 +797,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 ? '\$0.00'
                                 : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                             valueColor: subDeliveryFree
-                                ? const Color(0xFF6C63FF)
+                                ? const Color(0xFF528BFF)
                                 : null,
                           ),
                         const SizedBox(height: 8),

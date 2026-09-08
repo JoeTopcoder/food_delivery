@@ -115,7 +115,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                         ),
                         _MenuItem(
                           icon: Icons.card_membership_rounded,
-                          color: const Color(0xFF8B5CF6),
+                          color: const Color(0xFF528BFF),
                           title: context.l10n.subscriptions,
                           sub: context.l10n.subscriptionsSub,
                           onTap: () =>
@@ -156,7 +156,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                         ),
                         _MenuItem(
                           icon: Icons.location_on_rounded,
-                          color: const Color(0xFF7C3AED),
+                          color: const Color(0xFF155EEF),
                           title: context.l10n.addressBook,
                           sub: context.l10n.addressBookSub,
                           onTap: () =>

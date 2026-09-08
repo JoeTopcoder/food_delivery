@@ -275,7 +275,7 @@ class EarningsScreen extends ConsumerWidget {
       case 'leader':
         return const [Color(0xFFD97706), Color(0xFFF59E0B)];
       case 'builder':
-        return const [Color(0xFF6366F1), Color(0xFF8B5CF6)];
+        return const [Color(0xFF6366F1), Color(0xFF528BFF)];
       default:
         return [AppTheme.primaryColor, Color(0xFFFF8C42)];
     }

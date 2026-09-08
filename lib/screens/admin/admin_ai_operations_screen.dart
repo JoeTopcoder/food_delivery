@@ -303,7 +303,7 @@ class _AgentCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (planned ? Colors.grey : const Color(0xFF7C3AED))
+                      color: (planned ? Colors.grey : const Color(0xFF155EEF))
                           .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -313,7 +313,7 @@ class _AgentCard extends StatelessWidget {
                           : Icons.auto_awesome,
                       color: planned
                           ? Colors.grey[600]
-                          : const Color(0xFF7C3AED),
+                          : const Color(0xFF155EEF),
                       size: 20,
                     ),
                   ),

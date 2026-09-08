@@ -67,7 +67,7 @@ class _AdminExecutiveIntelligenceScreenState extends State<AdminExecutiveIntelli
             if (_narrative != null && _narrative!.isNotEmpty) ...[
               Card(
                 elevation: 0,
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+                color: const Color(0xFF155EEF).withValues(alpha: 0.06),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFEDE9FE))),
                 child: Padding(
                   padding: const EdgeInsets.all(16),

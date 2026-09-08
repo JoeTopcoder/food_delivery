@@ -40,7 +40,7 @@ class WebAdminShippingCompaniesPage extends ConsumerWidget {
               icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
               label: const Text('Add Company', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
+                backgroundColor: const Color(0xFF155EEF),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () => showDialog(
@@ -118,8 +118,8 @@ class _CompanyRow extends StatelessWidget {
           Expanded(flex: 3, child: Row(children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: const Color(0xFF7C3AED).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.inventory_2_rounded, color: Color(0xFF7C3AED), size: 16),
+              decoration: BoxDecoration(color: const Color(0xFF155EEF).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.inventory_2_rounded, color: Color(0xFF155EEF), size: 16),
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(company['name'] ?? '—',
@@ -271,10 +271,10 @@ class _ShippingCompanyDialogState extends State<_ShippingCompanyDialog> {
             _field(_apiKey, 'API Key (optional)'),
             const SizedBox(height: 12),
             Row(children: [
-              Switch(value: _active, onChanged: (v) => setState(() => _active = v), activeThumbColor: const Color(0xFF7C3AED)),
+              Switch(value: _active, onChanged: (v) => setState(() => _active = v), activeThumbColor: const Color(0xFF155EEF)),
               const SizedBox(width: 8),
               Text(_active ? 'Active' : 'Inactive',
-                style: TextStyle(fontWeight: FontWeight.w600, color: _active ? const Color(0xFF7C3AED) : const Color(0xFF94A3B8))),
+                style: TextStyle(fontWeight: FontWeight.w600, color: _active ? const Color(0xFF155EEF) : const Color(0xFF94A3B8))),
             ]),
             const SizedBox(height: 20),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -282,7 +282,7 @@ class _ShippingCompanyDialogState extends State<_ShippingCompanyDialog> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF155EEF), foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 child: _saving
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

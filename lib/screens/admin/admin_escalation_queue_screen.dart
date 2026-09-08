@@ -153,7 +153,7 @@ class _AdminEscalationQueueScreenState extends State<AdminEscalationQueueScreen>
                               const SizedBox(height: 20),
                             ],
                             if (_fraudFlaggedUsers.isNotEmpty) ...[
-                              _SectionHeader(title: 'Fraud & Risk Flags', count: _fraudFlaggedUsers.length, color: const Color(0xFF7C3AED)),
+                              _SectionHeader(title: 'Fraud & Risk Flags', count: _fraudFlaggedUsers.length, color: const Color(0xFF155EEF)),
                               ..._fraudFlaggedUsers.map((u) {
                                 final user = u as Map;
                                 return _EscalationCard(

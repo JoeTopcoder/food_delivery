@@ -14,7 +14,7 @@ class EarningsBalanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+          colors: [Color(0xFF4F46E5), Color(0xFF155EEF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

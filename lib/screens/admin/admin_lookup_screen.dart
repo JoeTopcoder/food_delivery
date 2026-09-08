@@ -339,7 +339,7 @@ class _CardResultsView extends StatelessWidget {
           icon: Icons.credit_card_rounded,
           title:
               '${results.length} Card Match${results.length > 1 ? 'es' : ''}',
-          color: const Color(0xFF7C3AED),
+          color: const Color(0xFF155EEF),
         ),
         const SizedBox(height: 12),
         for (final entry in results) ...[
@@ -369,12 +369,12 @@ class _CardResultsView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.credit_card_rounded,
-                color: Color(0xFF7C3AED),
+                color: Color(0xFF155EEF),
                 size: 22,
               ),
             ),

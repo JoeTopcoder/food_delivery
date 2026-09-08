@@ -278,7 +278,7 @@ class _DeliverySubscriptionTabState
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF4CAF50)],
+                    colors: [Color(0xFF528BFF), Color(0xFF4CAF50)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -336,8 +336,8 @@ class _DeliverySubscriptionTabState
                             : 'Switch to MealHub ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6C63FF),
-                        side: const BorderSide(color: Color(0xFF6C63FF)),
+                        foregroundColor: const Color(0xFF528BFF),
+                        side: const BorderSide(color: Color(0xFF528BFF)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -470,7 +470,7 @@ class _DeliverySubscriptionTabState
                     'Priority support',
                     'Exclusive member deals',
                   ],
-                  color: const Color(0xFF6C63FF),
+                  color: const Color(0xFF528BFF),
                   recommended: true,
                   subscribing: _subscribingPlan == 'pro',
                   onSubscribe: _subscribingPlan != null

@@ -138,7 +138,7 @@ class _WebAdminMealhubPageState extends ConsumerState<WebAdminMealhubPage> {
               padding: const EdgeInsets.all(20),
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF9C4DCC)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                gradient: const LinearGradient(colors: [Color(0xFF528BFF), Color(0xFF9C4DCC)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(children: [
@@ -193,13 +193,13 @@ class _WebAdminMealhubPageState extends ConsumerState<WebAdminMealhubPage> {
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   labelText: isPrice ? '$label (${AppConstants.currencySymbol})' : label,
-                                  prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+                                  prefixIcon: Icon(icon, color: const Color(0xFF528BFF), size: 20),
                                   labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                                   filled: true, fillColor: const Color(0xFFF8FAFC),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 2)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF528BFF), width: 2)),
                                 ),
                               ),
                             );
@@ -211,7 +211,7 @@ class _WebAdminMealhubPageState extends ConsumerState<WebAdminMealhubPage> {
                             child: ElevatedButton(
                               onPressed: _saving ? null : () => _saveAll(rows),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6C63FF),
+                                backgroundColor: const Color(0xFF528BFF),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),

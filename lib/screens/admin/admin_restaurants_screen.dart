@@ -312,7 +312,7 @@ class _RestaurantList extends StatelessWidget {
                                   const SizedBox(width: 16),
                                   _RestaurantStat(
                                     icon: Icons.percent_rounded,
-                                    color: const Color(0xFF8B5CF6),
+                                    color: const Color(0xFF528BFF),
                                     value:
                                         '${((restaurant.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
                                     label: 'Comm.',
@@ -453,8 +453,8 @@ class _RestaurantList extends StatelessWidget {
                             'Commission: ${((restaurant.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF8B5CF6),
-                            side: const BorderSide(color: Color(0xFF8B5CF6)),
+                            foregroundColor: const Color(0xFF528BFF),
+                            side: const BorderSide(color: Color(0xFF528BFF)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -904,7 +904,7 @@ class _RestaurantList extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF8B5CF6),
+                  color: Color(0xFF528BFF),
                 ),
               ),
               Slider(
@@ -912,7 +912,7 @@ class _RestaurantList extends StatelessWidget {
                 min: 0,
                 max: 50,
                 divisions: 50,
-                activeColor: const Color(0xFF8B5CF6),
+                activeColor: const Color(0xFF528BFF),
                 label: '${commission.toStringAsFixed(0)}%',
                 onChanged: (val) {
                   setDialogState(() => commission = val);
@@ -956,7 +956,7 @@ class _RestaurantList extends StatelessWidget {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B5CF6),
+                backgroundColor: const Color(0xFF528BFF),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),

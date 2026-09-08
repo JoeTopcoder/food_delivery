@@ -218,7 +218,7 @@ class _CustomerOnboardingScreenState
 
   static const _p1 = Color(0xFF3B0764);
   static const _p2 = Color(0xFF6D28D9);
-  static const _p3 = Color(0xFF7C3AED);
+  static const _p3 = Color(0xFF155EEF);
   static const _fieldFill = Color(0xFFF5F3FF);
   static const _fieldBorder = Color(0xFFDDD6FE);
 
@@ -867,9 +867,9 @@ class _CustomerOnboardingScreenState
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: const Color(0xFF7C3AED),
+              activeThumbColor: const Color(0xFF155EEF),
               activeTrackColor:
-                  const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                  const Color(0xFF155EEF).withValues(alpha: 0.35),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ],

@@ -1011,7 +1011,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                         _ServiceCard(
                           icon: Icons.local_car_wash,
                           label: 'Car Services',
-                          color: const Color(0xFF7C3AED),
+                          // Teal, not the brand blue: these are category
+                          // colours and this one used to be the old purple.
+                          // Repainted to Cobalt it became indistinguishable
+                          // from Book a Ride and Laundry, and identical to the
+                          // app's own primary.
+                          color: const Color(0xFF0E9384),
                           enabled: ref.watch(
                             serviceEnabledProvider('car_service'),
                           ),

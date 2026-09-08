@@ -25,7 +25,7 @@ class LegalCenterScreen extends StatelessWidget {
           ),
           LegalTile(
             icon: Icons.description_outlined,
-            iconColor: const Color(0xFF7C3AED),
+            iconColor: const Color(0xFF155EEF),
             title: 'Terms & Conditions',
             subtitle: 'Rules governing use of 7Dash services',
             onTap: () => Navigator.of(context).pushNamed('/terms'),
@@ -46,7 +46,7 @@ class LegalCenterScreen extends StatelessWidget {
           ),
           LegalTile(
             icon: Icons.card_membership_outlined,
-            iconColor: const Color(0xFF8B5CF6),
+            iconColor: const Color(0xFF528BFF),
             title: 'Subscription Terms',
             subtitle: 'Billing, renewals, and cancellation for 7Dash+',
             onTap: () => Navigator.of(context).pushNamed('/subscription-terms'),
