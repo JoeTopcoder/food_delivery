@@ -422,7 +422,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                               setState(() => _addressConfirmed = false),
                         ),
                         const SchoolDestinationBanner(),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 6),
                         if (addressAsync != null && !isStudentOrder)
                           addressAsync.when(
                             loading: () => const SizedBox.shrink(),
@@ -457,51 +457,56 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                     ),
                                   ),
                           ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.place_rounded,
-                                color: AppTheme.primaryColor,
-                                size: 18,
+                        // Skipped for a student order: the school banner above
+                        // already names the destination, and "Manage" would
+                        // offer to change an address this order does not use.
+                        if (!isStudentOrder) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  deliveryAddress,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.place_rounded,
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    deliveryAddress,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/address-book',
+                                TextButton(
+                                  onPressed: () => Navigator.pushNamed(
+                                    context,
+                                    '/address-book',
+                                  ),
+                                  child: const Text(
+                                    'Manage',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'Manage',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 6),
                         _AddressSlider(
                           confirmed: _addressConfirmed,
                           onConfirmed: () =>
@@ -512,7 +517,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Schedule ──────────────────────────────────────────
                 _Section(
@@ -544,7 +549,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Payment ───────────────────────────────────────────
                 _Section(
@@ -574,7 +579,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
                         label: 'Credit / Debit Card',
@@ -623,7 +628,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                         size: 32,
                                         color: Colors.grey.shade700,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       Text(
                                         'No saved cards',
                                         style: TextStyle(
@@ -719,7 +724,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 OutstandingDebtBanner(debtAmount: outstandingDebt),
                 // ── AI-Assigned Promo Banner ───────────────────────────
@@ -834,7 +839,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Loyalty Points ────────────────────────────────────
                 if (loyaltyAsync != null)
@@ -901,7 +906,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     },
                   ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Contactless Delivery (hidden for pickup) ──────────
                 if (!isPickup)
@@ -943,7 +948,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Driver Tip (delivery only) ────────────────────────
                 if (!isPickup) ...[
@@ -962,7 +967,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             fontSize: 11,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Expanded(
@@ -1034,7 +1039,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             }),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _customTipCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
@@ -1073,7 +1078,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ],
 
                 // ── Special Instructions ──────────────────────────────
@@ -1094,7 +1099,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Order Summary ─────────────────────────────────────
                 Container(
@@ -1781,7 +1786,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -1795,7 +1800,7 @@ class _Section extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 15, color: AppTheme.primaryColor),
+              Icon(icon, size: 14, color: AppTheme.primaryColor),
               const SizedBox(width: 6),
               Text(
                 title,
@@ -1807,7 +1812,7 @@ class _Section extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),
@@ -1949,20 +1954,20 @@ class _PaymentTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 27,
+              height: 27,
               decoration: BoxDecoration(
                 color: selected
                     ? AppTheme.primaryColor.withValues(alpha: 0.12)
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(7),
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? AppTheme.primaryColor
                     : Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 10),
