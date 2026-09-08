@@ -79,6 +79,7 @@ class AppConfigService {
     AppConstants.platformCommissionCap = _double(c, 'platform_commission_cap', AppConstants.platformCommissionCap);
     AppConstants.defaultDeliveryFee = _double(c, 'default_delivery_fee', AppConstants.defaultDeliveryFee);
     AppConstants.pickupServiceFee = _double(c, 'pickup_service_fee', AppConstants.pickupServiceFee);
+    AppConstants.studentDeliveryFee = _double(c, 'student_delivery_fee', AppConstants.studentDeliveryFee);
     AppConstants.driverFeePerDelivery = _double(c, 'driver_fee_per_delivery', AppConstants.driverFeePerDelivery);
     AppConstants.cardFeePercent = _double(c, 'card_fee_percent', AppConstants.cardFeePercent);
     AppConstants.cashFeePercent = _double(c, 'cash_fee_percent', AppConstants.cashFeePercent);

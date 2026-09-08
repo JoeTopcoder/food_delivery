@@ -77,6 +77,10 @@ class OrderService {
     bool fromAd = false,
     String? adId,
     String? promoCode,
+    /// When set, the order is for a linked student: the edge function re-checks
+    /// the link, redirects delivery to their school and applies the flat
+    /// student fee. Nothing about that is decided here.
+    String? studentId,
     // Payment gate: pass one of these for card payments so the edge function
     // charges/verifies Stripe BEFORE inserting the order.
     String? savedCardPaymentMethodId,
@@ -144,6 +148,9 @@ class OrderService {
       if (adId != null) body['ad_id'] = adId;
       if (promoCode != null && promoCode.trim().isNotEmpty) {
         body['promo_code'] = promoCode.trim().toUpperCase();
+      }
+      if (studentId != null && studentId.isNotEmpty) {
+        body['student_id'] = studentId;
       }
       if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty) {
         body['saved_card_payment_method_id'] = savedCardPaymentMethodId;

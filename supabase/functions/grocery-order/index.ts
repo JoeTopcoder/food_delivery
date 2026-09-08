@@ -123,17 +123,56 @@ Deno.serve(async (request) => {
   const items = body.items as Array<{ menu_item_id: string; quantity: number }>;
   const isPickup = body.is_pickup === true;
   const paymentMethod = (body.payment_method as string) ?? "cash";
-  const deliveryAddress = body.delivery_address as string | undefined;
-  const deliveryLat = body.delivery_latitude as number | undefined;
-  const deliveryLng = body.delivery_longitude as number | undefined;
+  let deliveryAddress = body.delivery_address as string | undefined;
+  let deliveryLat = body.delivery_latitude as number | undefined;
+  let deliveryLng = body.delivery_longitude as number | undefined;
   const driverTip = (body.driver_tip as number) ?? 0;
   const specialInstructions = body.special_instructions as string | undefined;
   const promoCode = (body.promo_code as string | undefined)?.toUpperCase();
   const savedCardPaymentMethodId = body.saved_card_payment_method_id as string | undefined;
   const incomingPaymentIntentId = body.payment_intent_id as string | undefined;
 
+  const studentId = body.student_id as string | undefined;
+
   if (!storeId || !userId || !items || items.length === 0) {
     return json({ error: "Missing required fields: store_id, user_id, items" }, 400);
+  }
+
+  // ── STUDENT RECIPIENT GATE ──────────────────────────────────────────────
+  // Identical rule to place-order: permission, destination and fee all come
+  // from the database, never from the request. This function also runs with
+  // verify_jwt = false and takes user_id from the body, so the caller's token
+  // is verified explicitly before any link check is trusted.
+  let studentDelivery: {
+    school_id: string;
+    school_name: string;
+    school_address: string;
+    school_lat: number | null;
+    school_lng: number | null;
+    delivery_fee: number;
+  } | null = null;
+
+  if (studentId && !isPickup) {
+    const authHeader = request.headers.get("Authorization") ?? "";
+    const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : "";
+    if (!token) {
+      return json({ error: "Sign in again to order for a student." }, 401);
+    }
+    const { data: authUser, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !authUser?.user || authUser.user.id !== userId) {
+      return json({ error: "Sign in again to order for a student." }, 401);
+    }
+    const { data: resolved, error: resolveErr } = await admin.rpc(
+      "resolve_student_delivery",
+      { p_parent_id: userId, p_student_id: studentId },
+    );
+    if (resolveErr || !resolved) {
+      return json({ error: resolveErr?.message ?? "Could not order for that student." }, 403);
+    }
+    studentDelivery = resolved as typeof studentDelivery;
+    deliveryAddress = studentDelivery!.school_address;
+    if (studentDelivery!.school_lat != null) deliveryLat = studentDelivery!.school_lat;
+    if (studentDelivery!.school_lng != null) deliveryLng = studentDelivery!.school_lng;
   }
 
   try {
@@ -235,7 +274,11 @@ Deno.serve(async (request) => {
     let deliveryFee = 0;
     let deliveryDistanceKm: number | null = null;
 
-    if (!isPickup) {
+    if (studentDelivery) {
+      // Flat rate to a school, whatever the distance — so the per-km build-up
+      // and the max-distance rejection below are both skipped deliberately.
+      deliveryFee = Number(studentDelivery.delivery_fee);
+    } else if (!isPickup) {
       deliveryFee = store.delivery_fee ?? defaultDeliveryFee;
 
       if (deliveryLat && deliveryLng && store.latitude && store.longitude) {
@@ -412,6 +455,11 @@ Deno.serve(async (request) => {
       delivery_latitude: isPickup ? store.latitude : deliveryLat,
       delivery_longitude: isPickup ? store.longitude : deliveryLng,
       driver_tip: driverTip,
+      recipient_type: studentDelivery ? "student" : "self",
+      student_id: studentDelivery ? studentId : null,
+      school_id: studentDelivery?.school_id ?? null,
+      school_name: studentDelivery?.school_name ?? null,
+      school_address: studentDelivery?.school_address ?? null,
       promo_code: promoCode ?? null,
       discount_amount: promoDiscount,
       pickup_code: isPickup ? generatePickupCode() : null,

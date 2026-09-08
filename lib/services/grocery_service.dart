@@ -375,6 +375,9 @@ class GroceryService {
     // Payment gate: pass one so the edge function charges/verifies before insert.
     String? savedCardPaymentMethodId,
     String? paymentIntentId,
+    /// When set, the order goes to this linked student's school. The edge
+    /// function re-checks the link and re-derives school and fee.
+    String? studentId,
   }) async {
     try {
       AppLogger.info('Placing grocery order via edge function');
@@ -388,6 +391,7 @@ class GroceryService {
         if (deliveryAddress != null) 'delivery_address': deliveryAddress,
         if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
         if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
+        if (studentId != null) 'student_id': studentId,
         'driver_tip': driverTip,
         if (specialInstructions != null) 'special_instructions': specialInstructions,
         if (promoCode != null) 'promo_code': promoCode,
