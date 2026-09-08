@@ -19,6 +19,7 @@ import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
 
 import 'ride_complete_screen.dart';
+import '../../../../widgets/app_map_tiles.dart';
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -1198,11 +1199,7 @@ class _ActiveRideDriverScreenState
       key: ValueKey(_mapRebuildKey),
       options: MapOptions(initialCenter: mapCenter, initialZoom: 13.0),
       children: [
-        TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.mealhub.food_driver',
-        ),
+        appMapTileLayer(),
         PolylineLayer(
           polylines: [
             Polyline(

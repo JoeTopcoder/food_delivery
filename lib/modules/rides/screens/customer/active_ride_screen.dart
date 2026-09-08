@@ -14,6 +14,7 @@ import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/providers/wallet_provider.dart';
+import '../../../../widgets/app_map_tiles.dart';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -473,12 +474,7 @@ class _ActiveMap extends StatelessWidget {
         initialZoom: 13.0,
       ),
       children: [
-        TileLayer(
-          urlTemplate:
-              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.mealhub.food_driver',
-        ),
+        appMapTileLayer(),
         PolylineLayer(
           polylines: [
             Polyline(

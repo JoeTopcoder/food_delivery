@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../../utils/safe_state_mixin.dart';
+import '../../widgets/app_map_tiles.dart';
 
 /// Result returned when a user picks a location on the map.
 class PickedLocation {
@@ -56,6 +57,13 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
   bool _searching = false;
   Timer? _searchDebounce;
 
+  /// Country the search is limited to, taken from wherever the pin currently
+  /// is rather than hardcoded. Without it Nominatim searches the whole planet
+  /// and the famous namesake always wins: "Manor Park" returned London,
+  /// Washington DC and New Zealand, and not the Manor Park Road the pin was
+  /// sitting on.
+  String? _searchCountryCode;
+
   // House / unit number entered by the user
   final TextEditingController _unitController = TextEditingController();
 
@@ -96,25 +104,57 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
     );
   }
 
+  Future<List<Map<String, dynamic>>> _nominatim(
+    String query, {
+    String? countryCode,
+    LatLng? near,
+  }) async {
+    final params = <String, String>{
+      'q': query.trim(),
+      'format': 'json',
+      'limit': '6',
+      'addressdetails': '1',
+    };
+    if (countryCode != null) params['countrycodes'] = countryCode;
+    if (near != null) {
+      // Bias towards what is on screen, so the nearest match of a repeated
+      // street name comes first. Not a filter — bounded=0 keeps the rest.
+      const d = 0.45;
+      params['viewbox'] =
+          '${near.longitude - d},${near.latitude + d},'
+          '${near.longitude + d},${near.latitude - d}';
+    }
+    final response = await http
+        .get(
+          Uri.https('nominatim.openstreetmap.org', '/search', params),
+          headers: const {
+            // Nominatim's policy requires an agent that identifies the app and
+            // can be contacted. A bare name is what gets a client blocked.
+            'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+            'Accept-Language': 'en',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) return const [];
+    return List<Map<String, dynamic>>.from(json.decode(response.body) as List);
+  }
+
   Future<void> _runSearch(String query) async {
     if (!mounted) return;
     setState(() => _searching = true);
     try {
-      final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search'
-        '?format=json&q=${Uri.encodeComponent(query)}&limit=5&addressdetails=1',
+      var results = await _nominatim(
+        query,
+        countryCode: _searchCountryCode,
+        near: _selectedPosition,
       );
-      final response = await http.get(
-        url,
-        headers: {'User-Agent': 'sevendash.app'},
-      );
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        final results = List<Map<String, dynamic>>.from(
-          json.decode(response.body) as List,
-        );
-        setState(() => _searchResults = results);
+      // Widen rather than come back empty: a customer searching for somewhere
+      // abroad, or in a country we could not resolve, still gets an answer.
+      if (results.isEmpty && _searchCountryCode != null) {
+        results = await _nominatim(query, near: _selectedPosition);
       }
+      if (!mounted) return;
+      setState(() => _searchResults = results);
     } catch (_) {
       if (mounted) setState(() => _searchResults = []);
     } finally {
@@ -188,12 +228,20 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
       );
       final response = await http.get(
         url,
-        headers: {'User-Agent': 'sevendash.app'},
+        headers: const {
+          'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+          'Accept-Language': 'en',
+        },
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         final addr = data['address'] as Map<String, dynamic>?;
+        // Scope the address search to wherever the pin actually is. Derived,
+        // not configured: the platform is Jamaican today but nothing here
+        // needs to know that.
+        final cc = (addr?['country_code'] as String?)?.toLowerCase();
+        if (cc != null && cc.isNotEmpty) _searchCountryCode = cc;
         final extratags = data['extratags'] as Map<String, dynamic>?;
         // Top-level 'name' is the OSM name tag of the matched feature —
         // for parcels this is often "Lot 14 Block 5" or similar.
@@ -342,14 +390,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
                     initialZoom: 17,
                     onPositionChanged: _onMapEvent,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'sevendash.app',
-                    ),
-                  ],
+                  children: [appMapTileLayer()],
                 ),
 
                 // ── Address search bar ────────────────

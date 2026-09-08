@@ -17,6 +17,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 import '../../core/utils/responsive.dart';
 import '../../widgets/ai_fab.dart';
+import '../../widgets/app_map_tiles.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   const AvailableOrdersScreen({super.key});
@@ -1145,12 +1146,7 @@ class _OrderMap extends StatelessWidget {
                 ),
               ),
               children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'sevendash.app',
-                ),
+                appMapTileLayer(),
                 MarkerLayer(markers: markers),
               ],
             ),
@@ -1209,12 +1205,7 @@ class _OrderMap extends StatelessWidget {
               ),
             ),
             children: [
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'sevendash.app',
-              ),
+              appMapTileLayer(),
               MarkerLayer(markers: markers),
             ],
           ),

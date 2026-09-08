@@ -14,6 +14,7 @@ import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/providers/feature_providers.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
 import 'package:food_driver/providers/wallet_provider.dart';
+import '../../../../widgets/app_map_tiles.dart';
 
 const _kBlue = Color(0xFF2563EB);
 const _kRed = Color(0xFFEF4444);
@@ -1540,12 +1541,7 @@ class _RouteMap extends StatelessWidget {
         ),
       ),
       children: [
-        TileLayer(
-          urlTemplate:
-              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'com.mealhub.food_driver',
-        ),
+        appMapTileLayer(),
         if (dest != null)
           PolylineLayer(
             polylines: [
