@@ -71,6 +71,39 @@ class RestaurantService {
     return near;
   }
 
+  /// Distance to the closest store, ignoring the browse radius.
+  ///
+  /// The listings cannot answer "is this customer out of area?" — an empty list
+  /// looks the same whether the catalogue is empty, everything is closed, or
+  /// the nearest store is 400km away, and those need different words on screen.
+  /// Returns null when there is nothing measurable to compare against.
+  Future<double?> nearestStoreKm() async {
+    final lat = originLat ?? AppConstants.defaultOriginLat;
+    final lng = originLng ?? AppConstants.defaultOriginLng;
+    try {
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select('latitude, longitude')
+          .eq('is_verified', true)
+          .not('latitude', 'is', null);
+
+      double? best;
+      for (final row in (response as List)) {
+        final rLat = (row['latitude'] as num?)?.toDouble();
+        final rLng = (row['longitude'] as num?)?.toDouble();
+        if (rLat == null || rLng == null) continue;
+        final km = DeliveryFeeService.haversineKm(lat, lng, rLat, rLng);
+        if (best == null || km < best) best = km;
+      }
+      return best;
+    } catch (e) {
+      // Never let this decide anything on failure — the caller treats null as
+      // "cannot tell", which shows the normal screen rather than a wrong one.
+      AppLogger.error('nearestStoreKm failed: $e');
+      return null;
+    }
+  }
+
   static String _sanitizeQuery(String q) =>
       q.replaceAll(RegExp(r'[%_(),.\\]'), '');
 
