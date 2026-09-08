@@ -186,8 +186,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     double activeFee = 0;
     final feeTypes = <String>{};
     bool anyFeeLoading = false;
-    // A school delivery is one flat fee for the whole order, not one per store:
-    // the run ends at a single address whatever it was collected from.
+    // Grocery places one order per store, and the server prices each of those
+    // independently — so a school run costs the flat fee once per store, the
+    // same way an ordinary grocery delivery already costs a delivery fee per
+    // store. Showing it once here while the server charged it per store meant
+    // a two-store order quoted J$350 and took J$700.
     for (final sid in isStudentOrder ? const <String>[] : storeIds) {
       final s = storeData[sid];
       if (isPickup) {
@@ -212,7 +215,9 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         activeFee += AppConstants.defaultDeliveryFee;
       }
     }
-    if (isStudentOrder) activeFee = AppConstants.studentDeliveryFee;
+    if (isStudentOrder) {
+      activeFee = AppConstants.studentDeliveryFee * storeIds.length;
+    }
     final feeTypeLabel = isStudentOrder
         ? ' (School)'
         : (feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '');

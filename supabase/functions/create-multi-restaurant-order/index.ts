@@ -279,6 +279,19 @@ Deno.serve(async (req: Request) => {
       restaurant, deliveryLatitude, deliveryLongitude,
     );
 
+    // A student order takes a flat fee and so never consults the client's
+    // delivery-fee lookup — which is also what rejects an out-of-range
+    // address. The range check therefore has to happen here, per restaurant:
+    // a flat price is a pricing decision, not a promise to drive any distance.
+    if (studentDelivery && distanceKm !== null) {
+      const maxKm = await getConfig("delivery_max_km", 30);
+      if (distanceKm > maxKm) {
+        return json({
+          error: `${restaurant.name} is ${distanceKm.toFixed(1)} km from that school, beyond the ${maxKm} km delivery range.`,
+        }, 400);
+      }
+    }
+
     let subtotal = 0;
     const processedItems: RestaurantCalc["items"] = [];
 
