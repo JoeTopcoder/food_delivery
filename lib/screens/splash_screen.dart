@@ -16,6 +16,7 @@ import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
 import '../web/admin/admin_web_app.dart';
 import '../web/customer/customer_web_app.dart';
+import '../widgets/quickdash_logo.dart';
 import '../widgets/riding_courier.dart';
 import '../widgets/role_guard.dart';
 
@@ -224,11 +225,13 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Opacity(
                           opacity: _logoOpacity.value,
                           child: Container(
-                            width: 120,
-                            height: 120,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 18,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(28),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.2),
@@ -237,14 +240,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/quickdash_logo.png',
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                            child: const QuickDashMark(size: 168),
                           ),
                         ),
                       ),
@@ -264,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'QUICKDASH',
+                            'QuickDash',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -774,11 +770,13 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                     child: Opacity(
                       opacity: _logoOpacity.value,
                       child: Container(
-                        width: 120,
-                        height: 120,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.25),
@@ -787,14 +785,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                             ),
                           ],
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/quickdash_logo.png',
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                        child: const QuickDashMark(size: 168),
                       ),
                     ),
                   ),
@@ -812,7 +803,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            'QUICKDASH',
+                            'QuickDash',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,

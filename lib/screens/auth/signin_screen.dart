@@ -9,6 +9,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/quickdash_logo.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key, this.role});
@@ -225,11 +226,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        'assets/images/quickdash_logo.png',
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
+                      child: const Center(
+                        child: QuickDashMark(size: 84),
                       ),
                     ),
                     const SizedBox(height: 16),

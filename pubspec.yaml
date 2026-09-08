@@ -170,7 +170,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/quickdash_logo.png
     - assets/adi-registration.properties
 
   # To add custom fonts to your application, add a fonts section here,
@@ -199,5 +198,6 @@ flutter_launcher_icons:
   web:
     generate: true
   image_path: assets/images/app_icon.png
-  adaptive_icon_background: "#000000"
+  # Midnight Navy, matching the launch window and the splash gradient.
+  adaptive_icon_background: "#0B1220"
   adaptive_icon_foreground: assets/images/app_icon.png
