@@ -81,6 +81,8 @@ class AppConfigService {
     AppConstants.pickupServiceFee = _double(c, 'pickup_service_fee', AppConstants.pickupServiceFee);
     AppConstants.studentDeliveryFee = _double(c, 'student_delivery_fee', AppConstants.studentDeliveryFee);
     AppConstants.browseMaxKm = _double(c, 'browse_max_km', AppConstants.browseMaxKm);
+    AppConstants.defaultOriginLat = _double(c, 'default_origin_lat', AppConstants.defaultOriginLat);
+    AppConstants.defaultOriginLng = _double(c, 'default_origin_lng', AppConstants.defaultOriginLng);
     AppConstants.driverFeePerDelivery = _double(c, 'driver_fee_per_delivery', AppConstants.driverFeePerDelivery);
     AppConstants.cardFeePercent = _double(c, 'card_fee_percent', AppConstants.cardFeePercent);
     AppConstants.cashFeePercent = _double(c, 'cash_fee_percent', AppConstants.cashFeePercent);

@@ -30,23 +30,31 @@ class RestaurantService {
   /// link or an old order to a specific store should still work — nor to an
   /// owner's own restaurants.
   ///
-  /// Two cases pass through on purpose:
-  ///   * We do not know where the customer is. A new account has no address
-  ///     yet, and filtering against nothing would open the app on an empty
-  ///     screen, which is worse than showing everything.
-  ///   * The store has no coordinates. It cannot be measured, and silently
-  ///     hiding a store an admin just added — because nobody geocoded it — is
-  ///     a confusing bug to chase.
+  /// When we do not know where the customer is — a new account with no
+  /// address, or location refused — this measures from Kingston rather than
+  /// giving up and showing everything. Showing everything on a Jamaican launch
+  /// means showing the Cayman catalogue; a new customer should see the same
+  /// Kingston list a Kingston customer sees.
+  ///
+  /// One case still passes through: a store with no coordinates cannot be
+  /// measured, and is shown rather than hidden. Silently dropping a store an
+  /// admin just added, because nobody geocoded it, is a miserable bug to
+  /// chase. Every store currently has coordinates, so this costs nothing
+  /// today; the warning below is what makes it visible if that changes.
   List<Restaurant> _inRange(List<Restaurant> all) {
-    final lat = originLat;
-    final lng = originLng;
+    final lat = originLat ?? AppConstants.defaultOriginLat;
+    final lng = originLng ?? AppConstants.defaultOriginLng;
     final maxKm = AppConstants.browseMaxKm;
-    if (lat == null || lng == null || maxKm <= 0) return all;
+    if (maxKm <= 0) return all;
 
     final near = all.where((r) {
       final rLat = r.latitude;
       final rLng = r.longitude;
-      if (rLat == null || rLng == null) return true;
+      if (rLat == null || rLng == null) {
+        AppLogger.warning('Store "${r.name}" has no coordinates — cannot be '
+            'distance-filtered, showing it anyway');
+        return true;
+      }
       return DeliveryFeeService.haversineKm(lat, lng, rLat, rLng) <= maxKm;
     }).toList();
 
