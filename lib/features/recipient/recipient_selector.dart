@@ -12,6 +12,10 @@ import 'recipient_service.dart';
 /// Choosing a student redirects the delivery to their school and switches the
 /// delivery fee to the flat student rate. Both are re-derived server-side when
 /// the order is placed; what this widget shows is a preview, not the authority.
+///
+/// With no students linked it collapses to a single line. A radio group whose
+/// only option is "Myself" asks a question that has no second answer, and it
+/// was costing every customer a screenful of checkout to say nothing.
 class RecipientSelector extends ConsumerWidget {
   const RecipientSelector({super.key, this.onChanged});
 
@@ -25,6 +29,26 @@ class RecipientSelector extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final students = studentsAsync.valueOrNull ?? const <LinkedStudent>[];
 
+    if (students.isEmpty) {
+      // Nothing to choose between yet — offer the way in, and no more.
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => showAddStudentDialog(context, ref),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.person_add_alt, size: 16),
+          label: const Text(
+            'Ordering for a student? Add them',
+            style: TextStyle(fontSize: 12.5),
+          ),
+        ),
+      );
+    }
+
     void select(String? id) {
       if (ref.read(selectedStudentProvider) == id) return;
       ref.read(selectedStudentProvider.notifier).state = id;
@@ -34,24 +58,33 @@ class RecipientSelector extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header and the add action share one row rather than stacking two.
         Row(
           children: [
-            Icon(Icons.people_alt_outlined, size: 18, color: scheme.onSurface),
-            const SizedBox(width: 8),
             Text(
               'Who is this for?',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 13,
                 fontWeight: FontWeight.w800,
                 color: scheme.onSurface,
               ),
             ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => showAddStudentDialog(context, ref),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.person_add_alt, size: 15),
+              label: const Text('Add', style: TextStyle(fontSize: 12)),
+            ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _RecipientTile(
           title: 'Myself',
-          subtitle: 'Delivered to your address',
           selected: selectedId == null,
           onTap: () => select(null),
         ),
@@ -60,30 +93,11 @@ class RecipientSelector extends ConsumerWidget {
             title: s.name,
             subtitle: s.hasSchool
                 ? '${s.schoolName} · ${AppConstants.currencySymbol}'
-                      '${AppConstants.studentDeliveryFee.toStringAsFixed(0)} delivery'
-                : 'No school on file — cannot deliver yet',
+                      '${AppConstants.studentDeliveryFee.toStringAsFixed(0)}'
+                : 'No school on file',
             warning: !s.hasSchool,
             selected: selectedId == s.id,
             onTap: () => select(s.id),
-          ),
-        ),
-        if (studentsAsync.isLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Center(
-              child: SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => showAddStudentDialog(context, ref),
-            icon: const Icon(Icons.person_add_alt, size: 18),
-            label: const Text('Add a student by wallet ID'),
           ),
         ),
       ],
@@ -155,8 +169,8 @@ Future<void> showAddStudentDialog(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// The school banner shown once a student is selected: where the order is
-/// actually going, stated as fact rather than offered as a field to edit.
+/// Where a student order is actually going. Replaces the checkout's own address
+/// card rather than sitting above it — both were printing the same street.
 class SchoolDestinationBanner extends ConsumerWidget {
   const SchoolDestinationBanner({super.key});
 
@@ -167,11 +181,11 @@ class SchoolDestinationBanner extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: AppTheme.primaryColor.withValues(alpha: 0.35),
         ),
@@ -179,30 +193,23 @@ class SchoolDestinationBanner extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.school_outlined, size: 20),
-          const SizedBox(width: 10),
+          const Icon(Icons.school_outlined, size: 17),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Delivering to ${student.schoolName}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  student.schoolName!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   student.schoolAddress!,
                   style: TextStyle(
-                    fontSize: 12.5,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your own delivery address is not used for this order.',
-                  style: TextStyle(
                     fontSize: 11.5,
-                    fontStyle: FontStyle.italic,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -218,14 +225,14 @@ class SchoolDestinationBanner extends ConsumerWidget {
 class _RecipientTile extends StatelessWidget {
   const _RecipientTile({
     required this.title,
-    required this.subtitle,
     required this.selected,
     required this.onTap,
+    this.subtitle,
     this.warning = false,
   });
 
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final bool selected;
   final bool warning;
   final VoidCallback onTap;
@@ -235,18 +242,18 @@ class _RecipientTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.12)
               : scheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? AppTheme.primaryColor : scheme.outlineVariant,
-            width: selected ? 1.6 : 1,
+            width: selected ? 1.4 : 1,
           ),
         ),
         child: Row(
@@ -255,32 +262,38 @@ class _RecipientTile extends StatelessWidget {
               selected
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
-              size: 20,
+              size: 17,
               color: selected ? AppTheme.primaryColor : scheme.outline,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 9),
+            // Name and detail on one line: two stacked lines per option was
+            // most of what made this block a screenful.
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                    ),
+              child: Text.rich(
+                TextSpan(
+                  text: title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: scheme.onSurface,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: warning
-                          ? Colors.orange.shade400
-                          : scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                  children: subtitle == null
+                      ? null
+                      : [
+                          TextSpan(
+                            text: '  $subtitle',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 11.5,
+                              color: warning
+                                  ? Colors.orange.shade400
+                                  : scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
