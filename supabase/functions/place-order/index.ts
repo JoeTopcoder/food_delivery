@@ -336,6 +336,21 @@ Deno.serve(async (request) => {
       ));
     }
 
+    // A student order skips the client's delivery-fee lookup, because its fee
+    // is flat — but that lookup is also what rejects an out-of-range address.
+    // Without this the flat fee would buy a driver at any distance, so the
+    // range check has to happen here instead. A flat price is a pricing
+    // decision, not a promise to drive any distance.
+    if (studentDelivery && distanceKm !== null) {
+      const maxKm = await getConfig("delivery_max_km", 30);
+      if (distanceKm > maxKm) {
+        return json({
+          error: `That school is ${distanceKm.toFixed(1)} km from this restaurant, beyond the ${maxKm} km delivery range.`,
+          request_id: requestId,
+        }, 400);
+      }
+    }
+
     // ── 4a. Wallet payment gate (atomic — must succeed before order is created) ──
     // wallet_deduct has no order_id FK so it safely runs before the order row exists.
     if (isWalletPayment) {

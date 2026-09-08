@@ -275,9 +275,21 @@ Deno.serve(async (request) => {
     let deliveryDistanceKm: number | null = null;
 
     if (studentDelivery) {
-      // Flat rate to a school, whatever the distance — so the per-km build-up
-      // and the max-distance rejection below are both skipped deliberately.
+      // Flat rate to a school whatever the distance, so none of the per-km
+      // build-up applies. The range limit still does: a flat fee is a pricing
+      // decision, not a promise to drive any distance, and a store 40km from
+      // the school cannot serve it at any price.
       deliveryFee = Number(studentDelivery.delivery_fee);
+      if (deliveryLat && deliveryLng && store.latitude && store.longitude) {
+        deliveryDistanceKm = haversineKm(
+          store.latitude, store.longitude, deliveryLat, deliveryLng,
+        );
+        if (deliveryDistanceKm > maxKm) {
+          return json({
+            error: `That school is ${deliveryDistanceKm.toFixed(1)} km from this store, beyond the ${maxKm} km delivery range.`,
+          }, 400);
+        }
+      }
     } else if (!isPickup) {
       deliveryFee = store.delivery_fee ?? defaultDeliveryFee;
 
