@@ -238,6 +238,17 @@
   /// actually refuses an order. Set it above the delivery radius and customers
   /// will find stores that reject them at checkout.
   static double browseMaxKm = 50.0;
+
+  /// Where to measure from when we do not know where the customer is — a fresh
+  /// account with no address, or location permission refused.
+  ///
+  /// Kingston. The alternative is showing every store in the catalogue, which
+  /// on a Jamaican launch means showing the 34 Cayman restaurants left over
+  /// from the app's previous life. A new customer should see the same Kingston
+  /// list a Kingston customer sees. Overwritten from app_config
+  /// (`default_origin_lat` / `default_origin_lng`).
+  static double defaultOriginLat = 18.0179;
+  static double defaultOriginLng = -76.8099;
   static double driverFeePerDelivery = 465.0; // JMD; overwritten from app_config
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;
