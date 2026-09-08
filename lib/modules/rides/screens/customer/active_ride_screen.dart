@@ -401,12 +401,12 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
                     ? 'J\$${r.estimatedFare!.toStringAsFixed(0)}'
                     : '';
                 final msg = StringBuffer()
-                  ..writeln('🚗 I\'m on a ride with Quickdash!')
+                  ..writeln('🚗 I\'m on a ride with QuickDash!')
                   ..writeln('Driver: $driverName');
                 if (pickup.isNotEmpty) msg.writeln('📍 From: $pickup');
                 if (dest.isNotEmpty)   msg.writeln('🏁 To: $dest');
                 if (fare.isNotEmpty)   msg.writeln('💳 Fare: $fare');
-                msg.write('\nBook rides on Quickdash 👉 https://sevendash.app');
+                msg.write('\nBook rides on QuickDash 👉 https://sevendash.app');
                 SharePlus.instance.share(ShareParams(text: msg.toString()));
               },
               onCancel: _cancelRide,

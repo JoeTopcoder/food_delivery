@@ -13,7 +13,7 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Purpose',
           body:
-              'This Driver Safety Policy applies to all delivery and ride-sharing partners ("drivers") operating on the Quickdash platform. It establishes minimum safety standards to protect drivers, customers, and the public.',
+              'This Driver Safety Policy applies to all delivery and ride-sharing partners ("drivers") operating on the QuickDash platform. It establishes minimum safety standards to protect drivers, customers, and the public.',
         ),
         LegalSection(
           heading: '2. Vehicle Requirements',
@@ -36,7 +36,7 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '4. Fatigue and Hours',
           body:
-              'Do not drive if you are excessively fatigued. Take regular breaks during long shifts. Quickdash may automatically notify you to take a break if you have been continuously active beyond recommended hours. Your safety is more important than any individual delivery.',
+              'Do not drive if you are excessively fatigued. Take regular breaks during long shifts. QuickDash may automatically notify you to take a break if you have been continuously active beyond recommended hours. Your safety is more important than any individual delivery.',
         ),
         LegalSection(
           heading: '5. Customer Interactions',
@@ -50,7 +50,7 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '6. Reporting Incidents',
           body:
-              'If you are involved in an accident, witness criminal activity, or feel unsafe during a delivery or ride, end the trip safely and contact emergency services first. Then report the incident to Quickdash through the app or at support@7dash.app. We will work with you on next steps.',
+              'If you are involved in an accident, witness criminal activity, or feel unsafe during a delivery or ride, end the trip safely and contact emergency services first. Then report the incident to QuickDash through the app or at support@7dash.app. We will work with you on next steps.',
         ),
         LegalSection(
           heading: '7. Zero-Tolerance Behaviors',
@@ -66,19 +66,19 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '8. Background Checks',
           body:
-              'All driver applicants are subject to a background check before approval. Drivers must notify Quickdash of any changes to their criminal record or driving record. Quickdash reserves the right to deactivate accounts that no longer meet safety standards.',
+              'All driver applicants are subject to a background check before approval. Drivers must notify QuickDash of any changes to their criminal record or driving record. QuickDash reserves the right to deactivate accounts that no longer meet safety standards.',
         ),
         LegalSection(
           heading: '9. Insurance Disclaimer',
           body:
-              'Quickdash does not provide vehicle insurance for drivers. You are responsible for maintaining adequate coverage. Some jurisdictions require specific ride-sharing insurance endorsements; it is your responsibility to comply with local insurance laws.',
+              'QuickDash does not provide vehicle insurance for drivers. You are responsible for maintaining adequate coverage. Some jurisdictions require specific ride-sharing insurance endorsements; it is your responsibility to comply with local insurance laws.',
         ),
         LegalSection(
           heading: '10. Safety Resources',
           body:
               'If you feel unsafe during a delivery or ride, you can:\n\n'
               '• Tap the emergency button in the active delivery or ride screen to call emergency services.\n'
-              '• Contact Quickdash support at support@7dash.app.\n'
+              '• Contact QuickDash support at support@7dash.app.\n'
               '• End the order or ride safely and leave the situation.\n\n'
               'Your personal safety always takes priority over completing a trip.',
         ),

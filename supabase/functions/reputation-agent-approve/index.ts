@@ -1,4 +1,4 @@
-// reputation-agent-approve — Reputation Management Agent (Quickdash AI Operations)
+// reputation-agent-approve — Reputation Management Agent (QuickDash AI Operations)
 // Admin approval step. Only this function writes to reviews.response_text —
 // the draft function never touches it.
 // Deploy: supabase functions deploy reputation-agent-approve --no-verify-jwt

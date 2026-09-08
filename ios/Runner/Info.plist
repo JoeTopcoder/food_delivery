@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Quickdash</string>
+	<string>QuickDash</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Quickdash</string>
+	<string>QuickDash</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -54,17 +54,17 @@
 		</dict>
 	</array>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Quickdash uses analytics to improve app performance and your experience. Your data is never sold or shared with advertisers.</string>
+	<string>QuickDash uses analytics to improve app performance and your experience. Your data is never sold or shared with advertisers.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Quickdash needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
+	<string>QuickDash needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Quickdash needs your location to provide delivery tracking even when the app is in the background.</string>
+	<string>QuickDash needs your location to provide delivery tracking even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Quickdash needs your location to show nearby restaurants and track deliveries.</string>
+	<string>QuickDash needs your location to show nearby restaurants and track deliveries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Quickdash needs microphone access for voice calls between customers, drivers, and restaurants.</string>
+	<string>QuickDash needs microphone access for voice calls between customers, drivers, and restaurants.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Quickdash needs photo library access to upload menu item images and profile pictures.</string>
+	<string>QuickDash needs photo library access to upload menu item images and profile pictures.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

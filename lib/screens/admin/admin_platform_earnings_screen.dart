@@ -94,7 +94,7 @@ class AdminPlatformEarningsScreen extends ConsumerWidget {
                             children: [
                               Text('Total Platform Earnings',
                                   style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              Text('Quickdash Commission — All Services',
+                              Text('QuickDash Commission — All Services',
                                   style: TextStyle(color: Colors.white54, fontSize: 11)),
                             ],
                           ),

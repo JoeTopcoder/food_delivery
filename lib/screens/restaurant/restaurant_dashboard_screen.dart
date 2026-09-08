@@ -1228,7 +1228,7 @@ class _RestaurantDashboardScreenState
                       color: Color(0xFFEF4444),
                     ),
                     label: const Text(
-                      'See Why Restaurants Love Quickdash',
+                      'See Why Restaurants Love QuickDash',
                       style: TextStyle(
                         color: Color(0xFFEF4444),
                         fontWeight: FontWeight.w700,

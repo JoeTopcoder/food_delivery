@@ -196,7 +196,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => SharePlus.instance.share(ShareParams(
-                          text: 'List your restaurant on Quickdash! Use my referral code $code when you sign up and get \$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} in ad credits. Download the app now.',
+                          text: 'List your restaurant on QuickDash! Use my referral code $code when you sign up and get \$${EarningConfig.restaurantRefCredits.toStringAsFixed(0)} in ad credits. Download the app now.',
                         )),
                         icon: const Icon(Icons.share_rounded),
                         label: const Text(
@@ -277,7 +277,7 @@ class RestaurantReferralScreen extends ConsumerWidget {
                   _HowItWorksStep(
                     step: '2',
                     text:
-                        'They register their restaurant on Quickdash using your code',
+                        'They register their restaurant on QuickDash using your code',
                     color: const Color(0xFF0891B2),
                   ),
                   _HowItWorksStep(

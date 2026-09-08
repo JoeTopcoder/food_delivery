@@ -58,7 +58,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'How are you enjoying Quickdash?',
+                      'How are you enjoying QuickDash?',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

@@ -1,4 +1,4 @@
-// create-subscription — Creates a Stripe subscription for Quickdash Basic/Pro plans
+// create-subscription — Creates a Stripe subscription for QuickDash Basic/Pro plans
 // Deploy: supabase functions deploy create-subscription --no-verify-jwt
 
 // deno-lint-ignore-file

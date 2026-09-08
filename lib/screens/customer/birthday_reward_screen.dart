@@ -107,10 +107,10 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                 const SizedBox(height: 8),
                 Text(
                   isUsed
-                      ? 'You already used your birthday reward. Happy Birthday from Quickdash ❤️'
+                      ? 'You already used your birthday reward. Happy Birthday from QuickDash ❤️'
                       : isExpired
                       ? 'This reward was only valid on your birthday.'
-                      : 'Celebrate your special day with Quickdash ❤️',
+                      : 'Celebrate your special day with QuickDash ❤️',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,

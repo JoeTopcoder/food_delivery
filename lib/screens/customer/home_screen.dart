@@ -586,7 +586,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
-                    'Quickdash',
+                    'QuickDash',
                     style: TextStyle(
                       fontSize: 23,
                       fontWeight: FontWeight.w800,
@@ -2421,7 +2421,7 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Celebrate today with Quickdash ❤️',
+                        'Celebrate today with QuickDash ❤️',
                         style: TextStyle(color: Colors.white70, fontSize: 12.5),
                       ),
                     ],

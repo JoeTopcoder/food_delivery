@@ -151,7 +151,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           ],
                         ),
                         child: Image.asset(
-                          'assets/images/mealhub_logo.png',
+                          'assets/images/quickdash_logo.png',
                           width: double.infinity,
                           height: double.infinity,
                           fit: BoxFit.cover,
