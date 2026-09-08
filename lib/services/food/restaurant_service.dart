@@ -59,8 +59,13 @@ class RestaurantService {
     }).toList();
 
     if (near.length != all.length) {
+      // Origin included: a listing full of the wrong city is almost always the
+      // customer's selected address, not the filter. Chasing that once without
+      // this line took a while.
       AppLogger.info(
-        'Hid ${all.length - near.length} store(s) beyond ${maxKm.toStringAsFixed(0)}km',
+        'Hid ${all.length - near.length} of ${all.length} store(s) beyond '
+        '${maxKm.toStringAsFixed(0)}km of '
+        '(${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)})',
       );
     }
     return near;
