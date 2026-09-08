@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_constants.dart';
 import '../../models/recommendation_model.dart';
 import '../../models/user_intelligence_model.dart';
 import '../../utils/app_logger.dart';
@@ -61,6 +62,27 @@ class RecommendationService {
           if (r is Map<String, dynamic>) {
             allRecs.add(SmartRecommendation.fromJson(r));
           }
+        }
+      }
+
+      // Drop anything the customer could not be delivered from, BEFORE the
+      // sections are built — otherwise "Made for You" and "Quick delivery"
+      // recommend restaurants the browse listings already hide. The scoring
+      // RPC measures distance but does not cap it, so the cap lives here.
+      //
+      // Only applied when we actually have a distance to judge: the RPC
+      // returns 0 km when it was called without coordinates, and treating
+      // that as "next door" would let everything through, while treating it
+      // as unknown-and-drop would empty every section.
+      final maxKm = AppConstants.browseMaxKm;
+      if (maxKm > 0 && (latitude != null && longitude != null)) {
+        final before = allRecs.length;
+        allRecs.removeWhere((r) => r.distanceKm > maxKm);
+        if (allRecs.length != before) {
+          AppLogger.info(
+            'Brain engine: dropped ${before - allRecs.length} recommendation(s) '
+            'beyond ${maxKm.toStringAsFixed(0)}km',
+          );
         }
       }
 
@@ -154,6 +176,13 @@ class RecommendationService {
             allRecs.add(SmartRecommendation.fromJson(r));
           }
         }
+      }
+
+      // Same range cap as the food engine — a grocery store out of range is
+      // just as undeliverable as a restaurant.
+      final maxKm = AppConstants.browseMaxKm;
+      if (maxKm > 0 && latitude != null && longitude != null) {
+        allRecs.removeWhere((r) => r.distanceKm > maxKm);
       }
 
       final forYou = <SmartRecommendation>[];
