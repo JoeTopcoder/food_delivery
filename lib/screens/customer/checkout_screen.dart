@@ -405,7 +405,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 setState(() => _addressConfirmed = false),
                           ),
                           const SchoolDestinationBanner(),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 6),
                         ],
 
                         // Saved address book. A student order already has its
@@ -446,7 +446,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     ),
                                   ),
                           ),
-                        const SizedBox(height: 8),
+                        // Skipped for a student order: the school banner above
+                        // already names the destination, and "Manage" would
+                        // offer to change an address this order does not use.
+                        if (!isStudentOrder) ...[
+                        const SizedBox(height: 6),
                         Container(
                           padding: EdgeInsets.all(
                             Responsive.spacingSmall(context),
@@ -494,7 +498,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 6),
                         _AddressSlider(
                           confirmed: _addressConfirmed,
                           onConfirmed: () =>
@@ -505,7 +510,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Schedule (optional / forced when closed) ─────────
                 Builder(
@@ -598,7 +603,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     );
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Payment ───────────────────────────────────────────
                 _Section(
@@ -629,7 +634,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
                         label: 'Credit / Debit Card',
@@ -683,7 +688,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                         size: 32,
                                         color: Colors.grey.shade700,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       Text(
                                         'No saved cards',
                                         style: TextStyle(
@@ -786,7 +791,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── AI-Assigned Promo Banner ──────────────────────
                 OutstandingDebtBanner(debtAmount: outstandingDebt),
@@ -906,7 +911,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Loyalty Points ────────────────────────────────────
                 if (loyaltyAsync != null)
@@ -975,7 +980,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     },
                   ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Contactless Delivery (hidden for pickup) ──────────
                 if (!isPickup)
@@ -1017,7 +1022,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Driver Tip (hidden for pickup) ────────────────────
                 if (!isPickup)
@@ -1036,7 +1041,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             fontSize: 11,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             // No-tip chip
@@ -1113,7 +1118,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             }),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _customTipCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
@@ -1152,7 +1157,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Notes ─────────────────────────────────────────────
                 _Section(
@@ -1171,7 +1176,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Order Summary ──────────────────────────────────────
                 Container(
@@ -1966,8 +1971,8 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: Responsive.spacingSmall(context),
-        vertical: Responsive.spacingSmall(context),
+        horizontal: Responsive.spacingSmall(context) + 2,
+        vertical: Responsive.spacingSmall(context) + 1,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -1982,7 +1987,7 @@ class _Section extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 15, color: AppTheme.primaryColor),
+              Icon(icon, size: 14, color: AppTheme.primaryColor),
               const SizedBox(width: 6),
               Text(
                 title,
@@ -1994,7 +1999,7 @@ class _Section extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),
@@ -2149,20 +2154,20 @@ class _PaymentTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 27,
+              height: 27,
               decoration: BoxDecoration(
                 color: selected
                     ? AppTheme.primaryColor.withValues(alpha: 0.12)
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(7),
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? AppTheme.primaryColor
                     : Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 10),
