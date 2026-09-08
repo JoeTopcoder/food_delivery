@@ -771,15 +771,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             valueColor: const Color(0xFF10B981),
                           ),
                         ] else if (isPickup)
-                          _PriceRow(
-                            subServiceDiscount > 0
-                                ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
-                                : 'Service Fee',
-                            '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
-                            valueColor: subServiceDiscount > 0
-                                ? const Color(0xFF6C63FF)
-                                : const Color(0xFF10B981),
-                          )
+                          // Hidden when the restaurant charges nothing to
+                          // collect, which is most of them.
+                          rawFee > 0
+                              ? _PriceRow(
+                                  subServiceDiscount > 0
+                                      ? 'Pickup Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                      : 'Pickup Fee',
+                                  '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                  valueColor: subServiceDiscount > 0
+                                      ? const Color(0xFF6C63FF)
+                                      : const Color(0xFF10B981),
+                                )
+                              : const SizedBox.shrink()
                         else
                           _PriceRow(
                             subDeliveryFree
