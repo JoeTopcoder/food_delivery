@@ -117,7 +117,7 @@ class WebAdminPlatformEarningsPage extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 16),
                 Row(children: [
-                  Expanded(child: _ServiceCard(icon: Icons.car_repair_rounded, color: const Color(0xFF7C3AED), label: 'Car Services', total: t(car, 'total'), month: t(car, 'month'), sym: c)),
+                  Expanded(child: _ServiceCard(icon: Icons.car_repair_rounded, color: const Color(0xFF155EEF), label: 'Car Services', total: t(car, 'total'), month: t(car, 'month'), sym: c)),
                   const SizedBox(width: 16),
                   Expanded(child: _ServiceCard(icon: Icons.directions_car_rounded, color: const Color(0xFF2563EB), label: 'Rides / Taxi', total: t(rides, 'total'), month: t(rides, 'month'), sym: c)),
                 ]),

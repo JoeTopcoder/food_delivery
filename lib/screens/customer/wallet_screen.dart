@@ -1030,7 +1030,7 @@ class _TransactionTile extends StatelessWidget {
       return _TxMeta(
         'Laundry Payment',
         Icons.local_laundry_service_rounded,
-        const Color(0xFF8B5CF6),
+        const Color(0xFF528BFF),
       );
     }
     if (isLaundryTx) {

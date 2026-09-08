@@ -83,7 +83,7 @@ class _ActivePackageDeliveryScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tracking Delivery'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         actions: [
           streamAsync.maybeWhen(
@@ -172,7 +172,7 @@ class _StatusTimeline extends StatelessWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: done || active
-                              ? const Color(0xFF7C3AED)
+                              ? const Color(0xFF155EEF)
                               : Colors.grey.shade200,
                         ),
                         child: Icon(
@@ -188,7 +188,7 @@ class _StatusTimeline extends StatelessWidget {
                           width: 2,
                           height: 28,
                           color: done
-                              ? const Color(0xFF7C3AED)
+                              ? const Color(0xFF155EEF)
                               : Colors.grey.shade200,
                         ),
                     ],
@@ -204,7 +204,7 @@ class _StatusTimeline extends StatelessWidget {
                             ? FontWeight.bold
                             : FontWeight.normal,
                         color: active
-                            ? const Color(0xFF7C3AED)
+                            ? const Color(0xFF155EEF)
                             : done
                                 ? Colors.black87
                                 : Colors.grey,

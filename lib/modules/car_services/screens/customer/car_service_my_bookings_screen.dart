@@ -5,7 +5,7 @@ import 'package:food_driver/core/utils/responsive.dart';
 import 'package:food_driver/modules/car_services/models/index.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
 
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 
 class CarServiceMyBookingsScreen extends ConsumerStatefulWidget {
   const CarServiceMyBookingsScreen({super.key});

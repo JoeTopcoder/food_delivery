@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 

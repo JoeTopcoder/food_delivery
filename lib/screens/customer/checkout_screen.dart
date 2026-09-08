@@ -1227,7 +1227,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     : 'Pickup Fee',
                                 '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
                                 valueColor: subServiceDiscount > 0
-                                    ? const Color(0xFF6C63FF)
+                                    ? const Color(0xFF528BFF)
                                     : const Color(0xFF10B981),
                               )
                             : const SizedBox.shrink()
@@ -1258,7 +1258,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               ? '\$0.00'
                               : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                           valueColor: subDeliveryFree
-                              ? const Color(0xFF6C63FF)
+                              ? const Color(0xFF528BFF)
                               : null,
                         ),
                       _SummaryRow(

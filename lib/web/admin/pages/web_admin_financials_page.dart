@@ -115,7 +115,7 @@ class WebAdminFinancialsPage extends ConsumerWidget {
                   Row(children: [
                     Expanded(child: _KpiCard(label: 'Restaurant Payouts', value: '$sym${fmt.format(totalRestaurantPayout)}', icon: Icons.storefront_rounded, color: const Color(0xFF0EA5E9))),
                     const SizedBox(width: 14),
-                    Expanded(child: _KpiCard(label: 'Driver Payouts', value: '$sym${fmt.format(totalDriverPayout)}', icon: Icons.delivery_dining_rounded, color: const Color(0xFF8B5CF6))),
+                    Expanded(child: _KpiCard(label: 'Driver Payouts', value: '$sym${fmt.format(totalDriverPayout)}', icon: Icons.delivery_dining_rounded, color: const Color(0xFF528BFF))),
                     const SizedBox(width: 14),
                     Expanded(child: _KpiCard(label: 'Total Sales', value: '$sym${fmt.format(totalSales)}', icon: Icons.receipt_long_rounded, color: const Color(0xFF14B8A6))),
                   ]),
@@ -138,7 +138,7 @@ class WebAdminFinancialsPage extends ConsumerWidget {
                           ('Stripe Fees Collected', stripeFeesCollected, Icons.credit_card_rounded, const Color(0xFFA78BFA)),
                           ('Net Revenue', netRevenue, Icons.account_balance_rounded, const Color(0xFF10B981)),
                           ('Restaurant Payouts', totalRestaurantPayout, Icons.storefront_rounded, const Color(0xFF0EA5E9)),
-                          ('Driver Payouts', totalDriverPayout, Icons.delivery_dining_rounded, const Color(0xFF8B5CF6)),
+                          ('Driver Payouts', totalDriverPayout, Icons.delivery_dining_rounded, const Color(0xFF528BFF)),
                         ].map((row) => _BreakdownRow(label: row.$1, value: '$sym${fmt.format(row.$2)}', icon: row.$3, color: row.$4)),
                       ],
                     ),

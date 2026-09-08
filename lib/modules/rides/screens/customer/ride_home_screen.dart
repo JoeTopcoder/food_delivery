@@ -228,7 +228,7 @@ class RideHomeScreen extends ConsumerWidget {
                           child: _QuickActionCard(
                             icon: Icons.history,
                             label: 'Ride History',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () {
                               final uid =
                                   ref.read(authNotifierProvider).user?.id ?? '';

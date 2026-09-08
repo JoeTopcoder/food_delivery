@@ -269,7 +269,7 @@ class _AdminWorkflowStationScreenState extends State<AdminWorkflowStationScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                             child: ListTile(
                               onTap: () => _openRetentionSheet(r),
-                              leading: const Icon(Icons.mail_outline, color: Color(0xFF7C3AED)),
+                              leading: const Icon(Icons.mail_outline, color: Color(0xFF155EEF)),
                               title: Text(output['subject']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: Text('${input['days_since_last_order'] ?? '?'} days since last order', style: const TextStyle(fontSize: 12)),
                               trailing: const Icon(Icons.chevron_right, size: 18),
@@ -290,7 +290,7 @@ class _AdminWorkflowStationScreenState extends State<AdminWorkflowStationScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                             child: ListTile(
                               onTap: () => _openPromotionSheet(r),
-                              leading: const Icon(Icons.local_offer_outlined, color: Color(0xFF7C3AED)),
+                              leading: const Icon(Icons.local_offer_outlined, color: Color(0xFF155EEF)),
                               title: Text(output['code']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, fontFamily: 'monospace')),
                               subtitle: Text(
                                 output['restaurant_name'] != null ? 'For ${output['restaurant_name']}' : 'Platform-wide',
@@ -348,8 +348,8 @@ class _WorkflowCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: const Color(0xFF7C3AED).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.schedule_rounded, color: Color(0xFF7C3AED), size: 20),
+                  decoration: BoxDecoration(color: const Color(0xFF155EEF).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.schedule_rounded, color: Color(0xFF155EEF), size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -583,7 +583,7 @@ class _RetentionReviewSheetState extends State<_RetentionReviewSheet> {
             const SizedBox(height: 16),
             const Row(
               children: [
-                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
                 SizedBox(width: 6),
                 Text('Retention Email — Weekly Draft', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               ],
@@ -726,7 +726,7 @@ class _PromotionReviewSheetState extends State<_PromotionReviewSheet> {
             const SizedBox(height: 16),
             const Row(
               children: [
-                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
                 SizedBox(width: 6),
                 Text('Promotion — Weekly Scan Draft', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               ],
@@ -735,7 +735,7 @@ class _PromotionReviewSheetState extends State<_PromotionReviewSheet> {
             if (_rationale != null && _rationale!.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFF7C3AED).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFEDE9FE))),
+                decoration: BoxDecoration(color: const Color(0xFF155EEF).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFEDE9FE))),
                 child: Text(_rationale!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, height: 1.4)),
               ),
               const SizedBox(height: 14),

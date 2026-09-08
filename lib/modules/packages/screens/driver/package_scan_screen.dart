@@ -33,7 +33,7 @@ class _PackageScanScreenState extends State<PackageScanScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Package Barcode'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         actions: [
           TextButton(
@@ -80,13 +80,13 @@ class _PackageScanScreenState extends State<PackageScanScreen> {
               labelText: 'Barcode / Tracking Number',
               hintText: widget.expectedHint,
               prefixIcon:
-                  const Icon(Icons.qr_code, color: Color(0xFF7C3AED)),
+                  const Icon(Icons.qr_code, color: Color(0xFF155EEF)),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: Color(0xFF7C3AED), width: 2),
+                    const BorderSide(color: Color(0xFF155EEF), width: 2),
               ),
             ),
             onSubmitted: (_) => _submitManual(),
@@ -98,7 +98,7 @@ class _PackageScanScreenState extends State<PackageScanScreen> {
             child: ElevatedButton(
               onPressed: _submitManual,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
+                backgroundColor: const Color(0xFF155EEF),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),

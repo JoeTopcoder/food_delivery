@@ -52,7 +52,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
   String? _successMessage;
 
   static const _bg = Color(0xFF0F1117);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
   static const _green = Color(0xFF00C896);
 
   // ── Create Stripe account ─────────────────────────────────────────────
@@ -423,14 +423,14 @@ class _BalanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF3D5AFE)],
+          colors: [Color(0xFF528BFF), Color(0xFF3D5AFE)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+            color: const Color(0xFF528BFF).withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -509,7 +509,7 @@ class _StripeAccountCard extends StatelessWidget {
   });
 
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
   static const _green = Color(0xFF00C896);
 
   @override
@@ -847,7 +847,7 @@ class _PayoutMethodsSummary extends StatelessWidget {
             children: [
               Icon(
                 m.isCard ? Icons.credit_card : Icons.account_balance,
-                color: const Color(0xFF6C63FF),
+                color: const Color(0xFF528BFF),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -1253,7 +1253,7 @@ class _AddCardSheetState extends State<_AddCardSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: Color(0xFF6C63FF)),
+                borderSide: BorderSide(color: Color(0xFF528BFF)),
               ),
             ),
             onCardChanged: (d) =>
@@ -1272,9 +1272,9 @@ class _AddCardSheetState extends State<_AddCardSheet> {
             child: ElevatedButton(
               onPressed: (_cardComplete && !_loading) ? _submit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
+                backgroundColor: const Color(0xFF528BFF),
                 disabledBackgroundColor: const Color(
-                  0xFF6C63FF,
+                  0xFF528BFF,
                 ).withValues(alpha: 0.4),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

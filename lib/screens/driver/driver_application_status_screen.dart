@@ -66,7 +66,7 @@ class _StatusBody extends ConsumerWidget {
   final Driver driver;
   const _StatusBody({required this.driver});
 
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -660,7 +660,7 @@ class _PayBreakdownCard extends StatelessWidget {
         summary.distancePay,
         const Color(0xFF22C55E),
       ),
-      _BreakdownItem('Time Pay', summary.timePay, const Color(0xFF8B5CF6)),
+      _BreakdownItem('Time Pay', summary.timePay, const Color(0xFF528BFF)),
       if (summary.waitPay > 0)
         _BreakdownItem('Wait Pay', summary.waitPay, const Color(0xFFF97316)),
       if (summary.boostPay > 0)
@@ -804,7 +804,7 @@ class _PerformanceMetrics extends StatelessWidget {
             label: 'Deliveries',
             value: summary.deliveryCount.toString(),
             icon: Icons.local_shipping_rounded,
-            color: const Color(0xFF8B5CF6),
+            color: const Color(0xFF528BFF),
           ),
         ),
       ],
@@ -896,7 +896,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                     child: d.isStacked
                         ? const Icon(
                             Icons.layers_rounded,
-                            color: Color(0xFF8B5CF6),
+                            color: Color(0xFF528BFF),
                             size: 18,
                           )
                         : const Icon(
@@ -929,7 +929,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(
-                                    0xFF8B5CF6,
+                                    0xFF528BFF,
                                   ).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -938,7 +938,7 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                                   style: TextStyle(
                                     fontSize: 8,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF8B5CF6),
+                                    color: Color(0xFF528BFF),
                                   ),
                                 ),
                               ),

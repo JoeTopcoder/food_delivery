@@ -142,7 +142,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                               label: 'On-Time',
                               value: stats.onTimeRate,
                               icon: Icons.schedule_rounded,
-                              color: const Color(0xFF8B5CF6),
+                              color: const Color(0xFF528BFF),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -547,7 +547,7 @@ class _ScoreBreakdown extends StatelessWidget {
             label: 'Acceptance (20%)',
             value: acceptanceScore,
             maxValue: 20,
-            color: const Color(0xFF8B5CF6),
+            color: const Color(0xFF528BFF),
           ),
           const SizedBox(height: 14),
           Container(

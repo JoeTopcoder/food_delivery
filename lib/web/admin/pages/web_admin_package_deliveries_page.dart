@@ -104,7 +104,7 @@ class _WebAdminPackageDeliveriesPageState extends ConsumerState<WebAdminPackageD
             loading: () => const SizedBox(height: 80, child: AppLoadingIndicator()),
             error: (_, __) => const SizedBox.shrink(),
             data: (d) => Row(children: [
-              _KpiTile(icon: Icons.local_shipping_rounded, color: const Color(0xFF7C3AED), label: 'Active', value: '${d['active_count']}'),
+              _KpiTile(icon: Icons.local_shipping_rounded, color: const Color(0xFF155EEF), label: 'Active', value: '${d['active_count']}'),
               const SizedBox(width: 16),
               _KpiTile(icon: Icons.check_circle_rounded, color: const Color(0xFF10B981), label: 'Delivered Today', value: '${d['delivered_today']}'),
               const SizedBox(width: 16),
@@ -125,7 +125,7 @@ class _WebAdminPackageDeliveriesPageState extends ConsumerState<WebAdminPackageD
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF155EEF), width: 2)),
                 ),
               ),
             ),
@@ -139,10 +139,10 @@ class _WebAdminPackageDeliveriesPageState extends ConsumerState<WebAdminPackageD
                 label: Text(s.$2),
                 selected: _statusFilter == s.$1,
                 onSelected: (_) => setState(() => _statusFilter = s.$1),
-                selectedColor: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                selectedColor: const Color(0xFF155EEF).withValues(alpha: 0.15),
                 labelStyle: TextStyle(
                   fontSize: 12, fontWeight: FontWeight.w600,
-                  color: _statusFilter == s.$1 ? const Color(0xFF7C3AED) : const Color(0xFF64748B),
+                  color: _statusFilter == s.$1 ? const Color(0xFF155EEF) : const Color(0xFF64748B),
                 ),
               ),
             )).toList()),
@@ -256,7 +256,7 @@ class _DeliveryRow extends StatelessWidget {
         child: Row(children: [
           Expanded(flex: 2, child: Text(
             delivery['tracking_number'] ?? '—',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF7C3AED)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF155EEF)),
             overflow: TextOverflow.ellipsis,
           )),
           Expanded(flex: 2, child: Text(delivery['sender_name'] ?? '—',

@@ -415,7 +415,7 @@ class _SplashScreenState extends State<SplashScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(
-                    alpha: 0.04 + random.nextDouble() * 0.04,
+                    alpha: 0.03 + random.nextDouble() * 0.03,
                   ),
                 ),
               ),
@@ -456,7 +456,7 @@ class _RoleConfig {
         return const _RoleConfig(
           gradientStart: Color(0xFF1E1B4B),
           gradientEnd: Color(0xFF4C1D95),
-          iconColor: Color(0xFF7C3AED),
+          iconColor: Color(0xFF155EEF),
           icon: Icons.admin_panel_settings_rounded,
           title: 'Admin Portal',
           subtitle: 'Manage your platform',
@@ -494,12 +494,12 @@ class _RoleConfig {
         );
       default: // customer
         return const _RoleConfig(
-          gradientStart: Color(0xFF581C87),
-          gradientEnd: Color(0xFF7C3AED),
-          iconColor: Color(0xFF7C3AED),
+          gradientStart: Color(0xFF0B1220),
+          gradientEnd: Color(0xFF1743B5),
+          iconColor: Color(0xFF155EEF),
           icon: Icons.fastfood_rounded,
           title: 'Welcome Back!',
-          subtitle: 'Discover & order deliciou food',
+          subtitle: 'Discover & order delicious food',
           loadingText: 'Finding restaurants near you...',
         );
     }
@@ -747,9 +747,9 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: const [
-                    Color(0xFF581C87),
-                    Color(0xFF7C3AED),
-                    Color(0xFF581C87),
+                    Color(0xFF0B1220),
+                    Color(0xFF1743B5),
+                    Color(0xFF0B1220),
                   ],
                   stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
                 ),
@@ -855,7 +855,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                     child: RidingCourier(
                       width: (MediaQuery.of(context).size.width * 0.64)
                           .clamp(190.0, 320.0),
-                      accent: const Color(0xFF581C87),
+                      accent: const Color(0xFF0B1220),
                     ),
                   ),
                 ),
@@ -923,7 +923,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(
-                    alpha: 0.04 + rng.nextDouble() * 0.04,
+                    alpha: 0.03 + rng.nextDouble() * 0.03,
                   ),
                 ),
               ),

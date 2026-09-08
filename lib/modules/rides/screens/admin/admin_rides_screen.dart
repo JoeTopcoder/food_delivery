@@ -4,7 +4,7 @@ import 'package:food_driver/config/app_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ── Accent colour used throughout this module ─────────────────────────────────
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 

@@ -180,7 +180,7 @@ class _MasterOrderCard extends StatelessWidget {
       case 'out_for_delivery':
         return const Color(0xFF6366F1);
       case 'ready_for_pickup':
-        return const Color(0xFF8B5CF6);
+        return const Color(0xFF528BFF);
       case 'preparing':
         return const Color(0xFFF59E0B);
       case 'accepted':

@@ -103,7 +103,7 @@ class _AdminAskAiScreenState extends State<AdminAskAiScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, size: 40, color: const Color(0xFF7C3AED).withValues(alpha: 0.4)),
+                          Icon(Icons.auto_awesome, size: 40, color: const Color(0xFF155EEF).withValues(alpha: 0.4)),
                           const SizedBox(height: 12),
                           const Text(
                             'Ask anything about your business — orders, customers, restaurants, drivers, payouts, promos. Every answer is grounded in a real, read-only query against your live data.',

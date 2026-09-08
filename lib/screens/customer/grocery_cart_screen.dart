@@ -538,7 +538,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     ? '\$0.00'
                                     : '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: subDeliveryFree
-                                    ? const Color(0xFF6C63FF)
+                                    ? const Color(0xFF528BFF)
                                     : surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,

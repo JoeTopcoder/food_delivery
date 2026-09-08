@@ -1113,7 +1113,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
 
   static Color _statusColor(String status) {
     switch (status) {
-      case 'ready':     return const Color(0xFF8B5CF6);
+      case 'ready':     return const Color(0xFF528BFF);
       case 'preparing': return const Color(0xFFF59E0B);
       case 'accepted':  return const Color(0xFF3B82F6);
       case 'cancelled': return Colors.red;
@@ -1342,7 +1342,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                             icon: const Icon(Icons.done_all, size: 15),
                             label: const Text('Ready for Pickup'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B5CF6),
+                              backgroundColor: const Color(0xFF528BFF),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1368,12 +1368,12 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF528BFF)),
                   const SizedBox(width: 6),
                   const Text('Ready for pickup',
                       style: TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 13,
-                        color: Color(0xFF8B5CF6),
+                        color: Color(0xFF528BFF),
                       )),
                 ],
               ),

@@ -1158,7 +1158,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                               ? '\$0.00'
                               : '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
                           valueColor: subDeliveryFree
-                              ? const Color(0xFF6C63FF)
+                              ? const Color(0xFF528BFF)
                               : null,
                         ),
                       _SummaryRow(

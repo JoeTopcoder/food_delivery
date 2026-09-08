@@ -134,7 +134,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
           'MealHub+ Plans',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF6C63FF),
+        backgroundColor: const Color(0xFF528BFF),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -189,7 +189,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                 // Pro Plan section
                 _SectionHeader(
                   title: 'MealHub Pro',
-                  color: const Color(0xFF6C63FF),
+                  color: const Color(0xFF528BFF),
                 ),
                 const SizedBox(height: 8),
                 _ConfigField(
@@ -257,7 +257,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C63FF),
+                      backgroundColor: const Color(0xFF528BFF),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -277,8 +277,8 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                     icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
                     label: const Text('Manage Meal Plans'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6C63FF),
-                      side: const BorderSide(color: Color(0xFF6C63FF)),
+                      foregroundColor: const Color(0xFF528BFF),
+                      side: const BorderSide(color: Color(0xFF528BFF)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -309,7 +309,7 @@ class _StatsBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF4CAF50)],
+          colors: [Color(0xFF528BFF), Color(0xFF4CAF50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

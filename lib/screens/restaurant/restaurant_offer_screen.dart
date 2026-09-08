@@ -312,7 +312,7 @@ class RestaurantOfferScreen extends StatelessWidget {
 
                   // ── Repeat Customers ────────────────────────
                   _OfferCard(
-                    gradient: const [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                    gradient: const [Color(0xFF155EEF), Color(0xFF9333EA)],
                     icon: Icons.loyalty_rounded,
                     title: 'Built-In Repeat Customers',
                     subtitle:

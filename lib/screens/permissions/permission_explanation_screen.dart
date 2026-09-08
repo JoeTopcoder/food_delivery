@@ -72,7 +72,7 @@ class _PermissionExplanationScreenState
       case AppPermissionType.notifications:
         return const _PermissionConfig(
           icon: Icons.notifications_active_rounded,
-          iconColor: Color(0xFF8B5CF6),
+          iconColor: Color(0xFF528BFF),
           title: 'Notification Access',
           subtitle: 'Stay updated on orders and deliveries',
           reasons: [
