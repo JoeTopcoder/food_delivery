@@ -16,6 +16,7 @@ import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
 import '../web/admin/admin_web_app.dart';
 import '../web/customer/customer_web_app.dart';
+import '../widgets/riding_courier.dart';
 import '../widgets/role_guard.dart';
 
 const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
@@ -329,6 +330,23 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 26),
+
+                // The rider: a courier on a scooter with the delivery box on
+                // the back, wheels turning and the road running under him.
+                // Drawn, not an asset, so it takes the role's own colours.
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, _) => Opacity(
+                    opacity: _subtitleOpacity.value,
+                    child: RidingCourier(
+                      width: (size.width * 0.62).clamp(180.0, 300.0),
+                      color: Colors.white,
+                      accent: config.gradientStart,
                     ),
                   ),
                 ),
@@ -820,6 +838,24 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // The rider: a courier on a scooter with the delivery box on
+                // the back, wheels turning and the road running underneath.
+                // Drawn rather than shipped as an asset, so it stays crisp at
+                // any density and needs no image to load before it can appear.
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, __) => Opacity(
+                    opacity: _titleOpacity.value,
+                    child: RidingCourier(
+                      width: (MediaQuery.of(context).size.width * 0.64)
+                          .clamp(190.0, 320.0),
+                      accent: const Color(0xFF581C87),
                     ),
                   ),
                 ),
