@@ -87,7 +87,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     }
     final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
 
-    // MealHub+ free-delivery preview (delivery only).
+    // Quickdash+ free-delivery preview (delivery only).
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subDeliveryFree =
         activeSub != null &&
@@ -528,7 +528,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             else
                               _PriceRow(
                                 subDeliveryFree
-                                    ? 'Delivery (MealHub+ FREE)'
+                                    ? 'Delivery (Quickdash+ FREE)'
                                     : surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                                     : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',

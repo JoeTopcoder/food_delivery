@@ -22,7 +22,7 @@ class _AdminMarketingContentScreenState extends State<AdminMarketingContentScree
   static const _examples = [
     'Instagram caption announcing free delivery this weekend',
     'Driver recruitment flyer text for a new city launch',
-    'Email to restaurants inviting them to join 7Dash',
+    'Email to restaurants inviting them to join Quickdash',
   ];
 
   Future<void> _generate() async {

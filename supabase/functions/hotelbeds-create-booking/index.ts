@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
       .single();
 
     // Build Hotelbeds booking request
-    const agencyRef = `7DASH-${Date.now()}`;
+    const agencyRef = `QUICKDASH-${Date.now()}`;
     const bookingRooms = Array.from({ length: body.rooms }, (_, i) => {
       const roomPax = body.passengers?.filter((p) => p.room_id === i + 1) ?? [];
       return {
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       holder: { name: body.holder_first_name, surname: body.holder_last_name },
       rooms: bookingRooms,
       clientReference: agencyRef,
-      remark: `Booking via 7DASH | ${body.holder_email}${body.holder_phone ? ` | ${body.holder_phone}` : ""}`,
+      remark: `Booking via QUICKDASH | ${body.holder_email}${body.holder_phone ? ` | ${body.holder_phone}` : ""}`,
       tolerance: 2, // 2% price tolerance
     };
 

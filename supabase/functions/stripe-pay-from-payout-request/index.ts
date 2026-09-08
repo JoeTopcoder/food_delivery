@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
           payout_request_id: pr.id,
           requester_id: pr.requester_id,
           driver_id: pr.driver_id ?? '',
-          app: '7Dash',
+          app: 'Quickdash',
         },
       },
       { idempotencyKey: `old_transfer_${pr.id}` },
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         metadata: {
           payout_request_id: pr.id,
           transfer_id: transfer.id,
-          app: '7Dash',
+          app: 'Quickdash',
         },
       },
       {

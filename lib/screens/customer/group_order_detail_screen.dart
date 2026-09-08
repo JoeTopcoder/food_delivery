@@ -162,17 +162,17 @@ class _GroupOrderDetailScreenState
   }
 
   String _inviteLink(GroupOrder group) =>
-      'https://mealhub.app/join-group/${group.inviteCode}';
+      'https://quickdash.app/join-group/${group.inviteCode}';
 
   void _shareInvite(GroupOrder group) {
     final link = _inviteLink(group);
     SharePlus.instance.share(
       ShareParams(
         text:
-            '🍽️ Join my group order "${group.name}" on MealHub!\n\n'
+            '🍽️ Join my group order "${group.name}" on Quickdash!\n\n'
             'Tap the link to join instantly:\n$link\n\n'
-            'Or open MealHub → Group Orders → Join → enter code: ${group.inviteCode}',
-        subject: 'Join my MealHub group order!',
+            'Or open Quickdash → Group Orders → Join → enter code: ${group.inviteCode}',
+        subject: 'Join my Quickdash group order!',
       ),
     );
   }

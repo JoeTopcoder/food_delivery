@@ -82,7 +82,7 @@ class _WebAdminContractPageState extends ConsumerState<WebAdminContractPage> {
   void _applyData(Map<String, dynamic> d) {
     _contractId = d['id']?.toString();
     _proprietorName.text = d['proprietor_name'] ?? 'Joel Scott';
-    _tradingAs.text = d['trading_as'] ?? '7Dash';
+    _tradingAs.text = d['trading_as'] ?? 'Quickdash';
     _clientName.text = d['client_name'] ?? '';
     _commissionMin.text = d['commission_min']?.toString() ?? '15';
     _commissionMax.text = d['commission_max']?.toString() ?? '30';
@@ -102,7 +102,7 @@ class _WebAdminContractPageState extends ConsumerState<WebAdminContractPage> {
 
   void _applyDefaults() {
     _proprietorName.text = 'Joel Scott';
-    _tradingAs.text = '7Dash';
+    _tradingAs.text = 'Quickdash';
     _commissionMin.text = '15';
     _commissionMax.text = '30';
     _ownDriverCommissionMin.text = '5';

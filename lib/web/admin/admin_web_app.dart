@@ -56,7 +56,7 @@ enum _AdminPage {
   chats,
   contract,
   ads,
-  mealhub,
+  quickdash,
   mealPlans,
   shippingCompanies,
   packageDeliveries,
@@ -109,7 +109,7 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
     (
       label: 'SUBSCRIPTIONS',
       items: [
-        (icon: Icons.card_membership_rounded, label: 'MealHub+', page: _AdminPage.mealhub),
+        (icon: Icons.card_membership_rounded, label: 'Quickdash+', page: _AdminPage.quickdash),
         (icon: Icons.restaurant_menu_rounded, label: 'Meal Plans', page: _AdminPage.mealPlans),
       ]
     ),
@@ -158,7 +158,7 @@ class _AdminWebAppState extends ConsumerState<AdminWebApp> {
     _AdminPage.chats              => const WebAdminChatsPage(),
     _AdminPage.contract           => const WebAdminContractPage(),
     _AdminPage.ads                => const WebAdminAdsPage(),
-    _AdminPage.mealhub            => const WebAdminMealhubPage(),
+    _AdminPage.quickdash            => const WebAdminMealhubPage(),
     _AdminPage.mealPlans          => const WebAdminMealPlansPage(),
     _AdminPage.shippingCompanies  => const WebAdminShippingCompaniesPage(),
     _AdminPage.packageDeliveries  => const WebAdminPackageDeliveriesPage(),

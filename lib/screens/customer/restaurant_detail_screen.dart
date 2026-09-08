@@ -390,10 +390,10 @@ class _RestaurantDetailScreenState
                       ShareParams(
                         text:
                             '🍽️ $name$rating\n'
-                            '$cuisine • Order on MealHub\n\n'
+                            '$cuisine • Order on Quickdash\n\n'
                             'Use code NEWUSER for 30% off your first order!\n'
-                            'https://mealhub.app/restaurant/$id',
-                        subject: 'Check out $name on MealHub!',
+                            'https://quickdash.app/restaurant/$id',
+                        subject: 'Check out $name on Quickdash!',
                       ),
                     );
                   },

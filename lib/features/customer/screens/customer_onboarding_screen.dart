@@ -343,7 +343,7 @@ class _CustomerOnboardingScreenState
                                 color: Colors.amber, size: 16),
                             SizedBox(width: 5),
                             Text(
-                              '7DASH',
+                              'QUICKDASH',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w800,

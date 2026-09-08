@@ -1002,8 +1002,8 @@ class _ReviewStep extends ConsumerWidget {
               ignoring: walletBalance <= 0,
               child: _PaymentOption(
                 label: walletBalance > 0
-                    ? '7Dash Wallet (\$${walletBalance.toStringAsFixed(2)})'
-                    : '7Dash Wallet (no funds)',
+                    ? 'Quickdash Wallet (\$${walletBalance.toStringAsFixed(2)})'
+                    : 'Quickdash Wallet (no funds)',
                 icon: Icons.account_balance_wallet_rounded,
                 value: 'wallet',
                 groupValue: paymentMethod,

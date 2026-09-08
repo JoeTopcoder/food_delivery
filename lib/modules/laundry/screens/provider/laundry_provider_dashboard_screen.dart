@@ -419,7 +419,7 @@ class _ProviderEarningsTab extends ConsumerWidget {
                     _EarningSummaryCard(
                       label: 'Net Earnings',
                       value: '$c${v('net_earnings').toStringAsFixed(2)}',
-                      subtitle: 'After 7Dash commission',
+                      subtitle: 'After Quickdash commission',
                       color: Colors.green,
                       icon: Icons.account_balance_wallet_rounded,
                     ),

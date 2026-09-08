@@ -401,7 +401,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'MealHub/1.0 (support@mealhubcayman.com)',
+              'User-Agent': 'Quickdash/1.0 (support@mealhubcayman.com)',
             },
           )
           .timeout(const Duration(seconds: 6));
@@ -610,7 +610,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'MealHub/1.0 (support@mealhubcayman.com)',
+              'User-Agent': 'Quickdash/1.0 (support@mealhubcayman.com)',
               'Accept-Language': 'en',
             },
           )

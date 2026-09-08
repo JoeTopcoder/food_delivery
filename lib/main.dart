@@ -565,7 +565,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       navigatorKey: _navigatorKey,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
-        title: '7Dash',
+        title: 'Quickdash',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,

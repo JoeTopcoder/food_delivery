@@ -3,7 +3,7 @@ import { serviceClient } from '../stripe-shared/supabase.ts'
 import { requireAuth } from '../stripe-shared/auth.ts'
 import { json, errorResponse, handleOptions } from '../stripe-shared/errors.ts'
 
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://7dash.app'
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://quickdash.app'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return handleOptions()
