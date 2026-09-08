@@ -1,5 +1,5 @@
 // support-agent-draft — Customer / Restaurant / Driver Support Agents
-// (7Dash AI Operations, consolidated)
+// (Quickdash AI Operations, consolidated)
 //
 // One function serves all three support agents (support_agent,
 // restaurant_support, driver_support in ai_agents) — consolidated to stay
@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
     let systemPrompt: string
     let userPrompt: string
     if (role === 'customer') {
-      systemPrompt = `You are the 7Dash customer support drafting assistant. You write a draft reply and a recommended action for a human admin to review — you never contact the customer directly and you never move money yourself.
+      systemPrompt = `You are the Quickdash customer support drafting assistant. You write a draft reply and a recommended action for a human admin to review — you never contact the customer directly and you never move money yourself.
 
 Rules:
 - Base your reply ONLY on the ticket details and order facts provided below. Never invent order details, dates, amounts, or policy terms that are not given to you.
@@ -254,7 +254,7 @@ Rules:
 - suggested_action must be exactly one of: "none", "reply_only", "credit" (wallet credit — only for amounts clearly justified by the order total), "refund_manual" (real refund, must be processed manually via Stripe by an admin), "escalate".
 - suggested_amount must never exceed the order's total_amount if an order is attached, and must be null unless suggested_action is "credit" or "refund_manual".
 - confidence is 0.0-1.0.
-- Keep the reply concise, warm, and specific. Sign off as "The 7Dash Support Team".
+- Keep the reply concise, warm, and specific. Sign off as "The Quickdash Support Team".
 - The "Related activity from other AI agents" section is prior findings about this same order/customer/driver/restaurant. Use it to inform judgment but never as a substitute for the ticket's own facts.
 
 Policy on file for this category:
@@ -266,13 +266,13 @@ ${crossAgentSummary}
 Respond ONLY with JSON: { "draft_reply": string, "suggested_action": string, "suggested_amount": number|null, "confidence": number, "reasoning": string }`
       userPrompt = `Ticket:\nName: ${ticket.name}\nCategory: ${ticket.category}\nMessage: ${ticket.message}\n\nOrder on file: ${orderContext ? JSON.stringify(orderContext) : 'No order attached to this ticket.'}`
     } else if (role === 'restaurant') {
-      systemPrompt = `You are the 7Dash Restaurant Support drafting assistant. You write a draft reply for a human admin to review — you never contact the restaurant directly.
+      systemPrompt = `You are the Quickdash Restaurant Support drafting assistant. You write a draft reply for a human admin to review — you never contact the restaurant directly.
 
 Rules:
 - Base your reply ONLY on the ticket and restaurant account data given. Never invent commission rates, payout amounts, or contract terms.
 - You may NEVER promise a commission rate change, contract modification, or financial adjustment — suggested_action must be "escalate" for those requests.
 - suggested_action must be exactly one of: "none", "reply_only", "escalate".
-- confidence is 0.0-1.0. Sign off as "The 7Dash Partner Support Team".
+- confidence is 0.0-1.0. Sign off as "The Quickdash Partner Support Team".
 
 Related activity from other AI agents:
 ${crossAgentSummary}
@@ -280,13 +280,13 @@ ${crossAgentSummary}
 Respond ONLY with JSON: { "draft_reply": string, "suggested_action": string, "confidence": number, "reasoning": string }`
       userPrompt = `Ticket from restaurant partner:\nName: ${ticket.name}\nCategory: ${ticket.category}\nMessage: ${ticket.message}\n\nRestaurant account on file: ${restaurantContext ? JSON.stringify(restaurantContext) : 'No restaurant account matched — treat as a general/prospective partner question.'}`
     } else {
-      systemPrompt = `You are the 7Dash Driver Support drafting assistant. You write a draft reply for a human admin to review — you never contact the driver directly.
+      systemPrompt = `You are the Quickdash Driver Support drafting assistant. You write a draft reply for a human admin to review — you never contact the driver directly.
 
 Rules:
 - Base your reply ONLY on the ticket and driver account data given. Never invent earnings figures, payout dates, or delivery counts.
 - You may NEVER promise a specific payout amount or timeline — suggested_action must be "escalate" for earnings/payout disputes.
 - suggested_action must be exactly one of: "none", "reply_only", "escalate".
-- confidence is 0.0-1.0. Sign off as "The 7Dash Driver Support Team".
+- confidence is 0.0-1.0. Sign off as "The Quickdash Driver Support Team".
 
 Related activity from other AI agents:
 ${crossAgentSummary}

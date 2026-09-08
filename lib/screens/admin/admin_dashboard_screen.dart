@@ -683,7 +683,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           ),
                           _GridAction(
                             icon: Icons.card_membership_rounded,
-                            label: 'MealHub+',
+                            label: 'Quickdash+',
                             color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,

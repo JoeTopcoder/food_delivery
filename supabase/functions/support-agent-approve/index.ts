@@ -1,4 +1,4 @@
-// support-agent-approve — AI Support Agent (7Dash AI Operations, v1)
+// support-agent-approve — AI Support Agent (Quickdash AI Operations, v1)
 // Admin review step for a support-agent-draft output. Only this function may
 // send the customer-facing email or move money (wallet credit) — the draft
 // function never does either.
@@ -9,7 +9,7 @@ import { requireAdmin } from '../stripe-shared/auth.ts'
 import { json, errorResponse, handleOptions } from '../stripe-shared/errors.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const FROM_EMAIL = Deno.env.get('SUPPORT_FROM_EMAIL') ?? '7Dash Support <onboarding@resend.dev>'
+const FROM_EMAIL = Deno.env.get('SUPPORT_FROM_EMAIL') ?? 'Quickdash Support <onboarding@resend.dev>'
 
 // Wallet credit is the only money-moving action this function will execute
 // automatically. "refund_manual" is intentionally NOT auto-executed — there is
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a2e;">
         <p>Hi ${escapeHtml(ticket.name || 'there')},</p>
         <p style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(replyText)}</p>
-        ${creditIssued ? `<p style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;color:#16a34a;">We've added a $${creditAmount.toFixed(2)} credit to your 7Dash wallet.</p>` : ''}
+        ${creditIssued ? `<p style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;color:#16a34a;">We've added a $${creditAmount.toFixed(2)} credit to your Quickdash wallet.</p>` : ''}
         <p style="color:#999;font-size:12px;margin-top:24px;">Reference: ${support_request_id}</p>
       </body></html>`
 
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: FROM_EMAIL,
           to: [ticket.email],
-          subject: `Re: Your 7Dash support request (${ticket.category})`,
+          subject: `Re: Your Quickdash support request (${ticket.category})`,
           html,
         }),
       })

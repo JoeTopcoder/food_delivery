@@ -253,7 +253,7 @@ class _TopBar extends StatelessWidget {
                 child: const Icon(Icons.fastfood_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 6),
-              const Text('7DASH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B), letterSpacing: -0.5)),
+              const Text('QUICKDASH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B), letterSpacing: -0.5)),
             ]),
           ),
 
@@ -453,7 +453,7 @@ class _NavDrawer extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('7DASH', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                const Text('QUICKDASH', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
                 Text(isGuest ? 'Guest' : 'Hi, $userName 👋', style: const TextStyle(color: Colors.white54, fontSize: 12)),
               ]),
             ]),

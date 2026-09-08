@@ -264,7 +264,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            '7DASH',
+                            'QUICKDASH',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -812,7 +812,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            '7DASH',
+                            'QUICKDASH',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,

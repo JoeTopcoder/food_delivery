@@ -1668,7 +1668,7 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are the 7Dash Food Concierge. You turn a natural request into a ready-to-confirm cart.
+const SYSTEM_PROMPT = `You are the Quickdash Food Concierge. You turn a natural request into a ready-to-confirm cart.
 
 WHAT YOU DO
 Understand the request, find real dishes, choose the best ones, and call place_in_cart — which builds, prices, applies the best promotion, and hands off to checkout in one step.
@@ -1861,7 +1861,7 @@ Deno.serve(async (req) => {
       'is wrong because it looks big.';
 
     const walletLine = ctx.walletCents != null
-      ? `The customer's 7Dash wallet balance is ${cfgForPrompt.currencySymbol}${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
+      ? `The customer's Quickdash wallet balance is ${cfgForPrompt.currencySymbol}${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
       : 'The customer has no wallet balance recorded.';
 
     // Habits are injected as context rather than exposed as a tool: they are

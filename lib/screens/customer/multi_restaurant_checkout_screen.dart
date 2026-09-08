@@ -1114,7 +1114,7 @@ class _MultiRestaurantCheckoutScreenState
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the MealHub terms and conditions',
+                            'I agree to the Quickdash terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
                               color: Theme.of(

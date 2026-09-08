@@ -106,7 +106,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
 
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:32px 24px;text-align:center;">
-      <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">MealHub</div>
+      <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Quickdash</div>
       <div style="color:rgba(255,255,255,0.85);font-size:14px;margin-top:4px;">Order Receipt</div>
     </div>
 
@@ -187,8 +187,8 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
 
     <!-- Footer -->
     <div style="text-align:center;padding:24px 0;color:#999;font-size:12px;">
-      <div>Thank you for ordering with MealHub!</div>
-      <div style="margin-top:4px;">If you have questions, contact support@mealhub.app</div>
+      <div>Thank you for ordering with Quickdash!</div>
+      <div style="margin-top:4px;">If you have questions, contact support@quickdash.app</div>
     </div>
   </div>
 </body>
@@ -257,12 +257,12 @@ Deno.serve(async (request) => {
     const html = buildReceiptHtml(order, items, restaurant || {}, customerName);
 
     const receiptNumber = order.receipt_number || `FD-${orderId.substring(0, 8).toUpperCase()}`;
-    const restName = restaurant?.name || "MealHub";
+    const restName = restaurant?.name || "Quickdash";
 
     // ── 5. Send via Resend ───────────────────────────────────────────────
     const emailResult = await sendEmail({
       to: [customer.email],
-      subject: `Your MealHub Receipt — ${receiptNumber} from ${restName}`,
+      subject: `Your Quickdash Receipt — ${receiptNumber} from ${restName}`,
       html,
     });
 

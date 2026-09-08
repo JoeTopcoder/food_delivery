@@ -143,7 +143,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
 
-    // ── MealHub+ subscription benefit ──────────────────────────────
+    // ── Quickdash+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subEligible =
         activeSub != null &&
@@ -721,7 +721,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                           const SizedBox(height: 10),
                         ],
-                        // MealHub+ banner
+                        // Quickdash+ banner
                         if (subDeliveryFree) ...[
                           Container(
                             padding: EdgeInsets.symmetric(
@@ -745,7 +745,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'MealHub+ Free Delivery Applied',
+                                  'Quickdash+ Free Delivery Applied',
                                   style: TextStyle(
                                     fontSize: Responsive.smallText(context),
                                     fontWeight: FontWeight.w600,
@@ -776,7 +776,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           rawFee > 0
                               ? _PriceRow(
                                   subServiceDiscount > 0
-                                      ? 'Pickup Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                      ? 'Pickup Fee (Quickdash+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
                                       : 'Pickup Fee',
                                   '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
                                   valueColor: subServiceDiscount > 0
@@ -787,7 +787,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         else
                           _PriceRow(
                             subDeliveryFree
-                                ? 'Delivery (MealHub+ FREE)'
+                                ? 'Delivery (Quickdash+ FREE)'
                                 : isMultiRestaurant
                                 ? 'Delivery (per restaurant)${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}'
                                 : 'Delivery${distanceKm != null ? ' (KM) – ${distanceKm.toStringAsFixed(1)} km' : ' (Base)'}',

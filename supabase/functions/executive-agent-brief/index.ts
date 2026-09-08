@@ -1,4 +1,4 @@
-// executive-agent-brief — Executive Intelligence Agent (7Dash AI Operations)
+// executive-agent-brief — Executive Intelligence Agent (Quickdash AI Operations)
 // Read-only. Computes all figures deterministically in SQL first, then asks
 // the model only to narrate those given numbers — it never calculates
 // anything itself and cannot take any action (no writes outside the audit log).
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the 7Dash Executive Intelligence Agent. You write a short, direct executive briefing (120-180 words) narrating ONLY the numbers given to you below — never invent, estimate, or extrapolate a figure that isn't present. The support_agent_signal block comes from the Customer Support Agent's own activity log (a different AI agent) — treat escalations and credits issued as real operational signal, not just a metric to restate. Call out the single most important risk or win, and if support_agent_signal shows a notable pattern (e.g. several escalations), name it explicitly. Plain text, no markdown headers.`,
+              content: `You are the Quickdash Executive Intelligence Agent. You write a short, direct executive briefing (120-180 words) narrating ONLY the numbers given to you below — never invent, estimate, or extrapolate a figure that isn't present. The support_agent_signal block comes from the Customer Support Agent's own activity log (a different AI agent) — treat escalations and credits issued as real operational signal, not just a metric to restate. Call out the single most important risk or win, and if support_agent_signal shows a notable pattern (e.g. several escalations), name it explicitly. Plain text, no markdown headers.`,
             },
             { role: 'user', content: `Today's metrics:\n${JSON.stringify(metrics, null, 2)}` },
           ],

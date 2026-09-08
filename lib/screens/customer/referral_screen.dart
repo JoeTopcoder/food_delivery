@@ -216,7 +216,7 @@ class ReferralScreen extends ConsumerWidget {
                         onPressed: () => SharePlus.instance.share(
                           ShareParams(
                             text:
-                                'Join MealHub and use my referral code $code to get bonus loyalty points! Download the app now.',
+                                'Join Quickdash and use my referral code $code to get bonus loyalty points! Download the app now.',
                           ),
                         ),
                         icon: const Icon(Icons.share_rounded),

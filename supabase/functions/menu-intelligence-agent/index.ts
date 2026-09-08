@@ -1,4 +1,4 @@
-// menu-intelligence-agent — Menu Intelligence Agent (7Dash AI Operations)
+// menu-intelligence-agent — Menu Intelligence Agent (Quickdash AI Operations)
 // Read-only. Scans real menu items (table is confusingly named `menus`) for
 // concrete, objective quality issues — missing images, missing descriptions,
 // unavailable items, invalid prices, exact-name duplicates within a
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the 7Dash Menu Intelligence Agent. You're given menu quality data per restaurant, ranked by issue_score (higher = more issues). Write a short briefing (100-150 words) naming the 1-3 restaurants with the most menu quality issues and what specifically is wrong (missing images, missing descriptions, invalid prices, or duplicate item names — cite the actual counts). Restaurants with 0 issues don't need mentioning. All fixes require the restaurant or an admin to actually edit the menu — you are reporting only, never invent an issue not in the data. Plain text, no markdown.`,
+              content: `You are the Quickdash Menu Intelligence Agent. You're given menu quality data per restaurant, ranked by issue_score (higher = more issues). Write a short briefing (100-150 words) naming the 1-3 restaurants with the most menu quality issues and what specifically is wrong (missing images, missing descriptions, invalid prices, or duplicate item names — cite the actual counts). Restaurants with 0 issues don't need mentioning. All fixes require the restaurant or an admin to actually edit the menu — you are reporting only, never invent an issue not in the data. Plain text, no markdown.`,
             },
             { role: 'user', content: JSON.stringify(summaries) },
           ],

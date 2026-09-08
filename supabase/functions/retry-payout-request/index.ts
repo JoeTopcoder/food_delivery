@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
             payout_request_id: pr.id,
             user_id: pr.user_id,
             role: pr.role,
-            app: '7Dash',
+            app: 'Quickdash',
           },
         },
         { idempotencyKey: `transfer_${pr.id}` },
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
         user_id: pr.user_id,
         role: pr.role,
         payout_method: pr.payout_method ?? 'standard',
-        app: '7Dash',
+        app: 'Quickdash',
         retry: 'true',
       },
     }

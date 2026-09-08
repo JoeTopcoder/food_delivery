@@ -13,7 +13,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Introduction',
           body:
-              'SevenDash Technologies Limited ("7Dash", "we", "us", or "our") operates the 7Dash mobile application and related services (collectively, the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using 7Dash, you agree to the collection and use of information in accordance with this policy.',
+              'SevenDash Technologies Limited ("Quickdash", "we", "us", or "our") operates the Quickdash mobile application and related services (collectively, the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using Quickdash, you agree to the collection and use of information in accordance with this policy.',
         ),
         LegalSection(
           heading: '2. Information We Collect',

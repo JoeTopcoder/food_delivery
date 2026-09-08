@@ -13,12 +13,12 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Acceptance of Terms',
           body:
-              'By downloading, installing, or using the 7Dash mobile application ("App") operated by SevenDash Technologies Limited ("7Dash", "we", "us", "our"), you agree to be bound by these Terms & Conditions. If you do not agree to these terms, do not use the App.',
+              'By downloading, installing, or using the Quickdash mobile application ("App") operated by SevenDash Technologies Limited ("Quickdash", "we", "us", "our"), you agree to be bound by these Terms & Conditions. If you do not agree to these terms, do not use the App.',
         ),
         LegalSection(
           heading: '2. Eligibility',
           body:
-              'You must be at least 18 years of age to use 7Dash. By using the App, you represent and warrant that you are 18 or older and have the legal capacity to enter into these Terms.',
+              'You must be at least 18 years of age to use Quickdash. By using the App, you represent and warrant that you are 18 or older and have the legal capacity to enter into these Terms.',
         ),
         LegalSection(
           heading: '3. Account Registration',
@@ -59,7 +59,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '7. Payments',
           body:
-              'All payments are processed securely by Stripe. By placing an order or booking a service, you authorize 7Dash to charge your selected payment method for the total amount shown at checkout, including item prices, delivery fees, service fees, applicable taxes, and tip if added. Payments are denominated in USD unless otherwise indicated. We do not store full card numbers.',
+              'All payments are processed securely by Stripe. By placing an order or booking a service, you authorize Quickdash to charge your selected payment method for the total amount shown at checkout, including item prices, delivery fees, service fees, applicable taxes, and tip if added. Payments are denominated in USD unless otherwise indicated. We do not store full card numbers.',
         ),
         LegalSection(
           heading: '8. Delivery Fees & Service Fees',
@@ -79,7 +79,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '11. Subscriptions',
           body:
-              '7Dash+ subscription plans are billed on a recurring basis. By subscribing, you authorize us to charge your payment method automatically at the start of each billing period. You may cancel at any time; cancellations take effect at the end of the current billing period. See Subscription Terms in the Legal Center for full details.',
+              'Quickdash+ subscription plans are billed on a recurring basis. By subscribing, you authorize us to charge your payment method automatically at the start of each billing period. You may cancel at any time; cancellations take effect at the end of the current billing period. See Subscription Terms in the Legal Center for full details.',
         ),
         LegalSection(
           heading: '12. Prohibited Behavior',
@@ -96,12 +96,12 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '13. Intellectual Property',
           body:
-              'All content, trademarks, logos, and software in the App are owned by or licensed to 7Dash and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our written permission.',
+              'All content, trademarks, logos, and software in the App are owned by or licensed to Quickdash and are protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without our written permission.',
         ),
         LegalSection(
           heading: '14. Limitation of Liability',
           body:
-              'To the fullest extent permitted by law, 7Dash shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App. 7Dash acts as a technology platform connecting customers, drivers, and providers; we are not liable for the quality, safety, or legality of products or services provided by third-party partners.',
+              'To the fullest extent permitted by law, Quickdash shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App. Quickdash acts as a technology platform connecting customers, drivers, and providers; we are not liable for the quality, safety, or legality of products or services provided by third-party partners.',
         ),
         LegalSection(
           heading: '15. Account Suspension & Termination',

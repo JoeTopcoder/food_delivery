@@ -38,7 +38,7 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL =
   Deno.env.get("BROADCAST_FROM_EMAIL") ??
   Deno.env.get("RECEIPT_FROM_EMAIL") ??
-  "MealHub <onboarding@resend.dev>";
+  "Quickdash <onboarding@resend.dev>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -193,7 +193,7 @@ function defaultHtml(
   )}</p>
   ${code}
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-  <p style="margin:0;color:#999;font-size:12px">Sent by 7DASH. You can manage notifications in your account settings.</p>
+  <p style="margin:0;color:#999;font-size:12px">Sent by QUICKDASH. You can manage notifications in your account settings.</p>
 </div></body></html>`;
 }
 

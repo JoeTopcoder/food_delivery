@@ -14,7 +14,7 @@ class CancellationPolicyScreen extends StatelessWidget {
           heading: '1. Food & Grocery Orders',
           body:
               '• Before restaurant accepts: You may cancel at no charge and receive a full refund.\n\n'
-              '• After restaurant accepts but before preparation starts: Cancellation is permitted; refund is at 7Dash\'s discretion. The service fee is non-refundable.\n\n'
+              '• After restaurant accepts but before preparation starts: Cancellation is permitted; refund is at Quickdash\'s discretion. The service fee is non-refundable.\n\n'
               '• After preparation has started: Cancellation is generally not permitted. Contact support if you have an emergency; partial refunds are at our discretion.\n\n'
               '• After driver is assigned: Cancellation is not available through the app. Contact support; the delivery fee and service fee are non-refundable.',
         ),
@@ -49,7 +49,7 @@ class CancellationPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '6. Subscriptions',
           body:
-              'You may cancel your 7Dash+ subscription at any time. Your subscription remains active until the end of the current billing period. No partial-month refunds are issued. To cancel, go to Settings → Subscription → Cancel Subscription.',
+              'You may cancel your Quickdash+ subscription at any time. Your subscription remains active until the end of the current billing period. No partial-month refunds are issued. To cancel, go to Settings → Subscription → Cancel Subscription.',
         ),
         LegalSection(
           heading: '7. Provider-Initiated Cancellations',

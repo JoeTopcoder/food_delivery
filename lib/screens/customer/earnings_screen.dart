@@ -586,7 +586,7 @@ class _InviteCard extends StatelessWidget {
               onPressed: () => SharePlus.instance.share(
                 ShareParams(
                   text:
-                      'Join MealHub with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
+                      'Join Quickdash with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
                 ),
               ),
               icon: const Icon(Icons.share_rounded, size: 16),

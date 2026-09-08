@@ -234,7 +234,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      '7DASH',
+                      'QUICKDASH',
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,

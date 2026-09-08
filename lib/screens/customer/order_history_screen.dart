@@ -1119,7 +1119,7 @@ class _OrderCard extends ConsumerWidget {
           children: [
             Center(
               child: Text(
-                'MealHub',
+                'Quickdash',
                 style: TextStyle(
                   fontSize: Responsive.headingLarge(context),
                   fontWeight: FontWeight.bold,
@@ -1217,7 +1217,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 20),
             const Center(
               child: Text(
-                'Thank you for using MealHub!',
+                'Thank you for using Quickdash!',
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,

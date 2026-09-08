@@ -1,4 +1,4 @@
-// create-subscription — Creates a Stripe subscription for MealHub Basic/Pro plans
+// create-subscription — Creates a Stripe subscription for Quickdash Basic/Pro plans
 // Deploy: supabase functions deploy create-subscription --no-verify-jwt
 
 // deno-lint-ignore-file
@@ -201,7 +201,7 @@ Deno.serve(async (request) => {
         email,
         name,
         "metadata[user_id]": user.id,
-        "metadata[source]": "mealhub_subscription",
+        "metadata[source]": "quickdash_subscription",
       });
       if (customer.error) {
         const err = customer.error as Record<string, unknown>;

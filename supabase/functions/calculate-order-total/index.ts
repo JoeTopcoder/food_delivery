@@ -235,7 +235,7 @@ Deno.serve(async (request) => {
       deliveryFee = Math.round((deliveryFee * effectiveSurge + peakFee) * 100) / 100;
     }
 
-    // ── 4b. MealHub+ free-delivery eligibility (server-authoritative) ─────
+    // ── 4b. Quickdash+ free-delivery eligibility (server-authoritative) ─────
     let subscriptionDeliveryFree = false;
     let subscriptionId: string | null = null;
     if (!isPickup) {
