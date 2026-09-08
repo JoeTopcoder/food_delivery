@@ -152,6 +152,7 @@ class _MultiRestaurantCheckoutScreenState
     required String deliveryAddress,
     required double deliveryLat,
     required double deliveryLng,
+
     /// Set when the order is for a linked student; re-checked server-side.
     String? studentId,
     String? customerEmail,
@@ -436,7 +437,8 @@ class _MultiRestaurantCheckoutScreenState
 
     // One flat fee for a school run, however many kitchens it collects from —
     // the same rule the single-restaurant and grocery checkouts apply.
-    for (final restId in isStudentOrder ? const <String>[] : cartRestaurantIds) {
+    for (final restId
+        in isStudentOrder ? const <String>[] : cartRestaurantIds) {
       final restInfo = ref.watch(restaurantByIdProvider(restId)).valueOrNull;
       final feeKey = hasCoords && restInfo != null
           ? '$restId|$deliveryLat|$deliveryLng|${restInfo.latitude ?? ''}|${restInfo.longitude ?? ''}|${restInfo.deliveryFee ?? ''}'
@@ -801,11 +803,17 @@ class _MultiRestaurantCheckoutScreenState
                                 horizontal: 3,
                               ),
                               child: ChoiceChip(
-                                label: const Text(
-                                  'No Tip',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'None',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                                 selected: _driverTip == 0,
@@ -833,11 +841,17 @@ class _MultiRestaurantCheckoutScreenState
                                   horizontal: 3,
                                 ),
                                 child: ChoiceChip(
-                                  label: Text(
-                                    '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                   selected: isSelected,

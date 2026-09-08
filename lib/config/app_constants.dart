@@ -323,8 +323,11 @@
   static double carServicePlatformFeePct = 0.20;
   static double carServiceServiceFee = 2.50;
 
-  // Tips (in USD)
-  static List<double> presetTips = [2, 5, 10, 20];
+  // Tips, in JMD. These were US$2/5/10/20 and were missed when the rest of
+  // the platform was redenominated, so the chips read "J$2" while meaning a
+  // US tip — small enough on a J$ order to look like a mistake by the
+  // customer rather than by us.
+  static List<double> presetTips = [200, 300, 500, 1000];
 
   // Subscription (MealHub+) — overridden from app_config table
   static double subscriptionBasicPrice = 12.0;
