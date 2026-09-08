@@ -7,6 +7,7 @@ import '../../providers/delivery_region_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../widgets/app_map_tiles.dart';
 
 class AdminRegionsScreen extends ConsumerStatefulWidget {
   const AdminRegionsScreen({super.key});
@@ -58,11 +59,7 @@ class _AdminRegionsScreenState extends ConsumerState<AdminRegionsScreen> {
         mapController: _mapController,
         options: MapOptions(initialCenter: center, initialZoom: 10),
         children: [
-          TileLayer(
-            urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c', 'd'],
-            userAgentPackageName: 'sevendash.app',
-          ),
+          appMapTileLayer(),
           PolygonLayer(
             polygons: polygonRegions.map((r) {
               final isSelected = r.id == _selectedRegionId;
@@ -596,11 +593,7 @@ class _RegionPolygonPickerState extends State<_RegionPolygonPicker> {
               onTap: (_, point) => _addPoint(point),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'sevendash.app',
-              ),
+              appMapTileLayer(),
               if (hasPolygon)
                 PolygonLayer(
                   polygons: [

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../models/driver_intelligence_models.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/app_map_tiles.dart';
 
 class DemandHeatmapScreen extends ConsumerWidget {
   const DemandHeatmapScreen({super.key});
@@ -63,12 +64,7 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
         FlutterMap(
           options: MapOptions(initialCenter: center, initialZoom: 13),
           children: [
-            TileLayer(
-              urlTemplate:
-                  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c', 'd'],
-              userAgentPackageName: 'sevendash.app',
-            ),
+            appMapTileLayer(),
             // Surge radius circles — only where active orders exist
             CircleLayer(
               circles: activeZones.map((z) {
