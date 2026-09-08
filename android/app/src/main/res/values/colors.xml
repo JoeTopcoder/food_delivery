@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#000000</color>
-    <color name="brand_bg">#581C87</color>
+    <!-- Midnight Navy. Matches the first frame of the Flutter splash gradient,
+         so the handoff from this window to Flutter is not a colour jump. -->
+    <color name="brand_bg">#0B1220</color>
 </resources>
