@@ -450,54 +450,54 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         // already names the destination, and "Manage" would
                         // offer to change an address this order does not use.
                         if (!isStudentOrder) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: EdgeInsets.all(
-                            Responsive.spacingSmall(context),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(
-                              Responsive.cardRadius(context) - 2,
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: EdgeInsets.all(
+                              Responsive.spacingSmall(context),
                             ),
-                            border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.place_rounded,
-                                color: AppTheme.primaryColor,
-                                size: 18,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context) - 2,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  deliveryAddress,
-                                  style: TextStyle(
-                                    fontSize: Responsive.smallText(context),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.place_rounded,
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    deliveryAddress,
+                                    style: TextStyle(
+                                      fontSize: Responsive.smallText(context),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/address-book',
+                                TextButton(
+                                  onPressed: () => Navigator.pushNamed(
+                                    context,
+                                    '/address-book',
+                                  ),
+                                  child: const Text(
+                                    'Manage',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'Manage',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                         ],
                         const SizedBox(height: 6),
                         _AddressSlider(
@@ -1205,16 +1205,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '−\$${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
+                      // Most restaurants charge nothing to collect, and a
+                      // J$0.00 row is just one more fee-shaped line to read.
                       if (isPickup)
-                        _SummaryRow(
-                          subServiceDiscount > 0
-                              ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
-                              : 'Service Fee',
-                          '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
-                          valueColor: subServiceDiscount > 0
-                              ? const Color(0xFF6C63FF)
-                              : const Color(0xFF10B981),
-                        )
+                        rawFee > 0
+                            ? _SummaryRow(
+                                subServiceDiscount > 0
+                                    ? 'Pickup Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                    : 'Pickup Fee',
+                                '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                valueColor: subServiceDiscount > 0
+                                    ? const Color(0xFF6C63FF)
+                                    : const Color(0xFF10B981),
+                              )
+                            : const SizedBox.shrink()
                       else if (isGroupOrder)
                         _SummaryRow(
                           'Delivery (Group 40% off – $groupParticipantCount members)',
@@ -1482,6 +1486,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required double tax,
     required double total,
     required String deliveryAddress,
+
     /// Set when the order is for a linked student. The server re-checks the
     /// link and re-derives the school and fee from it; this is a request, not
     /// a statement of fact.

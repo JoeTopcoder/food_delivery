@@ -1117,11 +1117,14 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           valueColor: const Color(0xFF6366F1),
                         ),
                       if (isPickup)
-                        _SummaryRow(
-                          'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                          '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
-                          valueColor: const Color(0xFF10B981),
-                        )
+                        // Hidden when the store charges nothing to collect.
+                        activeFee > 0
+                            ? _SummaryRow(
+                                'Pickup Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                                '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
+                                valueColor: const Color(0xFF10B981),
+                              )
+                            : const SizedBox.shrink()
                       else
                         _SummaryRow(
                           subDeliveryFree
@@ -1359,6 +1362,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     required double tax,
     required double total,
     required String deliveryAddress,
+
     /// Set when the order is for a linked student; the server re-checks it.
     String? studentId,
     required User? currentUser,

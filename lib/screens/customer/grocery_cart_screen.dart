@@ -517,11 +517,14 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             ),
                             const SizedBox(height: 8),
                             if (isPickup)
-                              _PriceRow(
-                                'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                                '${AppConstants.currencySymbol}${effectiveFee.toStringAsFixed(2)}',
-                                valueColor: const Color(0xFF10B981),
-                              )
+                              // Hidden when the store charges nothing to collect.
+                              effectiveFee > 0
+                                  ? _PriceRow(
+                                      'Pickup Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                                      '${AppConstants.currencySymbol}${effectiveFee.toStringAsFixed(2)}',
+                                      valueColor: const Color(0xFF10B981),
+                                    )
+                                  : const SizedBox.shrink()
                             else
                               _PriceRow(
                                 subDeliveryFree
