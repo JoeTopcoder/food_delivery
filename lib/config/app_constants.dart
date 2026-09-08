@@ -224,6 +224,12 @@
 
   static double defaultDeliveryFee = 775.0; // JMD; overwritten from app_config
   static double pickupServiceFee = 0.0; // JMD; overwritten from app_config
+
+  /// Flat delivery fee for an order sent to a student at their school.
+  /// Replaces the distance-based fee entirely: a parent pays the same to send
+  /// lunch to school whether the restaurant is around the corner or across
+  /// town. Overwritten from app_config (`student_delivery_fee`).
+  static double studentDeliveryFee = 350.0; // JMD
   static double driverFeePerDelivery = 465.0; // JMD; overwritten from app_config
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;

@@ -18,6 +18,8 @@ import '../../providers/payment_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../services/driver/delivery_fee_service.dart';
+import '../../features/recipient/recipient_service.dart';
+import '../../features/recipient/recipient_selector.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
@@ -150,6 +152,8 @@ class _MultiRestaurantCheckoutScreenState
     required String deliveryAddress,
     required double deliveryLat,
     required double deliveryLng,
+    /// Set when the order is for a linked student; re-checked server-side.
+    String? studentId,
     String? customerEmail,
     String? customerName,
   }) async {
@@ -224,6 +228,7 @@ class _MultiRestaurantCheckoutScreenState
         'customer_id': userId,
         'restaurant_orders': restaurantOrders,
         'delivery_address': deliveryAddress,
+        if (studentId != null) 'student_id': studentId,
         'delivery_latitude': deliveryLat,
         'delivery_longitude': deliveryLng,
         'payment_method': _selectedPayment,
@@ -397,21 +402,28 @@ class _MultiRestaurantCheckoutScreenState
     final defaultAddrAsync = currentUserId != null
         ? ref.watch(defaultAddressProvider(currentUserId))
         : null;
-    final deliveryAddress =
-        selectedAddress?.address ??
-        defaultAddrAsync?.valueOrNull?.address ??
-        currentUser?.address ??
-        'No address saved';
-    final deliveryLat =
-        selectedAddress?.latitude ??
-        defaultAddrAsync?.valueOrNull?.latitude ??
-        currentUser?.latitude ??
-        0.0;
-    final deliveryLng =
-        selectedAddress?.longitude ??
-        defaultAddrAsync?.valueOrNull?.longitude ??
-        currentUser?.longitude ??
-        0.0;
+    // ── Recipient ────────────────────────────────────────────────────────
+    final student = ref.watch(selectedStudentDetailProvider);
+    final isStudentOrder = student != null && student.hasSchool;
+
+    final deliveryAddress = isStudentOrder
+        ? student.schoolAddress!
+        : (selectedAddress?.address ??
+              defaultAddrAsync?.valueOrNull?.address ??
+              currentUser?.address ??
+              'No address saved');
+    final deliveryLat = isStudentOrder
+        ? (student.schoolLat ?? 0.0)
+        : (selectedAddress?.latitude ??
+              defaultAddrAsync?.valueOrNull?.latitude ??
+              currentUser?.latitude ??
+              0.0);
+    final deliveryLng = isStudentOrder
+        ? (student.schoolLng ?? 0.0)
+        : (selectedAddress?.longitude ??
+              defaultAddrAsync?.valueOrNull?.longitude ??
+              currentUser?.longitude ??
+              0.0);
 
     // Per-restaurant delivery fee calculation
     final hasCoords = deliveryLat != 0.0 && deliveryLng != 0.0;
@@ -422,7 +434,9 @@ class _MultiRestaurantCheckoutScreenState
     bool deliveryFeeLoading = false;
     final perRestFees = <String, double>{};
 
-    for (final restId in cartRestaurantIds) {
+    // One flat fee for a school run, however many kitchens it collects from —
+    // the same rule the single-restaurant and grocery checkouts apply.
+    for (final restId in isStudentOrder ? const <String>[] : cartRestaurantIds) {
       final restInfo = ref.watch(restaurantByIdProvider(restId)).valueOrNull;
       final feeKey = hasCoords && restInfo != null
           ? '$restId|$deliveryLat|$deliveryLng|${restInfo.latitude ?? ''}|${restInfo.longitude ?? ''}|${restInfo.deliveryFee ?? ''}'
@@ -436,6 +450,8 @@ class _MultiRestaurantCheckoutScreenState
       perRestFees[restId] = fee;
       totalDeliveryFee += fee;
     }
+
+    if (isStudentOrder) totalDeliveryFee = AppConstants.studentDeliveryFee;
 
     final platformFee = AppConstants.calculateServiceFee(subtotal);
     final total =
@@ -491,7 +507,13 @@ class _MultiRestaurantCheckoutScreenState
                   icon: Icons.location_on_rounded,
                   child: Column(
                     children: [
-                      if (addressAsync != null)
+                      RecipientSelector(
+                        onChanged: () =>
+                            setState(() => _addressConfirmed = false),
+                      ),
+                      const SchoolDestinationBanner(),
+                      const SizedBox(height: 14),
+                      if (addressAsync != null && !isStudentOrder)
                         addressAsync.when(
                           loading: () => const SizedBox.shrink(),
                           error: (_, __) => const SizedBox.shrink(),
@@ -1106,6 +1128,7 @@ class _MultiRestaurantCheckoutScreenState
                                 extraStopFee: totalExtraStopFee,
                                 total: total,
                                 deliveryAddress: deliveryAddress,
+                                studentId: isStudentOrder ? student.id : null,
                                 deliveryLat: deliveryLat,
                                 deliveryLng: deliveryLng,
                                 customerEmail: currentUser?.email,

@@ -27,6 +27,8 @@ import '../../utils/safe_state_mixin.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../services/driver/delivery_fee_service.dart';
+import '../../features/recipient/recipient_service.dart';
+import '../../features/recipient/recipient_selector.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../widgets/outstanding_debt_banner.dart';
 import '../../providers/recommendation_provider.dart';
@@ -191,20 +193,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
+    // ── Recipient ────────────────────────────────────────────────────────
+    // Choosing a student redirects the whole delivery: the destination becomes
+    // their school and the fee becomes the flat student rate, whatever the
+    // distance. Pickup is excluded — you cannot collect an order on a child's
+    // behalf and still have it reach the school.
+    final student = ref.watch(selectedStudentDetailProvider);
+    final isStudentOrder = student != null && student.hasSchool && !isPickup;
+
     // Admin-configured delivery fee via Edge Function
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
+    final delLat = isStudentOrder
+        ? student.schoolLat
+        : (selectedAddress?.latitude ?? currentUser?.latitude);
+    final delLng = isStudentOrder
+        ? student.schoolLng
+        : (selectedAddress?.longitude ?? currentUser?.longitude);
     final hasCoords = delLat != null && delLng != null && restaurantId != null;
     final feeKey = hasCoords
         ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
-    final feeAsync = feeKey.isNotEmpty && !isPickup
+    final feeAsync = feeKey.isNotEmpty && !isPickup && !isStudentOrder
         ? ref.watch(deliveryFeeProvider(feeKey))
         : const AsyncValue<DeliveryFeeResult?>.data(null);
-    final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
+    final feeLoading =
+        hasCoords && !isPickup && !isStudentOrder && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
-    final baseDeliveryFee =
-        feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+    // A school delivery is a flat rate by design, so no distance lookup runs
+    // and none of its result is consulted.
+    final baseDeliveryFee = isStudentOrder
+        ? AppConstants.studentDeliveryFee
+        : (feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee);
     final distanceKm = feeResult?.distanceKm;
 
     // ── Group order discount (60% of regular delivery fee) ──────────
@@ -264,8 +282,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
 
-    final deliveryAddress =
-        selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
+    // The school wins over every saved address when the order is for a student:
+    // it is the destination, not a suggestion the parent can override.
+    final deliveryAddress = isStudentOrder
+        ? student.schoolAddress!
+        : (selectedAddress?.address ??
+              currentUser?.address ??
+              'No address saved');
 
     return Scaffold(
       appBar: AppBar(
@@ -372,8 +395,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     icon: Icons.location_on_rounded,
                     child: Column(
                       children: [
-                        // Saved address book
-                        if (addressAsync != null)
+                        // Who the order is for, asked before where it goes —
+                        // choosing a student decides the address, so offering
+                        // the address book first would be offering a choice
+                        // this can overrule.
+                        if (!isPickup) ...[
+                          RecipientSelector(
+                            onChanged: () =>
+                                setState(() => _addressConfirmed = false),
+                          ),
+                          const SchoolDestinationBanner(),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // Saved address book. A student order already has its
+                        // destination, so the parent's own addresses are hidden
+                        // rather than shown as if they were still in play.
+                        if (addressAsync != null && !isStudentOrder)
                           addressAsync.when(
                             loading: () => const SizedBox.shrink(),
                             error: (error, stackTrace) =>
@@ -1318,6 +1356,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   tax: tax,
                                   total: total,
                                   deliveryAddress: deliveryAddress,
+                                  studentId: isStudentOrder ? student.id : null,
                                   currentUser: currentUser,
                                   promoDiscount: promoDiscount,
                                   loyaltyDiscount: loyaltyDiscount,
@@ -1348,11 +1387,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 )
                               : Text(
                                   () {
-                                    final amt = grandTotal.toStringAsFixed(2);
+                                    final amt =
+                                        '${AppConstants.currencySymbol}'
+                                        '${grandTotal.toStringAsFixed(2)}';
                                     if (_selectedPayment == 'stripe') {
-                                      return 'Pay Now \u2014 \$$amt';
+                                      return 'Pay Now \u2014 $amt';
                                     }
-                                    return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$$amt';
+                                    return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 $amt';
                                   }(),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
@@ -1436,6 +1477,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required double tax,
     required double total,
     required String deliveryAddress,
+    /// Set when the order is for a linked student. The server re-checks the
+    /// link and re-derives the school and fee from it; this is a request, not
+    /// a statement of fact.
+    String? studentId,
     required dynamic currentUser,
     required double promoDiscount,
     required double loyaltyDiscount,
@@ -1627,6 +1672,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,
         savedCardPaymentMethodId: savedCardPmId,
+        studentId: studentId,
       );
 
       // Clear active ad after order placed

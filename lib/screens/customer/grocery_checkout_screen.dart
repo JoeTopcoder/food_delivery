@@ -28,6 +28,8 @@ import '../../utils/friendly_error.dart';
 import '../../utils/safe_state_mixin.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../widgets/outstanding_debt_banner.dart';
+import '../../features/recipient/recipient_service.dart';
+import '../../features/recipient/recipient_selector.dart';
 import 'order_success_screen.dart';
 
 class GroceryCheckoutScreen extends ConsumerStatefulWidget {
@@ -167,14 +169,26 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
 
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
+    // ── Recipient ────────────────────────────────────────────────────────
+    // Same rule as the food checkout: a student recipient redirects delivery to
+    // their school and replaces the fee with the flat student rate.
+    final student = ref.watch(selectedStudentDetailProvider);
+    final isStudentOrder = student != null && student.hasSchool && !isPickup;
+
+    final delLat = isStudentOrder
+        ? student.schoolLat
+        : (selectedAddress?.latitude ?? currentUser?.latitude);
+    final delLng = isStudentOrder
+        ? student.schoolLng
+        : (selectedAddress?.longitude ?? currentUser?.longitude);
     final hasDeliveryCoords = delLat != null && delLng != null;
 
     double activeFee = 0;
     final feeTypes = <String>{};
     bool anyFeeLoading = false;
-    for (final sid in storeIds) {
+    // A school delivery is one flat fee for the whole order, not one per store:
+    // the run ends at a single address whatever it was collected from.
+    for (final sid in isStudentOrder ? const <String>[] : storeIds) {
       final s = storeData[sid];
       if (isPickup) {
         activeFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
@@ -198,7 +212,10 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
         activeFee += AppConstants.defaultDeliveryFee;
       }
     }
-    final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
+    if (isStudentOrder) activeFee = AppConstants.studentDeliveryFee;
+    final feeTypeLabel = isStudentOrder
+        ? ' (School)'
+        : (feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '');
 
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subEligible =
@@ -239,8 +256,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
 
-    final deliveryAddress =
-        selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
+    final deliveryAddress = isStudentOrder
+        ? student.schoolAddress!
+        : (selectedAddress?.address ??
+              currentUser?.address ??
+              'No address saved');
 
     return Scaffold(
       appBar: AppBar(
@@ -392,7 +412,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                     icon: Icons.location_on_rounded,
                     child: Column(
                       children: [
-                        if (addressAsync != null)
+                        RecipientSelector(
+                          onChanged: () =>
+                              setState(() => _addressConfirmed = false),
+                        ),
+                        const SchoolDestinationBanner(),
+                        const SizedBox(height: 14),
+                        if (addressAsync != null && !isStudentOrder)
                           addressAsync.when(
                             loading: () => const SizedBox.shrink(),
                             error: (_, __) => const SizedBox.shrink(),
@@ -1225,6 +1251,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                   tax: tax,
                                   total: total,
                                   deliveryAddress: deliveryAddress,
+                                  studentId: isStudentOrder ? student.id : null,
                                   currentUser: currentUser,
                                   promoDiscount: promoDiscount,
                                   loyaltyDiscount: loyaltyDiscount,
@@ -1254,8 +1281,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                 )
                               : Text(
                                   _selectedPayment == 'stripe'
-                                      ? 'Pay Now — \$${grandTotal.toStringAsFixed(2)}'
-                                      : '${isPickup ? "Place Pickup Order" : "Place Grocery Order"} — \$${grandTotal.toStringAsFixed(2)}',
+                                      ? 'Pay Now — ${AppConstants.currencySymbol}'
+                                            '${grandTotal.toStringAsFixed(2)}'
+                                      : '${isPickup ? "Place Pickup Order" : "Place Grocery Order"} '
+                                            '— ${AppConstants.currencySymbol}'
+                                            '${grandTotal.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -1329,6 +1359,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     required double tax,
     required double total,
     required String deliveryAddress,
+    /// Set when the order is for a linked student; the server re-checks it.
+    String? studentId,
     required User? currentUser,
     required double promoDiscount,
     required double loyaltyDiscount,
@@ -1458,6 +1490,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
               : null,
           promoCode: !promoApplied ? appliedPromo?.code : null,
           paymentIntentId: savedCardPaymentIntentId,
+          studentId: studentId,
         );
 
         final orderId =

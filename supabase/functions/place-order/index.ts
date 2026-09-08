@@ -158,13 +158,13 @@ Deno.serve(async (request) => {
     sides?: Array<{ side_name: string; side_price: number }>;
   }>;
   const subtotal = body.subtotal as number;
-  const deliveryFee = body.delivery_fee as number;
+  let deliveryFee = body.delivery_fee as number;
   const taxAmount = (body.tax_amount as number | undefined) ?? 0;
   const discount = (body.discount as number | undefined) ?? 0;
-  const totalAmount = body.total_amount as number;
-  const deliveryAddress = body.delivery_address as string;
-  const deliveryLatitude = body.delivery_latitude as number;
-  const deliveryLongitude = body.delivery_longitude as number;
+  let totalAmount = body.total_amount as number;
+  let deliveryAddress = body.delivery_address as string;
+  let deliveryLatitude = body.delivery_latitude as number;
+  let deliveryLongitude = body.delivery_longitude as number;
   const notes = body.notes as string | undefined;
   const paymentMethod = (body.payment_method as string) ?? "cash";
   const contactlessDelivery = body.contactless_delivery === true;
@@ -180,6 +180,8 @@ Deno.serve(async (request) => {
   // Idempotency key — Flutter generates one UUID per order attempt and retains
   // it across retries.  Duplicate calls with the same key return the original order.
   const idempotencyKey = body.idempotency_key as string | undefined;
+  // Set when a parent is sending this order to a linked student at school.
+  const studentId = body.student_id as string | undefined;
 
   if (!userId || !restaurantId || !items?.length || !deliveryAddress) {
     return json({ error: "Missing required fields", request_id: requestId }, 400);
@@ -198,6 +200,64 @@ Deno.serve(async (request) => {
       console.log(`[place-order] Idempotency hit for key=${idempotencyKey}, requestId=${requestId}`);
       return json({ ...(existing.response_snapshot as Record<string, unknown>), idempotent: true });
     }
+  }
+
+  // ── STUDENT RECIPIENT GATE ────────────────────────────────────────────────
+  // A parent may send an order to a linked student's school. Everything about
+  // that — whether they are allowed to, which school, and what delivery costs —
+  // is decided here and overwrites whatever the app sent.
+  //
+  // This function runs with verify_jwt = false and takes user_id from the body,
+  // so for the student path the caller's token is verified explicitly. Without
+  // that check "I am this parent" would be self-asserted, and the link check
+  // below would prove nothing.
+  let studentDelivery: {
+    school_id: string;
+    school_name: string;
+    school_address: string;
+    school_lat: number | null;
+    school_lng: number | null;
+    delivery_fee: number;
+  } | null = null;
+
+  if (studentId) {
+    const authHeader = request.headers.get("Authorization") ?? "";
+    const token = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7)
+      : "";
+    if (!token) {
+      return json({ error: "Sign in again to order for a student.", request_id: requestId }, 401);
+    }
+    const { data: authUser, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !authUser?.user || authUser.user.id !== userId) {
+      console.warn(`[place-order] student order identity mismatch, requestId=${requestId}`);
+      return json({ error: "Sign in again to order for a student.", request_id: requestId }, 401);
+    }
+
+    const { data: resolved, error: resolveErr } = await admin.rpc(
+      "resolve_student_delivery",
+      { p_parent_id: userId, p_student_id: studentId },
+    );
+    if (resolveErr || !resolved) {
+      return json(
+        { error: resolveErr?.message ?? "Could not order for that student.", request_id: requestId },
+        403,
+      );
+    }
+    studentDelivery = resolved as typeof studentDelivery;
+
+    // The destination and the fee come from the school record, not the request.
+    const serverFee = Number(studentDelivery!.delivery_fee);
+    if (Number.isFinite(serverFee) && serverFee !== deliveryFee) {
+      console.warn(
+        `[place-order] student fee corrected ${deliveryFee} -> ${serverFee}, requestId=${requestId}`,
+      );
+      totalAmount = Math.round((totalAmount - deliveryFee + serverFee) * 100) / 100;
+      deliveryFee = serverFee;
+    }
+    deliveryAddress = studentDelivery!.school_address;
+    if (studentDelivery!.school_lat != null) deliveryLatitude = studentDelivery!.school_lat;
+    if (studentDelivery!.school_lng != null) deliveryLongitude = studentDelivery!.school_lng;
   }
 
   // ── PAYMENT GATE ───────────────────────────────────────────────────────────
@@ -357,6 +417,17 @@ Deno.serve(async (request) => {
       stripe_fee_amount: processorFee,
       is_pickup: isPickup,
     };
+
+    // Who the order is for. The school is snapshotted onto the order rather
+    // than joined at read time, so a later school move never rewrites where a
+    // past delivery went.
+    orderData.recipient_type = studentDelivery ? "student" : "self";
+    if (studentDelivery) {
+      orderData.student_id = studentId;
+      orderData.school_id = studentDelivery.school_id;
+      orderData.school_name = studentDelivery.school_name;
+      orderData.school_address = studentDelivery.school_address;
+    }
 
     if (distanceKm !== null) orderData.distance_km = distanceKm;
     if (notes) orderData.notes = notes;

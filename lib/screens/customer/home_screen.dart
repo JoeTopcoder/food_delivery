@@ -1003,13 +1003,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                         ),
                         const SizedBox(width: 12),
                         _ServiceCard(
-                          icon: Icons.lunch_dining,
-                          label: 'School Lunch',
-                          color: const Color(0xFFD97706),
-                          onTap: () => Navigator.pushNamed(context, '/lunch'),
-                        ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
                           icon: Icons.local_car_wash,
                           label: 'Car Services',
                           color: const Color(0xFF7C3AED),
