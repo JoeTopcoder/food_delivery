@@ -3,6 +3,7 @@ import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/api_retry.dart';
+import '../driver/delivery_fee_service.dart';
 
 // Columns needed by Restaurant.fromJson — explicit list avoids pulling large
 // unused fields (description, operating_hours JSON, etc.) on list requests.
@@ -15,7 +16,47 @@ const _kRestaurantListCols = 'id, name, image_url, cuisine_type, rating, '
 class RestaurantService {
   final SupabaseClient _supabaseClient;
 
-  RestaurantService(this._supabaseClient);
+  /// Where the customer is. Supplied by restaurantServiceProvider from the
+  /// selected address, falling back to the account's own coordinates.
+  final double? originLat;
+  final double? originLng;
+
+  RestaurantService(this._supabaseClient, {this.originLat, this.originLng});
+
+  /// Drops stores too far away for the customer to order from.
+  ///
+  /// Applied to every browse and search listing, so no screen can forget it.
+  /// Deliberately NOT applied to fetching one restaurant by id — following a
+  /// link or an old order to a specific store should still work — nor to an
+  /// owner's own restaurants.
+  ///
+  /// Two cases pass through on purpose:
+  ///   * We do not know where the customer is. A new account has no address
+  ///     yet, and filtering against nothing would open the app on an empty
+  ///     screen, which is worse than showing everything.
+  ///   * The store has no coordinates. It cannot be measured, and silently
+  ///     hiding a store an admin just added — because nobody geocoded it — is
+  ///     a confusing bug to chase.
+  List<Restaurant> _inRange(List<Restaurant> all) {
+    final lat = originLat;
+    final lng = originLng;
+    final maxKm = AppConstants.browseMaxKm;
+    if (lat == null || lng == null || maxKm <= 0) return all;
+
+    final near = all.where((r) {
+      final rLat = r.latitude;
+      final rLng = r.longitude;
+      if (rLat == null || rLng == null) return true;
+      return DeliveryFeeService.haversineKm(lat, lng, rLat, rLng) <= maxKm;
+    }).toList();
+
+    if (near.length != all.length) {
+      AppLogger.info(
+        'Hid ${all.length - near.length} store(s) beyond ${maxKm.toStringAsFixed(0)}km',
+      );
+    }
+    return near;
+  }
 
   static String _sanitizeQuery(String q) =>
       q.replaceAll(RegExp(r'[%_(),.\\]'), '');
@@ -38,9 +79,9 @@ class RestaurantService {
           .range(offset, offset + limit! - 1)
           .order('rating', ascending: false);
 
-      final restaurants = (response as List)
-          .map((r) => Restaurant.fromJson(r))
-          .toList();
+      final restaurants = _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'getAllRestaurants');
@@ -61,9 +102,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = (response as List)
-          .map((r) => Restaurant.fromJson(r))
-          .toList();
+      final restaurants = _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
       AppLogger.info('Found ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'searchRestaurants');
@@ -134,10 +175,11 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = (response as List)
-          .map((restaurant) => Restaurant.fromJson(restaurant))
-          .toList();
-
+      final restaurants = _inRange(
+        (response as List)
+            .map((restaurant) => Restaurant.fromJson(restaurant))
+            .toList(),
+      );
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     } catch (e) {
@@ -158,7 +200,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('rating', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getTopRatedRestaurants');
   }
 
@@ -173,7 +217,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('created_at', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getNewlyAddedRestaurants');
   }
 
@@ -187,7 +233,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .or('cuisine_type.ilike.%breakfast%,tags.cs.{breakfast}')
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getBreakfastRestaurants');
   }
 
@@ -202,7 +250,9 @@ class RestaurantService {
           .gte('rating', 4.0)
           .order('review_count', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getMustTryRestaurants');
   }
 

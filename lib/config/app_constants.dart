@@ -230,6 +230,14 @@
   /// lunch to school whether the restaurant is around the corner or across
   /// town. Overwritten from app_config (`student_delivery_fee`).
   static double studentDeliveryFee = 350.0; // JMD
+
+  /// How far from the customer a store may be and still appear in listings, in
+  /// km. Overwritten from app_config (`browse_max_km`).
+  ///
+  /// This is a BROWSE limit, separate from `delivery_max_km`, which is what
+  /// actually refuses an order. Set it above the delivery radius and customers
+  /// will find stores that reject them at checkout.
+  static double browseMaxKm = 50.0;
   static double driverFeePerDelivery = 465.0; // JMD; overwritten from app_config
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;

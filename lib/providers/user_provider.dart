@@ -15,14 +15,25 @@ import '../services/food/order_calculation_service.dart';
 import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
 import '../utils/app_logger.dart';
+import 'address_provider.dart';
+import 'auth_provider.dart';
 
 // Tracks the currently selected bottom-nav tab index so any screen can gate
 // behaviour (e.g. popup banners) on which tab is visible.
 final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 // Service Providers
+// Watches the customer's location so listings can hide stores too far away to
+// order from. Watching rather than reading means changing your delivery address
+// re-runs the listings, which is what a customer expects to happen.
 final restaurantServiceProvider = Provider<RestaurantService>((ref) {
-  return RestaurantService(SupabaseConfig.client);
+  final address = ref.watch(selectedAddressProvider);
+  final user = ref.watch(currentUserProvider);
+  return RestaurantService(
+    SupabaseConfig.client,
+    originLat: address?.latitude ?? user?.latitude,
+    originLng: address?.longitude ?? user?.longitude,
+  );
 });
 
 final menuServiceProvider = Provider<MenuService>((ref) {
