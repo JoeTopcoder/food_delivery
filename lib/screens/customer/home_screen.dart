@@ -28,6 +28,8 @@ import '../../config/app_constants.dart';
 import 'meals_by_category_screen.dart';
 import 'grocery_screen.dart';
 import '../../core/utils/responsive.dart';
+import '../../features/coverage/coverage_provider.dart';
+import '../../features/coverage/out_of_area_notice.dart';
 
 /// Emits the current peak-hour status every 30 seconds so the UI updates
 /// in real time when a peak window starts or ends.
@@ -1059,6 +1061,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+            // Out of area: say so, and take a contact. An empty list here
+            // reads as a broken app and is where people give up, and it is
+            // also the one moment we know both who they are and where they
+            // want delivery.
+            if (ref.watch(coverageProvider).valueOrNull?.isOutOfArea ?? false)
+              const SliverToBoxAdapter(child: OutOfAreaNotice()),
 
             _buildHorizontalSection(
               title: 'You might love these \u{2764}\u{FE0F}',
