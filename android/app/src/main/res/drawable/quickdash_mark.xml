@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The QuickDash mark for the OS launch window, as a vector so it is sharp at
+  every density and adds no bitmap to the APK.
+
+  Drawn in white and orange, not the brand blue: this sits on Midnight Navy,
+  where the blue would disappear. Same geometry as QuickDashMark in
+  lib/widgets/quickdash_logo.dart — keep the two in step.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="210dp"
+    android:height="130dp"
+    android:viewportWidth="210"
+    android:viewportHeight="130">
+
+    <!-- Speed trails -->
+    <path android:strokeColor="#FF8A00" android:strokeWidth="13"
+          android:strokeLineCap="round" android:pathData="M74,30 L112,30" />
+    <path android:strokeColor="#FF7A08" android:strokeWidth="13"
+          android:strokeLineCap="round" android:pathData="M34,46 L104,46" />
+    <path android:strokeColor="#F96A12" android:strokeWidth="13"
+          android:strokeLineCap="round" android:pathData="M12,62 L92,62" />
+    <path android:strokeColor="#F5401A" android:strokeWidth="13"
+          android:strokeLineCap="round" android:pathData="M44,78 L100,78" />
+
+    <!-- Tail bar, then the arrowhead it throws forward -->
+    <path android:fillColor="#FFFFFF"
+          android:pathData="M150,74 L178,74 L196,112 L166,112 Z" />
+    <path android:fillColor="#F5401A"
+          android:pathData="M180,68 L208,88 L178,104 Z" />
+
+    <!-- The Q: outer circle with the counter punched out (evenOdd) -->
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+          android:pathData="M140,14 a44,44 0 1,0 0.1,0 Z M140,31 a27,27 0 1,0 0.1,0 Z" />
+
+    <!-- Cloche: dome, tray, knob -->
+    <path android:fillColor="#FFFFFF"
+          android:pathData="M121,65 a19,19 0 0,1 38,0 Z" />
+    <path android:fillColor="#FFFFFF"
+          android:pathData="M117,66 L163,66 a3,3 0 0,1 0,6 L117,72 a3,3 0 0,1 0,-6 Z" />
+    <path android:fillColor="#FFFFFF"
+          android:pathData="M140,39.4 a3.6,3.6 0 1,0 0.1,0 Z" />
+</vector>
