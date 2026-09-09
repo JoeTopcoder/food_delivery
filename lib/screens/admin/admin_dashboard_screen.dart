@@ -89,37 +89,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 size: 24,
                               ),
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Welcome back, ${currentUser?.name?.split(' ').first ?? 'Admin'}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: Responsive.headingMedium(
-                                        context,
-                                      ),
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -0.3,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Here\'s your business overview',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            const Spacer(),
                             Material(
                               color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -181,6 +151,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 18),
+                        // Full width, so a long first name has room instead of
+                        // competing with the action buttons for the same line.
+                        Text(
+                          // The whole name, not the first token: this account
+                          // is named "The Nobel officer", which greeted the
+                          // admin as "Welcome back, The". There is room for the
+                          // full name now that the greeting has its own line.
+                          'Welcome back, ${currentUser?.name?.trim().isNotEmpty == true ? currentUser!.name!.trim() : 'Admin'}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.headingMedium(context),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Here\'s your business overview',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -310,7 +306,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
 
                       // ── KPI metrics ────────────────────────────────────
-                      Padding(
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         padding: EdgeInsets.symmetric(
                           horizontal: Responsive.horizontalPadding(context),
                         ),
@@ -393,7 +390,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const SizedBox(height: 10),
 
                       // ── Module activity row ────────────────────────────
-                      Padding(
+                      // Also a horizontal list: _KpiCard is a fixed width now,
+                      // and three of them plus padding come to 376dp, which
+                      // overflows a 360dp screen.
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         padding: EdgeInsets.symmetric(
                           horizontal: Responsive.horizontalPadding(context),
                         ),
@@ -968,7 +969,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 32),
+                      // padding.bottom clears the system navigation bar; a
+                      // fixed value leaves the last row under it on devices
+                      // with a gesture or three-button bar.
+                      SizedBox(
+                        height: 32 + MediaQuery.of(context).padding.bottom,
+                      ),
                     ],
                   );
                 },
@@ -1013,7 +1019,11 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    // Fixed width rather than Expanded: these now sit in a horizontal list, and
+    // 108 is what the widest value ("Break-even") needs at 18sp without
+    // ellipsising. Sharing one row equally gave each card 38dp.
+    return SizedBox(
+      width: 108,
       child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1143,15 +1153,20 @@ class _QuickAction extends StatelessWidget {
                 child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                  fontSize: Responsive.bodyText(context),
+              // Flexible, or the ellipsis is decorative: an unconstrained Text
+              // in a Row cannot shrink, so a long label overflows the button
+              // instead of truncating inside it.
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: Responsive.bodyText(context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
