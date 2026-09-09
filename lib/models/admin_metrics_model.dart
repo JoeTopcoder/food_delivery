@@ -231,3 +231,141 @@ class MetricsPeriod {
     if (to != null) 'p_to': to!.toUtc().toIso8601String(),
   };
 }
+
+/// One status queue in the live-ops panel.
+///
+/// The bucket edges are configurable server-side, so the labels travel with
+/// the counts instead of being written into this file — a dashboard that says
+/// "30-35" while the SLA has been retuned to 25 is worse than one that says
+/// nothing.
+class LiveOpsRow {
+  const LiveOpsRow({
+    required this.status,
+    required this.ordersCount,
+    required this.bucketLabels,
+    required this.bucketCounts,
+    required this.breachCount,
+    required this.oldestMinutes,
+  });
+
+  final String status;
+  final int ordersCount;
+  final List<String> bucketLabels;
+  final List<int> bucketCounts;
+  final int breachCount;
+  final double oldestMinutes;
+
+  /// Title-cased from the raw status, which is snake_case in the database
+  /// ('on_the_way', not 'out_for_delivery' — that value does not exist here).
+  String get label => status
+      .split('_')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
+  factory LiveOpsRow.fromJson(Map<String, dynamic> j) => LiveOpsRow(
+    status: (j['status'] ?? '').toString(),
+    ordersCount: (j['orders_count'] as num?)?.toInt() ?? 0,
+    bucketLabels:
+        ((j['bucket_labels'] as List?) ?? const []).map((e) => '$e').toList(),
+    bucketCounts: ((j['bucket_counts'] as List?) ?? const [])
+        .map((e) => (e as num?)?.toInt() ?? 0)
+        .toList(),
+    breachCount: (j['breach_count'] as num?)?.toInt() ?? 0,
+    oldestMinutes: (j['oldest_minutes'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// Average time an order spends waiting on one actor.
+class SlaAttributionRow {
+  const SlaAttributionRow({
+    required this.actorType,
+    required this.avgMinutes,
+    required this.medianMinutes,
+    required this.p90Minutes,
+    required this.maxMinutes,
+    required this.sampleSize,
+    required this.shareOfTimePct,
+  });
+
+  final String actorType;
+  final double avgMinutes;
+  final double medianMinutes;
+  final double p90Minutes;
+  final double maxMinutes;
+
+  /// How many closed stages this row averages. Shown in the UI, because
+  /// order_status_events only started recording on 2026-09-09 and an average
+  /// of two stages should not be read as a trend.
+  final int sampleSize;
+  final double shareOfTimePct;
+
+  String get label => switch (actorType) {
+    'customer' => 'Waiting for the store to accept',
+    'store' => 'Store preparing',
+    'rider' => 'Rider collecting and delivering',
+    'dispatch' => 'Dispatch assigning',
+    'system' => 'System',
+    _ => actorType,
+  };
+
+  static double _d(dynamic v) => (v as num?)?.toDouble() ?? 0;
+
+  factory SlaAttributionRow.fromJson(Map<String, dynamic> j) =>
+      SlaAttributionRow(
+        actorType: (j['actor_type'] ?? '').toString(),
+        avgMinutes: _d(j['avg_minutes']),
+        medianMinutes: _d(j['median_minutes']),
+        p90Minutes: _d(j['p90_minutes']),
+        maxMinutes: _d(j['max_minutes']),
+        sampleSize: (j['sample_size'] as num?)?.toInt() ?? 0,
+        shareOfTimePct: _d(j['share_of_time_pct']),
+      );
+}
+
+/// One row of a partner leaderboard. Money is minor units, as everywhere else.
+class PartnerRow {
+  const PartnerRow({
+    required this.partnerId,
+    required this.partnerName,
+    required this.ordersCount,
+    required this.gmv,
+    required this.contribution,
+    required this.deliveredCount,
+    required this.onTimePct,
+  });
+
+  final String partnerId;
+  final String partnerName;
+  final int ordersCount;
+  final int gmv;
+  final int contribution;
+
+  /// Orders with a delivered_at to measure against. On-time is a share of
+  /// these, not of every order, so this is shown next to the percentage.
+  final int deliveredCount;
+
+  /// Null when nothing in the period has been delivered — which is not the
+  /// same as 0%, and must not render as it.
+  final double? onTimePct;
+
+  factory PartnerRow.fromJson(Map<String, dynamic> j) => PartnerRow(
+    partnerId: (j['partner_id'] ?? '').toString(),
+    partnerName: (j['partner_name'] ?? 'Unknown').toString(),
+    ordersCount: (j['orders_count'] as num?)?.toInt() ?? 0,
+    gmv: (j['gmv'] as num?)?.toInt() ?? 0,
+    contribution: (j['contribution'] as num?)?.toInt() ?? 0,
+    deliveredCount: (j['delivered_count'] as num?)?.toInt() ?? 0,
+    onTimePct: (j['on_time_pct'] as num?)?.toDouble(),
+  );
+}
+
+/// Which leaderboard the UI is asking for.
+enum PartnerKind {
+  restaurant('restaurant', 'Restaurants'),
+  supermarket('supermarket', 'Supermarkets'),
+  rider('rider', 'Riders');
+
+  const PartnerKind(this.key, this.label);
+  final String key;
+  final String label;
+}

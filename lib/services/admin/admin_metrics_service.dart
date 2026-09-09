@@ -87,4 +87,39 @@ class AdminMetricsService {
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
   }
+
+  /// Orders currently in flight, bucketed by age against the SLA.
+  Future<List<LiveOpsRow>> liveOps() async {
+    final rows = await _client.rpc('admin_live_ops');
+    return ((rows as List?) ?? const [])
+        .map((e) => LiveOpsRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Where the minutes go, charged to the actor who owned each stage.
+  Future<List<SlaAttributionRow>> slaAttribution(MetricsPeriod period) async {
+    final rows =
+        await _client.rpc('admin_sla_attribution', params: period.params);
+    return ((rows as List?) ?? const [])
+        .map((e) =>
+            SlaAttributionRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Leaderboard for one partner kind. The limit is clamped server-side too —
+  /// this value is a preference, not a trust boundary.
+  Future<List<PartnerRow>> topPartners(
+    MetricsPeriod period,
+    PartnerKind kind, {
+    int limit = 10,
+  }) async {
+    final rows = await _client.rpc('admin_top_partners', params: {
+      ...period.params,
+      'p_kind': kind.key,
+      'p_limit': limit,
+    });
+    return ((rows as List?) ?? const [])
+        .map((e) => PartnerRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
 }

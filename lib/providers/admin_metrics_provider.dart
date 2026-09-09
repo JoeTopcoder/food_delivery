@@ -56,3 +56,32 @@ final adminTargetHistoryProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, vertical) {
   return ref.watch(adminMetricsServiceProvider).targetHistory(vertical);
 });
+
+/// Live ops is on the 15-second tick — it is the panel someone stares at while
+/// an order ages, and stale numbers there are the ones that cost money.
+final adminLiveOpsProvider =
+    FutureProvider.autoDispose<List<LiveOpsRow>>((ref) {
+  ref.watch(adminLiveTickProvider);
+  return ref.watch(adminMetricsServiceProvider).liveOps();
+});
+
+final adminSlaAttributionProvider =
+    FutureProvider.autoDispose<List<SlaAttributionRow>>((ref) {
+  ref.watch(adminKpiTickProvider);
+  final period = ref.watch(adminPeriodProvider);
+  return ref.watch(adminMetricsServiceProvider).slaAttribution(period);
+});
+
+/// Which leaderboard the user is looking at. Held outside the widget so it
+/// survives the periodic rebuilds.
+final adminPartnerKindProvider = StateProvider<PartnerKind>(
+  (ref) => PartnerKind.restaurant,
+);
+
+final adminTopPartnersProvider =
+    FutureProvider.autoDispose<List<PartnerRow>>((ref) {
+  ref.watch(adminKpiTickProvider);
+  final period = ref.watch(adminPeriodProvider);
+  final kind = ref.watch(adminPartnerKindProvider);
+  return ref.watch(adminMetricsServiceProvider).topPartners(period, kind);
+});

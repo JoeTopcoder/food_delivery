@@ -102,6 +102,21 @@ class _AdminOperatingDashboardScreenState
             _SectionHeader('Combined'),
             const SizedBox(height: 8),
             _CombinedCard(symbol: _sym),
+            const SizedBox(height: 20),
+
+            const _SectionHeader('In flight now'),
+            const SizedBox(height: 8),
+            const _LiveOpsCard(),
+            const SizedBox(height: 20),
+
+            _SectionHeader('Where the time goes · ${period.label}'),
+            const SizedBox(height: 8),
+            const _SlaAttributionCard(),
+            const SizedBox(height: 20),
+
+            _SectionHeader('Leaderboard · ${period.label}'),
+            const SizedBox(height: 8),
+            _LeaderboardCard(symbol: _sym),
           ],
         ),
       ),
@@ -803,4 +818,387 @@ Future<void> _showHistory(
       },
     ),
   );
+}
+
+// ── Live ops ────────────────────────────────────────────────────────────────
+
+/// Orders in flight, grouped by status. This panel is on the 15-second tick,
+/// and it is the one meant to make someone get up: an order past the last
+/// threshold is already late, not about to be.
+class _LiveOpsCard extends ConsumerWidget {
+  const _LiveOpsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final rows = ref.watch(adminLiveOpsProvider);
+    final breaching =
+        rows.asData?.value.fold<int>(0, (a, r) => a + r.breachCount) ?? 0;
+
+    return _AsyncCard<List<LiveOpsRow>>(
+      value: rows,
+      accent: breaching > 0 ? Colors.red.shade300 : null,
+      builder: (data) {
+        if (data.isEmpty) {
+          return const _EmptyState('Nothing in flight right now.');
+        }
+        final total = data.fold<int>(0, (a, r) => a + r.ordersCount);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '$total in flight',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                if (breaching > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$breaching past SLA',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // The bucket labels arrive from the RPC because the edges are
+            // configurable. Writing "30-35" here would start lying the day
+            // someone retunes the SLA.
+            Text(
+              'Minutes since ordered: ${data.first.bucketLabels.join('  ·  ')}',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            for (final r in data) ...[
+              _LiveOpsRowTile(row: r),
+              if (r != data.last) const Divider(height: 18),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LiveOpsRowTile extends StatelessWidget {
+  const _LiveOpsRowTile({required this.row});
+  final LiveOpsRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final last = row.bucketCounts.length - 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                row.label,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              '${row.ordersCount}',
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'oldest ${row.oldestMinutes.round()}m',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: row.breachCount > 0
+                    ? Colors.red.shade600
+                    : scheme.onSurfaceVariant,
+                fontWeight:
+                    row.breachCount > 0 ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (var i = 0; i <= last; i++)
+              Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(right: i == last ? 0 : 4),
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  decoration: BoxDecoration(
+                    // Only the final bucket is a breach; the two before it are
+                    // warnings, and the rest are simply orders in progress.
+                    color: row.bucketCounts[i] == 0
+                        ? scheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                        : i == last
+                        ? Colors.red.shade50
+                        : i >= last - 1
+                        ? Colors.orange.shade50
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${row.bucketCounts[i]}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: row.bucketCounts[i] == 0
+                          ? scheme.onSurfaceVariant
+                          : i == last
+                          ? Colors.red.shade700
+                          : scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── SLA attribution ─────────────────────────────────────────────────────────
+
+class _SlaAttributionCard extends ConsumerWidget {
+  const _SlaAttributionCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    return _AsyncCard<List<SlaAttributionRow>>(
+      value: ref.watch(adminSlaAttributionProvider),
+      builder: (data) {
+        if (data.isEmpty) {
+          return const _EmptyState('No completed stages in this period yet.');
+        }
+        final samples = data.fold<int>(0, (a, r) => a + r.sampleSize);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final r in data) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      r.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${r.medianMinutes.round()}m median',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (r.shareOfTimePct / 100).clamp(0, 1),
+                  minHeight: 6,
+                  backgroundColor: scheme.surfaceContainerHighest,
+                  valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${r.shareOfTimePct.toStringAsFixed(0)}% of total time  ·  '
+                'p90 ${r.p90Minutes.round()}m  ·  worst ${r.maxMinutes.round()}m'
+                '  ·  n=${r.sampleSize}',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+              ),
+              if (r != data.last) const SizedBox(height: 14),
+            ],
+            const SizedBox(height: 10),
+            // Stage timing only started recording on 2026-09-09, so a thin
+            // sample says so rather than being presented as a trend.
+            if (samples < 20)
+              Text(
+                'Based on $samples completed '
+                '${samples == 1 ? 'stage' : 'stages'} — too few to read as a '
+                'trend yet.',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Leaderboards ────────────────────────────────────────────────────────────
+
+class _LeaderboardCard extends ConsumerWidget {
+  const _LeaderboardCard({required this.symbol});
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final kind = ref.watch(adminPartnerKindProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final k in PartnerKind.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(k.label),
+                    selected: k == kind,
+                    onSelected: (_) =>
+                        ref.read(adminPartnerKindProvider.notifier).state = k,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _AsyncCard<List<PartnerRow>>(
+          value: ref.watch(adminTopPartnersProvider),
+          builder: (data) {
+            if (data.isEmpty) {
+              return _EmptyState(
+                'No ${kind.label.toLowerCase()} with orders in this period.',
+              );
+            }
+            return Column(
+              children: [
+                for (var i = 0; i < data.length; i++) ...[
+                  _PartnerTile(rank: i + 1, row: data[i], symbol: symbol),
+                  if (i != data.length - 1)
+                    Divider(height: 16, color: scheme.outlineVariant),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _PartnerTile extends StatelessWidget {
+  const _PartnerTile({
+    required this.rank,
+    required this.row,
+    required this.symbol,
+  });
+
+  final int rank;
+  final PartnerRow row;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Null on-time is not 0%: it means nothing in this period has been
+    // delivered yet, and rendering it as zero would accuse a partner of
+    // failing at something that has not happened.
+    final onTime = row.onTimePct == null
+        ? ''
+        : '  ·  ${row.onTimePct!.toStringAsFixed(0)}% on time '
+              'of ${row.deliveredCount}';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 20,
+          child: Text(
+            '$rank',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                row.partnerName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${row.ordersCount} '
+                '${row.ordersCount == 1 ? 'order' : 'orders'}'
+                '  ·  GMV ${formatMinor(row.gmv, symbol)}$onTime',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              formatMinor(row.contribution, symbol),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: row.contribution < 0
+                    ? Colors.red.shade600
+                    : scheme.onSurface,
+              ),
+            ),
+            Text(
+              'contribution',
+              style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
