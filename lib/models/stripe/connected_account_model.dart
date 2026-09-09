@@ -55,7 +55,7 @@ class ConnectedAccount {
         role: j['role'] as String,
         stripeAccountId: j['stripe_account_id'] as String,
         country: j['country'] as String? ?? 'US',
-        currency: j['currency'] as String? ?? 'usd',
+        currency: j['currency'] as String? ?? 'jmd',
         onboardingStatus: j['onboarding_status'] as String? ?? 'not_started',
         chargesEnabled: j['charges_enabled'] as bool? ?? false,
         payoutsEnabled: j['payouts_enabled'] as bool? ?? false,

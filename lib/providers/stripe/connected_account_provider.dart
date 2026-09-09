@@ -74,7 +74,7 @@ class ConnectedAccountNotifier
   Future<void> setupAccount({
     required String role,
     String country = 'US',
-    String currency = 'usd',
+    String currency = 'jmd',
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {

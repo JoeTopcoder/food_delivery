@@ -73,13 +73,13 @@ const user = { id: _uid, email: _ur.email ?? "" };
   }
 
   if (action === "add_bank") {
-    const { account_number, routing_number, account_holder_name, account_holder_type = "individual", currency = "usd" } = body;
+    const { account_number, routing_number, account_holder_name, account_holder_type = "individual", currency = "jmd" } = body;
     if (!account_number || !routing_number || !account_holder_name) return json({ error: "account_number, routing_number, account_holder_name required" }, 400);
     const ea = await stripePost(`/accounts/${stripeAccountId}/external_accounts`, { "external_account[object]": "bank_account", "external_account[country]": STRIPE_CONNECT_COUNTRY, "external_account[currency]": currency, "external_account[account_number]": account_number, "external_account[routing_number]": routing_number, "external_account[account_holder_name]": account_holder_name, "external_account[account_holder_type]": account_holder_type, default_for_currency: "true" });
     const err = stripeErr(ea);
     if (err) return json({ error: err }, 502);
     await adminClient.from("driver_payout_methods").delete().eq("driver_id", driver.id).eq("type", "bank_account");
-    await adminClient.from("driver_payout_methods").insert({ driver_id: driver.id, stripe_external_account_id: ea.id, type: "bank_account", last4: ea.last4 ?? "????", bank_name: ea.bank_name ?? null, currency: ea.currency ?? "usd", is_default: true });
+    await adminClient.from("driver_payout_methods").insert({ driver_id: driver.id, stripe_external_account_id: ea.id, type: "bank_account", last4: ea.last4 ?? "????", bank_name: ea.bank_name ?? null, currency: ea.currency ?? "jmd", is_default: true });
     return json({ success: true, external_account_id: ea.id, last4: ea.last4, bank_name: ea.bank_name });
   }
 
@@ -90,7 +90,7 @@ const user = { id: _uid, email: _ur.email ?? "" };
     const err = stripeErr(ea);
     if (err) { if (err.toLowerCase().includes("debit")) return json({ error: "Only Visa/Mastercard debit cards accepted." }, 422); return json({ error: err }, 502); }
     await adminClient.from("driver_payout_methods").delete().eq("driver_id", driver.id).eq("type", "card");
-    await adminClient.from("driver_payout_methods").insert({ driver_id: driver.id, stripe_external_account_id: ea.id, type: "card", last4: ea.last4 ?? "????", brand: ea.brand ?? null, currency: ea.currency ?? "usd", is_default: true });
+    await adminClient.from("driver_payout_methods").insert({ driver_id: driver.id, stripe_external_account_id: ea.id, type: "card", last4: ea.last4 ?? "????", brand: ea.brand ?? null, currency: ea.currency ?? "jmd", is_default: true });
     await adminClient.from("drivers").update({ stripe_debit_card_added: true, payouts_enabled: true, stripe_account_status: "active", updated_at: new Date().toISOString() }).eq("id", driver.id);
     return json({ success: true, external_account_id: ea.id, last4: ea.last4, brand: ea.brand });
   }

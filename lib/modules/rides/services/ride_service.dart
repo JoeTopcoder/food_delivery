@@ -110,7 +110,7 @@ class RideService {
       'stripe_fee_amount': stripeFeePortion,
       'per_mile_rate': perMileRate,
       'distance_fare': double.parse((distanceMiles * perMileRate).toStringAsFixed(2)),
-      'currency': 'USD',
+      'currency': 'JMD',
       'source': 'local',
     };
   }

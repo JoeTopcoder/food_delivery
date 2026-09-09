@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     }
 
     const amountCents = Math.round(pr.amount * 100)
-    const currency = (pr.currency ?? 'usd').toLowerCase()
+    const currency = (pr.currency ?? 'jmd').toLowerCase()
 
     // Mark as processing
     await serviceClient

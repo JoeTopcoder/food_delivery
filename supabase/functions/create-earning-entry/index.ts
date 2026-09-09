@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       type,
       direction = 'credit',
       amount_cents,
-      currency = 'usd',
+      currency = 'jmd',
       description,
       metadata = {},
     } = await req.json()
