@@ -9,7 +9,7 @@ class StripePayoutService {
   Future<PayoutRequest> requestPayout({
     required String role,
     required int amountCents,
-    String currency = 'usd',
+    String currency = 'jmd',
     String payoutMethod = 'standard',
   }) async {
     final res = await _client.functions.invoke(

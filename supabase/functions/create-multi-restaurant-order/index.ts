@@ -366,7 +366,7 @@ Deno.serve(async (req: Request) => {
     // Off-session saved card charge — charge first, create order only on success
     if (!stripeKey) return json({ error: "Payment provider not configured." }, 500);
     const custId = await getStripeCustomerId(customer_id);
-    const currency = stripe_currency ?? "usd";
+    const currency = stripe_currency ?? "jmd";
     const amountCents = Math.round(grandTotal * 100);
     const pi = await stripePost("/payment_intents", {
       amount:                  String(amountCents),

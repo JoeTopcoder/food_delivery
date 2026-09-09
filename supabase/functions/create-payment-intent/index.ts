@@ -32,19 +32,16 @@ serve(async (req) => {
       { apiVersion: "2023-10-16" }
     );
 
-    // The platform prices in JMD but this Stripe account settles in USD, so the
-    // amount is converted at the boundary. Without this a J$2,790 order would
-    // be charged as US$2,790 — roughly 155x — against live cards.
+    // The Stripe account accepts JMD directly, so the amount passes through
+    // and the customer is charged exactly the price they were shown.
     //
-    // Remove this conversion when payments move to NCB and the processor
-    // actually settles in JMD; at that point the amount passes through
-    // unchanged and `currency` becomes "jmd".
-    const FX_JMD_PER_USD = 155;
-    const requested = String(currency ?? "usd").toLowerCase();
-    const chargeCurrency = requested === "jmd" ? "usd" : requested;
-    const chargeAmount = requested === "jmd"
-      ? Math.round(amount / FX_JMD_PER_USD)
-      : Math.round(amount);
+    // This replaces a hardcoded 155:1 conversion that divided the JMD amount
+    // and charged USD. That was safe but drifted with the real rate, and it
+    // disagreed with place-order, which sent the same JMD amount
+    // as "usd" with no conversion at all — a ~155x overcharge on the
+    // saved-card path. One currency everywhere removes the discrepancy.
+    const chargeCurrency = String(currency ?? "jmd").toLowerCase();
+    const chargeAmount = Math.round(amount);
 
     // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -53,12 +50,12 @@ serve(async (req) => {
       customer: customer.id,
       automatic_payment_methods: { enabled: true },
       metadata: {
+        // Presented and charged are the same figure now. Kept so that intents
+        // created before this change — which were converted at a fixed rate —
+        // and new ones can still be read the same way in reconciliation.
         email,
-        // Recorded so a JMD-priced order can be reconciled against a USD
-        // capture without guesswork.
-        presented_currency: requested,
-        presented_amount: String(Math.round(amount)),
-        fx_jmd_per_usd: requested === "jmd" ? String(FX_JMD_PER_USD) : "",
+        presented_currency: chargeCurrency,
+        presented_amount: String(chargeAmount),
       },
     });
 

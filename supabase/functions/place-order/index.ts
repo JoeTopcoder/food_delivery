@@ -381,7 +381,7 @@ Deno.serve(async (request) => {
         const custId = await getStripeCustomerId(userId);
         const pi = await stripePost("/payment_intents", {
           amount:              String(Math.round(totalAmount * 100)),
-          currency:            "usd",
+          currency:            "jmd",
           payment_method:      savedCardPaymentMethodId,
           ...(custId ? { customer: custId } : {}),
           off_session:         "true",

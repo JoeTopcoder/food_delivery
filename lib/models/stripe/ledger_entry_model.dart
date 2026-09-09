@@ -79,7 +79,7 @@ class LedgerEntry {
         type: j['type'] as String,
         direction: j['direction'] as String,
         amountCents: j['amount_cents'] as int,
-        currency: j['currency'] as String? ?? 'usd',
+        currency: j['currency'] as String? ?? 'jmd',
         status: j['status'] as String,
         availableAt: DateTime.parse(j['available_at'] as String),
         payoutRequestId: j['payout_request_id'] as String?,

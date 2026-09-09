@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return handleOptions()
   try {
     const user = await requireAuth(req)
-    const { role, amount_cents, currency = 'usd', payout_method = 'standard' } = await req.json()
+    const { role, amount_cents, currency = 'jmd', payout_method = 'standard' } = await req.json()
 
     if (!['standard', 'instant'].includes(payout_method)) {
       return json({ error: 'BAD_REQUEST: payout_method must be standard or instant' }, 400)

@@ -213,7 +213,7 @@ class LaundryPricing {
     this.pickupFee = 0,
     this.deliveryFee = 0,
     this.minOrderFee = 5,
-    this.currency = 'USD',
+    this.currency = 'JMD',
   });
 
   factory LaundryPricing.fromMap(Map<String, dynamic> m) => LaundryPricing(
@@ -222,7 +222,7 @@ class LaundryPricing {
     pickupFee:    (m['pickup_fee']   as num?)?.toDouble() ?? 0,
     deliveryFee:  (m['delivery_fee'] as num?)?.toDouble() ?? 0,
     minOrderFee:  (m['min_order_fee'] as num?)?.toDouble() ?? 5,
-    currency:     m['currency'] as String? ?? 'USD',
+    currency:     m['currency'] as String? ?? 'JMD',
   );
 
   Map<String, dynamic> toMap() => {

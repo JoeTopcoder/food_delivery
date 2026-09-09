@@ -216,7 +216,7 @@ Deno.serve(async (request) => {
     // ── Create a PaymentIntent directly — no subscription/invoice chain ────────
     const pi = await stripePost("/payment_intents", {
       amount: String(priceInCents),
-      currency: "usd",
+      currency: "jmd",
       customer: stripeCustomerId,
       "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,
@@ -549,7 +549,7 @@ Deno.serve(async (request) => {
     // DB before the user actually pays.
     const pi = await stripePost("/payment_intents", {
       amount: String(newPriceInCents),
-      currency: "usd",
+      currency: "jmd",
       customer: customerId,
       "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,

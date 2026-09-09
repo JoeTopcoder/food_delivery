@@ -182,7 +182,7 @@ Deno.serve(async (request) => {
     const email = String(body.email ?? "").trim();
     const name = String(body.name ?? "").trim();
     const txnType = String(body.type ?? "order").trim(); // order | wallet_topup
-    const currency = String(body.currency ?? "usd").trim().toLowerCase();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
 
     if (!orderId || amount <= 0 || !email) {
       return json(
@@ -651,7 +651,7 @@ Deno.serve(async (request) => {
       // Charge the card server-side (user never sees the amount)
       const pi = await stripeRequest("/payment_intents", {
         amount: String(amountCents),
-        currency: "usd",
+        currency: "jmd",
         customer: customerId,
         payment_method: paymentMethodId,
         off_session: "true",
@@ -706,7 +706,7 @@ Deno.serve(async (request) => {
     const orderId = String(body.orderId ?? "").trim();
     const amount = Number(body.amount ?? 0);
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
-    const currency = String(body.currency ?? "usd").trim().toLowerCase();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
     const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
@@ -795,7 +795,7 @@ Deno.serve(async (request) => {
     const orderId = String(body.orderId ?? "").trim();
     const amount = Number(body.amount ?? 0);
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
-    const currency = String(body.currency ?? "usd").trim().toLowerCase();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
     const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
@@ -987,7 +987,7 @@ Deno.serve(async (request) => {
 
     const payoutId = String(body.payoutId ?? "").trim();
     const amount = Number(body.amount ?? 0);
-    const currency = String(body.currency ?? "usd").trim().toLowerCase();
+    const currency = String(body.currency ?? "jmd").trim().toLowerCase();
     const recipientName = String(body.recipientName ?? "").trim();
     const bankAccount = String(body.bankAccount ?? "").trim();
     const bankName = String(body.bankName ?? "").trim();

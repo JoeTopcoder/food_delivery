@@ -10,7 +10,7 @@ class StripeConnectService {
   Future<ConnectedAccount> createConnectAccount({
     required String role,
     String country = 'US',
-    String currency = 'usd',
+    String currency = 'jmd',
   }) async {
     final res = await _client.functions.invoke(
       'create-connect-account',
