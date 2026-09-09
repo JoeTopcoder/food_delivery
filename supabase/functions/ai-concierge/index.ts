@@ -144,6 +144,12 @@ interface Ctx {
   userId: string;
   lat: number | null;
   lng: number | null;
+  /// How far a store may be and still be offered, from app_config
+  /// browse_max_km. The concierge queries Postgres directly and never goes
+  /// through RestaurantService, so it does not inherit the listing filter —
+  /// without this it happily recommended, and would add to the cart,
+  /// restaurants 490km away that the rest of the app hides.
+  maxKm: number;
   /// Result of the first successful place_in_cart in THIS request. The model
   /// was observed calling it six and seven times in a row — sometimes in
   /// parallel across restaurants — each building and consuming another draft.
@@ -311,7 +317,7 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   let q = admin
     .from('menus')
     .select(
-      'id, name, description, price, category, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified, store_type)',
+      'id, name, description, price, category, restaurant_id, spice_rating, flavor_tags, dietary_source, preparation_time, is_available, contains_pork, contains_shellfish, contains_beef, contains_dairy, contains_egg, contains_alcohol, contains_nuts, contains_gluten, is_vegetarian, is_vegan, is_halal, is_kosher, restaurants!inner(id, name, is_open, rating, estimated_delivery_time, delivery_fee, price_tier, is_verified, store_type, latitude, longitude)',
     )
     .eq('is_available', true)
     .eq('restaurants.is_verified', true)
@@ -333,7 +339,10 @@ async function searchDishes(ctx: Ctx, a: Record<string, unknown>) {
   const { data, error } = await q;
   if (error) throw error;
 
-  let items = applyFlavorGate(data ?? [], a);
+  let items = applyFlavorGate(data ?? [], a).filter((i) => {
+    const r = i.restaurants as Record<string, unknown> | undefined;
+    return withinRange(ctx, r?.latitude, r?.longitude);
+  });
 
   // Rank by how many of the customer's words the dish actually matches, so
   // "jerk chicken" puts Jerk Chicken above Jerk Fish.
@@ -444,7 +453,12 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
     });
   }
 
-  const results = [...byRestaurant.values()];
+  // Drop what cannot be delivered before ranking. Sorting by distance was
+  // never enough: with only far-away stores, the nearest 490km restaurant
+  // still came first and got recommended.
+  const results = [...byRestaurant.values()].filter(
+    (r) => r.distance_km == null || (r.distance_km as number) <= ctx.maxKm,
+  );
   // Open first, then closest, then best rated.
   results.sort((x, y) => {
     if (x.is_open !== y.is_open) return x.is_open ? -1 : 1;
@@ -455,6 +469,22 @@ async function searchRestaurants(ctx: Ctx, a: Record<string, unknown>) {
   });
 
   return { restaurants: results.slice(0, limit) };
+}
+
+/// Whether a store is close enough to be offered to this customer.
+///
+/// Unknown answers pass. If we do not know where the customer is, or the store
+/// has no coordinates, refusing would leave the concierge saying "nothing is
+/// available" to someone we simply failed to measure — worse than the mistake
+/// it prevents, and impossible for them to argue with.
+function withinRange(
+  ctx: Ctx,
+  lat: unknown,
+  lng: unknown,
+): boolean {
+  if (ctx.lat == null || ctx.lng == null) return true;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return true;
+  return haversineKm(ctx.lat, ctx.lng, lat, lng) <= ctx.maxKm;
 }
 
 function haversineKm(a: number, b: number, c: number, d: number) {
@@ -641,6 +671,28 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   }
   const effectiveRestaurantId =
     restaurantIds.size === 1 ? [...restaurantIds][0] : restaurantId;
+
+  // Range is enforced here as well as in search, because search is not the only
+  // way an item id reaches this point: the model carries ids across turns, and
+  // a cart from an earlier conversation can be replayed. Refusing at the cart
+  // is what actually prevents an undeliverable order — filtering search only
+  // makes it less likely to be proposed.
+  if (effectiveRestaurantId) {
+    const { data: rest } = await admin
+      .from('restaurants')
+      .select('name, latitude, longitude')
+      .eq('id', effectiveRestaurantId)
+      .maybeSingle();
+    if (rest && !withinRange(ctx, rest.latitude, rest.longitude)) {
+      return {
+        cart_draft_id: null,
+        line_items: [],
+        validation_errors: [
+          `${rest.name} is too far away to deliver to you. Pick somewhere closer.`,
+        ],
+      };
+    }
+  }
 
   for (const r of requested) {
     const row = byId.get(r.item_id as string);
@@ -1796,6 +1848,16 @@ Deno.serve(async (req) => {
       .eq('user_id', claims.sub)
       .maybeSingle();
 
+    // Same radius the app's listings use, so the concierge cannot offer what
+    // the rest of the app hides. Read here rather than hardcoded: one row
+    // changes both.
+    const { data: rangeCfg } = await admin
+      .from('app_config')
+      .select('value')
+      .eq('key', 'browse_max_km')
+      .maybeSingle();
+    const maxKm = Number(rangeCfg?.value) > 0 ? Number(rangeCfg!.value) : 25;
+
     const body = await req.json();
 
     const rawCart = Array.isArray(body.cart_items) ? body.cart_items : [];
@@ -1803,6 +1865,7 @@ Deno.serve(async (req) => {
       userId: claims.sub,
       lat: profile?.latitude ?? null,
       lng: profile?.longitude ?? null,
+      maxKm,
       walletCents: wallet?.balance != null ? toCents(wallet.balance) : null,
       cartItems: rawCart
         .filter((c: Record<string, unknown>) => typeof c?.item_id === 'string')
