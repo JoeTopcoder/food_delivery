@@ -181,7 +181,8 @@ class _AsyncCard<T> extends StatelessWidget {
           height: 84,
           child: Center(
             child: SizedBox(
-              height: 20, width: 20,
+              height: 20,
+              width: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
@@ -197,7 +198,10 @@ class _AsyncCard<T> extends StatelessWidget {
                 Flexible(
                   child: Text(
                     friendlyError(e),
-                    style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -259,30 +263,47 @@ class _PeriodSelector extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        for (final p in MetricsPeriod.presets) ...[
-          GestureDetector(
-            onTap: () => onSelected(p),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected.key == p.key
-                    ? AppTheme.primaryColor
-                    : scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                p.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: selected.key == p.key ? Colors.white : scheme.onSurface,
-                ),
-              ),
+        // 'Month to date' and 'Year to date' plus the custom-range button
+        // overflow a 360dp screen. The presets scroll rather than being
+        // abbreviated, so the labels stay readable and match the section
+        // headers below, which use the same strings.
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final p in MetricsPeriod.presets) ...[
+                  GestureDetector(
+                    onTap: () => onSelected(p),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected.key == p.key
+                            ? AppTheme.primaryColor
+                            : scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        p.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: selected.key == p.key
+                              ? Colors.white
+                              : scheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-        ],
-        const Spacer(),
+        ),
         TextButton.icon(
           onPressed: () async {
             final range = await showDateRangePicker(
@@ -291,14 +312,20 @@ class _PeriodSelector extends StatelessWidget {
               lastDate: DateTime.now(),
             );
             if (range == null) return;
-            onSelected(MetricsPeriod(
-              'custom', 'Custom',
-              from: range.start,
-              // End of the chosen day: the RPC range is half-open, so a
-              // same-day pick would otherwise cover zero seconds.
-              to: DateTime(range.end.year, range.end.month, range.end.day)
-                  .add(const Duration(days: 1)),
-            ));
+            onSelected(
+              MetricsPeriod(
+                'custom',
+                'Custom',
+                from: range.start,
+                // End of the chosen day: the RPC range is half-open, so a
+                // same-day pick would otherwise cover zero seconds.
+                to: DateTime(
+                  range.end.year,
+                  range.end.month,
+                  range.end.day,
+                ).add(const Duration(days: 1)),
+              ),
+            );
           },
           icon: const Icon(Icons.date_range, size: 17),
           label: const Text('Custom', style: TextStyle(fontSize: 12.5)),
@@ -319,19 +346,30 @@ class _FoodCard extends ConsumerWidget {
     return _AsyncCard<FoodMetrics>(
       value: ref.watch(adminFoodMetricsProvider),
       builder: (m) {
-        if (m.ordersCount == 0) return const _EmptyState('No food orders in this period');
+        if (m.ordersCount == 0)
+          return const _EmptyState('No food orders in this period');
         return Column(
           children: [
             _Metric('Orders', '${m.ordersCount}'),
             _Metric('GMV', formatMinor(m.gmv, symbol)),
-            _Metric('Restaurant commission', formatMinor(m.restaurantCommissionTotal, symbol)),
+            _Metric(
+              'Restaurant commission',
+              formatMinor(m.restaurantCommissionTotal, symbol),
+            ),
             _Metric('Delivery fees', formatMinor(m.deliveryFeeTotal, symbol)),
-            _Metric('Rider payout', '-${formatMinor(m.riderPayoutTotal, symbol)}'),
+            _Metric(
+              'Rider payout',
+              '-${formatMinor(m.riderPayoutTotal, symbol)}',
+            ),
             const Divider(height: 18),
-            _Metric('Contribution', formatMinor(m.contributionTotal, symbol),
-                emphasise: true,
-                color: m.contributionTotal >= 0
-                    ? const Color(0xFF12B76A) : Colors.red.shade400),
+            _Metric(
+              'Contribution',
+              formatMinor(m.contributionTotal, symbol),
+              emphasise: true,
+              color: m.contributionTotal >= 0
+                  ? const Color(0xFF12B76A)
+                  : Colors.red.shade400,
+            ),
             _Metric('Average order', formatMinor(m.avgOrderValue, symbol)),
             const SizedBox(height: 12),
             _BreakevenBar(m: m),
@@ -371,10 +409,17 @@ class _BreakevenBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Break-even progress',
-                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
-            Text('${m.ordersCount} / ${m.breakevenOrdersRequired} orders',
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+            Text(
+              'Break-even progress',
+              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+            ),
+            Text(
+              '${m.ordersCount} / ${m.breakevenOrdersRequired} orders',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -385,7 +430,8 @@ class _BreakevenBar extends StatelessWidget {
             minHeight: 8,
             backgroundColor: scheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation(
-              pct >= 1 ? const Color(0xFF12B76A) : AppTheme.primaryColor),
+              pct >= 1 ? const Color(0xFF12B76A) : AppTheme.primaryColor,
+            ),
           ),
         ),
       ],
@@ -410,13 +456,23 @@ class _GroceryCard extends ConsumerWidget {
             _Metric('Orders', '${m.ordersCount}'),
             _Metric('GMV', formatMinor(m.gmv, symbol)),
             _Metric('Service fees', formatMinor(m.serviceFeeTotal, symbol)),
-            _Metric('Supermarket commission', formatMinor(m.supermarketCommissionTotal, symbol)),
-            _Metric('Delivery margin', formatMinor(m.deliveryMarginTotal, symbol)),
+            _Metric(
+              'Supermarket commission',
+              formatMinor(m.supermarketCommissionTotal, symbol),
+            ),
+            _Metric(
+              'Delivery margin',
+              formatMinor(m.deliveryMarginTotal, symbol),
+            ),
             const Divider(height: 18),
-            _Metric('Contribution', formatMinor(m.contributionTotal, symbol),
-                emphasise: true,
-                color: m.contributionTotal >= 0
-                    ? const Color(0xFF12B76A) : Colors.red.shade400),
+            _Metric(
+              'Contribution',
+              formatMinor(m.contributionTotal, symbol),
+              emphasise: true,
+              color: m.contributionTotal >= 0
+                  ? const Color(0xFF12B76A)
+                  : Colors.red.shade400,
+            ),
             _Metric('Average order', formatMinor(m.avgOrderValue, symbol)),
           ],
         );
@@ -435,13 +491,23 @@ class _CombinedCard extends ConsumerWidget {
       value: ref.watch(adminCombinedMetricsProvider),
       builder: (m) => Column(
         children: [
-          _Metric('Total contribution', formatMinor(m.totalContribution, symbol)),
-          _Metric('Ops cost (prorated)', '-${formatMinor(m.opsCostProrated, symbol)}'),
+          _Metric(
+            'Total contribution',
+            formatMinor(m.totalContribution, symbol),
+          ),
+          _Metric(
+            'Ops cost (prorated)',
+            '-${formatMinor(m.opsCostProrated, symbol)}',
+          ),
           const Divider(height: 18),
-          _Metric('Operating profit', formatMinor(m.operatingProfit, symbol),
-              emphasise: true,
-              color: m.operatingProfit >= 0
-                  ? const Color(0xFF12B76A) : Colors.red.shade400),
+          _Metric(
+            'Operating profit',
+            formatMinor(m.operatingProfit, symbol),
+            emphasise: true,
+            color: m.operatingProfit >= 0
+                ? const Color(0xFF12B76A)
+                : Colors.red.shade400,
+          ),
           if (m.opsCostUnconfigured) ...[
             const SizedBox(height: 8),
             Text(
@@ -502,19 +568,28 @@ class _TargetCard extends ConsumerWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Today's $label target",
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(
+                "Today's $label target",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
                 'No target set for today. The nightly job sets one at 00:05, '
                 'or you can set it now.',
-                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton(
-                  onPressed: () => _showOverrideDialog(context, ref, vertical, null),
+                  onPressed: () =>
+                      _showOverrideDialog(context, ref, vertical, null),
                   child: const Text('Set target'),
                 ),
               ),
@@ -535,18 +610,31 @@ class _TargetCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Text("Today's $label target",
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(
+                  "Today's $label target",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 if (t.isOverride)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text('manual',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'manual',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 const Spacer(),
                 Text(
@@ -557,7 +645,10 @@ class _TargetCard extends ConsumerWidget {
                     PaceStatus.noTarget => '',
                   },
                   style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: paceColor),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: paceColor,
+                  ),
                 ),
               ],
             ),
@@ -566,16 +657,30 @@ class _TargetCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text('${t.actualOrders}',
-                    style: TextStyle(
-                      fontSize: 34, fontWeight: FontWeight.w900, color: paceColor)),
-                Text(' / ${t.targetOrders}',
-                    style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700,
-                      color: scheme.onSurfaceVariant)),
+                Text(
+                  '${t.actualOrders}',
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    color: paceColor,
+                  ),
+                ),
+                Text(
+                  ' / ${t.targetOrders}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
                 const Spacer(),
-                Text('Projected ${t.projectedEodOrders}',
-                    style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                Text(
+                  'Projected ${t.projectedEodOrders}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -590,23 +695,40 @@ class _TargetCard extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             _PerOrderRow('AOV', t.aov, t.aovDelta7d, symbol),
-            _PerOrderRow('Gross rev / order', t.grossRevenuePerOrder,
-                t.grossPerOrderDelta7d, symbol),
-            _PerOrderRow('Net contribution / order', t.netContributionPerOrder,
-                t.netPerOrderDelta7d, symbol),
+            _PerOrderRow(
+              'Gross rev / order',
+              t.grossRevenuePerOrder,
+              t.grossPerOrderDelta7d,
+              symbol,
+            ),
+            _PerOrderRow(
+              'Net contribution / order',
+              t.netContributionPerOrder,
+              t.netPerOrderDelta7d,
+              symbol,
+            ),
             const SizedBox(height: 6),
             Row(
               children: [
                 TextButton(
                   onPressed: () => _showHistory(context, ref, vertical),
-                  child: const Text('View target history',
-                      style: TextStyle(fontSize: 12.5)),
+                  child: const Text(
+                    'View target history',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () =>
-                      _showOverrideDialog(context, ref, vertical, t.targetOrders),
-                  child: const Text('Override', style: TextStyle(fontSize: 12.5)),
+                  onPressed: () => _showOverrideDialog(
+                    context,
+                    ref,
+                    vertical,
+                    t.targetOrders,
+                  ),
+                  child: const Text(
+                    'Override',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                 ),
               ],
             ),
@@ -635,16 +757,22 @@ class _PerOrderRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+            ),
           ),
-          Text(formatMinor(value, symbol),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          Text(
+            formatMinor(value, symbol),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(width: 8),
           SizedBox(
             width: 96,
             child: Text(
-              delta == 0 ? '—' : '${up ? '+' : ''}${formatMinor(delta, symbol)}',
+              delta == 0
+                  ? '—'
+                  : '${up ? '+' : ''}${formatMinor(delta, symbol)}',
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 11.5,
@@ -662,7 +790,10 @@ class _PerOrderRow extends StatelessWidget {
 }
 
 Future<void> _showOverrideDialog(
-  BuildContext context, WidgetRef ref, String vertical, int? current,
+  BuildContext context,
+  WidgetRef ref,
+  String vertical,
+  int? current,
 ) async {
   final ordersCtrl = TextEditingController(text: current?.toString() ?? '');
   final notesCtrl = TextEditingController();
@@ -679,8 +810,10 @@ Future<void> _showOverrideDialog(
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(forTomorrow ? 'Tomorrow' : 'Today',
-                  style: const TextStyle(fontSize: 14)),
+              title: Text(
+                forTomorrow ? 'Tomorrow' : 'Today',
+                style: const TextStyle(fontSize: 14),
+              ),
               value: forTomorrow,
               onChanged: (v) => setSt(() => forTomorrow = v),
             ),
@@ -688,14 +821,17 @@ Future<void> _showOverrideDialog(
               controller: ordersCtrl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Target orders', border: OutlineInputBorder()),
+                labelText: 'Target orders',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: notesCtrl,
               decoration: const InputDecoration(
                 labelText: 'Why (recorded in the audit log)',
-                border: OutlineInputBorder()),
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
@@ -708,10 +844,12 @@ Future<void> _showOverrideDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel')),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Set target')),
+            child: const Text('Set target'),
+          ),
         ],
       ),
     ),
@@ -721,32 +859,43 @@ Future<void> _showOverrideDialog(
   final orders = int.tryParse(ordersCtrl.text.trim());
   if (orders == null || orders < 0) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Enter a whole number of orders')));
+      const SnackBar(content: Text('Enter a whole number of orders')),
+    );
     return;
   }
 
   try {
     final now = DateTime.now();
-    await ref.read(adminMetricsServiceProvider).setDailyTarget(
-      date: forTomorrow ? now.add(const Duration(days: 1)) : now,
-      vertical: vertical,
-      targetOrders: orders,
-      notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
-    );
+    await ref
+        .read(adminMetricsServiceProvider)
+        .setDailyTarget(
+          date: forTomorrow ? now.add(const Duration(days: 1)) : now,
+          vertical: vertical,
+          targetOrders: orders,
+          notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        );
     if (!context.mounted) return;
     ref.invalidate(adminDailyTargetProvider(vertical));
     ref.invalidate(adminTargetHistoryProvider(vertical));
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Target set')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Target set')));
   } catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red.shade700));
+      SnackBar(
+        content: Text(friendlyError(e)),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
   }
 }
 
 Future<void> _showHistory(
-    BuildContext context, WidgetRef ref, String vertical) async {
+  BuildContext context,
+  WidgetRef ref,
+  String vertical,
+) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -758,26 +907,36 @@ Future<void> _showHistory(
             padding: const EdgeInsets.all(16),
             child: async.when(
               loading: () => const SizedBox(
-                height: 160, child: Center(child: CircularProgressIndicator())),
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              ),
               error: (e, _) => SizedBox(
-                height: 160, child: Center(child: Text(friendlyError(e)))),
+                height: 160,
+                child: Center(child: Text(friendlyError(e))),
+              ),
               data: (rows) {
                 if (rows.isEmpty) {
                   return const SizedBox(
                     height: 120,
-                    child: Center(child: Text('No target history yet')));
+                    child: Center(child: Text('No target history yet')),
+                  );
                 }
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('$vertical target history',
-                        style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text(
+                      '$vertical target history',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+                        maxHeight: MediaQuery.of(ctx).size.height * 0.6,
+                      ),
                       child: SingleChildScrollView(
                         child: DataTable(
                           columnSpacing: 18,
@@ -790,21 +949,37 @@ Future<void> _showHistory(
                           ],
                           rows: [
                             for (final r in rows)
-                              DataRow(cells: [
-                                DataCell(Text(
-                                  (r['target_date'] ?? '').toString(),
-                                  style: TextStyle(
-                                    decoration: r['superseded'] == true
-                                        ? TextDecoration.lineThrough
-                                        : null))),
-                                DataCell(Text('${r['target_orders'] ?? '-'}')),
-                                DataCell(Text('${r['actual_orders'] ?? 0}')),
-                                DataCell(Text(r['hit'] == null
-                                    ? '—'
-                                    : (r['hit'] == true ? 'yes' : 'no'))),
-                                DataCell(Text((r['source'] ?? '').toString(),
-                                    style: const TextStyle(fontSize: 11))),
-                              ]),
+                              DataRow(
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      (r['target_date'] ?? '').toString(),
+                                      style: TextStyle(
+                                        decoration: r['superseded'] == true
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text('${r['target_orders'] ?? '-'}'),
+                                  ),
+                                  DataCell(Text('${r['actual_orders'] ?? 0}')),
+                                  DataCell(
+                                    Text(
+                                      r['hit'] == null
+                                          ? '—'
+                                          : (r['hit'] == true ? 'yes' : 'no'),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      (r['source'] ?? '').toString(),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -848,14 +1023,16 @@ class _LiveOpsCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Text(
-                  '$total in flight',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                Expanded(
+                  child: Text(
+                    '$total in flight',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 if (breaching > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -934,8 +1111,9 @@ class _LiveOpsRowTile extends StatelessWidget {
                 color: row.breachCount > 0
                     ? Colors.red.shade600
                     : scheme.onSurfaceVariant,
-                fontWeight:
-                    row.breachCount > 0 ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: row.breachCount > 0
+                    ? FontWeight.w700
+                    : FontWeight.w500,
               ),
             ),
           ],
