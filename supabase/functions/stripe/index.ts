@@ -22,19 +22,12 @@
 // needs the raw, unparsed body, so the body is passed through to the handler
 // untouched.
 
-import { handle as payment } from './routes/payment.ts'
-import { handle as connect } from './routes/connect.ts'
-import { handle as connectAccount } from './routes/connect-account.ts'
-import { handle as connectOnboarding } from './routes/connect-onboarding.ts'
-import { handle as connectStatus } from './routes/connect-status.ts'
-import { handle as subscription } from './routes/subscription.ts'
-import { handle as pauseFee } from './routes/pause-fee.ts'
-import { handle as payout } from './routes/payout.ts'
-import { handle as webhookMain } from './routes/webhook-main.ts'
-import { handle as webhookConnect } from './routes/webhook-connect.ts'
-import { handle as webhookPayout } from './routes/webhook-payout.ts'
-import { handle as webhookSubscription } from './routes/webhook-subscription.ts'
-
+// Routes are loaded LAZILY (dynamic import on first hit), not eagerly at the
+// top. Eager imports would run every module's top-level code at cold start, so
+// one module's import-time work (a Stripe client built from an esm.sh build, a
+// read of an unset webhook secret) could crash the entire function's boot. With
+// lazy loading the boot only parses this router; a faulty module fails only its
+// own route, caught below as a 500, and each cold start loads just what it needs.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -43,24 +36,25 @@ const corsHeaders = {
 }
 
 type Handler = (req: Request) => Promise<Response>
+type Loader = () => Promise<{ handle: Handler }>
 
 // Exact-path routing. Keys are the path AFTER the `stripe` function segment.
 // Flutter reaches these with functions.invoke('stripe/payment', ...): the dart
 // client appends the sub-path to the slug and Supabase routes /functions/v1/
-// stripe/* to this function.
-const ROUTES: Record<string, Handler> = {
-  '/payment': payment,
-  '/connect': connect,
-  '/connect/account': connectAccount,
-  '/connect/onboarding': connectOnboarding,
-  '/connect/status': connectStatus,
-  '/subscription': subscription,
-  '/pause-fee': pauseFee,
-  '/payout': payout,
-  '/webhook': webhookMain,
-  '/webhook/connect': webhookConnect,
-  '/webhook/payout': webhookPayout,
-  '/webhook/subscription': webhookSubscription,
+// stripe/* to this function. Values are lazy loaders (see note above).
+const ROUTES: Record<string, Loader> = {
+  '/payment': () => import('./routes/payment.ts'),
+  '/connect': () => import('./routes/connect.ts'),
+  '/connect/account': () => import('./routes/connect-account.ts'),
+  '/connect/onboarding': () => import('./routes/connect-onboarding.ts'),
+  '/connect/status': () => import('./routes/connect-status.ts'),
+  '/subscription': () => import('./routes/subscription.ts'),
+  '/pause-fee': () => import('./routes/pause-fee.ts'),
+  '/payout': () => import('./routes/payout.ts'),
+  '/webhook': () => import('./routes/webhook-main.ts'),
+  '/webhook/connect': () => import('./routes/webhook-connect.ts'),
+  '/webhook/payout': () => import('./routes/webhook-payout.ts'),
+  '/webhook/subscription': () => import('./routes/webhook-subscription.ts'),
 }
 
 function routeOf(pathname: string): string {
@@ -78,9 +72,9 @@ Deno.serve(async (req) => {
   }
 
   const route = routeOf(new URL(req.url).pathname)
-  const handler = ROUTES[route]
+  const loader = ROUTES[route]
 
-  if (!handler) {
+  if (!loader) {
     return new Response(
       JSON.stringify({ error: 'Unknown stripe route: ' + route }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -88,9 +82,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Pass the request through untouched — the body is not read here so that
-    // webhook handlers can verify the raw payload signature.
-    return await handler(req)
+    // Load the route module on demand, then pass the request through untouched
+    // — the body is not read here so webhook handlers can verify the raw
+    // payload signature.
+    const mod = await loader()
+    return await mod.handle(req)
   } catch (e) {
     // A handler that throws instead of returning a Response. Each route already
     // has its own try/catch; this is the last-resort net so the function never
