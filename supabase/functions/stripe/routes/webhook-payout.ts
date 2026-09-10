@@ -9,10 +9,8 @@
 // SECURITY: Webhook signature verified before processing.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import {
-  crypto,
-  toHashString,
-} from "https://deno.land/std@0.224.0/crypto/mod.ts";
+import { crypto } from "https://deno.land/std@0.224.0/crypto/mod.ts";
+import { encodeHex } from "https://deno.land/std@0.224.0/encoding/hex.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -57,7 +55,7 @@ async function verifyStripeSignature(
     key,
     new TextEncoder().encode(signedPayload)
   );
-  const computedSig = toHashString(new Uint8Array(sig));
+  const computedSig = encodeHex(new Uint8Array(sig));
   return computedSig === expectedSig;
 }
 
@@ -69,7 +67,13 @@ export async function handle(req: Request): Promise<Response> {
   const sigHeader = req.headers.get("stripe-signature") ?? "";
   const rawBody = await req.text();
 
-  if (STRIPE_WEBHOOK_SECRET) {
+  // FAIL CLOSED: a webhook that cannot verify its signature must reject, not
+  // process. Previously a missing secret skipped verification and accepted
+  // forged events. Set STRIPE_PAYOUT_WEBHOOK_SECRET / STRIPE_SUBSCRIPTION_WEBHOOK_SECRET.
+  if (!STRIPE_WEBHOOK_SECRET) {
+    return json({ error: "Webhook not configured (missing signing secret)" }, 400);
+  }
+  {
     const valid = await verifyStripeSignature(rawBody, sigHeader, STRIPE_WEBHOOK_SECRET);
     if (!valid) {
       return json({ error: "Invalid webhook signature" }, 400);
