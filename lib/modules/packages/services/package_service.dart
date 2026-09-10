@@ -57,7 +57,7 @@ class PackageService {
     required String shippingCompanyId,
     required String trackingNumber,
   }) async {
-    return _callFn('verify-package', {
+    return _callFn('packages/verify', {
       'shipping_company_id': shippingCompanyId,
       'tracking_number': trackingNumber,
     });
@@ -73,7 +73,7 @@ class PackageService {
     required String packageType,
     double? packageWeight,
   }) async {
-    return _callFn('calculate-package-fee', {
+    return _callFn('packages/fee', {
       'pickup_lat': pickupLat,
       'pickup_lng': pickupLng,
       'destination_lat': destinationLat,
@@ -95,7 +95,7 @@ class PackageService {
     String? savedCardId,
     String? stripePaymentIntentId,
   }) async {
-    final res = await _callFn('create-package-delivery', {
+    final res = await _callFn('packages/create', {
       'package_record_id': packageRecordId,
       'shipping_company_id': shippingCompanyId,
       'payment_method': paymentMethod,
@@ -117,7 +117,7 @@ class PackageService {
     required String newStatus,
     String? note,
   }) async {
-    final res = await _callFn('update-package-status', {
+    final res = await _callFn('packages/update-status', {
       'delivery_request_id': deliveryRequestId,
       'new_status': newStatus,
       if (note != null) 'note': note,
@@ -133,7 +133,7 @@ class PackageService {
     required String scannedBarcode,
     String? scanImageUrl,
   }) async {
-    final res = await _callFn('confirm-package-pickup', {
+    final res = await _callFn('packages/confirm-pickup', {
       'delivery_request_id': deliveryRequestId,
       'scanned_barcode': scannedBarcode,
       if (scanImageUrl != null) 'scan_image_url': scanImageUrl,
@@ -149,7 +149,7 @@ class PackageService {
     String? scannedBarcode,
     String? scanImageUrl,
   }) async {
-    return _callFn('complete-package-delivery', {
+    return _callFn('packages/complete', {
       'delivery_request_id': deliveryRequestId,
       if (scannedBarcode != null) 'scanned_barcode': scannedBarcode,
       if (scanImageUrl != null) 'scan_image_url': scanImageUrl,
@@ -230,7 +230,7 @@ class PackageService {
 
   Future<PackageDeliveryRequest> acceptPackageRequest(
       String deliveryRequestId) async {
-    final res = await _callFn('accept-package-delivery', {
+    final res = await _callFn('packages/accept', {
       'delivery_request_id': deliveryRequestId,
     });
     return PackageDeliveryRequest.fromJson(
@@ -265,7 +265,7 @@ class PackageService {
     String? trackingNumber,
     String? packageRecordId,
   }) async {
-    return _callFn('fetch-tracking-number', {
+    return _callFn('packages/tracking', {
       'shipping_company_id': shippingCompanyId,
       if (trackingNumber != null) 'tracking_number': trackingNumber,
       if (packageRecordId != null) 'package_record_id': packageRecordId,

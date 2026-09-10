@@ -583,3 +583,8 @@ verify_jwt = false
 # in-handler, so the platform gate is off.
 [functions.payouts]
 verify_jwt = false
+
+# Consolidated packages function. Package-delivery logistics; each route
+# authenticates in-handler, so the platform gate is off.
+[functions.packages]
+verify_jwt = false
