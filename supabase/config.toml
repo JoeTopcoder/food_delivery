@@ -567,3 +567,9 @@ verify_jwt = false
 # functions), so the platform gate being off does not weaken them.
 [functions.stripe]
 verify_jwt = false
+
+# Consolidated grocery function. grocery-order authenticates in-handler (as the
+# original grocery-order did with verify_jwt=false); products/stores are reads.
+# The platform gate is off so the router runs and each route decides for itself.
+[functions.grocery]
+verify_jwt = false
