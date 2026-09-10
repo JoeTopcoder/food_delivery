@@ -10,8 +10,10 @@ class ChatService {
   // ─── Messages (stream by order or ride) ────────────────────────────────────
 
   Stream<List<ChatMessage>> watchMessages({String? orderId, String? rideId}) {
-    assert(orderId != null || rideId != null,
-        'Must provide either orderId or rideId');
+    assert(
+      orderId != null || rideId != null,
+      'Must provide either orderId or rideId',
+    );
     final messages = <ChatMessage>[];
     RealtimeChannel? channel;
 
@@ -26,17 +28,21 @@ class ChatService {
     } else {
       query = query.eq('ride_id', rideId!);
     }
-    query.order('created_at', ascending: false).then((data) {
-      if (controller.isClosed) return;
-      messages.addAll((data as List).map((e) => ChatMessage.fromJson(e)));
-      controller.add(List.from(messages));
-    }).catchError((Object e) {
-      if (!controller.isClosed) controller.addError(e);
-    });
+    query
+        .order('created_at', ascending: false)
+        .then((data) {
+          if (controller.isClosed) return;
+          messages.addAll((data as List).map((e) => ChatMessage.fromJson(e)));
+          controller.add(List.from(messages));
+        })
+        .catchError((Object e) {
+          if (!controller.isClosed) controller.addError(e);
+        });
 
     // Real-time inserts — filter client-side
-    final channelName =
-        orderId != null ? 'order_chat_$orderId' : 'ride_chat_$rideId';
+    final channelName = orderId != null
+        ? 'order_chat_$orderId'
+        : 'ride_chat_$rideId';
     channel = _client
         .channel(channelName)
         .onPostgresChanges(
@@ -49,8 +55,9 @@ class ChatService {
             if (orderId != null && record['order_id'] != orderId) return;
             if (rideId != null && record['ride_id'] != rideId) return;
             try {
-              final msg =
-                  ChatMessage.fromJson(Map<String, dynamic>.from(record));
+              final msg = ChatMessage.fromJson(
+                Map<String, dynamic>.from(record),
+              );
               if (!messages.any((m) => m.id == msg.id)) {
                 messages.add(msg);
                 messages.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -77,30 +84,36 @@ class ChatService {
     MessageType messageType = MessageType.text,
     Map<String, dynamic>? metadata,
   }) async {
-    assert(orderId != null || rideId != null,
-        'Must provide either orderId or rideId');
+    assert(
+      orderId != null || rideId != null,
+      'Must provide either orderId or rideId',
+    );
     try {
       String? result;
       if (rideId != null) {
-        result = (await _client.rpc(
-          'send_ride_message',
-          params: {
-            'p_ride_id': rideId,
-            'p_message': message.trim(),
-            'p_message_type': messageType.value,
-            'p_metadata': metadata ?? {},
-          },
-        )) as String?;
+        result =
+            (await _client.rpc(
+                  'send_ride_message',
+                  params: {
+                    'p_ride_id': rideId,
+                    'p_message': message.trim(),
+                    'p_message_type': messageType.value,
+                    'p_metadata': metadata ?? {},
+                  },
+                ))
+                as String?;
       } else {
-        result = (await _client.rpc(
-          'send_message_secure',
-          params: {
-            'p_order_id': orderId,
-            'p_message': message.trim(),
-            'p_message_type': messageType.value,
-            'p_metadata': metadata ?? {},
-          },
-        )) as String?;
+        result =
+            (await _client.rpc(
+                  'send_message_secure',
+                  params: {
+                    'p_order_id': orderId,
+                    'p_message': message.trim(),
+                    'p_message_type': messageType.value,
+                    'p_metadata': metadata ?? {},
+                  },
+                ))
+                as String?;
       }
 
       // Send push notification for text messages
@@ -153,11 +166,10 @@ class ChatService {
       if (participantIds.isEmpty) return;
 
       // Get FCM tokens for all other participants
-      final userRows =
-          await _client.from('users').select('id, fcm_token').inFilter(
-                'id',
-                participantIds,
-              );
+      final userRows = await _client
+          .from('users')
+          .select('id, fcm_token')
+          .inFilter('id', participantIds);
 
       for (final row in (userRows as List)) {
         final fcmToken = row['fcm_token'] as String?;
@@ -194,8 +206,10 @@ class ChatService {
     String? rideId,
     required String readerId,
   }) async {
-    assert(orderId != null || rideId != null,
-        'Must provide either orderId or rideId');
+    assert(
+      orderId != null || rideId != null,
+      'Must provide either orderId or rideId',
+    );
     try {
       var query = _client.from('conversations').select('id');
       if (orderId != null) {
@@ -294,7 +308,6 @@ class ChatService {
         .eq('conversation_id', conversationId)
         .map((rows) => rows.where((r) => r['is_typing'] == true).toList());
   }
-
 
   // ─── Calls ───────────────────────────────────────────────────────────────
 
@@ -549,6 +562,28 @@ class ChatService {
     final list = rows as List;
     if (list.isEmpty) return null;
     return list.first['id'] as String?;
+  }
+
+  /// Close a support chat. Admin only — the RPC checks the caller's role, so a
+  /// non-admin calling this gets an exception rather than a silent no-op.
+  ///
+  /// Closing is not muting: if the customer writes again a database trigger
+  /// reopens the conversation, so it comes back into the admin queue.
+  Future<void> closeConversation(
+    String conversationId, {
+    String? reason,
+  }) async {
+    await _client.rpc(
+      'admin_close_conversation',
+      params: {'p_conversation_id': conversationId, 'p_reason': reason},
+    );
+  }
+
+  Future<void> reopenConversation(String conversationId) async {
+    await _client.rpc(
+      'admin_reopen_conversation',
+      params: {'p_conversation_id': conversationId},
+    );
   }
 
   Future<List<Map<String, dynamic>>> getAllChatSummaries() async {
