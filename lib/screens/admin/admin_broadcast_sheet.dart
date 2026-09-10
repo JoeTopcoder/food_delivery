@@ -62,7 +62,7 @@ class _AdminBroadcastSheetState extends ConsumerState<AdminBroadcastSheet> {
       if (code.isNotEmpty) body['promo_code'] = code;
 
       final resp = await SupabaseConfig.client.functions.invoke(
-        'admin-broadcast',
+        'admin/broadcast',
         body: body,
       );
       final data = resp.data is Map

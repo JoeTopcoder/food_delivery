@@ -573,3 +573,8 @@ verify_jwt = false
 # The platform gate is off so the router runs and each route decides for itself.
 [functions.grocery]
 verify_jwt = false
+
+# Consolidated admin function. Every route verifies the caller is an admin in
+# its own handler, so the platform gate is off and each route gates itself.
+[functions.admin]
+verify_jwt = false
