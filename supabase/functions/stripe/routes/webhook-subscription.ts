@@ -97,7 +97,13 @@ export async function handle(request: Request): Promise<Response> {
   const sigHeader = request.headers.get("stripe-signature") ?? "";
 
   // Verify Stripe signature
-  if (STRIPE_WEBHOOK_SECRET) {
+  // FAIL CLOSED: a webhook that cannot verify its signature must reject, not
+  // process. Previously a missing secret skipped verification and accepted
+  // forged events. Set STRIPE_PAYOUT_WEBHOOK_SECRET / STRIPE_SUBSCRIPTION_WEBHOOK_SECRET.
+  if (!STRIPE_WEBHOOK_SECRET) {
+    return json({ error: "Webhook not configured (missing signing secret)" }, 400);
+  }
+  {
     const valid = await verifyStripeSignature(rawBody, sigHeader, STRIPE_WEBHOOK_SECRET);
     if (!valid) {
       return json({ error: "Invalid signature" }, 400);
