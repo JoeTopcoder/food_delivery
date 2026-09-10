@@ -560,3 +560,10 @@ verify_jwt = false
 
 [functions.cancel-call-notification]
 verify_jwt = false
+
+# Consolidated Stripe function. Must be false: the /webhook* routes are called
+# by Stripe, which cannot present a Supabase JWT. Every non-webhook route
+# authenticates the caller inside its own handler (unchanged from the original
+# functions), so the platform gate being off does not weaken them.
+[functions.stripe]
+verify_jwt = false
