@@ -829,7 +829,7 @@ class PaymentService {
     try {
       AppLogger.info('Verifying payment status: $transactionId');
       final response = await _invokeStripeFunction(
-        'stripe-payment',
+        'stripe/payment',
         body: {'action': 'verify', 'transaction_id': transactionId},
       );
       final data = response.data as Map<String, dynamic>?;
@@ -851,7 +851,7 @@ class PaymentService {
         'Processing refund: $transactionId - ${AppConstants.currencySymbol}$amount',
       );
       final response = await _invokeStripeFunction(
-        'stripe-payment',
+        'stripe/payment',
         body: {
           'action': 'refund',
           'transaction_id': transactionId,
@@ -1373,7 +1373,7 @@ class PaymentService {
       AppLogger.info('Processing Stripe payout: $payoutId, amount=$amount');
 
       final response = await _supabaseClient.functions.invoke(
-        'stripe-payment',
+        'stripe/payment',
         body: {
           'action': 'create_payout',
           'payoutId': payoutId,

@@ -337,9 +337,9 @@ class PayoutService {
           .eq('id', payoutId);
 
       try {
-        // Call Stripe payout via the stripe-payment edge function
+        // Call Stripe payout via the consolidated stripe function (/payment route)
         final response = await _client.functions.invoke(
-          'stripe-payment',
+          'stripe/payment',
           body: {
             'action': 'create_payout',
             'payoutId': payoutId,
@@ -630,7 +630,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'onboard'},
       );
     } on FunctionException catch (e) {
@@ -648,7 +648,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'add_card', 'token': stripeToken},
       );
     } on FunctionException catch (e) {
@@ -663,7 +663,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'create_account'},
       );
     } on FunctionException catch (e) {
@@ -690,7 +690,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {
           'action': 'update_kyc',
           'first_name': firstName,
@@ -723,7 +723,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {
           'action': 'add_bank',
           'account_number': accountNumber,
@@ -773,7 +773,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'status'},
       );
     } on FunctionException catch (e) {

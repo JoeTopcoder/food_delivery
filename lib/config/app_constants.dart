@@ -28,7 +28,7 @@
   /// Checked at payment-screen entry to surface a visible warning in debug.
   static bool get stripeIsTestMode =>
       stripePublishableKey.startsWith('pk_test');
-  static const String stripePaymentFunction = 'stripe-payment';
+  static const String stripePaymentFunction = 'stripe/payment';
   static const String stripeMerchantId = 'merchant.com.sevendash.app';
 
   // Stripe-only: Legacy Lunipay and WiPay configurations removed

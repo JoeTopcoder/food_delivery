@@ -640,7 +640,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
     setState(() => _processing = true);
     try {
       final res = await db.functions.invoke(
-        'stripe-pay-from-payout-request',
+        'stripe/payout',
         body: {'payout_request_id': payout.id},
       );
       final data = res.data as Map<String, dynamic>?;
