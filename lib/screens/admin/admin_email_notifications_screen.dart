@@ -129,7 +129,7 @@ class _AdminEmailNotificationsScreenState
       };
 
       final resp = await SupabaseConfig.client.functions.invoke(
-        'admin-broadcast',
+        'admin/broadcast',
         body: body,
       );
 

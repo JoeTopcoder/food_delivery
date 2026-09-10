@@ -1692,7 +1692,7 @@ class _VerificationCardState extends State<_VerificationCard> {
       );
       // Fire-and-forget FCM notification via edge function (non-critical)
       SupabaseConfig.client.functions.invoke(
-        'admin-review-driver',
+        'admin/review-driver',
         body: {
           'driver_id': _driverId,
           'approved': approved,

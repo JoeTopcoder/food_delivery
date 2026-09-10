@@ -240,7 +240,7 @@ class AdminService {
 
     final res = await http.post(
       Uri.parse(
-        '${AppConstants.supabaseFunctionsBaseUrl}/admin-verify-restaurant',
+        '${AppConstants.supabaseFunctionsBaseUrl}/admin/verify-restaurant',
       ),
       headers: {
         'Content-Type': 'application/json',
@@ -843,7 +843,7 @@ class AdminService {
     if (session == null) throw Exception('Not authenticated');
 
     final res = await http.post(
-      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin-create-user'),
+      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin/create-user'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${session.accessToken}',
@@ -881,7 +881,7 @@ class AdminService {
     if (session == null) throw Exception('Not authenticated');
 
     final res = await http.post(
-      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin-lookup'),
+      Uri.parse('${AppConstants.supabaseFunctionsBaseUrl}/admin/lookup'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${session.accessToken}',

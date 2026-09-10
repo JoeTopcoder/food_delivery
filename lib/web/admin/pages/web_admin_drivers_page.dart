@@ -217,7 +217,7 @@ class _WebAdminDriversPageState extends ConsumerState<WebAdminDriversPage>
       );
       // Fire-and-forget FCM notification
       SupabaseConfig.client.functions.invoke(
-        'admin-review-driver',
+        'admin/review-driver',
         body: {
           'driver_id': driverId,
           'approved': approve,
