@@ -578,3 +578,8 @@ verify_jwt = false
 # its own handler, so the platform gate is off and each route gates itself.
 [functions.admin]
 verify_jwt = false
+
+# Consolidated payouts function. Back-office money-out; each route authenticates
+# in-handler, so the platform gate is off.
+[functions.payouts]
+verify_jwt = false

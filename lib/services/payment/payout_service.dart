@@ -506,7 +506,7 @@ class PayoutService {
   Future<Map<String, dynamic>> processRestaurantPayout(String payoutId) async {
     try {
       final response = await _client.functions.invoke(
-        'process-restaurant-payout',
+        'payouts/restaurant',
         body: {'payout_request_id': payoutId},
       );
 
@@ -792,7 +792,7 @@ class StripePayoutService {
     String payoutType = 'instant',
   }) async {
     final res = await _client.functions.invoke(
-      'payout-driver',
+      'payouts/driver',
       body: {'amount_cents': amountCents, 'payout_type': payoutType},
     );
 
