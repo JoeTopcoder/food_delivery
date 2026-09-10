@@ -435,7 +435,7 @@ class GroceryService {
 
       FunctionResponse response;
       try {
-        response = await _client.functions.invoke('grocery-order',
+        response = await _client.functions.invoke('grocery/order',
             body: invokeBody, headers: await freshHeader());
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
@@ -446,7 +446,7 @@ class GroceryService {
             raw.contains('JWT');
         if (isJwtError) {
           try {
-            response = await _client.functions.invoke('grocery-order',
+            response = await _client.functions.invoke('grocery/order',
                 body: invokeBody, headers: await freshHeader());
           } on FunctionException catch (fe2) {
             if (fe2.status == 401 || fe2.status == 403) {
