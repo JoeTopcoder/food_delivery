@@ -461,7 +461,7 @@ class RideService {
     try {
       final token = await _freshToken();
       final response = await _supabase.functions.invoke(
-        'charge-pause-fee',
+        'stripe/pause-fee',
         body: {'ride_id': rideId},
         headers: {'Authorization': 'Bearer $token'},
       );

@@ -13,7 +13,7 @@ class StripeConnectService {
     String currency = 'jmd',
   }) async {
     final res = await _client.functions.invoke(
-      'create-connect-account',
+      'stripe/connect/account',
       body: {'role': role, 'country': country, 'currency': currency},
     );
     _checkError(res);
@@ -25,7 +25,7 @@ class StripeConnectService {
   /// Generate a Stripe Account Link URL for onboarding.
   Future<String> createAccountLink({required String role}) async {
     final res = await _client.functions.invoke(
-      'create-account-link',
+      'stripe/connect/onboarding',
       body: {'role': role},
     );
     _checkError(res);
@@ -35,7 +35,7 @@ class StripeConnectService {
   /// Refresh the connected account status from Stripe and persist to Supabase.
   Future<Map<String, dynamic>> refreshConnectAccount({required String role}) async {
     final res = await _client.functions.invoke(
-      'refresh-connect-account',
+      'stripe/connect/status',
       body: {'role': role},
     );
     _checkError(res);
