@@ -128,7 +128,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── 6. Trigger driver assignment (fire-and-forget) ────────────────────────
-  fetch(`${supabaseUrl}/functions/v1/assign-driver-multi-pickup`, {
+  fetch(`${supabaseUrl}/functions/v1/packages/assign`, {
     method:  "POST",
     headers: {
       "Content-Type":  "application/json",

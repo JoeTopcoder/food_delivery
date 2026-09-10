@@ -51,7 +51,7 @@ class _MultiStopDeliveryScreenState
     setState(() => _processing = true);
     try {
       final resp = await SupabaseConfig.client.functions.invoke(
-        'update-delivery-stop',
+        'packages/update-stop',
         body: {
           'stop_id': stopId,
           'action': action,
