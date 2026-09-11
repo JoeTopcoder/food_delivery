@@ -501,6 +501,12 @@ class AppConfigService {
     AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     true);
     AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', true);
 
+    AppConstants.screenHomeEnabled         = _bool(c, 'screen_home_enabled',         true);
+    AppConstants.screenGroceryEnabled      = _bool(c, 'screen_grocery_enabled',      true);
+    AppConstants.screenOrdersEnabled       = _bool(c, 'screen_orders_enabled',       true);
+    AppConstants.screenCarServicesEnabled  = _bool(c, 'screen_car_services_enabled', true);
+    AppConstants.screenProfileEnabled      = _bool(c, 'screen_profile_enabled',      true);
+
     // System / maintenance
     AppConstants.maintenanceMode = _bool(c, 'maintenance_mode', AppConstants.maintenanceMode);
     AppConstants.apiTimeout = _int(c, 'api_timeout', AppConstants.apiTimeout);
