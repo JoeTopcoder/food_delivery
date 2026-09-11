@@ -16,6 +16,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
+import 'barcode_scan_screen.dart';
 
 class GroceryManagementScreen extends ConsumerStatefulWidget {
   /// When [store] is provided (admin path), that store is managed directly and
@@ -466,6 +467,10 @@ class _GroceryStoreBody extends ConsumerWidget {
                     (item) => _GroceryProductTile(
                       product: item,
                       inventory: invMap[item.id],
+                      onScanBarcode: () =>
+                          _scanAndAssignBarcode(context, ref, item, store.id),
+                      onRemoveBarcode: () =>
+                          _removeBarcode(context, ref, item, store.id),
                       onManageStock: () =>
                           _showInventorySheet(context, ref, item, store.id),
                       onToggleStock: () =>
@@ -566,6 +571,54 @@ class _GroceryStoreBody extends ConsumerWidget {
     );
   }
 
+  /// Open the scanner and link the scanned barcode / QR to [product].
+  Future<void> _scanAndAssignBarcode(
+    BuildContext context,
+    WidgetRef ref,
+    MenuItem product,
+    String storeId, {
+    bool replacing = false,
+  }) async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => BarcodeScanScreen(
+          title: replacing ? 'Rescan ${product.name}' : 'Scan ${product.name}',
+          subtitle: 'Point at the product’s barcode or QR code',
+        ),
+      ),
+    );
+    if (code == null || !context.mounted) return;
+    try {
+      await ref.read(groceryServiceProvider).setProductBarcode(product.id, code);
+      ref.invalidate(storeInventoryProvider(storeId));
+      ref.invalidate(ownerGroceryProductsProvider(storeId));
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Code linked to ${product.name}');
+      }
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
+  Future<void> _removeBarcode(
+    BuildContext context,
+    WidgetRef ref,
+    MenuItem product,
+    String storeId,
+  ) async {
+    try {
+      await ref.read(groceryServiceProvider).clearProductBarcode(product.id);
+      ref.invalidate(storeInventoryProvider(storeId));
+      ref.invalidate(ownerGroceryProductsProvider(storeId));
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Code removed from ${product.name}');
+      }
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
   Future<void> _toggleStock(
     BuildContext context,
     WidgetRef ref,
@@ -643,6 +696,8 @@ class _GroceryStoreBody extends ConsumerWidget {
 class _GroceryProductTile extends StatelessWidget {
   final MenuItem product;
   final ProductInventory? inventory;
+  final VoidCallback onScanBarcode;
+  final VoidCallback onRemoveBarcode;
   final VoidCallback onManageStock;
   final VoidCallback onToggleStock;
   final VoidCallback onToggleAvailability;
@@ -651,6 +706,8 @@ class _GroceryProductTile extends StatelessWidget {
   const _GroceryProductTile({
     required this.product,
     required this.inventory,
+    required this.onScanBarcode,
+    required this.onRemoveBarcode,
     required this.onManageStock,
     required this.onToggleStock,
     required this.onToggleAvailability,
@@ -659,15 +716,20 @@ class _GroceryProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final linked = inventory?.hasBarcode ?? false;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Thumbnail
-            ClipRRect(
+      clipBehavior: Clip.antiAlias,
+      // Tapping the product opens the scanner to link a barcode / QR code.
+      child: InkWell(
+        onTap: onScanBarcode,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Thumbnail
+              ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: product.imageUrl != null && product.imageUrl!.isNotEmpty
                   ? Image.network(
@@ -745,6 +807,8 @@ class _GroceryProductTile extends StatelessWidget {
                           label: product.inStock ? 'In Stock' : 'Out of Stock',
                           color: product.inStock ? Colors.blue : Colors.red,
                         ),
+                      // Barcode / QR link state.
+                      _BarcodeChip(linked: linked),
                     ],
                   ),
                 ],
@@ -755,6 +819,12 @@ class _GroceryProductTile extends StatelessWidget {
             PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
+                  case 'scan':
+                    onScanBarcode();
+                    break;
+                  case 'remove_code':
+                    onRemoveBarcode();
+                    break;
                   case 'inventory':
                     onManageStock();
                     break;
@@ -774,6 +844,31 @@ class _GroceryProductTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'scan',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.qr_code_scanner_rounded,
+                        size: 18,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(linked ? 'Rescan barcode / QR' : 'Scan barcode / QR'),
+                    ],
+                  ),
+                ),
+                if (linked)
+                  const PopupMenuItem(
+                    value: 'remove_code',
+                    child: Row(
+                      children: [
+                        Icon(Icons.link_off, size: 18, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text('Remove code'),
+                      ],
+                    ),
+                  ),
                 PopupMenuItem(
                   value: 'inventory',
                   child: Row(
@@ -846,6 +941,7 @@ class _GroceryProductTile extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );
@@ -883,6 +979,44 @@ class _StatusChip extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+/// Small chip showing whether a barcode / QR is linked to the product. Tapping
+/// the tile scans one; this just signals the current state.
+class _BarcodeChip extends StatelessWidget {
+  final bool linked;
+  const _BarcodeChip({required this.linked});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = linked ? const Color(0xFF6941C6) : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            linked ? Icons.qr_code_2 : Icons.qr_code_scanner_rounded,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            linked ? 'Code linked' : 'Tap to add code',
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

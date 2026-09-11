@@ -337,7 +337,7 @@ class GroceryService {
       final rows = await _client
           .from(AppConstants.tableMenus)
           .select(
-            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock',
+            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock, barcode',
           )
           .eq('restaurant_id', storeId)
           .eq('product_type', 'grocery');
@@ -427,6 +427,34 @@ class GroceryService {
           .eq('id', productId);
     } catch (e) {
       AppLogger.error('Error disabling inventory tracking: $e');
+      rethrow;
+    }
+  }
+
+  /// Link a scanned barcode / QR code to a product (so pickers can scan it).
+  /// Uses the atomic assign_barcode RPC, which rejects a code already used by
+  /// another product in the same store.
+  Future<void> setProductBarcode(String productId, String code) async {
+    try {
+      await _client.rpc(
+        'assign_barcode',
+        params: {'p_product_id': productId, 'p_barcode': code},
+      );
+    } catch (e) {
+      AppLogger.error('Error setting product barcode: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove the linked barcode / QR code from a product.
+  Future<void> clearProductBarcode(String productId) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'barcode': null})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error clearing product barcode: $e');
       rethrow;
     }
   }
