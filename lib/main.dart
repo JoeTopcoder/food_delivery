@@ -133,6 +133,7 @@ import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/restaurant/grocery_management_screen.dart';
+import 'screens/admin/admin_grocery_stores_screen.dart';
 import 'screens/restaurant/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
@@ -818,6 +819,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['restaurant'],
                   child: GroceryManagementScreen(),
+                ),
+              );
+            case '/admin-grocery-products':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminGroceryStoresScreen(),
                 ),
               );
             case '/restaurant-detail':

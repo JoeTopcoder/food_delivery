@@ -85,6 +85,17 @@ class GroceryService {
     }
   }
 
+  /// Admin: every grocery store (verified or not) so an admin can manage a
+  /// store's catalogue before it goes live. RLS restricts this to admins.
+  Future<List<Restaurant>> getGroceryStoresForAdmin() async {
+    final response = await _client
+        .from(AppConstants.tableRestaurants)
+        .select()
+        .or('store_type.eq.grocery,store_type.eq.both')
+        .order('name');
+    return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+  }
+
   /// Search grocery stores by name.
   Future<List<Restaurant>> searchGroceryStores(String query) async {
     try {
@@ -375,6 +386,7 @@ class GroceryService {
     // Payment gate: pass one so the edge function charges/verifies before insert.
     String? savedCardPaymentMethodId,
     String? paymentIntentId,
+
     /// When set, the order goes to this linked student's school. The edge
     /// function re-checks the link and re-derives school and fee.
     String? studentId,
@@ -393,9 +405,11 @@ class GroceryService {
         if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
         if (studentId != null) 'student_id': studentId,
         'driver_tip': driverTip,
-        if (specialInstructions != null) 'special_instructions': specialInstructions,
+        if (specialInstructions != null)
+          'special_instructions': specialInstructions,
         if (promoCode != null) 'promo_code': promoCode,
-        if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty)
+        if (savedCardPaymentMethodId != null &&
+            savedCardPaymentMethodId.isNotEmpty)
           'saved_card_payment_method_id': savedCardPaymentMethodId,
         if (paymentIntentId != null && paymentIntentId.isNotEmpty)
           'payment_intent_id': paymentIntentId,
@@ -435,26 +449,34 @@ class GroceryService {
 
       FunctionResponse response;
       try {
-        response = await _client.functions.invoke('grocery/order',
-            body: invokeBody, headers: await freshHeader());
+        response = await _client.functions.invoke(
+          'grocery/order',
+          body: invokeBody,
+          headers: await freshHeader(),
+        );
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
-        final isJwtError = fe.status == 401 ||
+        final isJwtError =
+            fe.status == 401 ||
             fe.status == 403 ||
             raw.contains('LEGACY_JWT') ||
             raw.contains('ES256') ||
             raw.contains('JWT');
         if (isJwtError) {
           try {
-            response = await _client.functions.invoke('grocery/order',
-                body: invokeBody, headers: await freshHeader());
+            response = await _client.functions.invoke(
+              'grocery/order',
+              body: invokeBody,
+              headers: await freshHeader(),
+            );
           } on FunctionException catch (fe2) {
             if (fe2.status == 401 || fe2.status == 403) {
               throw Exception(
                 'Your session has expired. Please sign out and sign in again to place your order.',
               );
             }
-            final msg = extractFunctionError(fe2.details) ??
+            final msg =
+                extractFunctionError(fe2.details) ??
                 'Order placement failed (${fe2.status}). Please try again.';
             throw Exception(msg);
           }
