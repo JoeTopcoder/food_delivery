@@ -10,6 +10,7 @@ class ProductInventory {
   final int stockQuantity;
   final int lowStockThreshold;
   final bool inStock;
+  final String? barcode; // linked scan code (barcode / QR), if any
 
   const ProductInventory({
     required this.productId,
@@ -17,6 +18,7 @@ class ProductInventory {
     required this.stockQuantity,
     required this.lowStockThreshold,
     required this.inStock,
+    required this.barcode,
   });
 
   factory ProductInventory.fromJson(Map<String, dynamic> json) =>
@@ -26,7 +28,10 @@ class ProductInventory {
         stockQuantity: (json['stock_quantity'] as num?)?.toInt() ?? 0,
         lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt() ?? 5,
         inStock: json['in_stock'] as bool? ?? true,
+        barcode: json['barcode'] as String?,
       );
+
+  bool get hasBarcode => barcode != null && barcode!.isNotEmpty;
 
   /// Tracked and at/below the reorder threshold (includes fully out of stock).
   bool get isLow => trackInventory && stockQuantity <= lowStockThreshold;
