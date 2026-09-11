@@ -175,12 +175,83 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         ? allActiveOrders.first.id
         : null;
 
+    // ── Customer tabs, filtered by admin screen-visibility flags ──
+    // A tab whose screen_*_enabled flag is false is removed entirely (not shown
+    // to customers), unlike the service "coming soon" state which greys it.
+    final l10n = context.l10n;
+    final allTabs = <_NavTab>[
+      _NavTab(
+        0,
+        'home',
+        _screens[0],
+        Icons.home_outlined,
+        Icons.home,
+        l10n.home,
+      ),
+      _NavTab(
+        1,
+        'grocery',
+        _screens[1],
+        Icons.local_grocery_store_outlined,
+        Icons.local_grocery_store,
+        l10n.grocery,
+        serviceKey: 'grocery',
+      ),
+      _NavTab(
+        2,
+        'orders',
+        _screens[2],
+        Icons.receipt_outlined,
+        Icons.receipt,
+        l10n.orders,
+        guestGated: true,
+      ),
+      _NavTab(
+        3,
+        'car_services',
+        _screens[3],
+        Icons.car_repair,
+        Icons.car_repair,
+        'Services',
+        serviceKey: 'car_service',
+      ),
+      _NavTab(
+        4,
+        'profile',
+        _screens[4],
+        Icons.account_circle_outlined,
+        Icons.account_circle,
+        l10n.profile,
+        guestGated: true,
+      ),
+    ];
+    final tabs = allTabs
+        .where((t) => ref.watch(screenEnabledProvider(t.key)))
+        .toList();
+    if (tabs.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'The app is temporarily unavailable. Please check back soon.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+    final sel = _selectedIndex.clamp(0, tabs.length - 1);
+    _loadedTabs.add(tabs[sel].originalIndex);
+    final groceryEnabled = ref.watch(serviceEnabledProvider('grocery'));
+    final carEnabled = ref.watch(serviceEnabledProvider('car_service'));
+
     return Scaffold(
       // Not on Home. Home has its own concierge button next to the delivery
       // address, and a floating robot on top of it was a second AI entry
       // point competing with the first — as well as covering the last card of
       // the services row. The other tabs keep it.
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: tabs[sel].key == 'home'
           ? null
           : AiFab(
               role: 'customer',
@@ -188,103 +259,69 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               activeOrders: allActiveOrders.isNotEmpty ? allActiveOrders : null,
             ),
       body: IndexedStack(
-        index: _selectedIndex,
+        index: sel,
         children: [
-          for (int i = 0; i < _screens.length; i++)
-            _loadedTabs.contains(i) ? _screens[i] : const SizedBox.shrink(),
+          for (final t in tabs)
+            _loadedTabs.contains(t.originalIndex)
+                ? t.screen
+                : const SizedBox.shrink(),
         ],
       ),
-      bottomNavigationBar: Builder(
-        builder: (context) {
-          final groceryEnabled = ref.watch(serviceEnabledProvider('grocery'));
-          final carEnabled = ref.watch(serviceEnabledProvider('car_service'));
-
-          return BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: (index) {
-              // Tab 4 = Profile — guests must sign in first.
-              if (index == 4 && !authState.isAuthenticated) {
-                _showGuestSignInPrompt(context);
-                return;
-              }
-              // Tab 2 = Orders — guests must sign in first.
-              if (index == 2 && !authState.isAuthenticated) {
-                _showGuestSignInPrompt(context);
-                return;
-              }
-              // Tab 1 = Grocery, Tab 3 = Car Services
-              if (index == 1 && !groceryEnabled) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Grocery is coming soon!'),
-                    duration: Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
+      // A BottomNavigationBar needs >= 2 items; if the admin hid all but one
+      // tab, show that single screen with no bar rather than crash.
+      bottomNavigationBar: tabs.length < 2
+          ? null
+          : BottomNavigationBar(
+              currentIndex: sel,
+              onTap: (index) {
+                final tab = tabs[index];
+                if (tab.guestGated && !authState.isAuthenticated) {
+                  _showGuestSignInPrompt(context);
+                  return;
+                }
+                if (tab.serviceKey != null) {
+                  final on = tab.serviceKey == 'grocery'
+                      ? groceryEnabled
+                      : carEnabled;
+                  if (!on) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${tab.label} is coming soon!'),
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                }
+                ref.read(currentTabIndexProvider.notifier).state = index;
+                setState(() {
+                  _loadedTabs.add(tab.originalIndex);
+                  _selectedIndex = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: context.theme.cardColor,
+              selectedItemColor: AppTheme.primaryColor,
+              unselectedItemColor: context.colors.onSurfaceVariant,
+              items: [
+                for (final t in tabs)
+                  BottomNavigationBarItem(
+                    icon:
+                        (t.serviceKey != null &&
+                            !(t.serviceKey == 'grocery'
+                                ? groceryEnabled
+                                : carEnabled))
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: [Icon(t.icon), _ComingSoonDot()],
+                          )
+                        : Icon(t.icon),
+                    activeIcon: Icon(t.activeIcon),
+                    label: t.label,
                   ),
-                );
-                return;
-              }
-              if (index == 3 && !carEnabled) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Car Services is coming soon!'),
-                    duration: Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                return;
-              }
-              ref.read(currentTabIndexProvider.notifier).state = index;
-              setState(() {
-                _loadedTabs.add(index);
-                _selectedIndex = index;
-              });
-            },
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: context.theme.cardColor,
-            selectedItemColor: AppTheme.primaryColor,
-            unselectedItemColor: context.colors.onSurfaceVariant,
-            items: [
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.home_outlined),
-                activeIcon: const Icon(Icons.home),
-                label: context.l10n.home,
-              ),
-              BottomNavigationBarItem(
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.local_grocery_store_outlined),
-                    if (!groceryEnabled) _ComingSoonDot(),
-                  ],
-                ),
-                activeIcon: const Icon(Icons.local_grocery_store),
-                label: groceryEnabled ? context.l10n.grocery : 'Grocery',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.receipt_outlined),
-                activeIcon: const Icon(Icons.receipt),
-                label: context.l10n.orders,
-              ),
-              BottomNavigationBarItem(
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.car_repair),
-                    if (!carEnabled) _ComingSoonDot(),
-                  ],
-                ),
-                activeIcon: const Icon(Icons.car_repair),
-                label: carEnabled ? 'Services' : 'Services',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.account_circle_outlined),
-                activeIcon: const Icon(Icons.account_circle),
-                label: context.l10n.profile,
-              ),
-            ],
-          );
-        },
-      ),
+              ],
+            ),
     );
   }
 }
@@ -923,4 +960,29 @@ class _ComingSoonDot extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One customer bottom-nav tab. `originalIndex` is its position in the fixed
+/// _screens list (stable regardless of which tabs are hidden), used to key the
+/// lazy-load set so hiding a tab never reshuffles which screens are built.
+class _NavTab {
+  const _NavTab(
+    this.originalIndex,
+    this.key,
+    this.screen,
+    this.icon,
+    this.activeIcon,
+    this.label, {
+    this.serviceKey,
+    this.guestGated = false,
+  });
+
+  final int originalIndex;
+  final String key;
+  final Widget screen;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String? serviceKey; // grocery / car_service -> "coming soon" behaviour
+  final bool guestGated; // requires sign-in (Orders, Profile)
 }

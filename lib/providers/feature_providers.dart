@@ -101,6 +101,22 @@ final serviceEnabledProvider = Provider.family<bool, String>((ref, key) {
   }
 });
 
+// ── Screen (bottom-nav tab) visibility provider ────────────
+/// Whether a customer bottom-nav tab is shown. Admin-controlled via app_config;
+/// re-evaluates on any config change. Keys: 'home','grocery','orders',
+/// 'car_services','profile'. false = tab hidden from customers.
+final screenEnabledProvider = Provider.family<bool, String>((ref, key) {
+  ref.watch(configVersionProvider);
+  switch (key) {
+    case 'home':         return AppConstants.screenHomeEnabled;
+    case 'grocery':      return AppConstants.screenGroceryEnabled;
+    case 'orders':       return AppConstants.screenOrdersEnabled;
+    case 'car_services': return AppConstants.screenCarServicesEnabled;
+    case 'profile':      return AppConstants.screenProfileEnabled;
+    default:             return true;
+  }
+});
+
 // ── Service Providers ───────────────────────────────────────
 final refundServiceProvider = Provider<RefundService>(
   (ref) => RefundService(SupabaseConfig.client),

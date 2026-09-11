@@ -380,6 +380,14 @@
   static bool serviceLaundryEnabled = true;
   static bool serviceCarServiceEnabled = true;
 
+  // Customer bottom-nav tab visibility (admin-controlled via app_config).
+  // false = tab hidden from customers entirely.
+  static bool screenHomeEnabled = true;
+  static bool screenGroceryEnabled = true;
+  static bool screenOrdersEnabled = true;
+  static bool screenCarServicesEnabled = true;
+  static bool screenProfileEnabled = true;
+
   /// Canonical food categories surfaced on the customer home screen.
   /// Restaurants should tag their menu items with one of these names so they
   /// appear when a customer taps the matching category chip.
