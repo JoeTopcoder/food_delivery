@@ -166,8 +166,8 @@ class AdminServicesScreen extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Disabled services show a "Coming Soon" badge on the '
-                      'customer home screen and block navigation into the service.',
+                      'Disabled services are hidden from the customer home screen and '
+                      'their entry points are blocked.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.amber.shade900,

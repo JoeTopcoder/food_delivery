@@ -955,88 +955,100 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-            // Quick Services row
+            // Quick Services row. A service the admin has turned off is
+            // hidden here entirely (its card is not built), rather than shown
+            // greyed as "Coming Soon". If every service is off, the whole
+            // section (header included) disappears. Wrapped in a Consumer so
+            // the ref.watch calls have a valid build scope and stay reactive.
             SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.horizontalPadding(context),
-                    ),
-                    child: Text(
-                      'More Services',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: Theme.of(context).colorScheme.onSurface,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final defs = <(bool, Widget)>[
+                    (
+                      ref.watch(serviceEnabledProvider('rides')),
+                      _ServiceCard(
+                        icon: Icons.directions_car,
+                        label: 'Book a Ride',
+                        color: const Color(0xFF1E40AF),
+                        enabled: true,
+                        onTap: () => Navigator.pushNamed(context, '/ride-home'),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    // Extra trailing space: the floating AI button sits over
-                    // the right edge of this row, so without somewhere to
-                    // scroll to, the last card stays permanently underneath it.
-                    padding: EdgeInsets.fromLTRB(
-                      Responsive.horizontalPadding(context),
-                      0,
-                      Responsive.horizontalPadding(context) + 64,
-                      0,
-                    ),
-                    child: Row(
-                      children: [
-                        _ServiceCard(
-                          icon: Icons.directions_car,
-                          label: 'Book a Ride',
-                          color: const Color(0xFF1E40AF),
-                          enabled: ref.watch(serviceEnabledProvider('rides')),
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/ride-home'),
-                        ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_grocery_store,
-                          label: 'Grocery',
-                          color: const Color(0xFF059669),
-                          enabled: ref.watch(serviceEnabledProvider('grocery')),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const GroceryScreen(),
-                            ),
+                    (
+                      ref.watch(serviceEnabledProvider('grocery')),
+                      _ServiceCard(
+                        icon: Icons.local_grocery_store,
+                        label: 'Grocery',
+                        color: const Color(0xFF059669),
+                        enabled: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GroceryScreen(),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_car_wash,
-                          label: 'Car Services',
-                          // Teal, not the brand blue: these are category
-                          // colours and this one used to be the old purple.
-                          // Repainted to Cobalt it became indistinguishable
-                          // from Book a Ride and Laundry, and identical to the
-                          // app's own primary.
-                          color: const Color(0xFF0E9384),
-                          enabled: ref.watch(
-                            serviceEnabledProvider('car_service'),
-                          ),
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/car-services'),
-                        ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_laundry_service_rounded,
-                          label: 'Laundry',
-                          color: const Color(0xFF0F4C81),
-                          enabled: ref.watch(serviceEnabledProvider('laundry')),
-                          onTap: () => Navigator.pushNamed(context, '/laundry'),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    (
+                      ref.watch(serviceEnabledProvider('car_service')),
+                      _ServiceCard(
+                        icon: Icons.local_car_wash,
+                        label: 'Car Services',
+                        color: const Color(0xFF0E9384),
+                        enabled: true,
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/car-services'),
+                      ),
+                    ),
+                    (
+                      ref.watch(serviceEnabledProvider('laundry')),
+                      _ServiceCard(
+                        icon: Icons.local_laundry_service_rounded,
+                        label: 'Laundry',
+                        color: const Color(0xFF0F4C81),
+                        enabled: true,
+                        onTap: () => Navigator.pushNamed(context, '/laundry'),
+                      ),
+                    ),
+                  ];
+                  final cards = <Widget>[];
+                  for (final (enabled, card) in defs) {
+                    if (!enabled) continue;
+                    if (cards.isNotEmpty) cards.add(const SizedBox(width: 12));
+                    cards.add(card);
+                  }
+                  if (cards.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
+                        child: Text(
+                          'More Services',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.horizontalPadding(context),
+                          0,
+                          Responsive.horizontalPadding(context) + 64,
+                          0,
+                        ),
+                        child: Row(children: cards),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
