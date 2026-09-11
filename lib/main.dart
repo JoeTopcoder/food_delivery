@@ -464,6 +464,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     // Bump configVersionProvider so maintenanceModeProvider (and any other
     // provider watching config) re-evaluates with the values just loaded from DB.
     ref.read(configVersionProvider.notifier).state++;
+    // Screen-visibility flags are now loaded — let the customer nav render.
+    ref.read(configReadyProvider.notifier).state = true;
     setState(() {
       _startupHydrated = true;
     });

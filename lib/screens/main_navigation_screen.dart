@@ -175,6 +175,15 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         ? allActiveOrders.first.id
         : null;
 
+    // Hold the nav until the admin screen-visibility flags have loaded, so a
+    // disabled tab never flashes on a cold, slow start. configReady flips true
+    // once AppConfigService.load() completes (even if it fails — defaults then
+    // apply), so this never sticks. In practice the launch splash covers the
+    // load, so this loader is rarely seen.
+    if (!ref.watch(configReadyProvider)) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     // ── Customer tabs, filtered by admin screen-visibility flags ──
     // A tab whose screen_*_enabled flag is false is removed entirely (not shown
     // to customers), unlike the service "coming soon" state which greys it.
