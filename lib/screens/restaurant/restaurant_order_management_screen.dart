@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
+import 'order_picking_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
@@ -747,6 +748,32 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             ],
 
             const SizedBox(height: 12),
+
+            // Grocery picking: let staff scan/tick items while the order is
+            // still being fulfilled (pending → preparing).
+            if (widget.isGrocery &&
+                (order.status == AppConstants.orderPending ||
+                    order.status == AppConstants.orderConfirmed ||
+                    order.status == AppConstants.orderPreparing)) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => OrderPickingScreen(order: order),
+                    ),
+                  ),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                  label: const Text('Pick / scan items'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF059669),
+                    side: const BorderSide(color: Color(0xFF059669)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
 
             // Action buttons based on current status
             if (_isUpdating)
