@@ -555,6 +555,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ),
                       ),
 
+                      const SizedBox(height: 12),
+                      // Prominent entry: admin control over which services and
+                      // bottom-nav tabs customers see.
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _QuickAction(
+                                icon: Icons.tune_rounded,
+                                label: 'Manage Services & Screens',
+                                color: const Color(0xFF059669),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/admin-services'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 28),
 
                       // ── Management Section ──────────────────────────────
@@ -678,7 +701,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           ),
                           _GridAction(
                             icon: Icons.toggle_on_rounded,
-                            label: 'Services',
+                            label: 'Manage Services',
                             color: const Color(0xFF059669),
                             onTap: () => Navigator.of(
                               context,
