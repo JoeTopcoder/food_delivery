@@ -32,6 +32,36 @@ function sanitize(q: string): string {
   return q.replace(/[%_(),.\\]/g, "");
 }
 
+async function requireOwnerOrAdmin(
+  request: Request,
+  body: Record<string, unknown>,
+): Promise<Response | null> {
+  const authHeader = request.headers.get("Authorization") ?? "";
+  const token = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7)
+    : "";
+  if (!token) return json({ error: "Unauthorized" }, 401);
+  const { data: authUser, error: authErr } = await admin.auth.getUser(token);
+  if (authErr || !authUser?.user) return json({ error: "Unauthorized" }, 401);
+  const uid = authUser.user.id;
+  const { data: userRow } = await admin
+    .from("users").select("role").eq("id", uid).maybeSingle();
+  if (userRow?.role === "admin") return null;
+  let storeId = body.store_id as string | undefined;
+  if (!storeId && body.product_id) {
+    const { data: prod } = await admin
+      .from("menus").select("restaurant_id").eq("id", body.product_id).maybeSingle();
+    storeId = prod?.restaurant_id as string | undefined;
+  }
+  if (!storeId) return json({ error: "store_id or product_id required" }, 400);
+  const { data: store } = await admin
+    .from("restaurants").select("owner_id").eq("id", storeId).maybeSingle();
+  if (!store || store.owner_id !== uid) {
+    return json({ error: "Forbidden: not your store" }, 403);
+  }
+  return null;
+}
+
 export async function handle(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -44,6 +74,12 @@ export async function handle(request: Request): Promise<Response> {
   try { body = await request.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
 
   const action = (body.action as string) ?? "list";
+
+  // Write actions bypass RLS (service-role client), so ownership is enforced here.
+  if (action === "add" || action === "update" || action === "delete") {
+    const denied = await requireOwnerOrAdmin(request, body);
+    if (denied) return denied;
+  }
 
   try {
     switch (action) {

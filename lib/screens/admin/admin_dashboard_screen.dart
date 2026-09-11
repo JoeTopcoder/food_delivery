@@ -618,6 +618,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-regions'),
                           ),
+                          _GridAction(
+                            icon: Icons.local_grocery_store_rounded,
+                            label: 'Grocery Products',
+                            color: const Color(0xFF059669),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-grocery-products'),
+                          ),
                         ],
                       ),
 

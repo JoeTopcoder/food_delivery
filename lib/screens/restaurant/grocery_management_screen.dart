@@ -17,7 +17,12 @@ import '../../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryManagementScreen extends ConsumerStatefulWidget {
-  const GroceryManagementScreen({super.key});
+  /// When [store] is provided (admin path), that store is managed directly and
+  /// the owner-session lookup is skipped. When null (store-owner path), the
+  /// screen resolves the store owned by the signed-in user.
+  const GroceryManagementScreen({super.key, this.store});
+
+  final Restaurant? store;
 
   @override
   ConsumerState<GroceryManagementScreen> createState() =>
@@ -28,6 +33,12 @@ class _GroceryManagementScreenState
     extends ConsumerState<GroceryManagementScreen> {
   @override
   Widget build(BuildContext context) {
+    // Admin path: a specific store was handed in — manage its catalogue
+    // directly (menus RLS already allows admins to write any store's products).
+    if (widget.store != null) {
+      return _GroceryStoreBody(store: widget.store!);
+    }
+
     final currentUserId = ref.watch(currentUserIdProvider);
 
     if (currentUserId == null) {
