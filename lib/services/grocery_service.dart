@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/grocery_category_model.dart';
+import '../models/inventory_model.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 
@@ -321,6 +322,132 @@ class GroceryService {
           .eq('id', productId);
     } catch (e) {
       AppLogger.error('Error updating stock status: $e');
+      rethrow;
+    }
+  }
+
+  // ── Inventory ──────────────────────────────────────────────────────────────
+
+  /// Inventory snapshot for every grocery product in a store, keyed by product
+  /// id. A targeted column read so [MenuItem] doesn't need remodelling.
+  Future<Map<String, ProductInventory>> getStoreInventory(
+    String storeId,
+  ) async {
+    try {
+      final rows = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock',
+          )
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery');
+      final map = <String, ProductInventory>{};
+      for (final row in (rows as List)) {
+        final inv = ProductInventory.fromJson(row as Map<String, dynamic>);
+        map[inv.productId] = inv;
+      }
+      return map;
+    } catch (e) {
+      AppLogger.error('Error fetching store inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Apply a signed change (restock / waste / manual adjustment) via the atomic
+  /// SECURITY DEFINER RPC. Returns the new on-hand quantity.
+  /// [reason] must be one of restock | adjustment | waste.
+  Future<int> adjustInventory(
+    String productId,
+    int change, {
+    String reason = 'adjustment',
+    String? note,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'adjust_inventory',
+        params: {
+          'p_product_id': productId,
+          'p_change': change,
+          'p_reason': reason,
+          'p_note': note,
+        },
+      );
+      return (res as num).toInt();
+    } catch (e) {
+      AppLogger.error('Error adjusting inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Set an absolute on-hand count (stocktake) via the atomic RPC. Enables
+  /// tracking on the product if it wasn't already. Returns the new quantity.
+  Future<int> setInventory(
+    String productId,
+    int newQuantity, {
+    String? note,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'set_inventory',
+        params: {
+          'p_product_id': productId,
+          'p_new_qty': newQuantity,
+          'p_note': note,
+        },
+      );
+      return (res as num).toInt();
+    } catch (e) {
+      AppLogger.error('Error setting inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Update the reorder (low-stock) threshold for a product. Uses the existing
+  /// owner/admin UPDATE policy on menus.
+  Future<void> setLowStockThreshold(String productId, int threshold) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'low_stock_threshold': threshold})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error setting low-stock threshold: $e');
+      rethrow;
+    }
+  }
+
+  /// Turn quantity tracking off for a product (it reverts to the manual
+  /// in_stock flag). Tracking is turned back ON automatically by the first
+  /// restock / set-count. Uses the existing owner/admin UPDATE policy.
+  Future<void> stopTrackingInventory(String productId) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'track_inventory': false})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error disabling inventory tracking: $e');
+      rethrow;
+    }
+  }
+
+  /// Recent movement-ledger rows for a product (newest first).
+  Future<List<InventoryMovement>> getProductMovements(
+    String productId, {
+    int limit = 50,
+  }) async {
+    try {
+      final rows = await _client
+          .from('inventory_movements')
+          .select('id, change, balance_after, reason, note, created_at')
+          .eq('product_id', productId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return (rows as List)
+          .map((r) => InventoryMovement.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      AppLogger.error('Error fetching inventory movements: $e');
       rethrow;
     }
   }
