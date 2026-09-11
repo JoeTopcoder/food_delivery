@@ -200,7 +200,7 @@ export async function handle(request: Request): Promise<Response> {
     const productIds = items.map((i) => i.menu_item_id);
     const { data: products, error: prodErr } = await admin
       .from("menus")
-      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type")
+      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type, stock_quantity, track_inventory")
       .in("id", productIds);
 
     if (prodErr || !products) {
@@ -224,6 +224,13 @@ export async function handle(request: Request): Promise<Response> {
       }
       if (!dbProduct.in_stock) {
         return json({ error: `"${dbProduct.name}" is out of stock` }, 400);
+      }
+      // Tracked products: reject BEFORE charging if not enough on hand.
+      if (dbProduct.track_inventory &&
+          (dbProduct.stock_quantity as number) < item.quantity) {
+        return json({
+          error: `Only ${dbProduct.stock_quantity} of "${dbProduct.name}" left in stock`,
+        }, 400);
       }
       if (dbProduct.max_quantity && item.quantity > (dbProduct.max_quantity as number)) {
         return json({
@@ -511,6 +518,26 @@ export async function handle(request: Request): Promise<Response> {
       // Rollback order
       await admin.from("orders").delete().eq("id", orderId);
       return json({ error: "Failed to create order items", details: itemsErr.message }, 500);
+    }
+
+    // ── Decrement tracked inventory for this sale ──────────────────────────
+    // Availability was validated before charging, so this is the authoritative
+    // decrement. A rare concurrent race (two orders for the last unit) is logged
+    // rather than cancelling an order that has already been paid for; untracked
+    // products are ignored by the RPC.
+    {
+      const { error: invErr } = await admin.rpc("consume_inventory_for_order", {
+        p_items: verifiedItems.map((v) => ({
+          product_id: v.menu_item_id,
+          quantity: v.quantity,
+        })),
+        p_order_id: orderId,
+      });
+      if (invErr) {
+        console.error(
+          `[grocery-order] inventory consume failed for ${orderId}: ${invErr.message}`,
+        );
+      }
     }
 
     // ── 10. Try applying subscription delivery (atomic DB function) ────────
