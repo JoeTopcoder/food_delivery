@@ -753,8 +753,12 @@ class _GroceryStoreBody extends ConsumerWidget {
           webImageUrl = await ref
               .read(groceryServiceProvider)
               .importProductImage(chosen.original, storeId);
-        } catch (e) {
-          if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+        } catch (_) {
+          // Re-hosting failed — use the chosen image directly. NEVER fall back
+          // to the captured photo (that snapshot is only for identification).
+          webImageUrl = chosen.original.isNotEmpty
+              ? chosen.original
+              : chosen.thumbnail;
         }
         if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
       }
@@ -1419,20 +1423,23 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
     );
     if (chosen == null || !mounted) return;
     setState(() => _importingImage = true);
+    String url;
     try {
-      final url = await widget.groceryService.importProductImage(
+      url = await widget.groceryService.importProductImage(
         chosen.original,
         widget.storeId,
       );
-      setState(() {
-        _selectedImageUrl = url;
-        _imageFile = null;
-      });
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _importingImage = false);
+    } catch (_) {
+      // Re-hosting failed — use the chosen image directly so the selected
+      // picture is what's used (never revert to a previously taken photo).
+      url = chosen.original.isNotEmpty ? chosen.original : chosen.thumbnail;
     }
+    if (!mounted) return;
+    setState(() {
+      _selectedImageUrl = url;
+      _imageFile = null;
+      _importingImage = false;
+    });
   }
 
   Widget _imagePlaceholder() => Column(

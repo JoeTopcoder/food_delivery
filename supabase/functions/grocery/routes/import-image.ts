@@ -102,9 +102,16 @@ export async function handle(request: Request): Promise<Response> {
     if (!imgRes.ok) {
       return json({ error: "Could not download that image. Pick another." }, 502);
     }
-    const contentType = (imgRes.headers.get("content-type") ?? "").toLowerCase();
+    let contentType = (imgRes.headers.get("content-type") ?? "").toLowerCase();
+    // Some CDNs mislabel images as octet-stream; fall back to the URL extension.
+    const urlExt = (imageUrl.split("?")[0].match(/\.(jpe?g|png|webp|gif)$/i) ??
+      [])[1]?.toLowerCase();
     if (!contentType.startsWith("image/")) {
-      return json({ error: "That link is not an image. Pick another." }, 400);
+      if (urlExt) {
+        contentType = urlExt === "jpg" ? "image/jpeg" : `image/${urlExt}`;
+      } else {
+        return json({ error: "That link is not an image. Pick another." }, 400);
+      }
     }
     const buf = new Uint8Array(await imgRes.arrayBuffer());
     if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) {
