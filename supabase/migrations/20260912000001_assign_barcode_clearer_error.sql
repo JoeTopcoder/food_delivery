@@ -32,7 +32,7 @@ BEGIN
     AND id <> p_product_id
   LIMIT 1;
   IF v_conflict IS NOT NULL THEN
-    RAISE EXCEPTION 'This barcode is already used by "%" in this store. Remove it there first, or scan a different code.', v_conflict
+    RAISE EXCEPTION 'This QR code is already on "%".', v_conflict
       USING errcode = 'unique_violation';
   END IF;
 
@@ -40,7 +40,7 @@ BEGIN
     UPDATE public.menus SET barcode = v_code, updated_at = now()
      WHERE id = p_product_id;
   EXCEPTION WHEN unique_violation THEN
-    RAISE EXCEPTION 'This barcode is already used by another product in this store.'
+    RAISE EXCEPTION 'This QR code is already on another product in this store.'
       USING errcode = 'unique_violation';
   END;
 END;

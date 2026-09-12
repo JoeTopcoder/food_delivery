@@ -441,6 +441,11 @@ class GroceryService {
         'assign_barcode',
         params: {'p_product_id': productId, 'p_barcode': code},
       );
+    } on PostgrestException catch (e) {
+      // Surface the RPC's own human message (e.g. "This QR code is already on
+      // …") — a raw PostgrestException would otherwise be genericised.
+      AppLogger.error('assign_barcode failed: ${e.message}');
+      throw Exception(e.message);
     } catch (e) {
       AppLogger.error('Error setting product barcode: $e');
       rethrow;
