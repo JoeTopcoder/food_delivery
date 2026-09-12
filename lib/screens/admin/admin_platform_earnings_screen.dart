@@ -94,7 +94,7 @@ class AdminPlatformEarningsScreen extends ConsumerWidget {
                             children: [
                               Text('Total Platform Earnings',
                                   style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              Text('7Dash Commission — All Services',
+                              Text('QuickDash Commission — All Services',
                                   style: TextStyle(color: Colors.white54, fontSize: 11)),
                             ],
                           ),
@@ -151,7 +151,7 @@ class AdminPlatformEarningsScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 _ServiceCard(
                   icon: Icons.car_repair,
-                  color: const Color(0xFF7C3AED),
+                  color: const Color(0xFF155EEF),
                   label: 'Car Services',
                   total: t(car, 'total'),
                   month: t(car, 'month'),
@@ -191,7 +191,7 @@ class AdminPlatformEarningsScreen extends ConsumerWidget {
                     label: 'Car Services',
                     value: t(car, 'total'),
                     total: grandTotal,
-                    color: const Color(0xFF7C3AED),
+                    color: const Color(0xFF155EEF),
                   ),
                   const SizedBox(height: 8),
                   _ShareBar(

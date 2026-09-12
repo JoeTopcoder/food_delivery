@@ -4,6 +4,7 @@ import '../config/supabase_config.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/grocery_category_model.dart';
+import '../models/inventory_model.dart';
 import '../services/grocery_service.dart';
 
 // Service
@@ -233,4 +234,41 @@ final ownerGroceryProductsProvider = FutureProvider.family
       );
 
       return ref.watch(groceryServiceProvider).getOwnerGroceryProducts(storeId);
+    });
+
+// ── Inventory Providers (real-time) ─────────────────────────────────────────
+
+/// Inventory snapshot for a store's grocery products, keyed by product id.
+/// Refreshes in real time when any of the store's menus rows change — so a
+/// sale placed through the order flow (which decrements stock server-side)
+/// reflects here without a manual refresh.
+final storeInventoryProvider = FutureProvider.family
+    .autoDispose<Map<String, ProductInventory>, String>((ref, storeId) {
+      final channel = Supabase.instance.client.realtime.channel(
+        'store_inventory_$storeId',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'menus',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'restaurant_id',
+              value: storeId,
+            ),
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
+
+      return ref.watch(groceryServiceProvider).getStoreInventory(storeId);
+    });
+
+/// Recent movement-ledger rows for a single product (newest first).
+final productMovementsProvider = FutureProvider.family
+    .autoDispose<List<InventoryMovement>, String>((ref, productId) {
+      return ref.watch(groceryServiceProvider).getProductMovements(productId);
     });

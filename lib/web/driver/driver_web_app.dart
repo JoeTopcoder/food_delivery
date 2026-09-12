@@ -145,7 +145,7 @@ class _Sidebar extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('7DASH Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+              const Text('QUICKDASH Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
               Text('Hi, ${userName.split(' ').first} 👋', style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ])),
           ]),

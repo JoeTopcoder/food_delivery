@@ -79,6 +79,10 @@ class AppConfigService {
     AppConstants.platformCommissionCap = _double(c, 'platform_commission_cap', AppConstants.platformCommissionCap);
     AppConstants.defaultDeliveryFee = _double(c, 'default_delivery_fee', AppConstants.defaultDeliveryFee);
     AppConstants.pickupServiceFee = _double(c, 'pickup_service_fee', AppConstants.pickupServiceFee);
+    AppConstants.studentDeliveryFee = _double(c, 'student_delivery_fee', AppConstants.studentDeliveryFee);
+    AppConstants.browseMaxKm = _double(c, 'browse_max_km', AppConstants.browseMaxKm);
+    AppConstants.defaultOriginLat = _double(c, 'default_origin_lat', AppConstants.defaultOriginLat);
+    AppConstants.defaultOriginLng = _double(c, 'default_origin_lng', AppConstants.defaultOriginLng);
     AppConstants.driverFeePerDelivery = _double(c, 'driver_fee_per_delivery', AppConstants.driverFeePerDelivery);
     AppConstants.cardFeePercent = _double(c, 'card_fee_percent', AppConstants.cardFeePercent);
     AppConstants.cashFeePercent = _double(c, 'cash_fee_percent', AppConstants.cashFeePercent);
@@ -416,7 +420,7 @@ class AppConfigService {
     // Lunipay (deprecated - Stripe only)
     // Legacy Lunipay config removed
 
-    // Subscription (MealHub+)
+    // Subscription (QuickDash+)
     AppConstants.subscriptionBasicPrice = _double(
       c,
       'subscription_basic_price',
@@ -496,6 +500,12 @@ class AppConfigService {
     AppConstants.serviceRidesEnabled       = _bool(c, 'service_rides_enabled',       true);
     AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     true);
     AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', true);
+
+    AppConstants.screenHomeEnabled         = _bool(c, 'screen_home_enabled',         true);
+    AppConstants.screenGroceryEnabled      = _bool(c, 'screen_grocery_enabled',      true);
+    AppConstants.screenOrdersEnabled       = _bool(c, 'screen_orders_enabled',       true);
+    AppConstants.screenCarServicesEnabled  = _bool(c, 'screen_car_services_enabled', true);
+    AppConstants.screenProfileEnabled      = _bool(c, 'screen_profile_enabled',      true);
 
     // System / maintenance
     AppConstants.maintenanceMode = _bool(c, 'maintenance_mode', AppConstants.maintenanceMode);

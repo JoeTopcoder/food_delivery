@@ -9,7 +9,7 @@ import 'package:food_driver/providers/auth_provider.dart';
 import 'package:food_driver/utils/app_logger.dart';
 import 'package:image_picker/image_picker.dart';
 
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 const _kPurpleDim = Color(0xFF5B21B6);
 
 class CarServiceProviderProfileScreen extends ConsumerStatefulWidget {

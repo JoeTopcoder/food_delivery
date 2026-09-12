@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Brand purple background -->
+    <!-- Midnight Navy background -->
     <item android:drawable="@color/brand_bg" />
 
-    <!-- App icon centered -->
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/ic_launcher_foreground" />
-    </item>
+    <!-- QuickDash mark, centred at its intrinsic 210x130dp. Referenced
+         directly rather than wrapped in <bitmap>, which only takes raster
+         resources and silently fails on a vector. -->
+    <item
+        android:drawable="@drawable/quickdash_mark"
+        android:gravity="center" />
 </layer-list>

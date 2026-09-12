@@ -43,13 +43,13 @@ class WebAdminAnalyticsPage extends ConsumerWidget {
           const SizedBox(height: 28),
 
           // ── Revenue ───────────────────────────────────────────────
-          _SectionHeader(title: 'Revenue', icon: Icons.attach_money_rounded, color: const Color(0xFF8B5CF6)),
+          _SectionHeader(title: 'Revenue', icon: Icons.attach_money_rounded, color: const Color(0xFF528BFF)),
           const SizedBox(height: 12),
           revenueAsync.when(
             loading: () => const SizedBox(height: 100, child: AppLoadingIndicator()),
             error: (e, _) => AppErrorState(message: friendlyError(e), onRetry: () => ref.invalidate(revenueStatisticsProvider)),
             data: (d) => _StatsGrid(stats: [
-              _Stat('Total Revenue', '${AppConstants.currencySymbol}${_fmt(d['total_revenue'])}', const Color(0xFF8B5CF6), Icons.attach_money_rounded),
+              _Stat('Total Revenue', '${AppConstants.currencySymbol}${_fmt(d['total_revenue'])}', const Color(0xFF528BFF), Icons.attach_money_rounded),
               _Stat('Platform Fees', '${AppConstants.currencySymbol}${_fmt(d['platform_fees'])}', const Color(0xFFEC4899), Icons.account_balance_rounded),
               _Stat('Delivery Fees', '${AppConstants.currencySymbol}${_fmt(d['delivery_fees'])}', const Color(0xFF0EA5E9), Icons.delivery_dining_rounded),
               _Stat('Avg Order Value', '${AppConstants.currencySymbol}${_fmt(d['avg_order_value'])}', const Color(0xFF10B981), Icons.receipt_long_rounded),

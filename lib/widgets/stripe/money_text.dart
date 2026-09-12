@@ -10,7 +10,7 @@ class MoneyText extends StatelessWidget {
   const MoneyText(
     this.cents, {
     super.key,
-    this.currency = 'usd',
+    this.currency = 'jmd',
     this.style,
     this.color,
     this.showSign = false,

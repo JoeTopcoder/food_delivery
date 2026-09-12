@@ -14,7 +14,7 @@ class ShippingCompanyScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Shipping Company'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
       ),
       body: companiesAsync.when(
@@ -93,7 +93,7 @@ class _CompanyCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                  color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: company.logoUrl != null
@@ -114,7 +114,7 @@ class _CompanyCard extends StatelessWidget {
                         ),
                       )
                     : const Icon(Icons.local_shipping,
-                        color: Color(0xFF7C3AED), size: 28),
+                        color: Color(0xFF155EEF), size: 28),
               ),
               const SizedBox(width: 16),
               Expanded(

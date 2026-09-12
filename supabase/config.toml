@@ -560,3 +560,31 @@ verify_jwt = false
 
 [functions.cancel-call-notification]
 verify_jwt = false
+
+# Consolidated Stripe function. Must be false: the /webhook* routes are called
+# by Stripe, which cannot present a Supabase JWT. Every non-webhook route
+# authenticates the caller inside its own handler (unchanged from the original
+# functions), so the platform gate being off does not weaken them.
+[functions.stripe]
+verify_jwt = false
+
+# Consolidated grocery function. grocery-order authenticates in-handler (as the
+# original grocery-order did with verify_jwt=false); products/stores are reads.
+# The platform gate is off so the router runs and each route decides for itself.
+[functions.grocery]
+verify_jwt = false
+
+# Consolidated admin function. Every route verifies the caller is an admin in
+# its own handler, so the platform gate is off and each route gates itself.
+[functions.admin]
+verify_jwt = false
+
+# Consolidated payouts function. Back-office money-out; each route authenticates
+# in-handler, so the platform gate is off.
+[functions.payouts]
+verify_jwt = false
+
+# Consolidated packages function. Package-delivery logistics; each route
+# authenticates in-handler, so the platform gate is off.
+[functions.packages]
+verify_jwt = false

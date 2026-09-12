@@ -5,7 +5,7 @@ import 'package:food_driver/modules/car_services/models/index.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
 import 'package:food_driver/utils/app_logger.dart';
 
-const _kPurple = Color(0xFF7C3AED);
+const _kPurple = Color(0xFF155EEF);
 
 class _DaySlot {
   final int dayOfWeek;

@@ -62,7 +62,7 @@ class _AdminMenuIntelligenceScreenState extends State<AdminMenuIntelligenceScree
             const SizedBox(height: 20),
             Card(
               elevation: 0,
-              color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+              color: const Color(0xFF155EEF).withValues(alpha: 0.06),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFEDE9FE))),
               child: Padding(padding: const EdgeInsets.all(16), child: Text(_narrative!, style: const TextStyle(fontSize: 14, height: 1.5))),
             ),

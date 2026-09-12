@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     payout_id: payout_request_id,
     restaurant_id: restaurantId,
     amount: requestedAmount,
-    currency: "usd",
+    currency: "jmd",
     status: "processing",
     wire_details: {
       recipient_name: payout.bank_account_holder,

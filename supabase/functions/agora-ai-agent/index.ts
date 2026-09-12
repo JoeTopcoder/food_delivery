@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name: `7dash_${Date.now()}`,
+        name: `quickdash_${Date.now()}`,
         properties: {
           channel: channelName,
           token: agentToken,
@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
 })
 
 function buildSystemPrompt(role: string, orderCtx: string): string {
-  const base = `You are the 7Dash AI assistant for a food delivery platform in the Cayman Islands. Be warm, concise, and helpful. Keep responses SHORT — 1 to 2 sentences max — this is a live voice call.${orderCtx}`
+  const base = `You are the QuickDash AI assistant for a food delivery platform in the Cayman Islands. Be warm, concise, and helpful. Keep responses SHORT — 1 to 2 sentences max — this is a live voice call.${orderCtx}`
   switch (role) {
     case 'driver': return `${base} You are helping a delivery driver. Assist with deliveries, navigation, earnings, and order issues.`
     case 'admin':  return `${base} You are helping a platform admin. Assist with orders, drivers, restaurants, and analytics.`

@@ -70,7 +70,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isAddCardMode ? 'Add Card' : 'Pay with Card'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -83,7 +83,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
               expiryDate: expiryDate,
               cardHolderName: cardHolderName,
               cvvCode: cvvCode,
-              cardBgColor: const Color(0xFF7C3AED),
+              cardBgColor: const Color(0xFF155EEF),
               showBackView: isCvvFocused,
               obscureCardNumber: true,
               onCreditCardWidgetChange: (CreditCardBrand brand) {},
@@ -357,7 +357,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                      color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -368,11 +368,11 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '\$${widget.amount.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${widget.amount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF7C3AED),
+                            color: Color(0xFF155EEF),
                           ),
                         ),
                       ],
@@ -387,7 +387,7 @@ class _PaymentCardScreenState extends ConsumerState<PaymentCardScreen> {
                     child: FilledButton(
                       onPressed: _loading ? null : _submitPayment,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
+                        backgroundColor: const Color(0xFF155EEF),
                       ),
                       child: _loading
                           ? const SizedBox(

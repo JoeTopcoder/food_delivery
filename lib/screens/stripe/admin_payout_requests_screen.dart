@@ -136,7 +136,7 @@ class _AdminPayoutRequestsScreenState
           isScrollable: true,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white38,
-          indicatorColor: const Color(0xFF7C3AED),
+          indicatorColor: const Color(0xFF155EEF),
           tabs: _tabLabels.map((l) => Tab(text: l)).toList(),
         ),
       ),

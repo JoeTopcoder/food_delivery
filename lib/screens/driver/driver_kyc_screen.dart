@@ -31,7 +31,7 @@ class _DriverKycScreenState extends ConsumerState<DriverKycScreen>
 
   static const _bg = Color(0xFF0F1117);
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   @override
   void dispose() {
@@ -131,7 +131,7 @@ class _DriverKycScreenState extends ConsumerState<DriverKycScreen>
                   children: [
                     Icon(
                       Icons.lock_outline,
-                      color: Color(0xFF6C63FF),
+                      color: Color(0xFF528BFF),
                       size: 18,
                     ),
                     SizedBox(width: 10),
@@ -393,7 +393,7 @@ class _Field extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+        borderSide: const BorderSide(color: Color(0xFF528BFF)),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),

@@ -44,7 +44,7 @@ class _DriverPackagesScreenState extends ConsumerState<DriverPackagesScreen>
       return Scaffold(
         backgroundColor: const Color(0xFF0F1117),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF7C3AED),
+          backgroundColor: const Color(0xFF155EEF),
           foregroundColor: Colors.white,
           title: const Text('Package Delivery'),
         ),
@@ -113,7 +113,7 @@ class _DriverPackagesScreenState extends ConsumerState<DriverPackagesScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Package Delivery'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabs,
@@ -252,7 +252,7 @@ class _AvailablePackageCardState
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                    color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: req.companyLogoUrl != null
@@ -273,7 +273,7 @@ class _AvailablePackageCardState
                           ),
                         )
                       : const Icon(Icons.local_shipping,
-                          color: Color(0xFF7C3AED), size: 22),
+                          color: Color(0xFF155EEF), size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -299,7 +299,7 @@ class _AvailablePackageCardState
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED),
+                    color: const Color(0xFF155EEF),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -359,7 +359,7 @@ class _AvailablePackageCardState
               child: ElevatedButton(
                 onPressed: _accepting ? null : _accept,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF155EEF),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -417,7 +417,7 @@ class _ActivePackageTab extends ConsumerWidget {
                       Row(
                         children: [
                           const Icon(Icons.inventory_2,
-                              color: Color(0xFF7C3AED)),
+                              color: Color(0xFF155EEF)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -472,7 +472,7 @@ class _ActivePackageTab extends ConsumerWidget {
                             '\$${delivery.driverEarning.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF7C3AED)),
+                                color: Color(0xFF155EEF)),
                           ),
                         ],
                       ),
@@ -495,7 +495,7 @@ class _ActivePackageTab extends ConsumerWidget {
                   icon: const Icon(Icons.open_in_new),
                   label: const Text('Continue Delivery'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),

@@ -178,7 +178,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           : notifications.isEmpty
           ? const _EmptyNotifications()
           : ListView.builder(
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 24),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                12,
+                Responsive.horizontalPadding(context),
+                24,
+              ),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final n = notifications[index];
@@ -257,7 +262,7 @@ class _NotifCard extends StatelessWidget {
         return const Color(0xFF10B981);
       case 'promotion':
       case 'retention_outreach':
-        return const Color(0xFF7C3AED);
+        return const Color(0xFF155EEF);
       default:
         return AppTheme.primaryColor;
     }

@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "MealHub",
+  "appTitle": "QuickDash",
   "@appTitle": { "description": "The application title" },
 
   "home": "Home",

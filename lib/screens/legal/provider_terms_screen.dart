@@ -13,20 +13,20 @@ class ProviderTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Partner Agreement',
           body:
-              'This agreement governs the relationship between SevenDash Technologies Limited ("7Dash") and any restaurant, grocery store, car service provider, laundry provider, or other business partner ("Provider") listed on the 7Dash platform. By registering as a Provider, you accept these terms.',
+              'This agreement governs the relationship between SevenDash Technologies Limited ("QuickDash") and any restaurant, grocery store, car service provider, laundry provider, or other business partner ("Provider") listed on the QuickDash platform. By registering as a Provider, you accept these terms.',
         ),
         LegalSection(
           heading: '2. Eligibility',
           body:
-              'You must hold all licences, permits, health certificates, and insurance required by applicable law to operate your business. Food businesses must maintain current food handler certifications. You must maintain these requirements for the duration of your partnership with 7Dash.',
+              'You must hold all licences, permits, health certificates, and insurance required by applicable law to operate your business. Food businesses must maintain current food handler certifications. You must maintain these requirements for the duration of your partnership with QuickDash.',
         ),
         LegalSection(
           heading: '3. Listing and Content',
           body:
               '• You are responsible for the accuracy of your menu items, prices, images, and availability.\n'
-              '• Prices listed on 7Dash must match your advertised prices; hidden surcharges are not permitted.\n'
+              '• Prices listed on QuickDash must match your advertised prices; hidden surcharges are not permitted.\n'
               '• You may not list products you do not have or services you cannot fulfill.\n'
-              '• 7Dash reserves the right to remove listings that violate these terms or applicable law.',
+              '• QuickDash reserves the right to remove listings that violate these terms or applicable law.',
         ),
         LegalSection(
           heading: '4. Order Acceptance and Fulfillment',
@@ -34,17 +34,17 @@ class ProviderTermsScreen extends StatelessWidget {
               '• Accept or decline incoming orders within the window specified in your dashboard.\n'
               '• Prepare orders accurately and within the estimated time displayed to customers.\n'
               '• Package food and products safely for delivery.\n'
-              '• Notify 7Dash promptly if you are unable to fulfill an accepted order.',
+              '• Notify QuickDash promptly if you are unable to fulfill an accepted order.',
         ),
         LegalSection(
           heading: '5. Commission & Fees',
           body:
-              '7Dash charges a commission on each completed order as agreed in your onboarding contract. Commission rates and any applicable fees are displayed in your provider dashboard and may be updated with 30 days\' notice. You are responsible for your own tax obligations on earnings received.',
+              'QuickDash charges a commission on each completed order as agreed in your onboarding contract. Commission rates and any applicable fees are displayed in your provider dashboard and may be updated with 30 days\' notice. You are responsible for your own tax obligations on earnings received.',
         ),
         LegalSection(
           heading: '6. Payouts',
           body:
-              'Earnings are paid out according to the payout schedule selected in your dashboard (daily, weekly, or monthly), subject to minimum payout thresholds. Payouts are processed via Stripe Connect. You must maintain a verified Stripe Connect account to receive payouts. 7Dash is not liable for delays caused by banking or payment processor issues.',
+              'Earnings are paid out according to the payout schedule selected in your dashboard (daily, weekly, or monthly), subject to minimum payout thresholds. Payouts are processed via Stripe Connect. You must maintain a verified Stripe Connect account to receive payouts. QuickDash is not liable for delays caused by banking or payment processor issues.',
         ),
         LegalSection(
           heading: '7. Quality Standards',
@@ -62,12 +62,12 @@ class ProviderTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '9. Disputes and Refunds',
           body:
-              'If a customer disputes an order, 7Dash will investigate and may issue a refund at our discretion. Chargeback costs resulting from provider error (missing items, incorrect orders, quality issues) may be deducted from future payouts.',
+              'If a customer disputes an order, QuickDash will investigate and may issue a refund at our discretion. Chargeback costs resulting from provider error (missing items, incorrect orders, quality issues) may be deducted from future payouts.',
         ),
         LegalSection(
           heading: '10. Suspension and Termination',
           body:
-              '7Dash may suspend or terminate a provider account for:\n\n'
+              'QuickDash may suspend or terminate a provider account for:\n\n'
               '• Repeated order cancellations.\n'
               '• Consistently low ratings or high complaint rate.\n'
               '• Violation of food safety or applicable law.\n'
@@ -78,7 +78,7 @@ class ProviderTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '11. Intellectual Property',
           body:
-              'By uploading images, logos, or other content to the 7Dash platform, you grant 7Dash a non-exclusive, royalty-free licence to display and use that content for the purpose of operating and promoting the platform.',
+              'By uploading images, logos, or other content to the QuickDash platform, you grant QuickDash a non-exclusive, royalty-free licence to display and use that content for the purpose of operating and promoting the platform.',
         ),
         LegalSection(
           heading: '12. Contact',

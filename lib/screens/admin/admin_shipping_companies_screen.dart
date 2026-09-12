@@ -25,7 +25,7 @@ class AdminShippingCompaniesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shipping Companies'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -44,7 +44,7 @@ class AdminShippingCompaniesScreen extends ConsumerWidget {
           );
           ref.invalidate(_shippingCompaniesProvider);
         },
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Company'),
@@ -148,11 +148,11 @@ class _CompanyTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                    color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.local_shipping,
-                      color: Color(0xFF7C3AED)),
+                      color: Color(0xFF155EEF)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -176,7 +176,7 @@ class _CompanyTile extends StatelessWidget {
                 Switch(
                   value: active,
                   onChanged: (_) => onToggleActive(),
-                  activeThumbColor: const Color(0xFF7C3AED),
+                  activeThumbColor: const Color(0xFF155EEF),
                 ),
               ],
             ),
@@ -202,7 +202,7 @@ class _CompanyTile extends StatelessWidget {
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('Edit'),
                   style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF7C3AED)),
+                      foregroundColor: const Color(0xFF155EEF)),
                 ),
               ],
             ),
@@ -358,7 +358,7 @@ class _AddEditShippingCompanyScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Company' : 'Register Shipping Company'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
         actions: [
           TextButton(
@@ -467,7 +467,7 @@ class _AddEditShippingCompanyScreenState
                     value: val,
                     title: Row(
                       children: [
-                        Icon(icon, size: 18, color: const Color(0xFF7C3AED)),
+                        Icon(icon, size: 18, color: const Color(0xFF155EEF)),
                         const SizedBox(width: 8),
                         Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
                       ],
@@ -544,7 +544,7 @@ class _AddEditShippingCompanyScreenState
               title: const Text('Active'),
               subtitle: const Text(
                   'Inactive companies are hidden from customers'),
-              activeThumbColor: const Color(0xFF7C3AED),
+              activeThumbColor: const Color(0xFF155EEF),
               contentPadding: EdgeInsets.zero,
             ),
 
@@ -555,7 +555,7 @@ class _AddEditShippingCompanyScreenState
               child: ElevatedButton(
                 onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF155EEF),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -617,7 +617,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF7C3AED)),
+        Icon(icon, size: 18, color: const Color(0xFF155EEF)),
         const SizedBox(width: 8),
         Text(title,
             style: const TextStyle(
@@ -657,13 +657,13 @@ class _Field extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label + (required ? ' *' : ''),
         hintText: hint,
-        prefixIcon: Icon(icon, color: const Color(0xFF7C3AED), size: 20),
+        prefixIcon: Icon(icon, color: const Color(0xFF155EEF), size: 20),
         border:
             OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide:
-              const BorderSide(color: Color(0xFF7C3AED), width: 2),
+              const BorderSide(color: Color(0xFF155EEF), width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
             horizontal: 14, vertical: 14),

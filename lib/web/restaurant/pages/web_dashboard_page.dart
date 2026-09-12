@@ -185,7 +185,7 @@ class _WebDashboardPageState extends ConsumerState<WebDashboardPage> {
                       label: 'Revenue',
                       value: '${AppConstants.currencySymbol}${revenue.toStringAsFixed(2)}',
                       icon: Icons.attach_money_rounded,
-                      color: const Color(0xFF8B5CF6),
+                      color: const Color(0xFF528BFF),
                     ),
                   ),
                 ],

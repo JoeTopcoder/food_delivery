@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/responsive.dart';
 import '../../config/app_constants.dart';
@@ -64,9 +64,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final restaurant = restaurantAsync.valueOrNull;
 
     // Multi-restaurant feature flags
-    final multiEnabled = ref.watch(multiRestaurantEnabledProvider).valueOrNull ?? false;
+    final multiEnabled =
+        ref.watch(multiRestaurantEnabledProvider).valueOrNull ?? false;
     final extraStopFee = ref.watch(extraStopFeeProvider).valueOrNull ?? 2.0;
-    final totalExtraStopFee = isMultiRestaurant ? extraStopFee * (restaurantCount - 1) : 0.0;
+    final totalExtraStopFee = isMultiRestaurant
+        ? extraStopFee * (restaurantCount - 1)
+        : 0.0;
 
     // Admin-configured delivery fee (local haversine + admin config)
     final delAddr = defaultAddrAsync?.valueOrNull;
@@ -75,14 +78,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final hasCoords = delLat != null && delLng != null;
 
     // AI cart recommendations — fetch when multi-restaurant is enabled & cart has items
-    final cartRestaurantIds = cartItems.map((i) => i.menuItem.restaurantId).toSet().toList();
-    final cartRecs = (multiEnabled && currentUserId != null && cartRestaurantIds.isNotEmpty)
-        ? (ref.watch(cartRecommendationsProvider((
-              userId: currentUserId,
-              cartRestaurantIds: cartRestaurantIds,
-              lat: delLat,
-              lng: delLng,
-            ))).valueOrNull ?? [])
+    final cartRestaurantIds = cartItems
+        .map((i) => i.menuItem.restaurantId)
+        .toSet()
+        .toList();
+    final cartRecs =
+        (multiEnabled && currentUserId != null && cartRestaurantIds.isNotEmpty)
+        ? (ref
+                  .watch(
+                    cartRecommendationsProvider((
+                      userId: currentUserId,
+                      cartRestaurantIds: cartRestaurantIds,
+                      lat: delLat,
+                      lng: delLng,
+                    )),
+                  )
+                  .valueOrNull ??
+              [])
         : <CartRecommendation>[];
 
     // For multi-restaurant: calculate fee from each restaurant → customer and sum.
@@ -104,7 +116,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         }
         final fa = ref.watch(deliveryFeeProvider(feeKey));
         if (fa.isLoading) feeLoading = true;
-        multiTotal += fa.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+        multiTotal +=
+            fa.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
       }
       baseDeliveryFee = multiTotal;
     } else {
@@ -117,7 +130,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           : const AsyncValue<DeliveryFeeResult?>.data(null);
       if (hasRestCoords && !isPickup && feeAsync.isLoading) feeLoading = true;
       final feeResult = feeAsync.valueOrNull;
-      baseDeliveryFee = feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+      baseDeliveryFee =
+          feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
       distanceKm = feeResult?.distanceKm;
     }
 
@@ -129,7 +143,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
 
-    // ── MealHub+ subscription benefit ──────────────────────────────
+    // ── QuickDash+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subEligible =
         activeSub != null &&
@@ -146,7 +160,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
 
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: activeFee + totalExtraStopFee,
+    );
     // Tax is determined server-side (zone-based) at checkout — omit from estimate.
     final total = subtotal + activeFee + platformServiceFee + totalExtraStopFee;
 
@@ -205,589 +222,716 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ],
               ),
             )
-          : Stack(
-              children: [
-                SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  child: Column(
-                    children: [
-                      // ── Delivery / Pickup Toggle ──────────────────────
-                      Container(
-                        margin: EdgeInsets.fromLTRB(
-                          Responsive.horizontalPadding(context),
-                          Responsive.spacingSmall(context),
-                          Responsive.horizontalPadding(context),
-                          0,
-                        ),
-                        padding: EdgeInsets.all(Responsive.spacingSmall(context) * 0.5),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () =>
-                                    ref.read(isPickupProvider.notifier).state =
-                                        false,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: Responsive.spacingSmall(context),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: !isPickup
-                                        ? AppTheme.primaryColor
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.delivery_dining_rounded,
-                                        size: 18,
-                                        color: !isPickup
-                                            ? Colors.white
-                                            : Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Delivery',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: Responsive.bodyText(context),
-                                          color: !isPickup
-                                              ? Colors.white
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () =>
-                                    ref.read(isPickupProvider.notifier).state =
-                                        true,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: Responsive.spacingSmall(context),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isPickup
-                                        ? AppTheme.primaryColor
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.store_rounded,
-                                        size: 18,
-                                        color: isPickup
-                                            ? Colors.white
-                                            : Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Pickup',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: Responsive.bodyText(context),
-                                          color: isPickup
-                                              ? Colors.white
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              child: Column(
+                children: [
+                  // ── Delivery / Pickup Toggle ──────────────────────
+                  Container(
+                    margin: EdgeInsets.fromLTRB(
+                      Responsive.horizontalPadding(context),
+                      Responsive.spacingSmall(context),
+                      Responsive.horizontalPadding(context),
+                      0,
+                    ),
+                    padding: EdgeInsets.all(
+                      Responsive.spacingSmall(context) * 0.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.cardRadius(context),
                       ),
-                      const SizedBox(height: 8),
-
-                      // ── Address / Pickup Location ─────────────────────
-                      if (isPickup)
-                        Container(
-                          margin: EdgeInsets.fromLTRB(
-                            Responsive.horizontalPadding(context),
-                            0,
-                            Responsive.horizontalPadding(context),
-                            0,
-                          ),
-                          padding: EdgeInsets.all(Responsive.cardPadding(context)),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF10B981,
-                            ).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.store_rounded,
-                                color: Color(0xFF10B981),
-                                size: 20,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                ref.read(isPickupProvider.notifier).state =
+                                    false,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(
+                                vertical: Responsive.spacingSmall(context),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Pick up from',
-                                      style: TextStyle(
-                                        fontSize: Responsive.smallText(context),
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    Text(
-                                      restaurant?.name ?? 'Restaurant',
-                                      style: TextStyle(
-                                        fontSize: Responsive.bodyText(context),
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                              decoration: BoxDecoration(
+                                color: !isPickup
+                                    ? AppTheme.primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context) - 2,
                                 ),
                               ),
-                            ],
-                          ),
-                        )
-                      else
-                        GestureDetector(
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/address-book'),
-                          child: Container(
-                            margin: EdgeInsets.fromLTRB(
-                              Responsive.horizontalPadding(context),
-                              0,
-                              Responsive.horizontalPadding(context),
-                              0,
-                            ),
-                            padding: EdgeInsets.all(Responsive.cardPadding(context)),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.07,
-                              ),
-                              borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on_rounded,
-                                  color: AppTheme.primaryColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Deliver to',
-                                        style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
-                                          color: Theme.of(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.delivery_dining_rounded,
+                                    size: 18,
+                                    color: !isPickup
+                                        ? Colors.white
+                                        : Theme.of(
                                             context,
                                           ).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      Text(
-                                        deliveryAddress,
-                                        style: TextStyle(
-                                          fontSize: Responsive.bodyText(context),
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Delivery',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: Responsive.bodyText(context),
+                                      color: !isPickup
+                                          ? Colors.white
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                ref.read(isPickupProvider.notifier).state =
+                                    true,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: EdgeInsets.symmetric(
+                                vertical: Responsive.spacingSmall(context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: isPickup
+                                    ? AppTheme.primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context) - 2,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.store_rounded,
+                                    size: 18,
+                                    color: isPickup
+                                        ? Colors.white
+                                        : Theme.of(
                                             context,
-                                          ).colorScheme.onSurface,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                          ).colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Pickup',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: Responsive.bodyText(context),
+                                      color: isPickup
+                                          ? Colors.white
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ── Address / Pickup Location ─────────────────────
+                  if (isPickup)
+                    Container(
+                      margin: EdgeInsets.fromLTRB(
+                        Responsive.horizontalPadding(context),
+                        0,
+                        Responsive.horizontalPadding(context),
+                        0,
+                      ),
+                      padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.cardRadius(context),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.store_rounded,
+                            color: Color(0xFF10B981),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pick up from',
+                                  style: TextStyle(
+                                    fontSize: Responsive.smallText(context),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  size: 20,
+                                Text(
+                                  restaurant?.name ?? 'Restaurant',
+                                  style: TextStyle(
+                                    fontSize: Responsive.bodyText(context),
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
+                        ],
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/address-book'),
+                      child: Container(
+                        margin: EdgeInsets.fromLTRB(
+                          Responsive.horizontalPadding(context),
+                          0,
+                          Responsive.horizontalPadding(context),
+                          0,
                         ),
-                      const SizedBox(height: 8),
-
-                      // Multi-restaurant banner
-                      if (multiEnabled && isMultiRestaurant)
-                        Container(
-                          margin: EdgeInsets.fromLTRB(
-                            Responsive.horizontalPadding(context),
-                            0,
-                            Responsive.horizontalPadding(context),
-                            8,
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: Responsive.spacingSmall(context),
-                            vertical: Responsive.spacingSmall(context) * 0.6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.restaurant_rounded, color: AppTheme.primaryColor, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Multi-restaurant order – $restaurantCount restaurants',
-                                  style: TextStyle(
-                                    fontSize: Responsive.smallText(context),
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        padding: EdgeInsets.all(
+                          Responsive.cardPadding(context),
                         ),
-
-                      // Cart Items grouped by restaurant
-                      if (multiEnabled && isMultiRestaurant)
-                        ...cartNotifier.itemsByRestaurant.entries.map((entry) {
-                          final restId = entry.key;
-                          final items = entry.value;
-                          final restSubtotal = cartNotifier.subtotalForRestaurant(restId);
-                          final restAsync = ref.watch(restaurantByIdProvider(restId));
-                          final restName = restAsync.valueOrNull?.name ?? 'Restaurant';
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Restaurant section header
-                              Container(
-                                margin: EdgeInsets.fromLTRB(
-                                  Responsive.horizontalPadding(context),
-                                  4,
-                                  Responsive.horizontalPadding(context),
-                                  0,
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: scheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.store_rounded, size: 16, color: scheme.onSurfaceVariant),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        restName,
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
-                                          fontWeight: FontWeight.w700,
-                                          color: scheme.onSurface,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      '${AppConstants.currencySymbol}${restSubtotal.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: Responsive.smallText(context),
-                                        fontWeight: FontWeight.w700,
-                                        color: AppTheme.priceColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    GestureDetector(
-                                      onTap: () {
-                                        showDialog<bool>(
-                                          context: context,
-                                          builder: (_) => AlertDialog(
-                                            title: const Text('Remove restaurant?'),
-                                            content: Text('Remove all items from $restName?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: const Text('Remove', style: TextStyle(color: Colors.red)),
-                                              ),
-                                            ],
-                                          ),
-                                        ).then((confirmed) {
-                                          if (confirmed == true) {
-                                            ref.read(cartProvider.notifier).removeRestaurantGroup(restId);
-                                          }
-                                        });
-                                      },
-                                      child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Items under this restaurant
-                              ...items.map((cartItem) => _CartItemWidget(
-                                name: cartItem.menuItem.name,
-                                imageUrl: cartItem.menuItem.imageUrl,
-                                quantity: cartItem.quantity,
-                                price: cartItem.menuItem.discountedPrice,
-                                customizationSummary: _buildCustomizationSummary(cartItem),
-                                onRemove: () => ref.read(cartProvider.notifier).removeItem(cartItem.menuItem.id),
-                                onQuantityChanged: (q) => ref.read(cartProvider.notifier).updateQuantity(cartItem.menuItem.id, q),
-                              )),
-                            ],
-                          );
-                        })
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: cartItems.length,
-                          itemBuilder: (context, index) {
-                            final cartItem = cartItems[index];
-                            return _CartItemWidget(
-                              name: cartItem.menuItem.name,
-                              imageUrl: cartItem.menuItem.imageUrl,
-                              quantity: cartItem.quantity,
-                              price: cartItem.menuItem.discountedPrice,
-                              customizationSummary: _buildCustomizationSummary(cartItem),
-                              onRemove: () => ref.read(cartProvider.notifier).removeItem(cartItem.menuItem.id),
-                              onQuantityChanged: (q) => ref.read(cartProvider.notifier).updateQuantity(cartItem.menuItem.id, q),
-                            );
-                          },
-                        ),
-                      // AI recommendation banner
-                      if (cartRecs.isNotEmpty)
-                        _CartRecommendationBanner(recommendations: cartRecs),
-
-                      // Price Breakdown
-                      Container(
-                        margin: EdgeInsets.all(Responsive.horizontalPadding(context)),
-                        padding: EdgeInsets.all(Responsive.cardPadding(context)),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.cardRadius(context),
+                          ),
                         ),
-                        child: Column(
+                        child: Row(
                           children: [
-                            // Group order discount banner
-                            if (isGroupOrder) ...[
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF10B981,
-                                  ).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.groups_rounded,
-                                      color: Color(0xFF10B981),
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Group Order – 40% delivery discount ($groupParticipantCount members)',
-                                        style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF10B981),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                            // MealHub+ banner
-                            if (subDeliveryFree) ...[
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: Responsive.spacingSmall(context),
-                                  vertical: Responsive.spacingSmall(context) * 0.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF6C63FF,
-                                  ).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.star_rounded,
-                                      color: Color(0xFF6C63FF),
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'MealHub+ Free Delivery Applied',
-                                      style: TextStyle(
-                                        fontSize: Responsive.smallText(context),
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF6C63FF),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                            _PriceRow(
-                              context.l10n.subtotal,
-                              '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
+                            Icon(
+                              Icons.location_on_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 20,
                             ),
-                            const SizedBox(height: 8),
-                            if (isGroupOrder) ...[
-                              _PriceRow(
-                                'Delivery (Group 40% off – $groupParticipantCount members)',
-                                feeLoading
-                                    ? 'Calculating…'
-                                    : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                                valueColor: const Color(0xFF10B981),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Deliver to',
+                                    style: TextStyle(
+                                      fontSize: Responsive.smallText(context),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    deliveryAddress,
+                                    style: TextStyle(
+                                      fontSize: Responsive.bodyText(context),
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                            ] else if (isPickup)
-                              _PriceRow(
-                                subServiceDiscount > 0
-                                    ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
-                                    : 'Service Fee',
-                                '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
-                                valueColor: subServiceDiscount > 0
-                                    ? const Color(0xFF6C63FF)
-                                    : const Color(0xFF10B981),
-                              )
-                            else
-                              _PriceRow(
-                                subDeliveryFree
-                                    ? 'Delivery (MealHub+ FREE)'
-                                    : isMultiRestaurant
-                                    ? 'Delivery (per restaurant)${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}'
-                                    : 'Delivery${distanceKm != null ? ' (KM) – ${distanceKm.toStringAsFixed(1)} km' : ' (Base)'}',
-                                feeLoading
-                                    ? 'Calculating…'
-                                    : subDeliveryFree
-                                    ? '\$0.00'
-                                    : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                                valueColor: subDeliveryFree
-                                    ? const Color(0xFF6C63FF)
-                                    : null,
-                              ),
-                            const SizedBox(height: 8),
-                            _PriceRow(
-                              'Service Fee',
-                              '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
                             ),
-                            if (multiEnabled && isMultiRestaurant) ...[
-                              const SizedBox(height: 8),
-                              _PriceRow(
-                                'Multi-stop Fee (${restaurantCount - 1} extra stop${restaurantCount - 1 > 1 ? 's' : ''})',
-                                '${AppConstants.currencySymbol}${totalExtraStopFee.toStringAsFixed(2)}',
-                              ),
-                            ],
-                            Divider(color: scheme.outlineVariant, height: 16),
-                            _PriceRow(
-                              'Total',
-                              '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
-                              isBold: true,
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              size: 20,
                             ),
                           ],
                         ),
                       ),
+                    ),
+                  const SizedBox(height: 8),
 
-                      // Bottom padding to clear the sticky checkout button
-                      const SizedBox(height: 80),
+                  // Multi-restaurant banner
+                  if (multiEnabled && isMultiRestaurant)
+                    Container(
+                      margin: EdgeInsets.fromLTRB(
+                        Responsive.horizontalPadding(context),
+                        0,
+                        Responsive.horizontalPadding(context),
+                        8,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.spacingSmall(context),
+                        vertical: Responsive.spacingSmall(context) * 0.6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.cardRadius(context),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.restaurant_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Multi-restaurant order – $restaurantCount restaurants',
+                              style: TextStyle(
+                                fontSize: Responsive.smallText(context),
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Cart Items grouped by restaurant
+                  if (multiEnabled && isMultiRestaurant)
+                    ...cartNotifier.itemsByRestaurant.entries.map((entry) {
+                      final restId = entry.key;
+                      final items = entry.value;
+                      final restSubtotal = cartNotifier.subtotalForRestaurant(
+                        restId,
+                      );
+                      final restAsync = ref.watch(
+                        restaurantByIdProvider(restId),
+                      );
+                      final restName =
+                          restAsync.valueOrNull?.name ?? 'Restaurant';
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Restaurant section header
+                          Container(
+                            margin: EdgeInsets.fromLTRB(
+                              Responsive.horizontalPadding(context),
+                              4,
+                              Responsive.horizontalPadding(context),
+                              0,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.spacingSmall(context),
+                              vertical: Responsive.spacingSmall(context) * 0.6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.store_rounded,
+                                  size: 16,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    restName,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: Responsive.smallText(context),
+                                      fontWeight: FontWeight.w700,
+                                      color: scheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${AppConstants.currencySymbol}${restSubtotal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: Responsive.smallText(context),
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.priceColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () {
+                                    showDialog<bool>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text('Remove restaurant?'),
+                                        content: Text(
+                                          'Remove all items from $restName?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text(
+                                              'Remove',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ).then((confirmed) {
+                                      if (confirmed == true) {
+                                        ref
+                                            .read(cartProvider.notifier)
+                                            .removeRestaurantGroup(restId);
+                                      }
+                                    });
+                                  },
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.red.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Items under this restaurant
+                          ...items.map(
+                            (cartItem) => _CartItemWidget(
+                              name: cartItem.menuItem.name,
+                              imageUrl: cartItem.menuItem.imageUrl,
+                              quantity: cartItem.quantity,
+                              price: cartItem.menuItem.discountedPrice,
+                              customizationSummary: _buildCustomizationSummary(
+                                cartItem,
+                              ),
+                              onRemove: () => ref
+                                  .read(cartProvider.notifier)
+                                  .removeItem(cartItem.menuItem.id),
+                              onQuantityChanged: (q) => ref
+                                  .read(cartProvider.notifier)
+                                  .updateQuantity(cartItem.menuItem.id, q),
+                            ),
+                          ),
+                        ],
+                      );
+                    })
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: cartItems.length,
+                      itemBuilder: (context, index) {
+                        final cartItem = cartItems[index];
+                        return _CartItemWidget(
+                          name: cartItem.menuItem.name,
+                          imageUrl: cartItem.menuItem.imageUrl,
+                          quantity: cartItem.quantity,
+                          price: cartItem.menuItem.discountedPrice,
+                          customizationSummary: _buildCustomizationSummary(
+                            cartItem,
+                          ),
+                          onRemove: () => ref
+                              .read(cartProvider.notifier)
+                              .removeItem(cartItem.menuItem.id),
+                          onQuantityChanged: (q) => ref
+                              .read(cartProvider.notifier)
+                              .updateQuantity(cartItem.menuItem.id, q),
+                        );
+                      },
+                    ),
+                  // AI recommendation banner
+                  if (cartRecs.isNotEmpty)
+                    _CartRecommendationBanner(recommendations: cartRecs),
+
+                  // Price Breakdown
+                  Container(
+                    margin: EdgeInsets.all(
+                      Responsive.horizontalPadding(context),
+                    ),
+                    padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(
+                        Responsive.cardRadius(context),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        // Group order discount banner
+                        if (isGroupOrder) ...[
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.spacingSmall(context),
+                              vertical: Responsive.spacingSmall(context) * 0.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF10B981,
+                              ).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context) - 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.groups_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Group Order – 40% delivery discount ($groupParticipantCount members)',
+                                    style: TextStyle(
+                                      fontSize: Responsive.smallText(context),
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        // QuickDash+ banner
+                        if (subDeliveryFree) ...[
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Responsive.spacingSmall(context),
+                              vertical: Responsive.spacingSmall(context) * 0.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF528BFF,
+                              ).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context) - 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: Color(0xFF528BFF),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'QuickDash+ Free Delivery Applied',
+                                  style: TextStyle(
+                                    fontSize: Responsive.smallText(context),
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF528BFF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        _PriceRow(
+                          context.l10n.subtotal,
+                          '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
+                        ),
+                        const SizedBox(height: 8),
+                        if (isGroupOrder) ...[
+                          _PriceRow(
+                            'Delivery (Group 40% off – $groupParticipantCount members)',
+                            feeLoading
+                                ? 'Calculating…'
+                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                            valueColor: const Color(0xFF10B981),
+                          ),
+                        ] else if (isPickup)
+                          // Hidden when the restaurant charges nothing to
+                          // collect, which is most of them.
+                          rawFee > 0
+                              ? _PriceRow(
+                                  subServiceDiscount > 0
+                                      ? 'Pickup Fee (QuickDash+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                      : 'Pickup Fee',
+                                  '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                  valueColor: subServiceDiscount > 0
+                                      ? const Color(0xFF528BFF)
+                                      : const Color(0xFF10B981),
+                                )
+                              : const SizedBox.shrink()
+                        else
+                          _PriceRow(
+                            subDeliveryFree
+                                ? 'Delivery (QuickDash+ FREE)'
+                                : isMultiRestaurant
+                                ? 'Delivery (per restaurant)${distanceKm != null ? ' – ${distanceKm.toStringAsFixed(1)} km' : ''}'
+                                : 'Delivery${distanceKm != null ? ' (KM) – ${distanceKm.toStringAsFixed(1)} km' : ' (Base)'}',
+                            feeLoading
+                                ? 'Calculating…'
+                                : subDeliveryFree
+                                ? '\$0.00'
+                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                            valueColor: subDeliveryFree
+                                ? const Color(0xFF528BFF)
+                                : null,
+                          ),
+                        const SizedBox(height: 8),
+                        _PriceRow(
+                          'Service Fee',
+                          '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
+                        ),
+                        if (multiEnabled && isMultiRestaurant) ...[
+                          const SizedBox(height: 8),
+                          _PriceRow(
+                            'Multi-stop Fee (${restaurantCount - 1} extra stop${restaurantCount - 1 > 1 ? 's' : ''})',
+                            '${AppConstants.currencySymbol}${totalExtraStopFee.toStringAsFixed(2)}',
+                          ),
+                        ],
+                        Divider(color: scheme.outlineVariant, height: 16),
+                        _PriceRow(
+                          'Total',
+                          '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                          isBold: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+
+      // Pinned to the bottom of the SCREEN via bottomNavigationBar rather than
+      // a Positioned inside a Stack. The Stack sized itself to the scroll
+      // view's content, so with a short cart "bottom: 0" landed mid-screen with
+      // dead space beneath it, and the total scrolled out of sight — on the one
+      // screen where the amount should always be visible.
+      bottomNavigationBar: cartItems.isEmpty
+          ? null
+          : _CheckoutBar(
+              total: total,
+              onPressed: () => Navigator.pushNamed(
+                context,
+                isMultiRestaurant ? '/multi-restaurant-checkout' : '/checkout',
+              ),
+            ),
+    );
+  }
+}
+
+/// Sticky cart footer: the amount payable and the single action that spends it.
+class _CheckoutBar extends StatelessWidget {
+  const _CheckoutBar({required this.total, required this.onPressed});
+
+  final double total;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: onPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Proceed to Checkout',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 19),
                     ],
                   ),
                 ),
-                // Checkout Button
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      border: Border(
-                        top: BorderSide(color: scheme.outlineVariant),
-                      ),
-                    ),
-                    padding: EdgeInsets.all(Responsive.horizontalPadding(context)),
-                    child: SafeArea(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (isMultiRestaurant) {
-                            Navigator.pushNamed(context, '/multi-restaurant-checkout');
-                          } else {
-                            Navigator.pushNamed(context, '/checkout');
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: Responsive.buttonHeight(context) * 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: Responsive.bodyText(context),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -831,24 +975,28 @@ class _CartItemWidget extends StatelessWidget {
             height: Responsive.cartItemImageSize(context),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+              borderRadius: BorderRadius.circular(
+                Responsive.cardRadius(context) - 2,
+              ),
             ),
             child: ClipRRect(
-                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                child: Image.network(
-                  imageUrl?.isNotEmpty == true
-                      ? imageUrl!
-                      : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.fastfood_rounded,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+              borderRadius: BorderRadius.circular(
+                Responsive.cardRadius(context) - 2,
+              ),
+              child: Image.network(
+                imageUrl?.isNotEmpty == true
+                    ? imageUrl!
+                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    Icons.fastfood_rounded,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -950,7 +1098,9 @@ class _PriceRow extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: isBold ? Responsive.bodyText(context) : Responsive.smallText(context),
+              fontSize: isBold
+                  ? Responsive.bodyText(context)
+                  : Responsive.smallText(context),
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: Theme.of(
                 context,
@@ -963,7 +1113,9 @@ class _PriceRow extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: isBold ? Responsive.bodyText(context) : Responsive.smallText(context),
+            fontSize: isBold
+                ? Responsive.bodyText(context)
+                : Responsive.smallText(context),
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color: valueColor ?? Theme.of(context).colorScheme.onSurface,
           ),
@@ -1003,7 +1155,11 @@ class _CartRecommendationBanner extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.primaryColor),
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 16,
+                  color: AppTheme.primaryColor,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Add from a nearby restaurant',
@@ -1068,14 +1224,20 @@ class _RecommendationCard extends StatelessWidget {
                 children: [
                   Text(
                     rec.restaurantName,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     rec.reason,
-                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1083,27 +1245,44 @@ class _RecommendationCard extends StatelessWidget {
                   Row(
                     children: [
                       if (rec.rating != null) ...[
-                        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 12,
+                          color: Color(0xFFF59E0B),
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           rec.rating!.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(width: 8),
                       ],
                       if (rec.distanceKm != null) ...[
-                        Icon(Icons.place_outlined, size: 12, color: scheme.onSurfaceVariant),
+                        Icon(
+                          Icons.place_outlined,
+                          size: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${rec.distanceKm!.toStringAsFixed(1)} km',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(width: 8),
                       ],
                       if (rec.estimatedDeliveryTime != null)
                         Text(
                           '${rec.estimatedDeliveryTime} min',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ),
                     ],
                   ),
@@ -1112,7 +1291,11 @@ class _RecommendationCard extends StatelessWidget {
             ),
 
             // CTA arrow
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryColor),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppTheme.primaryColor,
+            ),
           ],
         ),
       ),
@@ -1123,12 +1306,16 @@ class _RecommendationCard extends StatelessWidget {
 class _PlaceholderThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(Icons.restaurant_rounded, color: AppTheme.primaryColor, size: 24),
-      );
+    width: 52,
+    height: 52,
+    decoration: BoxDecoration(
+      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(
+      Icons.restaurant_rounded,
+      color: AppTheme.primaryColor,
+      size: 24,
+    ),
+  );
 }

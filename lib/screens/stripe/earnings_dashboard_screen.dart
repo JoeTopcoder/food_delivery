@@ -106,7 +106,7 @@ class EarningsDashboardScreen extends ConsumerWidget {
                     // belowMin → button stays disabled (null)
 
                     final btnColor = needsSetup
-                        ? const Color(0xFF7C3AED)
+                        ? const Color(0xFF155EEF)
                         : AppTheme.primaryColor;
 
                     return SizedBox(
@@ -202,11 +202,11 @@ class EarningsDashboardScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                color: const Color(0xFF155EEF).withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.account_balance_wallet,
-                  color: Color(0xFF7C3AED), size: 36),
+                  color: Color(0xFF155EEF), size: 36),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -237,7 +237,7 @@ class EarningsDashboardScreen extends ConsumerWidget {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF155EEF),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -289,17 +289,17 @@ class EarningsDashboardScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+        color: const Color(0xFF155EEF).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+          color: const Color(0xFF155EEF).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.account_balance_wallet_outlined,
-            color: Color(0xFF7C3AED),
+            color: Color(0xFF155EEF),
           ),
           const SizedBox(width: 12),
           const Expanded(

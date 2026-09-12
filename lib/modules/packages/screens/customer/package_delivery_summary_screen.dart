@@ -89,7 +89,7 @@ class _PackageDeliverySummaryScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delivery Summary'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -185,7 +185,7 @@ class _PackageDeliverySummaryScreenState
                         ? null
                         : _requestDelivery,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
+                  backgroundColor: const Color(0xFF155EEF),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -231,7 +231,7 @@ class _SectionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF7C3AED), size: 20),
+                Icon(icon, color: const Color(0xFF155EEF), size: 20),
                 const SizedBox(width: 8),
                 Text(title,
                     style: const TextStyle(

@@ -397,7 +397,7 @@ class _StandardBookingCard extends StatelessWidget {
         return const Color(0xFF0891B2);
       case CarServiceBookingStatus.arrived:
       case CarServiceBookingStatus.inProgress:
-        return const Color(0xFF7C3AED);
+        return const Color(0xFF155EEF);
       case CarServiceBookingStatus.completed:
         return const Color(0xFF059669);
       case CarServiceBookingStatus.cancelled:

@@ -283,7 +283,7 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'MealHub AI',
+                'QuickDash AI',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -707,7 +707,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'MealHub AI',
+                      'QuickDash AI',
                       style: TextStyle(
                         color: AppTheme.primaryColor,
                         fontSize: 11,

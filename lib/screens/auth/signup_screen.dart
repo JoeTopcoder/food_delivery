@@ -7,6 +7,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/quickdash_logo.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   final String role;
@@ -150,11 +151,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             ),
                           ],
                         ),
-                        child: Image.asset(
-                          'assets/images/mealhub_logo.png',
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
+                        child: const Center(
+                          child: QuickDashMark(size: 84),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -169,7 +167,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Join 7DASH today',
+                        'Join QUICKDASH today',
                         style: TextStyle(
                           fontSize: Responsive.bodyText(context),
                           color: Colors.white.withValues(alpha: 0.85),

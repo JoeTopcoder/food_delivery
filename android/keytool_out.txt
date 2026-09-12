@@ -1,0 +1,26 @@
+Alias name: sevendash
+Creation date: Jun 12, 2026
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=SevenDash, OU=SevenDash, O=SevenDash, L=Port of Spain, ST=Trinidad, C=TT
+Issuer: CN=SevenDash, OU=SevenDash, O=SevenDash, L=Port of Spain, ST=Trinidad, C=TT
+Serial number: 5b21679f4d74f44
+Valid from: Fri Jun 12 14:21:16 COT 2026 until: Tue Oct 28 14:21:16 COT 2053
+Certificate fingerprints:
+	 SHA1: F9:3A:E2:A0:60:D7:52:14:FB:9E:9C:6F:ED:09:94:29:37:FF:A6:BB
+	 SHA256: 07:06:BC:09:6C:57:70:22:A3:3E:95:DB:86:08:E0:B9:A1:97:1B:29:1C:CC:8C:B9:01:5E:E6:F7:84:DF:7C:9C
+Signature algorithm name: SHA384withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 3
+
+Extensions: 
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: 12 D7 26 7A 37 FF 49 10   AF 92 D8 14 36 BB F1 9C  ..&z7.I.....6...
+0010: 60 87 46 1C                                        `.F.
+]
+]
+

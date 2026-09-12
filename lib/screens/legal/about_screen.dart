@@ -10,7 +10,7 @@ class AboutScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About 7Dash', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        title: const Text('About QuickDash', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
       ),
       body: ListView(
@@ -31,7 +31,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '7Dash',
+                  'QuickDash',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -48,7 +48,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Food. Fast. Delivered.',
+                  'Good Food. Faster.',
                   style: TextStyle(
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
@@ -101,7 +101,7 @@ class AboutScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: SelectableText(
-                '7Dash is built with Flutter and is powered by Supabase, Stripe, and other open-source technologies. We are grateful to the communities behind these projects.\n\nThis app may collect and process personal data as described in our Privacy Policy.',
+                'QuickDash is built with Flutter and is powered by Supabase, Stripe, and other open-source technologies. We are grateful to the communities behind these projects.\n\nThis app may collect and process personal data as described in our Privacy Policy.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.6,

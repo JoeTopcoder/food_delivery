@@ -104,7 +104,7 @@ class _Navbar extends StatelessWidget {
                   child: const Icon(Icons.bolt_rounded, color: _navy, size: 20),
                 ),
                 const SizedBox(width: 10),
-                Text('MealHub', style: TextStyle(
+                Text('QuickDash', style: TextStyle(
                   color: scrolled ? Colors.white : _navy,
                   fontWeight: FontWeight.w900,
                   fontSize: 20,
@@ -115,7 +115,7 @@ class _Navbar extends StatelessWidget {
             const Spacer(),
             // Nav links (hidden on small width)
             if (MediaQuery.of(context).size.width > 900) ...[
-              for (final link in ['Why MealHub', 'How It Works', 'Pricing', 'Support'])
+              for (final link in ['Why QuickDash', 'How It Works', 'Pricing', 'Support'])
                 Padding(
                   padding: const EdgeInsets.only(right: 28),
                   child: Text(link, style: TextStyle(
@@ -199,7 +199,7 @@ class _HeroSection extends StatelessWidget {
                 const Text('Grow Your Restaurant.', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, color: _gold, height: 1.1)),
                 const SizedBox(height: 20),
                 const Text(
-                  'Join MealHub and keep more of your hard-earned revenue\nwhile we help you reach more local customers.',
+                  'Join QuickDash and keep more of your hard-earned revenue\nwhile we help you reach more local customers.',
                   style: TextStyle(fontSize: 16, color: _slate, height: 1.6),
                 ),
                 const SizedBox(height: 28),
@@ -306,7 +306,7 @@ class _HeroSection extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
                             const Text('Your Restaurant', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
-                            const Text('on MealHub', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                            const Text('on QuickDash', style: TextStyle(color: Colors.white38, fontSize: 12)),
                           ],
                         ),
                       ],
@@ -363,7 +363,7 @@ class _HeroSection extends StatelessWidget {
                               const Icon(Icons.star_rounded, color: _gold, size: 14),
                           ]),
                           const SizedBox(height: 6),
-                          const Text('"MealHub helped us reduce fees and increase our online orders. It\'s a win-win!"', style: TextStyle(fontSize: 11, color: _navyLight, fontStyle: FontStyle.italic, height: 1.4)),
+                          const Text('"QuickDash helped us reduce fees and increase our online orders. It\'s a win-win!"', style: TextStyle(fontSize: 11, color: _navyLight, fontStyle: FontStyle.italic, height: 1.4)),
                           const SizedBox(height: 6),
                           const Text('– Michael T., Restaurant Owner', style: TextStyle(fontSize: 10, color: _slate, fontWeight: FontWeight.w600)),
                         ],
@@ -483,7 +483,7 @@ class _HowItWorks extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 64),
       child: Column(
         children: [
-          const Text('How MealHub Works for Your Restaurant', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: _navy)),
+          const Text('How QuickDash Works for Your Restaurant', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: _navy)),
           const SizedBox(height: 6),
           Container(width: 48, height: 3, decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 48),
@@ -527,7 +527,7 @@ class _HowItWorks extends StatelessWidget {
                   children: [
                     const Text('Ready to Grow\nYour Restaurant?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy, height: 1.3)),
                     const SizedBox(height: 8),
-                    Text('Join MealHub today and start receiving more orders with lower commissions.', style: TextStyle(fontSize: 12, color: _slate, height: 1.5)),
+                    Text('Join QuickDash today and start receiving more orders with lower commissions.', style: TextStyle(fontSize: 12, color: _slate, height: 1.5)),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -565,7 +565,7 @@ class _HowItWorks extends StatelessWidget {
   static const _steps = [
     (Icons.assignment_rounded, 'Get Onboarded', 'Fill out our quick form and we\'ll take care of the rest.'),
     (Icons.storefront_rounded, 'Go Live', 'We set up your menu, store, and start listing your restaurant.'),
-    (Icons.delivery_dining_rounded, 'Get Orders', 'Receive more orders from local customers on MealHub.'),
+    (Icons.delivery_dining_rounded, 'Get Orders', 'Receive more orders from local customers on QuickDash.'),
     (Icons.payments_rounded, 'Get Paid', 'Enjoy fast payouts and keep more of your hard-earned money.'),
   ];
 }
@@ -883,7 +883,7 @@ class _TestimonialsSection extends StatelessWidget {
   }
 
   static const _testimonials = [
-    ('MealHub helped us cut delivery fees by 40%. Our monthly profit went up significantly in just the first month.', 'Michael T.', 'Pizza Palace, New York'),
+    ('QuickDash helped us cut delivery fees by 40%. Our monthly profit went up significantly in just the first month.', 'Michael T.', 'Pizza Palace, New York'),
     ('The dashboard is incredibly easy to use and the payouts are always on time. Best platform we\'ve worked with!', 'Sarah K.', 'Sushi Bistro, Los Angeles'),
     ('Customer support is outstanding. They helped us set everything up in under an hour and orders started coming in immediately.', 'James R.', 'The Burger Joint, Chicago'),
   ];
@@ -914,7 +914,7 @@ class _CtaSection extends StatelessWidget {
           const SizedBox(height: 20),
           const Text('Start Growing Your Restaurant Today', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2)),
           const SizedBox(height: 12),
-          Text('Join 500+ restaurants already using MealHub to reach more customers\nand keep more of their hard-earned revenue.',
+          Text('Join 500+ restaurants already using QuickDash to reach more customers\nand keep more of their hard-earned revenue.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.7), height: 1.6)),
           const SizedBox(height: 32),
@@ -984,7 +984,7 @@ class _Footer extends StatelessWidget {
                       child: const Icon(Icons.bolt_rounded, color: _navy, size: 16),
                     ),
                     const SizedBox(width: 8),
-                    const Text('MealHub', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                    const Text('QuickDash', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                   ],
                 ),
                 const SizedBox(height: 10),

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
@@ -13,6 +13,8 @@ import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/smart_home_widgets.dart';
+import '../../widgets/full_screen_image.dart';
+import '../../widgets/grocery_cart_dialogs.dart';
 import 'grocery_store_detail_screen.dart';
 import 'grocery_category_products_screen.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -123,6 +125,20 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     ),
                     const SizedBox(height: 20),
                   ],
+                ),
+              ),
+            ),
+
+            // ── Concierge entry ─────────────────────────────────────
+            // Directly under the search field: it is the alternative to
+            // searching, for someone who would rather say what they need than
+            // hunt for each item.
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _GroceryConciergeCard(
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/grocery-concierge'),
                 ),
               ),
             ),
@@ -450,26 +466,58 @@ class _SearchProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image – fixed height
+            // Image – fixed height. Tap = full screen.
             SizedBox(
               height: 130,
               width: double.infinity,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(14),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    product.imageUrl != null && product.imageUrl!.isNotEmpty
-                        ? Image.network(
-                            product.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder(),
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null ? child : _placeholder(),
-                          )
-                        : _placeholder(),
+              child: GestureDetector(
+                onTap:
+                    (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                    ? () => FullScreenImage.show(
+                        context,
+                        imageUrl: product.imageUrl!,
+                        title: product.name,
+                      )
+                    : null,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(14),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // White tile + contain: packaged goods show fully.
+                      Container(color: Colors.white),
+                      product.imageUrl != null && product.imageUrl!.isNotEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Image.network(
+                                product.imageUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => _placeholder(),
+                                loadingBuilder: (_, child, progress) =>
+                                    progress == null ? child : _placeholder(),
+                              ),
+                            )
+                          : _placeholder(),
+                      if (product.imageUrl != null &&
+                          product.imageUrl!.isNotEmpty)
+                        Positioned(
+                          right: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black38,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.zoom_out_map,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                     if (!inStock)
                       Container(
                         color: Colors.black54,
@@ -507,7 +555,8 @@ class _SearchProductCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -678,8 +727,17 @@ class _SearchProductCard extends ConsumerWidget {
     );
   }
 
-  void _addToCart(WidgetRef ref, BuildContext context) {
+  Future<void> _addToCart(WidgetRef ref, BuildContext context) async {
     final cartNotifier = ref.read(groceryCartProvider.notifier);
+
+    // One grocery store per order: if the cart holds a different store, ask.
+    final currentStore = cartNotifier.currentStoreId;
+    if (currentStore != null && currentStore != product.restaurantId) {
+      final replace = await confirmNewGroceryCart(context);
+      if (replace != true || !context.mounted) return;
+      cartNotifier.clearCart();
+    }
+
     final cartItems = ref.read(groceryCartProvider);
     final existing = cartItems.where((c) => c.menuItem.id == product.id);
     final currentQty = existing.isNotEmpty ? existing.first.quantity : 0;
@@ -981,10 +1039,87 @@ class _GroceryCategoryImage extends StatelessWidget {
                 child: Text(emoji, style: const TextStyle(fontSize: 28)),
               ),
             )
-          : Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 28)),
-            ),
+          : Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
     );
   }
 }
 
+/// Grocery-screen entry to the Concierge. Mirrors the food home card in shape
+/// and height so the two read as the same feature in two places.
+class _GroceryConciergeCard extends StatelessWidget {
+  const _GroceryConciergeCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const accent = Color(0xFF059669); // matches the grocery service colour
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              accent.withValues(alpha: 0.18),
+              accent.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(
+                Icons.shopping_basket_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Grocery Concierge',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '"Milk, bread and eggs" — it builds the basket',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded, size: 16, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+}

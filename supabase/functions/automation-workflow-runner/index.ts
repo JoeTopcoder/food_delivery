@@ -1,4 +1,4 @@
-// automation-workflow-runner — Workflow Station (7Dash AI Operations)
+// automation-workflow-runner — Workflow Station (QuickDash AI Operations)
 //
 // This is the native-Supabase equivalent of an n8n workflow: a pg_cron
 // schedule calls this function on a bearer secret (not a user JWT — cron has
@@ -22,7 +22,7 @@ import { publishToAllPlatforms } from '../_shared/social.ts'
 const RUNNER_SECRET = Deno.env.get('AUTOMATION_RUNNER_SECRET') ?? ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const MARKETING_FROM_EMAIL = Deno.env.get('SALES_FROM_EMAIL') ?? '7Dash Marketing <onboarding@resend.dev>'
+const MARKETING_FROM_EMAIL = Deno.env.get('SALES_FROM_EMAIL') ?? 'QuickDash Marketing <onboarding@resend.dev>'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -220,7 +220,7 @@ async function weeklySocialCampaign(workflowId: string): Promise<WorkflowResult>
 
   const usingFallback = popularItems.length === 0
   const promptContext = usingFallback
-    ? 'No menu items on file yet — write a general brand-awareness post inviting people to try 7Dash for the first time.'
+    ? 'No menu items on file yet — write a general brand-awareness post inviting people to try QuickDash for the first time.'
     : hasOrderSignal
       ? `Actual best-selling items this quarter, from real order data: ${popularItems.map((i) => `${i.name} from ${i.restaurant} (ordered ${i.order_count} times)`).join(', ')}.`
       : `Real current menu items to feature (no order-volume data yet to rank by popularity, so do NOT claim these are "best sellers" or cite an order count): ${popularItems.map((i) => `${i.name} from ${i.restaurant}`).join(', ')}.`
@@ -235,7 +235,7 @@ async function weeklySocialCampaign(workflowId: string): Promise<WorkflowResult>
       messages: [
         {
           role: 'system',
-          content: `You write social media captions for 7Dash, a food delivery app. Given real menu/order data (never invent a dish, restaurant, or order count not given to you), write exactly 3 distinct ready-to-post captions (Instagram/Facebook style, with relevant emoji, under 200 characters each). If no order-count data is provided, describe the items as menu highlights, not "best sellers" or "most popular". Respond ONLY with JSON: { "captions": [string, string, string] }`,
+          content: `You write social media captions for QuickDash, a food delivery app. Given real menu/order data (never invent a dish, restaurant, or order count not given to you), write exactly 3 distinct ready-to-post captions (Instagram/Facebook style, with relevant emoji, under 200 characters each). If no order-count data is provided, describe the items as menu highlights, not "best sellers" or "most popular". Respond ONLY with JSON: { "captions": [string, string, string] }`,
         },
         { role: 'user', content: promptContext },
       ],
@@ -453,11 +453,11 @@ async function weeklyRetentionOutreach(workflowId: string): Promise<WorkflowResu
         messages: [
           {
             role: 'system',
-            content: `You are the 7Dash Customer Retention drafting assistant. Draft a short, warm win-back email to a returning customer who hasn't ordered in a while. Rules:
+            content: `You are the QuickDash Customer Retention drafting assistant. Draft a short, warm win-back email to a returning customer who hasn't ordered in a while. Rules:
 - Use ONLY the real stats given (lifetime orders, days since last order) — reference them naturally if it helps ("we've missed having you order with us").
 - Propose a modest, personal win-back discount between 10 and 20 (percent). Reference it in the body using the LITERAL tokens [DISCOUNT] and [PROMO_CODE] exactly as written — e.g. "enjoy [DISCOUNT]% off your next order with code [PROMO_CODE]" — never write a real number or code yourself; those tokens get replaced with a real, one-time code before sending.
 - Warm, personal tone — this is a 1:1 email, not a mass blast. 3-4 short paragraphs, end with a clear call to action (open the app / order again).
-- Sign off as "The 7Dash Team".
+- Sign off as "The QuickDash Team".
 Respond ONLY with JSON: { "subject": string, "body": string, "discount_percent": number }`,
           },
           { role: 'user', content: JSON.stringify({ customer: { name: c.name, email: c.email }, lifetime_orders: c.orderCount, lifetime_spend: c.lifetimeSpend, days_since_last_order: c.daysSinceLastOrder }) },
@@ -469,7 +469,7 @@ Respond ONLY with JSON: { "subject": string, "body": string, "discount_percent":
     if (!res.ok) continue
     const completion = await res.json()
     const parsed = JSON.parse(completion.choices?.[0]?.message?.content ?? '{}')
-    const subject = String(parsed.subject ?? 'We miss you at 7Dash').slice(0, 200)
+    const subject = String(parsed.subject ?? 'We miss you at QuickDash').slice(0, 200)
     const body = String(parsed.body ?? '').slice(0, 4000)
     const discountPercent = Math.min(20, Math.max(10, Math.round(Number(parsed.discount_percent) || 15)))
     if (!body) continue
@@ -585,12 +585,12 @@ async function weeklyPromotionScan(workflowId: string): Promise<WorkflowResult> 
       messages: [
         {
           role: 'system',
-          content: `You are the 7Dash Promotion Agent. Propose ONE new promo code, grounded only in the real context given: promo_opportunities (from the Marketing Strategy agent — at-risk restaurants without an active promo) and retention_at_risk_count (from the Customer Retention agent). If a target_restaurant is given, scope the promo to that restaurant specifically and explain why in the rationale. If not, propose a modest platform-wide promo justified by retention_at_risk_count.
+          content: `You are the QuickDash Promotion Agent. Propose ONE new promo code, grounded only in the real context given: promo_opportunities (from the Marketing Strategy agent — at-risk restaurants without an active promo) and retention_at_risk_count (from the Customer Retention agent). If a target_restaurant is given, scope the promo to that restaurant specifically and explain why in the rationale. If not, propose a modest platform-wide promo justified by retention_at_risk_count.
 Rules:
 - discount_type must be "percentage" (1-30) or "fixed" (1-15, in dollars). Keep discounts modest — this is a small delivery marketplace, not a discount house.
 - max_uses: a sensible bounded number (10-200), never unlimited.
 - expires_in_days: 7-30.
-- code: 6-10 uppercase letters/numbers, no spaces, on-brand (7DASH-flavored is fine but not required).
+- code: 6-10 uppercase letters/numbers, no spaces, on-brand (QUICKDASH-flavored is fine but not required).
 - rationale: 1-2 sentences citing the actual data point that justifies this, not a generic marketing pitch.
 Respond ONLY with JSON: { "code": string, "description": string, "discount_type": "percentage"|"fixed", "discount_value": number, "max_uses": number, "expires_in_days": number, "rationale": string }`,
         },
@@ -711,7 +711,7 @@ async function createBirthdayPromoCode(
     .from('promo_codes')
     .insert({
       code,
-      description: 'Happy Birthday reward — 7Dash',
+      description: 'Happy Birthday reward — QuickDash',
       discount_type: 'fixed',
       discount_value: discountAmount,
       min_order_amount: minOrderAmount,

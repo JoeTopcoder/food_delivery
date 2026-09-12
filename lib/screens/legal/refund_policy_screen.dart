@@ -13,7 +13,7 @@ class RefundPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Overview',
           body:
-              '7Dash strives to ensure every order and booking meets your expectations. If something goes wrong, we want to make it right. This policy explains when and how refunds are issued.',
+              'QuickDash strives to ensure every order and booking meets your expectations. If something goes wrong, we want to make it right. This policy explains when and how refunds are issued.',
         ),
         LegalSection(
           heading: '2. Failed Orders',
@@ -62,7 +62,7 @@ class RefundPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '10. Refund Processing Time',
           body:
-              'Approved refunds to the original payment method typically take 5–10 business days, depending on your bank or card issuer. Store credits are applied immediately to your 7Dash wallet and can be used on your next order.',
+              'Approved refunds to the original payment method typically take 5–10 business days, depending on your bank or card issuer. Store credits are applied immediately to your QuickDash wallet and can be used on your next order.',
         ),
         LegalSection(
           heading: '11. Store Credits vs. Original Payment Method',

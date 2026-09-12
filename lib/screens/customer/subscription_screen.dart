@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -26,7 +26,7 @@ class SubscriptionScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'MealHub+',
+          'QuickDash+',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         foregroundColor: Theme.of(context).colorScheme.onSurface,
@@ -112,7 +112,7 @@ class _DeliverySubscriptionTabState
         if (activated) {
           AppSnackbar.success(
             context,
-            'MealHub+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
+            'QuickDash+ ${planType == 'pro' ? 'Pro' : 'Basic'} is now active!',
           );
         } else {
           AppSnackbar.warning(
@@ -135,7 +135,7 @@ class _DeliverySubscriptionTabState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel MealHub+?'),
+        title: const Text('Cancel QuickDash+?'),
         content: const Text(
           'You\'ll keep your remaining deliveries and benefits until '
           'the end of your current billing period. No further charges.',
@@ -240,7 +240,7 @@ class _DeliverySubscriptionTabState
         if (activated) {
           AppSnackbar.success(
             context,
-            'Switched to MealHub ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
+            'Switched to QuickDash ${newPlan == 'pro' ? 'Pro' : 'Basic'}!',
           );
         } else {
           AppSnackbar.warning(
@@ -278,7 +278,7 @@ class _DeliverySubscriptionTabState
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF4CAF50)],
+                    colors: [Color(0xFF528BFF), Color(0xFF4CAF50)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -288,7 +288,7 @@ class _DeliverySubscriptionTabState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'MealHub+',
+                      'QuickDash+',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -333,11 +333,11 @@ class _DeliverySubscriptionTabState
                       label: Text(
                         _subscribingPlan == 'change'
                             ? 'Switching...'
-                            : 'Switch to MealHub ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
+                            : 'Switch to QuickDash ${activeSub.planType == 'basic' ? 'Pro' : 'Basic'}',
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF6C63FF),
-                        side: const BorderSide(color: Color(0xFF6C63FF)),
+                        foregroundColor: const Color(0xFF528BFF),
+                        side: const BorderSide(color: Color(0xFF528BFF)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -438,11 +438,14 @@ class _DeliverySubscriptionTabState
               if (activeSub == null) ...[
                 Text(
                   'Choose your plan',
-                  style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: Responsive.headingMedium(context),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
-                  title: 'MealHub Basic',
+                  title: 'QuickDash Basic',
                   price: AppConstants.subscriptionBasicPrice,
                   deliveries: AppConstants.subscriptionBasicDeliveries,
                   perks: const [
@@ -458,7 +461,7 @@ class _DeliverySubscriptionTabState
                 ),
                 const SizedBox(height: 12),
                 _PlanOptionCard(
-                  title: 'MealHub Pro',
+                  title: 'QuickDash Pro',
                   price: AppConstants.subscriptionProPrice,
                   deliveries: AppConstants.subscriptionProDeliveries,
                   perks: const [
@@ -467,7 +470,7 @@ class _DeliverySubscriptionTabState
                     'Priority support',
                     'Exclusive member deals',
                   ],
-                  color: const Color(0xFF6C63FF),
+                  color: const Color(0xFF528BFF),
                   recommended: true,
                   subscribing: _subscribingPlan == 'pro',
                   onSubscribe: _subscribingPlan != null
@@ -480,7 +483,10 @@ class _DeliverySubscriptionTabState
               // FAQ
               Text(
                 'How it works',
-                style: TextStyle(fontSize: Responsive.headingSmall(context), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: Responsive.headingSmall(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               _FaqItem(

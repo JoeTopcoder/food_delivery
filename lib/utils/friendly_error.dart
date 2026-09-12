@@ -94,8 +94,11 @@ String friendlyError(Object? error) {
   }
   if (msg.contains('not authorized') ||
       msg.contains('permission denied') ||
-      msg.contains('insufficient_privilege')) {
-    return 'You don\'t have permission to do that.';
+      msg.contains('insufficient_privilege') ||
+      msg == 'exception: forbidden' ||
+      msg.contains(': forbidden')) {
+    return 'You don\'t have permission to do that. If you were just made an '
+        'admin, sign out and back in first.';
   }
 
   // Payment / card declines

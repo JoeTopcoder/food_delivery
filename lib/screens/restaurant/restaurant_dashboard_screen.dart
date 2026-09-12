@@ -729,7 +729,7 @@ class _RestaurantDashboardScreenState
                             _QuickAction(
                               icon: Icons.settings_rounded,
                               label: 'Settings',
-                              color: const Color(0xFF8B5CF6),
+                              color: const Color(0xFF528BFF),
                               onTap: () => Navigator.of(
                                 context,
                               ).pushNamed('/restaurant-settings'),
@@ -762,7 +762,7 @@ class _RestaurantDashboardScreenState
                             _QuickAction(
                               icon: Icons.loyalty_rounded,
                               label: 'Loyalty',
-                              color: const Color(0xFF7C3AED),
+                              color: const Color(0xFF155EEF),
                               onTap: () => Navigator.of(
                                 context,
                               ).pushNamed('/restaurant-loyalty'),
@@ -1228,7 +1228,7 @@ class _RestaurantDashboardScreenState
                       color: Color(0xFFEF4444),
                     ),
                     label: const Text(
-                      'See Why Restaurants Love MealHub',
+                      'See Why Restaurants Love QuickDash',
                       style: TextStyle(
                         color: Color(0xFFEF4444),
                         fontWeight: FontWeight.w700,

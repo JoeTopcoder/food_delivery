@@ -68,7 +68,7 @@ class _PackageRequestCardState extends ConsumerState<PackageRequestCard> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              color: Color(0xFF7C3AED),
+              color: Color(0xFF155EEF),
               borderRadius:
                   BorderRadius.vertical(top: Radius.circular(16)),
             ),
@@ -163,7 +163,7 @@ class _PackageRequestCardState extends ConsumerState<PackageRequestCard> {
                       child: ElevatedButton(
                         onPressed: _accepting ? null : _accept,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFF155EEF),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
@@ -241,7 +241,7 @@ class _Stat extends StatelessWidget {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.bold,
-            color: highlight ? const Color(0xFF7C3AED) : Colors.black87,
+            color: highlight ? const Color(0xFF155EEF) : Colors.black87,
           ),
         ),
         const SizedBox(height: 2),

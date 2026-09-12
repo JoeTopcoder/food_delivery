@@ -115,7 +115,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                         ),
                         _MenuItem(
                           icon: Icons.card_membership_rounded,
-                          color: const Color(0xFF8B5CF6),
+                          color: const Color(0xFF528BFF),
                           title: context.l10n.subscriptions,
                           sub: context.l10n.subscriptionsSub,
                           onTap: () =>
@@ -144,14 +144,19 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           color: const Color(0xFFEC4899),
                           title: 'Birthday',
                           sub: currentUser?.birthday != null
-                              ? DateFormat.yMMMd().format(currentUser!.birthday!)
+                              ? DateFormat.yMMMd().format(
+                                  currentUser!.birthday!,
+                                )
                               : "We'll celebrate it with you 🎂",
-                          onTap: () =>
-                              _showEditBirthdayDialog(context, ref, currentUser),
+                          onTap: () => _showEditBirthdayDialog(
+                            context,
+                            ref,
+                            currentUser,
+                          ),
                         ),
                         _MenuItem(
                           icon: Icons.location_on_rounded,
-                          color: const Color(0xFF7C3AED),
+                          color: const Color(0xFF155EEF),
                           title: context.l10n.addressBook,
                           sub: context.l10n.addressBookSub,
                           onTap: () =>
@@ -226,9 +231,10 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           icon: Icons.headset_mic_rounded,
                           color: const Color(0xFF0EA5E9),
                           title: 'Contact Support',
-                          sub: 'Get help from the 7Dash team',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/contact-support'),
+                          sub: 'Get help from the QuickDash team',
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/contact-support'),
                         ),
                       ],
                     ),
@@ -251,8 +257,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           color: const Color(0xFF0077C8),
                           title: 'Privacy Policy',
                           sub: 'How we handle your data',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/privacy-policy'),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pushNamed('/privacy-policy'),
                         ),
                       ],
                     ),
@@ -283,40 +290,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         ),
       ),
     );
-  }
-
-  // ── Delete account ───────────────────────────────────────────────────────────
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
-          'This will permanently delete your account and all associated data. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    try {
-      await ref.read(authNotifierProvider.notifier).deleteAccount();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete account: $e'), backgroundColor: const Color(0xFFEF4444)),
-        );
-      }
-    }
   }
 
   // ── Photo upload ─────────────────────────────────────────────────────────────
@@ -502,7 +475,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: currentUser?.birthday ?? DateTime(now.year - 18, now.month, now.day),
+      initialDate:
+          currentUser?.birthday ?? DateTime(now.year - 18, now.month, now.day),
       // No impossible future birthdays, and a sane oldest-customer bound.
       firstDate: DateTime(now.year - 120),
       lastDate: now,
@@ -1020,7 +994,11 @@ class _DeleteAccountRow extends StatelessWidget {
                     color: _red.withAlpha(18),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: const Icon(Icons.delete_forever_rounded, color: _red, size: 20),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: _red,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -1029,7 +1007,11 @@ class _DeleteAccountRow extends StatelessWidget {
                     children: [
                       Text(
                         'Delete Account',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5, color: _red),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          color: _red,
+                        ),
                       ),
                       Text(
                         'Permanently remove your account and data',
@@ -1038,7 +1020,11 @@ class _DeleteAccountRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),

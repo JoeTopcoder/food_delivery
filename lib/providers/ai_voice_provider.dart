@@ -378,11 +378,11 @@ class AiVoiceNotifier extends StateNotifier<AiVoiceState> {
   String _greetingFor(String role) {
     switch (role) {
       case 'driver':
-        return 'Hi! I\'m your MealHub assistant. Ask me about your current delivery.';
+        return 'Hi! I\'m your QuickDash assistant. Ask me about your current delivery.';
       case 'admin':
-        return 'Hi! I\'m the MealHub admin assistant. How can I help?';
+        return 'Hi! I\'m the QuickDash admin assistant. How can I help?';
       default:
-        return 'Hi! I\'m your MealHub assistant. Ask me about your order or anything else.';
+        return 'Hi! I\'m your QuickDash assistant. Ask me about your order or anything else.';
     }
   }
 

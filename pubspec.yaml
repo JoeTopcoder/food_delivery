@@ -1,5 +1,5 @@
 name: food_driver
-description: "MealHub — food delivery platform for the Cayman Islands."
+description: "QuickDash — multi-vertical delivery platform."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -40,6 +40,13 @@ dependencies:
   # State Management
   riverpod: ^2.6.1
   flutter_riverpod: ^2.6.1
+
+  # Concierge voice input. record MUST stay on 7.x: 5.x/6.x resolve a
+  # record_linux/record_platform_interface pair that don't actually implement
+  # each other's interface, which fails kernel compilation even for
+  # Android-only builds.
+  record: ^7.1.1
+  path_provider: ^2.1.6
   
   # Backend & Database
   supabase_flutter: ^2.1.0
@@ -112,6 +119,9 @@ dependencies:
   app_tracking_transparency: ^2.0.7
   flutter_stripe: ^11.5.0
 
+  # Grocery order picking: camera barcode scanning (ML Kit / CameraX).
+  mobile_scanner: ^7.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -163,7 +173,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/mealhub_logo.png
     - assets/adi-registration.properties
 
   # To add custom fonts to your application, add a fonts section here,
@@ -192,5 +201,6 @@ flutter_launcher_icons:
   web:
     generate: true
   image_path: assets/images/app_icon.png
-  adaptive_icon_background: "#000000"
+  # Midnight Navy, matching the launch window and the splash gradient.
+  adaptive_icon_background: "#0B1220"
   adaptive_icon_foreground: assets/images/app_icon.png

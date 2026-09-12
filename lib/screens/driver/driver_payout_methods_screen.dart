@@ -263,7 +263,7 @@ class _MethodTile extends StatelessWidget {
   final DriverPayoutMethod method;
   const _MethodTile({required this.method});
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   @override
   Widget build(BuildContext context) => Container(
@@ -325,7 +325,7 @@ class _MethodTile extends StatelessWidget {
             child: const Text(
               'Default',
               style: TextStyle(
-                color: Color(0xFF6C63FF),
+                color: Color(0xFF528BFF),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -349,7 +349,7 @@ class _AddMethodCard extends StatelessWidget {
     required this.onTap,
   });
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   @override
   Widget build(BuildContext context) => Material(
@@ -390,7 +390,7 @@ class _AddMethodCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.add, color: Color(0xFF6C63FF), size: 22),
+            const Icon(Icons.add, color: Color(0xFF528BFF), size: 22),
           ],
         ),
       ),
@@ -536,7 +536,7 @@ class _AddBankSheetState extends State<_AddBankSheet> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
+                  backgroundColor: const Color(0xFF528BFF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -598,7 +598,7 @@ class _BField extends StatelessWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+        borderSide: const BorderSide(color: Color(0xFF528BFF)),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -697,7 +697,7 @@ class _AddCardSheetState extends State<_AddCardSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: Color(0xFF6C63FF)),
+                borderSide: BorderSide(color: Color(0xFF528BFF)),
               ),
             ),
             onCardChanged: (d) =>
@@ -716,9 +716,9 @@ class _AddCardSheetState extends State<_AddCardSheet> {
             child: ElevatedButton(
               onPressed: (_cardComplete && !_loading) ? _submit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
+                backgroundColor: const Color(0xFF528BFF),
                 disabledBackgroundColor: const Color(
-                  0xFF6C63FF,
+                  0xFF528BFF,
                 ).withValues(alpha: 0.4),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

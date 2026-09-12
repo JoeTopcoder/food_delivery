@@ -126,7 +126,7 @@ class _AdminAiPanelScreenState extends ConsumerState<AdminAiPanelScreen> {
             _PanelCard(
               title: 'AI Promotion Caps',
               icon: Icons.tune_rounded,
-              iconColor: const Color(0xFF8B5CF6),
+              iconColor: const Color(0xFF528BFF),
               child: Consumer(
                 builder: (context, ref, _) {
                   final cfgAsync = ref.watch(promotionConfigsProvider);

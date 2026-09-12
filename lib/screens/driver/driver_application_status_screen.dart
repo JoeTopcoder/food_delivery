@@ -28,7 +28,10 @@ class DriverApplicationStatusScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: _bg,
         foregroundColor: Colors.white,
-        title: const Text('Application Status', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Application Status',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -38,9 +41,20 @@ class DriverApplicationStatusScreen extends ConsumerWidget {
       ),
       body: driverAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString(), style: const TextStyle(color: Colors.redAccent))),
+        error: (e, _) => Center(
+          child: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.redAccent),
+          ),
+        ),
         data: (driver) {
-          if (driver == null) return const Center(child: Text('No profile found.', style: TextStyle(color: Colors.white54)));
+          if (driver == null)
+            return const Center(
+              child: Text(
+                'No profile found.',
+                style: TextStyle(color: Colors.white54),
+              ),
+            );
           return _StatusBody(driver: driver);
         },
       ),
@@ -52,7 +66,7 @@ class _StatusBody extends ConsumerWidget {
   final Driver driver;
   const _StatusBody({required this.driver});
 
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,19 +90,25 @@ class _StatusBody extends ConsumerWidget {
               color: Colors.orangeAccent,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => DriverDocumentReuploadScreen(driver: driver)),
+                MaterialPageRoute(
+                  builder: (_) => DriverDocumentReuploadScreen(driver: driver),
+                ),
               ),
             ),
             const SizedBox(height: 12),
           ],
           if (driver.isDraft || driver.onboardingStep < 8)
             _ActionButton(
-              label: driver.onboardingStep == 0 ? 'Start Verification' : 'Continue Verification',
+              label: driver.onboardingStep == 0
+                  ? 'Start Verification'
+                  : 'Continue Verification',
               icon: Icons.arrow_forward,
               color: _accent,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => DriverVerificationScreen(driver: driver)),
+                MaterialPageRoute(
+                  builder: (_) => DriverVerificationScreen(driver: driver),
+                ),
               ),
             ),
           if (driver.isApproved) ...[
@@ -97,7 +117,11 @@ class _StatusBody extends ConsumerWidget {
               label: 'Go to Dashboard',
               icon: Icons.dashboard,
               color: const Color(0xFF00C896),
-              onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/driver-dashboard', (_) => false),
+              onTap: () => Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/driver-dashboard',
+                (_) => false,
+              ),
             ),
           ],
         ],
@@ -127,7 +151,11 @@ class _StatusBadge extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             config.title,
-            style: TextStyle(color: config.color, fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: config.color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
@@ -148,28 +176,32 @@ class _StatusBadge extends StatelessWidget {
           icon: Icons.verified,
           color: const Color(0xFF00C896),
           title: 'Application Approved!',
-          message: 'You are approved to drive on our platform. Head to your dashboard to start earning.',
+          message:
+              'You are approved to drive on our platform. Head to your dashboard to start earning.',
         );
       case 'pending_review':
         return _StatusConfig(
           icon: Icons.hourglass_top,
           color: Colors.orangeAccent,
           title: 'Under Review',
-          message: 'Your application has been submitted and is being reviewed. This typically takes 1-3 business days.',
+          message:
+              'Your application has been submitted and is being reviewed. This typically takes 1-3 business days.',
         );
       case 'under_review':
         return _StatusConfig(
           icon: Icons.manage_search,
           color: Colors.blueAccent,
           title: 'Being Reviewed',
-          message: 'An admin is actively reviewing your documents. You will be notified soon.',
+          message:
+              'An admin is actively reviewing your documents. You will be notified soon.',
         );
       case 'rejected':
         return _StatusConfig(
           icon: Icons.cancel_outlined,
           color: Colors.redAccent,
           title: 'Application Rejected',
-          message: 'Your application was not approved. Please review the reason below and resubmit.',
+          message:
+              'Your application was not approved. Please review the reason below and resubmit.',
         );
       case 'suspended':
         return _StatusConfig(
@@ -183,14 +215,16 @@ class _StatusBadge extends StatelessWidget {
           icon: Icons.warning_amber,
           color: Colors.amber,
           title: 'Documents Expired',
-          message: 'One or more of your documents have expired. Please re-upload valid documents.',
+          message:
+              'One or more of your documents have expired. Please re-upload valid documents.',
         );
       default:
         return _StatusConfig(
           icon: Icons.edit_document,
           color: Colors.white54,
           title: 'Application Draft',
-          message: 'Complete your verification to start driving on our platform.',
+          message:
+              'Complete your verification to start driving on our platform.',
         );
     }
   }
@@ -211,7 +245,14 @@ class _InfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Application Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text(
+            'Application Details',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
           const SizedBox(height: 12),
           _InfoRow('Service Type', _serviceLabel(driver.serviceType)),
           _InfoRow('Onboarding Progress', '${driver.onboardingStep}/8 steps'),
@@ -221,9 +262,16 @@ class _InfoCard extends StatelessWidget {
             _InfoRow('Approved', _formatDate(driver.approvedAt!)),
           if (driver.reviewedAt != null)
             _InfoRow('Reviewed', _formatDate(driver.reviewedAt!)),
-          _InfoRow('Food Delivery', driver.isFoodDriverApproved ? 'Approved' : 'Pending'),
-          if (driver.serviceType == 'ride_sharing' || driver.serviceType == 'both')
-            _InfoRow('Ride Sharing', driver.isRideDriverApproved ? 'Approved' : 'Pending'),
+          _InfoRow(
+            'Food Delivery',
+            driver.isFoodDriverApproved ? 'Approved' : 'Pending',
+          ),
+          if (driver.serviceType == 'ride_sharing' ||
+              driver.serviceType == 'both')
+            _InfoRow(
+              'Ride Sharing',
+              driver.isRideDriverApproved ? 'Approved' : 'Pending',
+            ),
         ],
       ),
     );
@@ -231,10 +279,14 @@ class _InfoCard extends StatelessWidget {
 
   String _serviceLabel(String t) {
     switch (t) {
-      case 'food_delivery': return 'Food Delivery';
-      case 'ride_sharing': return 'Ride Sharing';
-      case 'both': return 'Food & Rides';
-      default: return t;
+      case 'food_delivery':
+        return 'Food Delivery';
+      case 'ride_sharing':
+        return 'Ride Sharing';
+      case 'both':
+        return 'Food & Rides';
+      default:
+        return t;
     }
   }
 
@@ -253,8 +305,18 @@ class _InfoRow extends StatelessWidget {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 13)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     ),
   );
@@ -286,7 +348,14 @@ class _StepChecklist extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Verification Checklist', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text(
+            'Verification Checklist',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
           const SizedBox(height: 12),
           ...steps.map((s) => _CheckRow(label: s.$1, done: s.$2)),
         ],
@@ -311,7 +380,13 @@ class _CheckRow extends StatelessWidget {
           size: 20,
         ),
         const SizedBox(width: 10),
-        Text(label, style: TextStyle(color: done ? Colors.white : Colors.white38, fontSize: 13)),
+        Text(
+          label,
+          style: TextStyle(
+            color: done ? Colors.white : Colors.white38,
+            fontSize: 13,
+          ),
+        ),
       ],
     ),
   );
@@ -336,7 +411,14 @@ class _RejectionCard extends StatelessWidget {
           children: [
             Icon(Icons.info_outline, color: Colors.redAccent, size: 18),
             SizedBox(width: 8),
-            Text('Rejection Reason', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(
+              'Rejection Reason',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -354,7 +436,12 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  const _ActionButton({required this.label, required this.icon, required this.color, required this.onTap});
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -363,7 +450,10 @@ class _ActionButton extends StatelessWidget {
     child: ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 18),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      label: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
@@ -378,5 +468,10 @@ class _StatusConfig {
   final Color color;
   final String title;
   final String message;
-  const _StatusConfig({required this.icon, required this.color, required this.title, required this.message});
+  const _StatusConfig({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.message,
+  });
 }

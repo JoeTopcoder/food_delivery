@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     }
 
     const amountCents = Math.round(pr.amount * 100)
-    const currency = (pr.currency ?? 'usd').toLowerCase()
+    const currency = (pr.currency ?? 'jmd').toLowerCase()
 
     // Mark as processing
     await serviceClient
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
           payout_request_id: pr.id,
           requester_id: pr.requester_id,
           driver_id: pr.driver_id ?? '',
-          app: '7Dash',
+          app: 'QuickDash',
         },
       },
       { idempotencyKey: `old_transfer_${pr.id}` },
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
         metadata: {
           payout_request_id: pr.id,
           transfer_id: transfer.id,
-          app: '7Dash',
+          app: 'QuickDash',
         },
       },
       {

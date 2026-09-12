@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import '../../config/app_constants.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -90,7 +91,7 @@ class EarningsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '\$${a.totalEarned.toStringAsFixed(2)}',
+                            '${AppConstants.currencySymbol}${a.totalEarned.toStringAsFixed(2)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 36,
@@ -144,7 +145,8 @@ class EarningsScreen extends ConsumerWidget {
                             const SizedBox(width: 10),
                             _StatChip(
                               label: 'This Month',
-                              value: '\$${a.monthlyEarned.toStringAsFixed(2)}',
+                              value:
+                                  '${AppConstants.currencySymbol}${a.monthlyEarned.toStringAsFixed(2)}',
                               icon: Icons.calendar_today_outlined,
                               color: const Color(0xFFF59E0B),
                             ),
@@ -273,7 +275,7 @@ class EarningsScreen extends ConsumerWidget {
       case 'leader':
         return const [Color(0xFFD97706), Color(0xFFF59E0B)];
       case 'builder':
-        return const [Color(0xFF6366F1), Color(0xFF8B5CF6)];
+        return const [Color(0xFF6366F1), Color(0xFF528BFF)];
       default:
         return [AppTheme.primaryColor, Color(0xFFFF8C42)];
     }
@@ -467,7 +469,7 @@ class _MonthlyCap extends StatelessWidget {
                 ),
               ),
               Text(
-                '\$${used.toStringAsFixed(2)} / \$${cap.toStringAsFixed(0)}',
+                '${AppConstants.currencySymbol}${used.toStringAsFixed(2)} / \$${cap.toStringAsFixed(0)}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
@@ -581,9 +583,12 @@ class _InviteCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => SharePlus.instance.share(ShareParams(
-                text: 'Join MealHub with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
-              )),
+              onPressed: () => SharePlus.instance.share(
+                ShareParams(
+                  text:
+                      'Join QuickDash with my code $code and get \$${EarningConfig.referredFirstOrderBonus.toStringAsFixed(0)} off your first order! Download: https://mealhubcayman.com',
+                ),
+              ),
               icon: const Icon(Icons.share_rounded, size: 16),
               label: const Text('Share with Friends'),
               style: ElevatedButton.styleFrom(

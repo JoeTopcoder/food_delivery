@@ -7,6 +7,8 @@ import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../providers/order_picking_provider.dart';
+import 'order_picking_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
@@ -552,6 +554,12 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                         ),
                       ),
                     ),
+                    // Grocery picking progress (only while it's being fulfilled)
+                    if (widget.isGrocery &&
+                        (order.status == AppConstants.orderPending ||
+                            order.status == AppConstants.orderConfirmed ||
+                            order.status == AppConstants.orderPreparing))
+                      _PickProgressChip(orderId: order.id),
                     AnimatedRotation(
                       turns: _itemsExpanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
@@ -747,6 +755,36 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             ],
 
             const SizedBox(height: 12),
+
+            // Grocery picking: let staff scan/tick items while the order is
+            // still being fulfilled (pending → preparing).
+            if (widget.isGrocery &&
+                (order.status == AppConstants.orderPending ||
+                    order.status == AppConstants.orderConfirmed ||
+                    order.status == AppConstants.orderPreparing)) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (_) => OrderPickingScreen(order: order),
+                        ),
+                      )
+                      // Refresh the progress chip after picking.
+                      .then((_) =>
+                          ref.invalidate(orderPickProgressProvider(order.id))),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                  label: const Text('Pick / scan items'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF059669),
+                    side: const BorderSide(color: Color(0xFF059669)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
 
             // Action buttons based on current status
             if (_isUpdating)
@@ -1113,7 +1151,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
 
   static Color _statusColor(String status) {
     switch (status) {
-      case 'ready':     return const Color(0xFF8B5CF6);
+      case 'ready':     return const Color(0xFF528BFF);
       case 'preparing': return const Color(0xFFF59E0B);
       case 'accepted':  return const Color(0xFF3B82F6);
       case 'cancelled': return Colors.red;
@@ -1342,7 +1380,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                             icon: const Icon(Icons.done_all, size: 15),
                             label: const Text('Ready for Pickup'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B5CF6),
+                              backgroundColor: const Color(0xFF528BFF),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1368,12 +1406,12 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF528BFF)),
                   const SizedBox(width: 6),
                   const Text('Ready for pickup',
                       style: TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 13,
-                        color: Color(0xFF8B5CF6),
+                        color: Color(0xFF528BFF),
                       )),
                 ],
               ),
@@ -1403,6 +1441,55 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Small "N/M picked" badge on a grocery order card, from a light progress
+/// query. Hidden until there's at least one item.
+class _PickProgressChip extends ConsumerWidget {
+  final String orderId;
+  const _PickProgressChip({required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(orderPickProgressProvider(orderId));
+    return async.maybeWhen(
+      data: (p) {
+        if (!p.hasItems) return const SizedBox.shrink();
+        final done = p.allPicked;
+        final color = done
+            ? const Color(0xFF067647)
+            : (p.started ? const Color(0xFF0E7490) : Colors.grey);
+        return Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                done ? Icons.check_circle : Icons.shopping_basket_outlined,
+                size: 13,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                done ? 'Picked' : '${p.pickedLines}/${p.totalLines} picked',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }

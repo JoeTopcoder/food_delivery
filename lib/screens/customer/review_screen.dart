@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +8,7 @@ import '../../models/order_model.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import '../../config/app_constants.dart';
 
 class ReviewScreen extends ConsumerStatefulWidget {
   final Order order;
@@ -18,6 +19,9 @@ class ReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _ReviewScreenState extends ConsumerState<ReviewScreen> {
+  /// Chosen after the food arrived, not before. Null means no tip.
+  double? _tip;
+
   int _foodRating = 0;
   int _deliveryRating = 0;
   int _packagingRating = 0;
@@ -84,9 +88,32 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         photoUrl: photoUrl,
       );
 
+      // Tip after the review is stored, and never in a way that can lose the
+      // review: if the wallet is short, the rating still counts and the
+      // customer is told only the tip failed.
+      var tipFailed = false;
+      if (_tip != null && _tip! > 0) {
+        try {
+          await Supabase.instance.client.rpc(
+            'add_driver_tip',
+            params: {'p_order_id': widget.order.id, 'p_amount': _tip},
+          );
+        } catch (e) {
+          tipFailed = true;
+          if (mounted) AppSnackbar.error(context, friendlyError(e));
+        }
+      }
+
       if (mounted) {
         Navigator.of(context).pop(true);
-        AppSnackbar.success(context, 'Review submitted! Thank you.');
+        if (!tipFailed) {
+          AppSnackbar.success(
+            context,
+            _tip != null && _tip! > 0
+                ? 'Thank you — your review is in and your driver got the tip.'
+                : 'Review submitted! Thank you.',
+          );
+        }
       }
     } catch (e) {
       setState(() => _loading = false);
@@ -94,6 +121,87 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         AppSnackbar.error(context, friendlyError(e));
       }
     }
+  }
+
+  /// Tipping after delivery rather than at checkout: the customer tips on
+  /// service they actually received, and it is the driver's earnings that
+  /// decide whether there are drivers at all.
+  Widget _buildTipCard() {
+    if (widget.order.driverId == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final c = AppConstants.currencySymbol;
+    const options = [200.0, 300.0, 500.0, 1000.0];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('\u{1F6F5}', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                'Tip your driver',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '100% goes to your driver, straight from your wallet.',
+            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _tipChip(label: 'No tip', value: null),
+              for (final v in options)
+                _tipChip(label: '$c${v.toStringAsFixed(0)}', value: v),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tipChip({required String label, required double? value}) {
+    final selected = _tip == value;
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () => setState(() => _tip = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primaryColor
+              : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppTheme.primaryColor : scheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : scheme.onSurface,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -108,7 +216,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +373,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         fontSize: 13,
                       ),
                       filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(
@@ -350,6 +462,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               ),
             ),
 
+            const SizedBox(height: 20),
+            _buildTipCard(),
             const SizedBox(height: 24),
 
             // Submit button

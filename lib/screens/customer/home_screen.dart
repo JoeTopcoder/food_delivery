@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -28,6 +28,8 @@ import '../../config/app_constants.dart';
 import 'meals_by_category_screen.dart';
 import 'grocery_screen.dart';
 import '../../core/utils/responsive.dart';
+import '../../features/coverage/coverage_provider.dart';
+import '../../features/coverage/out_of_area_notice.dart';
 
 /// Emits the current peak-hour status every 30 seconds so the UI updates
 /// in real time when a peak window starts or ends.
@@ -52,7 +54,11 @@ const double _kRadiusMd = 14;
 const double _kRadiusLg = 18;
 const double _kRadiusPill = 999;
 final List<BoxShadow> _kSoftShadow = [
-  BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 4)),
+  BoxShadow(
+    color: Colors.black.withValues(alpha: 0.06),
+    blurRadius: 14,
+    offset: const Offset(0, 4),
+  ),
 ];
 LinearGradient _kBrandGradient() => LinearGradient(
   colors: [AppTheme.primaryColor, const Color(0xFFFF8C42)],
@@ -534,7 +540,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     // Birthday banner replaces the regular promo banners in that slot —
     // they're mutually exclusive, not stacked. Once dismissed (or if there's
     // no birthday match), the regular banners take over the slot again.
-    final showBirthdayBanner = !_birthdayBannerDismissed &&
+    final showBirthdayBanner =
+        !_birthdayBannerDismissed &&
         currentUser?.birthday != null &&
         isBirthdayToday(currentUser!.birthday!);
 
@@ -581,7 +588,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
-                    'MealHub',
+                    'QuickDash',
                     style: TextStyle(
                       fontSize: 23,
                       fontWeight: FontWeight.w800,
@@ -593,7 +600,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
                 Consumer(
                   builder: (context, ref, _) {
-                    final isPeak = ref.watch(isPeakHourProvider).valueOrNull ??
+                    final isPeak =
+                        ref.watch(isPeakHourProvider).valueOrNull ??
                         AppConstants.isPeakHour;
                     if (!isPeak) return const SizedBox.shrink();
                     return Row(
@@ -691,68 +699,96 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ],
           ),
 
-          // Location picker
+          // Location picker, with the Food Concierge sitting beside it.
+          //
+          // The concierge used to be a full-width card lower down the page.
+          // Up here it is one square button next to the address — the two
+          // things a customer settles before anything else is where the food
+          // goes and how they are going to find it.
           SliverToBoxAdapter(
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/address-book'),
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(_kRadiusMd),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.12)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.location_on,
-                        color: AppTheme.primaryColor,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Deliver to',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.horizontalPadding(context),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/address-book'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(_kRadiusMd),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.12,
                             ),
                           ),
-                          Text(
-                            userAddress,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.location_on,
+                                color: AppTheme.primaryColor,
+                                size: 16,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Deliver to',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    userAddress,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  _ConciergeIconButton(
+                    onTap: () => Navigator.of(context).pushNamed('/concierge'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -770,7 +806,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
                 child: _BirthdayBanner(
                   firstName: (currentUser.name ?? 'there').split(' ').first,
-                  onDismiss: () => setState(() => _birthdayBannerDismissed = true),
+                  onDismiss: () =>
+                      setState(() => _birthdayBannerDismissed = true),
                 ),
               ),
             ),
@@ -778,7 +815,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           // Search bar + Taxi button
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.horizontalPadding(context),
+              ),
               child: search_bar.CustomSearchBar(
                 hintText: 'Search for restaurant or food',
                 onChanged: (q) {
@@ -845,7 +884,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                           : _fallbackCategories;
                       return ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
                         addAutomaticKeepAlives: false,
                         addRepaintBoundaries: false,
                         padding: EdgeInsets.symmetric(
@@ -914,67 +955,100 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-            // Quick Services row
+            // Quick Services row. A service the admin has turned off is
+            // hidden here entirely (its card is not built), rather than shown
+            // greyed as "Coming Soon". If every service is off, the whole
+            // section (header included) disappears. Wrapped in a Consumer so
+            // the ref.watch calls have a valid build scope and stay reactive.
             SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: Text(
-                      'More Services',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: Theme.of(context).colorScheme.onSurface,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final defs = <(bool, Widget)>[
+                    (
+                      ref.watch(serviceEnabledProvider('rides')),
+                      _ServiceCard(
+                        icon: Icons.directions_car,
+                        label: 'Book a Ride',
+                        color: const Color(0xFF1E40AF),
+                        enabled: true,
+                        onTap: () => Navigator.pushNamed(context, '/ride-home'),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: Row(
-                      children: [
-                        _ServiceCard(
-                          icon: Icons.directions_car,
-                          label: 'Book a Ride',
-                          color: const Color(0xFF1E40AF),
-                          enabled: ref.watch(serviceEnabledProvider('rides')),
-                          onTap: () => Navigator.pushNamed(context, '/ride-home'),
-                        ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_grocery_store,
-                          label: 'Grocery',
-                          color: const Color(0xFF059669),
-                          enabled: ref.watch(serviceEnabledProvider('grocery')),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const GroceryScreen()),
+                    (
+                      ref.watch(serviceEnabledProvider('grocery')),
+                      _ServiceCard(
+                        icon: Icons.local_grocery_store,
+                        label: 'Grocery',
+                        color: const Color(0xFF059669),
+                        enabled: true,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GroceryScreen(),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_car_wash,
-                          label: 'Car Services',
-                          color: const Color(0xFF7C3AED),
-                          enabled: ref.watch(serviceEnabledProvider('car_service')),
-                          onTap: () => Navigator.pushNamed(context, '/car-services'),
-                        ),
-                        const SizedBox(width: 12),
-                        _ServiceCard(
-                          icon: Icons.local_laundry_service_rounded,
-                          label: 'Laundry',
-                          color: const Color(0xFF0F4C81),
-                          enabled: ref.watch(serviceEnabledProvider('laundry')),
-                          onTap: () => Navigator.pushNamed(context, '/laundry'),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    (
+                      ref.watch(serviceEnabledProvider('car_service')),
+                      _ServiceCard(
+                        icon: Icons.local_car_wash,
+                        label: 'Car Services',
+                        color: const Color(0xFF0E9384),
+                        enabled: true,
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/car-services'),
+                      ),
+                    ),
+                    (
+                      ref.watch(serviceEnabledProvider('laundry')),
+                      _ServiceCard(
+                        icon: Icons.local_laundry_service_rounded,
+                        label: 'Laundry',
+                        color: const Color(0xFF0F4C81),
+                        enabled: true,
+                        onTap: () => Navigator.pushNamed(context, '/laundry'),
+                      ),
+                    ),
+                  ];
+                  final cards = <Widget>[];
+                  for (final (enabled, card) in defs) {
+                    if (!enabled) continue;
+                    if (cards.isNotEmpty) cards.add(const SizedBox(width: 12));
+                    cards.add(card);
+                  }
+                  if (cards.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
+                        child: Text(
+                          'More Services',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.horizontalPadding(context),
+                          0,
+                          Responsive.horizontalPadding(context) + 64,
+                          0,
+                        ),
+                        child: Row(children: cards),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -999,6 +1073,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+            // Out of area: say so, and take a contact. An empty list here
+            // reads as a broken app and is where people give up, and it is
+            // also the one moment we know both who they are and where they
+            // want delivery.
+            if (ref.watch(coverageProvider).valueOrNull?.isOutOfArea ?? false)
+              const SliverToBoxAdapter(child: OutOfAreaNotice()),
 
             _buildHorizontalSection(
               title: 'You might love these \u{2764}\u{FE0F}',
@@ -1044,7 +1125,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               data: (restaurants) {
                 final display = restaurants.take(15).toList();
                 return SliverPadding(
-                  padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.horizontalPadding(context),
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final r = display[index];
@@ -1101,7 +1184,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          // Clears the floating AI button so the last row of content can be
+          // scrolled out from under it rather than sitting there permanently.
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
@@ -1111,10 +1196,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+            vertical: 8,
+          ),
           child: Text(
             'Search Results',
-            style: TextStyle(fontSize: Responsive.headingMedium(context), fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: Responsive.headingMedium(context),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -1126,7 +1217,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             );
           }
           return SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final r = restaurants[index];
@@ -1220,7 +1313,10 @@ class _HorizontalRestaurantRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context), vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+            vertical: 8,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -1264,9 +1360,13 @@ class _HorizontalRestaurantRow extends StatelessWidget {
           height: 230,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             addAutomaticKeepAlives: false,
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             itemCount: restaurants.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
@@ -1311,7 +1411,12 @@ class _RestaurantSectionViewAllScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView.builder(
-        padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 12, Responsive.horizontalPadding(context), 32),
+        padding: EdgeInsets.fromLTRB(
+          Responsive.horizontalPadding(context),
+          12,
+          Responsive.horizontalPadding(context),
+          32,
+        ),
         itemCount: restaurants.length,
         itemBuilder: (context, i) {
           final r = restaurants[i];
@@ -1356,118 +1461,125 @@ class _CompactRestaurantCard extends StatelessWidget {
               ? (MediaQuery.of(context).size.width * 0.48).clamp(160.0, 200.0)
               : constraints.maxWidth;
           return Container(
-        width: cardW,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(_kRadiusLg),
-          boxShadow: _kSoftShadow,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(_kRadiusLg),
-              ),
-              child:
-                  restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      restaurant.imageUrl!,
-                      height: 110,
-                      width: cardW,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                      loadingBuilder: (_, child, progress) =>
-                          progress == null ? child : _placeholder(),
-                    )
-                  : _placeholder(),
+            width: cardW,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(_kRadiusLg),
+              boxShadow: _kSoftShadow,
             ),
-            Padding(
-              padding: EdgeInsets.all(Responsive.cardPadding(context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    restaurant.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: Responsive.bodyText(context),
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(_kRadiusLg),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    restaurant.cuisineType ?? 'Multi-cuisine',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
+                  child:
+                      restaurant.imageUrl != null &&
+                          restaurant.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          restaurant.imageUrl!,
+                          height: 110,
+                          width: cardW,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : _placeholder(),
+                        )
+                      : _placeholder(),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
+                      Text(
+                        restaurant.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: Responsive.bodyText(context),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(_kRadiusPill),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        restaurant.cuisineType ?? 'Multi-cuisine',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: Colors.amber,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
                             ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${restaurant.rating ?? '-'}',
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(_kRadiusPill),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: Colors.amber,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${restaurant.rating ?? '-'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 13,
+                            color: Colors.grey[700],
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              '${restaurant.estimatedDeliveryTime ?? 30} min',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 11,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 13,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          '${restaurant.estimatedDeliveryTime ?? 30} min',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );  // Container
-        },  // LayoutBuilder builder
-      ),  // LayoutBuilder
-    );  // GestureDetector
+          ); // Container
+        }, // LayoutBuilder builder
+      ), // LayoutBuilder
+    ); // GestureDetector
   }
 
   Widget _placeholder() => Container(
@@ -1585,7 +1697,9 @@ class _DynamicBannerCarouselState
                       decoration: BoxDecoration(
                         color: _currentPage == i
                             ? AppTheme.primaryColor
-                            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
+                            : Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(_kRadiusPill),
                       ),
                     ),
@@ -1630,7 +1744,7 @@ class _DynamicBannerCarouselState
                       content: Text(
                         promo.discountType == 'percentage'
                             ? '${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)}% off applied!'
-                            : '\$${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)} off applied!',
+                            : '${AppConstants.currencySymbol}${promo.discountValue.toStringAsFixed(promo.discountValue % 1 == 0 ? 0 : 2)} off applied!',
                       ),
                       duration: const Duration(seconds: 2),
                     ),
@@ -1655,7 +1769,9 @@ class _DynamicBannerCarouselState
         }
       },
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+        margin: EdgeInsets.symmetric(
+          horizontal: Responsive.horizontalPadding(context),
+        ),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_kRadiusLg),
@@ -1975,7 +2091,9 @@ class _AdPopupDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(_kRadiusMd),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                            color: AppTheme.primaryColor.withValues(
+                              alpha: 0.35,
+                            ),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           ),
@@ -2096,8 +2214,14 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardWidth =
-        (MediaQuery.of(context).size.width * 0.38).clamp(130.0, 160.0);
+    // Wide enough for the longest real label. At the old 0.38/160 clamp a
+    // 384dp phone gave the text ~72dp after the icon and padding, and
+    // "Book a Ride" needs ~78 — so it ellipsised to "Book a Ri…" on the
+    // device rather than at some edge case.
+    final cardWidth = (MediaQuery.of(context).size.width * 0.45).clamp(
+      150.0,
+      195.0,
+    );
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Stack(
@@ -2228,9 +2352,7 @@ class _CategoryImage extends StatelessWidget {
                 child: Text(emoji, style: const TextStyle(fontSize: 22)),
               ),
             )
-          : Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 22)),
-            ),
+          : Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
     );
   }
 }
@@ -2320,7 +2442,7 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Celebrate today with 7Dash ❤️',
+                        'Celebrate today with QuickDash ❤️',
                         style: TextStyle(color: Colors.white70, fontSize: 12.5),
                       ),
                     ],
@@ -2330,7 +2452,11 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                   onTap: widget.onDismiss,
                   child: const Padding(
                     padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -2348,7 +2474,10 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                         children: [
                           const Text(
                             'Your birthday reward',
-                            style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                            ),
                           ),
                           Text(
                             amount != null
@@ -2364,7 +2493,10 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(999),
@@ -2384,6 +2516,58 @@ class _BirthdayBannerState extends State<_BirthdayBanner> {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Home-screen entry to the Food Concierge.
+///
+/// Sits beside the delivery address as a single square button, sized to match
+/// the AI assistant button it replaced on this screen. It was a full-width
+/// card in the feed; up here it is reachable without scrolling and costs the
+/// page no height at all, because the address row was already this tall.
+class _ConciergeIconButton extends StatelessWidget {
+  const _ConciergeIconButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Food Concierge',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_kRadiusMd),
+        child: Container(
+          // Square, and the same height as the address card beside it: the two
+          // read as one row rather than as a button stuck onto a field.
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryColor,
+                AppTheme.primaryColor.withValues(alpha: 0.82),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(_kRadiusMd),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withValues(alpha: 0.32),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.restaurant_menu_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
         ),
       ),
     );

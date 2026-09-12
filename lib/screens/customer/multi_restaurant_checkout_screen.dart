@@ -1,4 +1,4 @@
-﻿// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -18,6 +18,8 @@ import '../../providers/payment_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../services/driver/delivery_fee_service.dart';
+import '../../features/recipient/recipient_service.dart';
+import '../../features/recipient/recipient_selector.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
@@ -88,25 +90,39 @@ class _MultiRestaurantCheckoutScreenState
     final authHeader = await _freshAuthHeader();
     late FunctionResponse response;
     try {
-      response = await SupabaseConfig.client.functions
-          .invoke('create-multi-restaurant-order', body: body, headers: authHeader);
+      response = await SupabaseConfig.client.functions.invoke(
+        'create-multi-restaurant-order',
+        body: body,
+        headers: authHeader,
+      );
     } on FunctionException catch (fe) {
       final raw = fe.details?.toString() ?? '';
-      AppLogger.error('_invokeCreateOrder FunctionException: status=${fe.status}, details=$raw');
+      AppLogger.error(
+        '_invokeCreateOrder FunctionException: status=${fe.status}, details=$raw',
+      );
       String extracted = raw;
-      if (fe.details is Map) extracted = (fe.details as Map)['error']?.toString() ?? raw;
-      final isJwt = fe.status == 401 || fe.status == 403 ||
-          raw.contains('LEGACY_JWT') || raw.contains('ES256') || raw.contains('JWT');
+      if (fe.details is Map)
+        extracted = (fe.details as Map)['error']?.toString() ?? raw;
+      final isJwt =
+          fe.status == 401 ||
+          fe.status == 403 ||
+          raw.contains('LEGACY_JWT') ||
+          raw.contains('ES256') ||
+          raw.contains('JWT');
       if (isJwt) {
         AppLogger.info('JWT error — retrying...');
         final retryHeader = await _freshAuthHeader();
         try {
-          response = await SupabaseConfig.client.functions
-              .invoke('create-multi-restaurant-order', body: body, headers: retryHeader);
+          response = await SupabaseConfig.client.functions.invoke(
+            'create-multi-restaurant-order',
+            body: body,
+            headers: retryHeader,
+          );
         } on FunctionException catch (fe2) {
           final raw2 = fe2.details?.toString() ?? fe2.toString();
           String extracted2 = raw2;
-          if (fe2.details is Map) extracted2 = (fe2.details as Map)['error']?.toString() ?? raw2;
+          if (fe2.details is Map)
+            extracted2 = (fe2.details as Map)['error']?.toString() ?? raw2;
           throw Exception(extracted2);
         }
       } else {
@@ -121,7 +137,8 @@ class _MultiRestaurantCheckoutScreenState
 
     if (data['error'] != null) throw Exception(data['error'].toString());
 
-    final mid = data['master_order_id'] as String? ?? data['order_group_id'] as String?;
+    final mid =
+        data['master_order_id'] as String? ?? data['order_group_id'] as String?;
     if (mid == null) throw Exception('Order could not be created.');
     return mid;
   }
@@ -135,6 +152,9 @@ class _MultiRestaurantCheckoutScreenState
     required String deliveryAddress,
     required double deliveryLat,
     required double deliveryLng,
+
+    /// Set when the order is for a linked student; re-checked server-side.
+    String? studentId,
     String? customerEmail,
     String? customerName,
   }) async {
@@ -152,7 +172,8 @@ class _MultiRestaurantCheckoutScreenState
 
     if (_selectedPayment == 'wallet') {
       final balance =
-          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ??
+          0;
       if (balance < total) {
         AppSnackbar.error(
           context,
@@ -168,8 +189,10 @@ class _MultiRestaurantCheckoutScreenState
     // ── Delivery region check ──────────────────────────────────────────
     if (deliveryLat != 0.0 && deliveryLng != 0.0) {
       final regionService = ref.read(deliveryRegionServiceProvider);
-      final insideRegion =
-          await regionService.isInsideActiveRegion(deliveryLat, deliveryLng);
+      final insideRegion = await regionService.isInsideActiveRegion(
+        deliveryLat,
+        deliveryLng,
+      );
       if (!insideRegion) {
         setState(() => _placingOrder = false);
         AppSnackbar.error(
@@ -189,12 +212,14 @@ class _MultiRestaurantCheckoutScreenState
         return {
           'restaurant_id': entry.key,
           'items': entry.value
-              .map((ci) => {
-                    'menu_item_id': ci.menuItem.id,
-                    'quantity': ci.quantity,
-                    'side_ids': ci.selectedSides.map((s) => s.id).toList(),
-                    'notes': ci.notes,
-                  })
+              .map(
+                (ci) => {
+                  'menu_item_id': ci.menuItem.id,
+                  'quantity': ci.quantity,
+                  'side_ids': ci.selectedSides.map((s) => s.id).toList(),
+                  'notes': ci.notes,
+                },
+              )
               .toList(),
         };
       }).toList();
@@ -204,13 +229,15 @@ class _MultiRestaurantCheckoutScreenState
         'customer_id': userId,
         'restaurant_orders': restaurantOrders,
         'delivery_address': deliveryAddress,
+        if (studentId != null) 'student_id': studentId,
         'delivery_latitude': deliveryLat,
         'delivery_longitude': deliveryLng,
         'payment_method': _selectedPayment,
         'client_delivery_fee': deliveryFee,
         'contactless_delivery': _contactlessDelivery,
         if (_driverTip > 0) 'driver_tip': _driverTip,
-        if (_scheduledAt != null) 'scheduled_for': _scheduledAt!.toIso8601String(),
+        if (_scheduledAt != null)
+          'scheduled_for': _scheduledAt!.toIso8601String(),
         if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
       };
 
@@ -221,7 +248,6 @@ class _MultiRestaurantCheckoutScreenState
       if (_selectedPayment == 'wallet') {
         // Wallet: edge function deducts + creates in one call
         masterOrderId = await _invokeCreateOrder(baseBody);
-
       } else if (_selectedPayment == 'stripe') {
         final paymentService = ref.read(paymentServiceProvider);
         final savedCard = _selectedSavedCard;
@@ -233,11 +259,10 @@ class _MultiRestaurantCheckoutScreenState
             ...baseBody,
             'saved_card_payment_method_id': pmId,
           });
-
         } else {
           // ── Payment sheet: get PI → show sheet → pass confirmed PI to edge fn ─
           final session = await paymentService.createStripeCheckout(
-            orderId: userId,  // temp ref — no order exists yet
+            orderId: userId, // temp ref — no order exists yet
             amount: total,
             customerEmail: customerEmail ?? '',
             customerName: customerName ?? '',
@@ -268,7 +293,7 @@ class _MultiRestaurantCheckoutScreenState
           } on StripeException catch (e) {
             if (e.error.code == FailureCode.Canceled) {
               setState(() => _placingOrder = false);
-              return;   // user cancelled — no order created, no charge
+              return; // user cancelled — no order created, no charge
             }
             rethrow;
           }
@@ -296,20 +321,32 @@ class _MultiRestaurantCheckoutScreenState
       setState(() => _placingOrder = false);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => OrderSuccessScreen(orderId: masterOrderId!, isMultiRestaurant: true),
+          builder: (_) => OrderSuccessScreen(
+            orderId: masterOrderId!,
+            isMultiRestaurant: true,
+          ),
         ),
       );
     } on FunctionException catch (fe) {
       final raw = fe.details?.toString() ?? fe.toString();
-      AppLogger.error('multi-order outer FunctionException: status=${fe.status}, details=$raw');
+      AppLogger.error(
+        'multi-order outer FunctionException: status=${fe.status}, details=$raw',
+      );
       String msg = raw;
-      if (fe.details is Map) msg = (fe.details as Map)['error']?.toString() ?? raw;
-      AppSnackbar.error(context, msg.isNotEmpty ? msg : 'Something went wrong. Please try again.');
+      if (fe.details is Map)
+        msg = (fe.details as Map)['error']?.toString() ?? raw;
+      AppSnackbar.error(
+        context,
+        msg.isNotEmpty ? msg : 'Something went wrong. Please try again.',
+      );
       setState(() => _placingOrder = false);
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       AppLogger.error('multi-order catch: $msg');
-      AppSnackbar.error(context, msg.isNotEmpty ? msg : 'Something went wrong. Please try again.');
+      AppSnackbar.error(
+        context,
+        msg.isNotEmpty ? msg : 'Something went wrong. Please try again.',
+      );
       setState(() => _placingOrder = false);
     }
   }
@@ -330,7 +367,13 @@ class _MultiRestaurantCheckoutScreenState
     );
     if (time == null) return;
     setState(() {
-      _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _scheduledAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
     });
   }
 
@@ -341,7 +384,10 @@ class _MultiRestaurantCheckoutScreenState
     final cartItems = ref.watch(cartProvider);
     final cartNotifier = ref.read(cartProvider.notifier);
     final subtotal = ref.watch(cartSubtotalProvider);
-    final restaurantCount = cartItems.map((i) => i.menuItem.restaurantId).toSet().length;
+    final restaurantCount = cartItems
+        .map((i) => i.menuItem.restaurantId)
+        .toSet()
+        .length;
     final extraStopFee = ref.watch(extraStopFeeProvider).valueOrNull ?? 2.0;
     final totalExtraStopFee = extraStopFee * (restaurantCount - 1).clamp(0, 99);
 
@@ -357,31 +403,42 @@ class _MultiRestaurantCheckoutScreenState
     final defaultAddrAsync = currentUserId != null
         ? ref.watch(defaultAddressProvider(currentUserId))
         : null;
-    final deliveryAddress =
-        selectedAddress?.address ??
-        defaultAddrAsync?.valueOrNull?.address ??
-        currentUser?.address ??
-        'No address saved';
-    final deliveryLat =
-        selectedAddress?.latitude ??
-        defaultAddrAsync?.valueOrNull?.latitude ??
-        currentUser?.latitude ??
-        0.0;
-    final deliveryLng =
-        selectedAddress?.longitude ??
-        defaultAddrAsync?.valueOrNull?.longitude ??
-        currentUser?.longitude ??
-        0.0;
+    // ── Recipient ────────────────────────────────────────────────────────
+    final student = ref.watch(selectedStudentDetailProvider);
+    final isStudentOrder = student != null && student.hasSchool;
+
+    final deliveryAddress = isStudentOrder
+        ? student.schoolAddress!
+        : (selectedAddress?.address ??
+              defaultAddrAsync?.valueOrNull?.address ??
+              currentUser?.address ??
+              'No address saved');
+    final deliveryLat = isStudentOrder
+        ? (student.schoolLat ?? 0.0)
+        : (selectedAddress?.latitude ??
+              defaultAddrAsync?.valueOrNull?.latitude ??
+              currentUser?.latitude ??
+              0.0);
+    final deliveryLng = isStudentOrder
+        ? (student.schoolLng ?? 0.0)
+        : (selectedAddress?.longitude ??
+              defaultAddrAsync?.valueOrNull?.longitude ??
+              currentUser?.longitude ??
+              0.0);
 
     // Per-restaurant delivery fee calculation
     final hasCoords = deliveryLat != 0.0 && deliveryLng != 0.0;
-    final cartRestaurantIds =
-        cartItems.map((i) => i.menuItem.restaurantId).toSet();
+    final cartRestaurantIds = cartItems
+        .map((i) => i.menuItem.restaurantId)
+        .toSet();
     double totalDeliveryFee = 0.0;
     bool deliveryFeeLoading = false;
     final perRestFees = <String, double>{};
 
-    for (final restId in cartRestaurantIds) {
+    // One flat fee for a school run, however many kitchens it collects from —
+    // the same rule the single-restaurant and grocery checkouts apply.
+    for (final restId
+        in isStudentOrder ? const <String>[] : cartRestaurantIds) {
       final restInfo = ref.watch(restaurantByIdProvider(restId)).valueOrNull;
       final feeKey = hasCoords && restInfo != null
           ? '$restId|$deliveryLat|$deliveryLng|${restInfo.latitude ?? ''}|${restInfo.longitude ?? ''}|${restInfo.deliveryFee ?? ''}'
@@ -390,13 +447,21 @@ class _MultiRestaurantCheckoutScreenState
           ? ref.watch(deliveryFeeProvider(feeKey))
           : const AsyncValue<DeliveryFeeResult?>.data(null);
       if (feeAsync.isLoading) deliveryFeeLoading = true;
-      final fee = feeAsync.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+      final fee =
+          feeAsync.valueOrNull?.deliveryFee ?? AppConstants.defaultDeliveryFee;
       perRestFees[restId] = fee;
       totalDeliveryFee += fee;
     }
 
+    if (isStudentOrder) totalDeliveryFee = AppConstants.studentDeliveryFee;
+
     final platformFee = AppConstants.calculateServiceFee(subtotal);
-    final total = subtotal + totalDeliveryFee + totalExtraStopFee + platformFee + _driverTip;
+    final total =
+        subtotal +
+        totalDeliveryFee +
+        totalExtraStopFee +
+        platformFee +
+        _driverTip;
 
     if (cartItems.isEmpty) {
       return Scaffold(
@@ -409,7 +474,10 @@ class _MultiRestaurantCheckoutScreenState
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -423,7 +491,9 @@ class _MultiRestaurantCheckoutScreenState
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: EdgeInsets.only(
               bottom: Responsive.bottomPaddingForFixedButton(context),
               left: Responsive.horizontalPadding(context),
@@ -433,14 +503,19 @@ class _MultiRestaurantCheckoutScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // ── Delivery Address ───────────────────────────────────────
                 _Section(
                   title: 'Delivery Address',
                   icon: Icons.location_on_rounded,
                   child: Column(
                     children: [
-                      if (addressAsync != null)
+                      RecipientSelector(
+                        onChanged: () =>
+                            setState(() => _addressConfirmed = false),
+                      ),
+                      const SchoolDestinationBanner(),
+                      const SizedBox(height: 14),
+                      if (addressAsync != null && !isStudentOrder)
                         addressAsync.when(
                           loading: () => const SizedBox.shrink(),
                           error: (_, __) => const SizedBox.shrink(),
@@ -454,11 +529,21 @@ class _MultiRestaurantCheckoutScreenState
                                       return GestureDetector(
                                         onTap: () {
                                           ref
-                                              .read(selectedAddressIdProvider.notifier)
-                                              .state = sel ? null : a.id;
-                                          setState(() => _addressConfirmed = false);
+                                              .read(
+                                                selectedAddressIdProvider
+                                                    .notifier,
+                                              )
+                                              .state = sel
+                                              ? null
+                                              : a.id;
+                                          setState(
+                                            () => _addressConfirmed = false,
+                                          );
                                         },
-                                        child: _AddressChip(address: a, isSelected: sel),
+                                        child: _AddressChip(
+                                          address: a,
+                                          isSelected: sel,
+                                        ),
                                       );
                                     }).toList(),
                                   ),
@@ -466,28 +551,44 @@ class _MultiRestaurantCheckoutScreenState
                         ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: EdgeInsets.all(Responsive.spacingSmall(context)),
+                        padding: EdgeInsets.all(
+                          Responsive.spacingSmall(context),
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(
+                            Responsive.cardRadius(context) - 2,
+                          ),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.place_rounded, color: AppTheme.primaryColor, size: 18),
+                            Icon(
+                              Icons.place_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 deliveryAddress,
                                 style: TextStyle(
                                   fontSize: Responsive.smallText(context),
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
                             TextButton(
-                              onPressed: () => Navigator.pushNamed(context, '/address-book'),
-                              child: const Text('Manage', style: TextStyle(fontSize: 12)),
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, '/address-book'),
+                              child: const Text(
+                                'Manage',
+                                style: TextStyle(fontSize: 12),
+                              ),
                             ),
                           ],
                         ),
@@ -495,8 +596,10 @@ class _MultiRestaurantCheckoutScreenState
                       const SizedBox(height: 8),
                       _AddressSlider(
                         confirmed: _addressConfirmed,
-                        onConfirmed: () => setState(() => _addressConfirmed = true),
-                        onReset: () => setState(() => _addressConfirmed = false),
+                        onConfirmed: () =>
+                            setState(() => _addressConfirmed = true),
+                        onReset: () =>
+                            setState(() => _addressConfirmed = false),
                       ),
                     ],
                   ),
@@ -522,7 +625,9 @@ class _MultiRestaurantCheckoutScreenState
                         child: _TimeChip(
                           label: 'Schedule',
                           subtitle: _scheduledAt != null
-                              ? DateFormat('MMM d, h:mm a').format(_scheduledAt!)
+                              ? DateFormat(
+                                  'MMM d, h:mm a',
+                                ).format(_scheduledAt!)
                               : 'Pick time',
                           selected: _scheduledAt != null,
                           onTap: _pickSchedule,
@@ -541,8 +646,11 @@ class _MultiRestaurantCheckoutScreenState
                     children: [
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletBalanceStreamProvider);
-                          final bal = walletAsync.valueOrNull?.availableBalance ?? 0;
+                          final walletAsync = ref.watch(
+                            walletBalanceStreamProvider,
+                          );
+                          final bal =
+                              walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Wallet',
@@ -551,7 +659,8 @@ class _MultiRestaurantCheckoutScreenState
                                 : 'No funds — top up in your profile',
                             selected: _selectedPayment == 'wallet',
                             onTap: () {
-                              if (bal > 0) setState(() => _selectedPayment = 'wallet');
+                              if (bal > 0)
+                                setState(() => _selectedPayment = 'wallet');
                             },
                           );
                         },
@@ -562,7 +671,8 @@ class _MultiRestaurantCheckoutScreenState
                         label: 'Credit / Debit Card',
                         subtitle: 'Visa, Mastercard, and more',
                         selected: _selectedPayment == 'stripe',
-                        onTap: () => setState(() => _selectedPayment = 'stripe'),
+                        onTap: () =>
+                            setState(() => _selectedPayment = 'stripe'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -572,43 +682,57 @@ class _MultiRestaurantCheckoutScreenState
                           ],
                         ),
                       ),
-                      if (_selectedPayment == 'stripe' && savedCards.isNotEmpty) ...[
+                      if (_selectedPayment == 'stripe' &&
+                          savedCards.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        ...savedCards.map((card) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _SavedCardTile(
-                            card: card,
-                            selected: _selectedSavedCard?.id == card.id,
-                            onTap: () => setState(() => _selectedSavedCard = card),
-                            onDelete: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Remove Card'),
-                                  content: Text('Remove card ending in ${card.lastFour}?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Cancel'),
+                        ...savedCards.map(
+                          (card) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _SavedCardTile(
+                              card: card,
+                              selected: _selectedSavedCard?.id == card.id,
+                              onTap: () =>
+                                  setState(() => _selectedSavedCard = card),
+                              onDelete: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Remove Card'),
+                                    content: Text(
+                                      'Remove card ending in ${card.lastFour}?',
                                     ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Remove',
-                                          style: TextStyle(color: Colors.red)),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true && currentUserId != null) {
-                                await ref.read(paymentServiceProvider).deleteSavedCard(card.id);
-                                if (_selectedSavedCard?.id == card.id) {
-                                  setState(() => _selectedSavedCard = null);
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        child: const Text(
+                                          'Remove',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true && currentUserId != null) {
+                                  await ref
+                                      .read(paymentServiceProvider)
+                                      .deleteSavedCard(card.id);
+                                  if (_selectedSavedCard?.id == card.id) {
+                                    setState(() => _selectedSavedCard = null);
+                                  }
+                                  ref.invalidate(
+                                    savedCardsProvider(currentUserId),
+                                  );
                                 }
-                                ref.invalidate(savedCardsProvider(currentUserId));
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        )),
+                        ),
                       ],
                     ],
                   ),
@@ -627,14 +751,19 @@ class _MultiRestaurantCheckoutScreenState
                           children: [
                             const Text(
                               'Leave order at door',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               'Driver will verify with a one-time PIN',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -642,7 +771,8 @@ class _MultiRestaurantCheckoutScreenState
                       ),
                       Switch(
                         value: _contactlessDelivery,
-                        onChanged: (v) => setState(() => _contactlessDelivery = v),
+                        onChanged: (v) =>
+                            setState(() => _contactlessDelivery = v),
                         activeThumbColor: AppTheme.primaryColor,
                       ),
                     ],
@@ -669,14 +799,28 @@ class _MultiRestaurantCheckoutScreenState
                         children: [
                           Expanded(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                              ),
                               child: ChoiceChip(
-                                label: const Text('No Tip',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                labelPadding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'None',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                                 selected: _driverTip == 0,
                                 selectedColor: AppTheme.primaryColor,
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 labelStyle: TextStyle(
                                   color: _driverTip == 0
                                       ? Colors.white
@@ -693,21 +837,34 @@ class _MultiRestaurantCheckoutScreenState
                             final isSelected = _driverTip == amount;
                             return Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
                                 child: ChoiceChip(
-                                  label: Text(
-                                    '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 12),
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
                                   selected: isSelected,
                                   selectedColor: const Color(0xFF10B981),
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   labelStyle: TextStyle(
                                     color: isSelected
                                         ? Colors.white
-                                        : Theme.of(context).colorScheme.onSurface,
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                   ),
                                   onSelected: (_) => setState(() {
                                     _driverTip = isSelected ? 0 : amount;
@@ -722,21 +879,24 @@ class _MultiRestaurantCheckoutScreenState
                       const SizedBox(height: 8),
                       TextField(
                         controller: _customTipCtrl,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Custom amount',
                           prefixText: AppConstants.currencySymbol,
                           border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           contentPadding: const EdgeInsets.all(10),
                           isDense: true,
                         ),
                         onChanged: (v) {
                           final parsed = double.tryParse(v);
                           setState(() {
-                            _driverTip =
-                                (parsed != null && parsed > 0) ? parsed : 0;
+                            _driverTip = (parsed != null && parsed > 0)
+                                ? parsed
+                                : 0;
                           });
                         },
                       ),
@@ -754,8 +914,9 @@ class _MultiRestaurantCheckoutScreenState
                     maxLines: 1,
                     decoration: InputDecoration(
                       hintText: 'Allergies, ring bell, gate code…',
-                      border:
-                          OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       contentPadding: const EdgeInsets.all(10),
                       isDense: true,
                     ),
@@ -768,8 +929,9 @@ class _MultiRestaurantCheckoutScreenState
                   padding: EdgeInsets.all(Responsive.cardPadding(context)),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius:
-                        BorderRadius.circular(Responsive.cardRadius(context)),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.cardRadius(context),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -778,14 +940,17 @@ class _MultiRestaurantCheckoutScreenState
                       ...cartNotifier.itemsByRestaurant.entries.map((entry) {
                         final restId = entry.key;
                         final items = entry.value;
-                        final restName = ref
+                        final restName =
+                            ref
                                 .watch(restaurantByIdProvider(restId))
                                 .valueOrNull
                                 ?.name ??
                             'Restaurant';
-                        final restSubtotal =
-                            cartNotifier.subtotalForRestaurant(restId);
-                        final restFee = perRestFees[restId] ??
+                        final restSubtotal = cartNotifier.subtotalForRestaurant(
+                          restId,
+                        );
+                        final restFee =
+                            perRestFees[restId] ??
                             AppConstants.defaultDeliveryFee;
 
                         return Padding(
@@ -796,9 +961,11 @@ class _MultiRestaurantCheckoutScreenState
                               // Restaurant header
                               Row(
                                 children: [
-                                  Icon(Icons.store_rounded,
-                                      size: 13,
-                                      color: AppTheme.primaryColor),
+                                  Icon(
+                                    Icons.store_rounded,
+                                    size: 13,
+                                    color: AppTheme.primaryColor,
+                                  ),
                                   const SizedBox(width: 5),
                                   Expanded(
                                     child: Text(
@@ -806,9 +973,9 @@ class _MultiRestaurantCheckoutScreenState
                                       style: TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: Responsive.smallText(context),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
@@ -816,43 +983,49 @@ class _MultiRestaurantCheckoutScreenState
                               ),
                               const SizedBox(height: 4),
                               // Items
-                              ...items.map((ci) => Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 2),
-                                    child: Row(
-                                      children: [
-                                        Text(
-                                          '${ci.quantity}×',
-                                          style: TextStyle(
-                                            fontSize:
-                                                Responsive.smallText(context),
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.primaryColor,
+                              ...items.map(
+                                (ci) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        '${ci.quantity}×',
+                                        style: TextStyle(
+                                          fontSize: Responsive.smallText(
+                                            context,
                                           ),
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.primaryColor,
                                         ),
-                                        const SizedBox(width: 5),
-                                        Expanded(
-                                          child: Text(
-                                            ci.menuItem.name,
-                                            style: TextStyle(
-                                              fontSize:
-                                                  Responsive.smallText(context),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                        child: Text(
+                                          ci.menuItem.name,
+                                          style: TextStyle(
+                                            fontSize: Responsive.smallText(
+                                              context,
                                             ),
                                           ),
                                         ),
-                                        Text(
-                                          '${AppConstants.currencySymbol}${(ci.menuItem.discountedPrice * ci.quantity).toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            fontSize:
-                                                Responsive.smallText(context),
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
+                                      ),
+                                      Text(
+                                        '${AppConstants.currencySymbol}${(ci.menuItem.discountedPrice * ci.quantity).toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          fontSize: Responsive.smallText(
+                                            context,
                                           ),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
-                                      ],
-                                    ),
-                                  )),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               // Per-restaurant subtotal + delivery
                               _SummaryRow(
@@ -868,10 +1041,11 @@ class _MultiRestaurantCheckoutScreenState
                                     : '${AppConstants.currencySymbol}${restFee.toStringAsFixed(2)}',
                               ),
                               Divider(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .outlineVariant,
-                                  height: 12),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                                height: 12,
+                              ),
                             ],
                           ),
                         );
@@ -894,9 +1068,9 @@ class _MultiRestaurantCheckoutScreenState
                           valueColor: const Color(0xFF10B981),
                         ),
                       Divider(
-                          color:
-                              Theme.of(context).colorScheme.outlineVariant,
-                          height: 16),
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        height: 16,
+                      ),
                       _SummaryRow(
                         'Total',
                         '${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
@@ -940,12 +1114,12 @@ class _MultiRestaurantCheckoutScreenState
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the MealHub terms and conditions',
+                            'I agree to the QuickDash terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -955,23 +1129,25 @@ class _MultiRestaurantCheckoutScreenState
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _agreeToTerms &&
+                        onPressed:
+                            _agreeToTerms &&
                                 _addressConfirmed &&
                                 !_placingOrder &&
                                 cartItems.isNotEmpty &&
                                 currentUserId != null
                             ? () => _placeOrder(
-                                  userId: currentUserId,
-                                  subtotal: subtotal,
-                                  deliveryFee: totalDeliveryFee,
-                                  extraStopFee: totalExtraStopFee,
-                                  total: total,
-                                  deliveryAddress: deliveryAddress,
-                                  deliveryLat: deliveryLat,
-                                  deliveryLng: deliveryLng,
-                                  customerEmail: currentUser?.email,
-                                  customerName: currentUser?.name,
-                                )
+                                userId: currentUserId,
+                                subtotal: subtotal,
+                                deliveryFee: totalDeliveryFee,
+                                extraStopFee: totalExtraStopFee,
+                                total: total,
+                                deliveryAddress: deliveryAddress,
+                                studentId: isStudentOrder ? student.id : null,
+                                deliveryLat: deliveryLat,
+                                deliveryLng: deliveryLng,
+                                customerEmail: currentUser?.email,
+                                customerName: currentUser?.name,
+                              )
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
@@ -979,7 +1155,8 @@ class _MultiRestaurantCheckoutScreenState
                           disabledBackgroundColor: Colors.grey[300],
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                         child: _placingOrder
@@ -1019,7 +1196,11 @@ class _Section extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
-  const _Section({required this.title, required this.icon, required this.child});
+  const _Section({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1032,7 +1213,9 @@ class _Section extends StatelessWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
         border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1068,8 +1251,9 @@ class _AddressChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.only(
-          right: Responsive.spacing(context) * 0.5,
-          bottom: Responsive.spacing(context) * 0.5),
+        right: Responsive.spacing(context) * 0.5,
+        bottom: Responsive.spacing(context) * 0.5,
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.spacingSmall(context),
         vertical: Responsive.spacingSmall(context) * 0.5,
@@ -1121,8 +1305,9 @@ class _TimeChip extends StatelessWidget {
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.08)
               : Theme.of(context).colorScheme.surfaceContainerLowest,
-          borderRadius:
-              BorderRadius.circular(Responsive.cardRadius(context) - 2),
+          borderRadius: BorderRadius.circular(
+            Responsive.cardRadius(context) - 2,
+          ),
           border: Border.all(
             color: selected
                 ? AppTheme.primaryColor
@@ -1187,8 +1372,9 @@ class _PaymentTile extends StatelessWidget {
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
               : Theme.of(context).cardColor,
-          borderRadius:
-              BorderRadius.circular(Responsive.cardRadius(context) - 2),
+          borderRadius: BorderRadius.circular(
+            Responsive.cardRadius(context) - 2,
+          ),
           border: Border.all(
             color: selected
                 ? AppTheme.primaryColor
@@ -1224,8 +1410,7 @@ class _PaymentTile extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: Responsive.bodyText(context),
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? Theme.of(context).colorScheme.onSurface
                           : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1246,8 +1431,11 @@ class _PaymentTile extends StatelessWidget {
             ),
             if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
             if (selected)
-              Icon(Icons.check_circle_rounded,
-                  color: AppTheme.primaryColor, size: 20),
+              Icon(
+                Icons.check_circle_rounded,
+                color: AppTheme.primaryColor,
+                size: 20,
+              ),
           ],
         ),
       ),
@@ -1303,17 +1491,20 @@ class _SavedCardTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: brandColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
-                border:
-                    Border.all(color: brandColor.withValues(alpha: 0.2), width: 0.5),
+                border: Border.all(
+                  color: brandColor.withValues(alpha: 0.2),
+                  width: 0.5,
+                ),
               ),
               alignment: Alignment.center,
               child: Text(
                 card.displayBrand,
                 style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: brandColor,
-                    letterSpacing: 0.5),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: brandColor,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -1321,45 +1512,57 @@ class _SavedCardTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(card.maskedNumber,
-                      style: TextStyle(
-                          fontSize: Responsive.bodyText(context),
-                          fontWeight: FontWeight.w600)),
-                  Text(card.cardholderName,
-                      style: TextStyle(
-                          fontSize: Responsive.smallText(context),
-                          color: Theme.of(context).colorScheme.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    card.maskedNumber,
+                    style: TextStyle(
+                      fontSize: Responsive.bodyText(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    card.cardholderName,
+                    style: TextStyle(
+                      fontSize: Responsive.smallText(context),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
             if (card.isDefault)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color:
-                      const Color(0xFF10B981).withValues(alpha: 0.1),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('Default',
-                    style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF10B981))),
+                child: const Text(
+                  'Default',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
               ),
             GestureDetector(
               onTap: onDelete,
-              child: Icon(Icons.delete_outline_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              child: Icon(
+                Icons.delete_outline_rounded,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: 4),
             if (selected)
-              Icon(Icons.check_circle_rounded,
-                  color: AppTheme.primaryColor, size: 18),
+              Icon(
+                Icons.check_circle_rounded,
+                color: AppTheme.primaryColor,
+                size: 18,
+              ),
           ],
         ),
       ),
@@ -1384,10 +1587,11 @@ class _CardBrandChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            color: color,
-            letterSpacing: 0.5),
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: color,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -1398,8 +1602,12 @@ class _SummaryRow extends StatelessWidget {
   final String value;
   final bool isBold;
   final Color? valueColor;
-  const _SummaryRow(this.label, this.value,
-      {this.isBold = false, this.valueColor});
+  const _SummaryRow(
+    this.label,
+    this.value, {
+    this.isBold = false,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1415,10 +1623,9 @@ class _SummaryRow extends StatelessWidget {
                 fontSize: isBold
                     ? Responsive.headingSmall(context)
                     : Responsive.smallText(context),
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: isBold ? 1.0 : 0.75),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1562,8 +1769,10 @@ class _AddressSliderState extends State<_AddressSlider>
                   GestureDetector(
                     onHorizontalDragUpdate: (d) {
                       setState(() {
-                        _dragPosition =
-                            (_dragPosition + d.delta.dx).clamp(0.0, maxDrag);
+                        _dragPosition = (_dragPosition + d.delta.dx).clamp(
+                          0.0,
+                          maxDrag,
+                        );
                       });
                       if (_dragPosition >= maxDrag) widget.onConfirmed();
                     },
@@ -1580,15 +1789,19 @@ class _AddressSliderState extends State<_AddressSlider>
                           borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primaryColor
-                                  .withValues(alpha: 0.35),
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.35,
+                              ),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.chevron_right_rounded,
-                            color: Colors.white, size: 22),
+                        child: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),

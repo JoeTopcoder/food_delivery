@@ -66,7 +66,7 @@ class _CarServiceProviderDetailScreenState
       ..writeln('🚗 ${provider.businessName}')
       ..writeln('⭐ $rating stars');
     if (address.isNotEmpty) msg.writeln('📍 $address');
-    msg.write('\nBook car services on 7Dash 👉 https://sevendash.app');
+    msg.write('\nBook car services on QuickDash 👉 https://sevendash.app');
     SharePlus.instance.share(ShareParams(text: msg.toString(), subject: provider.businessName));
   }
 

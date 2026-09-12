@@ -356,7 +356,7 @@ const INTENT_PATTERNS: Array<{ intent: Intent; pattern: RegExp }> = [
   { intent: 'offer_human_support',     pattern: /\b(speak (to|with) (a |real )?(human|person|agent)|human (support|agent|help)|live (agent|support|chat|person)|real (person|agent|human)|talk to (someone|a person|a human|an agent))\b/i },
   { intent: 'resolution_summary',      pattern: /\b(summar(y|ize|ise) (the |this )?(issue|case|resolution|conversation|chat)|what (was|did) (resolved|done|agreed|decided)|recap (the |this )?(issue|case|conversation)|resolution summar)\b/i },
   { intent: 'close_support_case',      pattern: /\b(close (the |this |my )?(case|ticket|issue|chat|support)|case (close|done|resolved|complete|finish)|all (done|resolved|good|sorted)|no more (help|issue|question|concern)|that.s (all|everything|it))\b/i },
-  { intent: 'faq',                     pattern: /\b(FAQ|frequently asked|common (question|issue|problem)|how does (it|the app|ordering|payment|delivery) work|how do i (use|start|begin|place|pay|track)|what is (the app|MealHub|this service))\b/i },
+  { intent: 'faq',                     pattern: /\b(FAQ|frequently asked|common (question|issue|problem)|how does (it|the app|ordering|payment|delivery) work|how do i (use|start|begin|place|pay|track)|what is (the app|QuickDash|this service))\b/i },
   { intent: 'support_guidance',        pattern: /\b(how (do i|to) get (help|support|assistance)|where (do i|to) (get|find) (help|support)|need (help|support|assistance)|can (you|someone) help (me)?\b|support (option|channel|contact|way))\b/i },
   { intent: 'escalate_admin',          pattern: /\b(escalate to (admin|manager|supervisor|team lead)|admin (help|support|review|escalat)|needs? admin (attention|review|action|escalat)|flag (to|for) admin)\b/i },
   { intent: 'handle_complaint',        pattern: /\b(compla(in|int|ints?)|I want to complain|lodge (a )?complaint|formal (complaint|grievance)|not (happy|satisfied|pleased) with (the )?(service|app|order|driver|food))\b/i },
@@ -1711,7 +1711,7 @@ function buildSystemPrompt(
     billing_history:         'The user wants to see their payment history. Use BILLING HISTORY from context to summarize their recent orders, amounts, and payment statuses. For the full history, direct them to Order History in the app.',
     currency_conversion:     'The user has a question about currency conversion. Charges are processed in the local currency of the app region. If the user\'s bank card uses a different currency, their bank applies the conversion rate. The app does not add additional conversion fees.',
     international_charges:   'The user is asking about international charges. Some banks apply foreign transaction fees when the payment processor is in a different country. These fees are charged by the user\'s bank, not by the app. The app always charges in the local currency.',
-    subscription_billing:    'The user has a question about subscription billing. Subscriptions are billed on a recurring cycle (monthly or annually) to the saved payment method. The charge appears as "MealHub Premium" on statements. Check BILLING HISTORY for recent subscription charges.',
+    subscription_billing:    'The user has a question about subscription billing. Subscriptions are billed on a recurring cycle (monthly or annually) to the saved payment method. The charge appears as "QuickDash Premium" on statements. Check BILLING HISTORY for recent subscription charges.',
     subscription_benefits:   'The user wants to know what their subscription includes. Subscription benefits typically include: free delivery on all orders, priority support, exclusive discounts, early access to promotions, and a monthly promo credit. Direct them to Settings > Subscription for full details.',
     cancel_subscription:     'The user wants to cancel their subscription. They can cancel in Settings > Subscription > Cancel Plan. Cancellation takes effect at the end of the current billing period — they keep benefits until then and will not be billed again.',
     renew_subscription:      'The user wants to renew or re-activate their subscription. They can do so in Settings > Subscription > Renew Plan. If their plan lapsed, they may need to resubscribe and select a billing cycle.',
@@ -1846,7 +1846,7 @@ function buildSystemPrompt(
 
   const intentNote = intentGuidance[intent] ?? intentGuidance.general_question
 
-  const baseRules = `You are Aria, MealHub's senior customer experience specialist. You are professional, warm, articulate, and highly knowledgeable — responding like a well-educated human expert who genuinely cares about each customer and knows their account inside out.
+  const baseRules = `You are Aria, QuickDash's senior customer experience specialist. You are professional, warm, articulate, and highly knowledgeable — responding like a well-educated human expert who genuinely cares about each customer and knows their account inside out.
 ${langInstruction}
 DETECTED INTENT: ${intent.replace(/_/g, ' ')}
 SITUATION GUIDANCE: ${intentNote}
@@ -1990,7 +1990,7 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 - Restaurants set their own menu prices, delivery fees, and preparation times.
 
 [PREMIUM SUBSCRIPTION]
-- MealHub Premium costs $9.99/month or $89.99/year (2 months free).
+- QuickDash Premium costs $9.99/month or $89.99/year (2 months free).
 - Benefits: free delivery on orders over $10, 10% off every order, priority support, exclusive promo codes, ad-free experience, early access to new restaurants.
 - Trial: 7-day free trial for new subscribers. Cancel any time before trial ends at no charge.
 - Manage subscription: Settings > Subscription.
@@ -2007,7 +2007,7 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 
 [TECHNICAL & APP]
 - Available on iOS (App Store) and Android (Google Play). Minimum iOS 14 / Android 8.
-- Web version available at mealhub.app (limited features — order tracking and history).
+- Web version available at quickdash.app (limited features — order tracking and history).
 - App auto-updates when a new version is available. Manual update via App Store/Play Store.
 - If the app crashes: force-close it, check for updates, restart device.
 - If the app is slow: check internet speed, clear app cache (Settings > Storage > Clear Cache).
@@ -2018,7 +2018,7 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 [SAFETY]
 - Never share your account password with anyone, including drivers or support staff.
 - Real support staff will never ask for your full card number or CVV.
-- If you receive a suspicious call claiming to be MealHub, hang up and report via Help > Report Fraud.
+- If you receive a suspicious call claiming to be QuickDash, hang up and report via Help > Report Fraud.
 - Drivers are identified by name, photo, and vehicle details shown in the app — never hand food to strangers.
 - Report unsafe or threatening behaviour: Help > Report Safety Issue (reviewed within 1 hour).
 - For emergencies: call local emergency services (911/999/112). Then report via Help > Emergency Contact.
@@ -2029,8 +2029,8 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 - Business hours: Monday-Sunday 8am-10pm.
 - For urgent/safety issues: priority queue — mark ticket as URGENT.
 - Appeal account suspension: Help > Appeal Suspension.
-- Business/enterprise inquiries: help@mealhub.app.
-- Social media support: also available via @MealHubSupport on major platforms.
+- Business/enterprise inquiries: help@quickdash.app.
+- Social media support: also available via @QuickDashSupport on major platforms.
 
 [ACCESSIBILITY]
 - VoiceOver (iOS) and TalkBack (Android) are fully supported.
@@ -2043,7 +2043,7 @@ APP KNOWLEDGE BASE — use this to answer ANY question about the app and its ser
 - Data is never sold to third parties.
 - Data retention: order data kept for 3 years; account data deleted within 30 days of account deletion.
 - Download your data: Settings > Privacy > Download My Data.
-- GDPR/CCPA rights: right to access, rectification, erasure, restriction, portability. Contact privacy@mealhub.app.
+- GDPR/CCPA rights: right to access, rectification, erasure, restriction, portability. Contact privacy@quickdash.app.
 - Cookie policy and full privacy policy: Settings > Legal > Privacy Policy.`
 
   if (role === 'customer') {
@@ -2065,7 +2065,7 @@ ${contextBlock}`
   }
 
   if (role === 'driver') {
-    return `You are Aria, the 7Dash driver support assistant. You help delivery drivers complete their deliveries efficiently and answer any questions about the platform, earnings, and policies.
+    return `You are Aria, the QuickDash driver support assistant. You help delivery drivers complete their deliveries efficiently and answer any questions about the platform, earnings, and policies.
 ${langInstruction}
 
 PERSONA & TONE RULES:

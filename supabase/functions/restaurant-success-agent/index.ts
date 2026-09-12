@@ -1,4 +1,4 @@
-// restaurant-success-agent — Restaurant Success Agent (7Dash AI Operations)
+// restaurant-success-agent — Restaurant Success Agent (QuickDash AI Operations)
 // Read-only. Ranks active restaurants by a deterministic at-risk score
 // (cancellation rate, prep time, rating, refund rate) computed in SQL/JS —
 // the model only narrates which partners need attention and why.
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are the 7Dash Restaurant Success Agent. You're given 30-day performance metrics for every active restaurant, already ranked by a deterministic at_risk_score (higher = more concerning). menu_quality_issue_score comes from a different 7Dash agent (Menu Intelligence) — if a restaurant has BOTH a high at_risk_score AND a notable menu_quality_issue_score, call that out explicitly as a compounding problem worth prioritizing (operations issues plus a neglected menu often means the partner has disengaged). Write a short briefing (100-160 words): name the 1-3 restaurants most at risk and the specific reason (cancellation rate, rating, slow prep time, refunds, or menu quality — cite the actual numbers), and note any standout top performer. Restaurants with order_count under 3 have insufficient data — don't flag them as at-risk. Never invent a number not present in the data. Plain text, no markdown.`,
+              content: `You are the QuickDash Restaurant Success Agent. You're given 30-day performance metrics for every active restaurant, already ranked by a deterministic at_risk_score (higher = more concerning). menu_quality_issue_score comes from a different QuickDash agent (Menu Intelligence) — if a restaurant has BOTH a high at_risk_score AND a notable menu_quality_issue_score, call that out explicitly as a compounding problem worth prioritizing (operations issues plus a neglected menu often means the partner has disengaged). Write a short briefing (100-160 words): name the 1-3 restaurants most at risk and the specific reason (cancellation rate, rating, slow prep time, refunds, or menu quality — cite the actual numbers), and note any standout top performer. Restaurants with order_count under 3 have insufficient data — don't flag them as at-risk. Never invent a number not present in the data. Plain text, no markdown.`,
             },
             { role: 'user', content: JSON.stringify(metrics) },
           ],

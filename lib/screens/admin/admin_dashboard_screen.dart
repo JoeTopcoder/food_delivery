@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -48,7 +48,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         onRefresh: _refresh,
         color: AppTheme.primaryColor,
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // ── Hero Header ───────────────────────────────────────────────
             SliverToBoxAdapter(
@@ -87,35 +89,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 size: 24,
                               ),
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Welcome back, ${currentUser?.name?.split(' ').first ?? 'Admin'}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: Responsive.headingMedium(context),
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -0.3,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Here\'s your business overview',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            const Spacer(),
                             Material(
                               color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -177,6 +151,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 18),
+                        // Full width, so a long first name has room instead of
+                        // competing with the action buttons for the same line.
+                        Text(
+                          // The whole name, not the first token: this account
+                          // is named "The Nobel officer", which greeted the
+                          // admin as "Welcome back, The". There is room for the
+                          // full name now that the greeting has its own line.
+                          'Welcome back, ${currentUser?.name?.trim().isNotEmpty == true ? currentUser!.name!.trim() : 'Admin'}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: Responsive.headingMedium(context),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Here\'s your business overview',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -306,8 +306,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
 
                       // ── KPI metrics ────────────────────────────────────
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Row(
                           children: [
                             _KpiCard(
@@ -329,6 +332,36 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               onTap: () => Navigator.of(
                                 context,
                               ).pushNamed('/admin-orders'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Operating',
+                              value: 'Targets',
+                              icon: Icons.insights_rounded,
+                              color: const Color(0xFF155EEF),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-operating-dashboard'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Survival',
+                              value: 'Break-even',
+                              icon: Icons.speed_rounded,
+                              color: const Color(0xFFEF4444),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-survival'),
+                            ),
+                            const SizedBox(width: 10),
+                            _KpiCard(
+                              label: 'Margins',
+                              value: '10-25%',
+                              icon: Icons.percent_rounded,
+                              color: const Color(0xFF10B981),
+                              onTap: () => Navigator.of(
+                                context,
+                              ).pushNamed('/admin-margins'),
                             ),
                             const SizedBox(width: 10),
                             _KpiCard(
@@ -357,7 +390,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const SizedBox(height: 10),
 
                       // ── Module activity row ────────────────────────────
-                      Padding(
+                      // Also a horizontal list: _KpiCard is a fixed width now,
+                      // and three of them plus padding come to 376dp, which
+                      // overflows a 360dp screen.
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         padding: EdgeInsets.symmetric(
                           horizontal: Responsive.horizontalPadding(context),
                         ),
@@ -367,7 +404,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               label: 'Rides',
                               value: '${rides['total_rides'] ?? 0}',
                               icon: Icons.directions_car_rounded,
-                              color: const Color(0xFF8B5CF6),
+                              color: const Color(0xFF528BFF),
                               badge: rides['active_rides'] != null
                                   ? '${rides['active_rides']} live'
                                   : null,
@@ -411,7 +448,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if ((restaurants['pending'] ?? 0) > 0 ||
                           (drivers['pending'] ?? 0) > 0) ...[
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: Responsive.horizontalPadding(context),
+                          ),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -474,7 +513,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // ── Quick Actions ──────────────────────────────────
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Text(
                           'Quick Actions',
                           style: TextStyle(
@@ -487,7 +528,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 10),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
                         child: Row(
                           children: [
                             Expanded(
@@ -506,6 +549,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 color: AppTheme.primaryColor,
                                 onTap: () =>
                                     _showCreateUserDialog('restaurant'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+                      // Prominent entry: admin control over which services and
+                      // bottom-nav tabs customers see.
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.horizontalPadding(context),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _QuickAction(
+                                icon: Icons.tune_rounded,
+                                label: 'Manage Services & Screens',
+                                color: const Color(0xFF059669),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/admin-services'),
                               ),
                             ),
                           ],
@@ -552,6 +618,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-regions'),
                           ),
+                          _GridAction(
+                            icon: Icons.local_grocery_store_rounded,
+                            label: 'Grocery Products',
+                            color: const Color(0xFF059669),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-grocery-products'),
+                          ),
                         ],
                       ),
 
@@ -588,7 +662,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.account_balance_rounded,
                             label: 'Financials',
-                            color: const Color(0xFF8B5CF6),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-financials'),
@@ -612,7 +686,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.psychology_rounded,
                             label: 'AI Engine',
-                            color: const Color(0xFF8B5CF6),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai-panel'),
@@ -628,14 +702,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.loyalty_rounded,
                             label: 'Loyalty',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-loyalty'),
                           ),
                           _GridAction(
                             icon: Icons.toggle_on_rounded,
-                            label: 'Services',
+                            label: 'Manage Services',
                             color: const Color(0xFF059669),
                             onTap: () => Navigator.of(
                               context,
@@ -651,8 +725,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           ),
                           _GridAction(
                             icon: Icons.card_membership_rounded,
-                            label: 'MealHub+',
-                            color: const Color(0xFF6C63FF),
+                            label: 'QuickDash+',
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-mealhub'),
@@ -668,7 +742,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.inventory_2_rounded,
                             label: 'Shipping Cos',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-shipping-companies'),
@@ -677,9 +751,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.category_rounded,
                             label: 'Categories',
                             color: const Color(0xFFD97706),
-                            onTap: () => Navigator.of(
-                              context,
-                            ).pushNamed('/admin-categories').then((_) => _refresh()),
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/admin-categories')
+                                .then((_) => _refresh()),
                           ),
                         ],
                       ),
@@ -741,7 +815,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.car_repair,
                             label: 'Car Services',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin/car-services'),
@@ -758,7 +832,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.inventory_2_rounded,
                             label: 'Deliveries Hub',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-packages'),
@@ -774,7 +848,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.qr_code_scanner_rounded,
                             label: 'Package Records',
-                            color: const Color(0xFFA855F7),
+                            color: const Color(0xFF528BFF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-packages/records'),
@@ -782,7 +856,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.business_rounded,
                             label: 'Shipping Cos',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-shipping-companies'),
@@ -806,7 +880,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.campaign_rounded,
                             label: 'Banners',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-banners'),
@@ -823,8 +897,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             icon: Icons.mark_email_read_rounded,
                             label: 'Email Blast',
                             color: const Color(0xFF0EA5E9),
-                            onTap: () => Navigator.of(context)
-                                .pushNamed('/admin-email-notifications'),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-email-notifications'),
                           ),
                           _GridAction(
                             icon: Icons.bolt_rounded,
@@ -901,7 +976,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.smart_toy_rounded,
                             label: 'AI Ops Hub',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai-operations'),
@@ -909,7 +984,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.schedule_rounded,
                             label: 'Workflow Station',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-workflow-station'),
@@ -917,7 +992,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           _GridAction(
                             icon: Icons.forum_rounded,
                             label: 'Ask AI',
-                            color: const Color(0xFF7C3AED),
+                            color: const Color(0xFF155EEF),
                             onTap: () => Navigator.of(
                               context,
                             ).pushNamed('/admin-ai/ask'),
@@ -925,7 +1000,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 32),
+                      // padding.bottom clears the system navigation bar; a
+                      // fixed value leaves the last row under it on devices
+                      // with a gesture or three-button bar.
+                      SizedBox(
+                        height: 32 + MediaQuery.of(context).padding.bottom,
+                      ),
                     ],
                   );
                 },
@@ -970,7 +1050,11 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    // Fixed width rather than Expanded: these now sit in a horizontal list, and
+    // 108 is what the widest value ("Break-even") needs at 18sp without
+    // ellipsising. Sharing one row equally gave each card 38dp.
+    return SizedBox(
+      width: 108,
       child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1100,15 +1184,20 @@ class _QuickAction extends StatelessWidget {
                 child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                  fontSize: Responsive.bodyText(context),
+              // Flexible, or the ellipsis is decorative: an unconstrained Text
+              // in a Row cannot shrink, so a long label overflows the button
+              // instead of truncating inside it.
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: Responsive.bodyText(context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -1131,7 +1220,9 @@ class _CategoryRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+          ),
           child: Text(
             title,
             style: TextStyle(
@@ -1149,7 +1240,9 @@ class _CategoryRow extends StatelessWidget {
           height: 56,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
             itemCount: children.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => children[i],

@@ -85,7 +85,7 @@ class _PackageSearchingScreenState
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF7C3AED),
+      backgroundColor: const Color(0xFF155EEF),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -121,7 +121,7 @@ class _PackageSearchingScreenState
                           color: Colors.white,
                         ),
                         child: const Icon(Icons.local_shipping,
-                            color: Color(0xFF7C3AED), size: 44),
+                            color: Color(0xFF155EEF), size: 44),
                       ),
                     ],
                   );

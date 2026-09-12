@@ -1,4 +1,4 @@
-// create-subscription — Creates a Stripe subscription for MealHub Basic/Pro plans
+// create-subscription — Creates a Stripe subscription for QuickDash Basic/Pro plans
 // Deploy: supabase functions deploy create-subscription --no-verify-jwt
 
 // deno-lint-ignore-file
@@ -201,7 +201,7 @@ Deno.serve(async (request) => {
         email,
         name,
         "metadata[user_id]": user.id,
-        "metadata[source]": "mealhub_subscription",
+        "metadata[source]": "quickdash_subscription",
       });
       if (customer.error) {
         const err = customer.error as Record<string, unknown>;
@@ -216,7 +216,7 @@ Deno.serve(async (request) => {
     // ── Create a PaymentIntent directly — no subscription/invoice chain ────────
     const pi = await stripePost("/payment_intents", {
       amount: String(priceInCents),
-      currency: "usd",
+      currency: "jmd",
       customer: stripeCustomerId,
       "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,
@@ -549,7 +549,7 @@ Deno.serve(async (request) => {
     // DB before the user actually pays.
     const pi = await stripePost("/payment_intents", {
       amount: String(newPriceInCents),
-      currency: "usd",
+      currency: "jmd",
       customer: customerId,
       "payment_method_types[0]": "card",
       "metadata[user_id]": user.id,

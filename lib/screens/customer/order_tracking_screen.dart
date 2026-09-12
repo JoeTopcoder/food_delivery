@@ -23,6 +23,7 @@ import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/context_extensions.dart';
+import '../../widgets/app_map_tiles.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;
@@ -698,12 +699,7 @@ class _LiveMapState extends State<_LiveMap> {
             mapController: widget.mapController,
             options: MapOptions(initialCenter: driverPos, initialZoom: 14),
             children: [
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'sevendash.app',
-              ),
+              appMapTileLayer(),
               if (_routePoints.isNotEmpty)
                 PolylineLayer(
                   polylines: [
