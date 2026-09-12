@@ -30,6 +30,8 @@ const ROUTES: Record<string, Loader> = {
   '/products': () => import('./routes/products.ts'),
   '/stores': () => import('./routes/stores.ts'),
   '/identify-product': () => import('./routes/identify-product.ts'),
+  '/product-images': () => import('./routes/product-images.ts'),
+  '/import-image': () => import('./routes/import-image.ts'),
 }
 
 function routeOf(pathname: string): string {

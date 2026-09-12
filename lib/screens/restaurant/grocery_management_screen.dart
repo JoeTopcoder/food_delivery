@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/menu_model.dart';
 import '../../models/inventory_model.dart';
+import '../../models/product_image_result.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/grocery_provider.dart';
@@ -544,6 +545,7 @@ class _GroceryStoreBody extends ConsumerWidget {
     WidgetRef ref,
     String storeId, {
     File? image,
+    String? imageUrl,
     bool aiPrefilled = false,
     String? name,
     String? brand,
@@ -597,6 +599,7 @@ class _GroceryStoreBody extends ConsumerWidget {
         initialCategory: cat,
         initialUnit: clean(unit),
         initialImage: image,
+        initialImageUrl: imageUrl,
       ),
     );
   }
@@ -648,7 +651,10 @@ class _GroceryStoreBody extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const _IdentifyingDialog(),
+      builder: (_) => const _BusyDialog(
+        title: 'Identifying product…',
+        subtitle: 'Reading the photo with AI',
+      ),
     );
 
     Map<String, dynamic>? result;
@@ -672,6 +678,7 @@ class _GroceryStoreBody extends ConsumerWidget {
 
     final r = result ?? const {};
     final identified = r['identified'] == true;
+    final name = (r['name'] as String?)?.trim() ?? '';
     if (!identified) {
       final note = (r['notes'] as String?)?.trim();
       AppSnackbar.warning(
@@ -690,11 +697,47 @@ class _GroceryStoreBody extends ConsumerWidget {
         'Dimensions: $dims',
     ].join('\n');
 
+    // The raw snapshot is only for identification — offer real web catalogue
+    // images to use as the product photo instead.
+    String? webImageUrl;
+    if (identified && name.isNotEmpty && context.mounted) {
+      final chosen = await showModalBottomSheet<ProductImageResult>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _WebImageSearchSheet(
+          query: name,
+          service: ref.read(groceryServiceProvider),
+        ),
+      );
+      if (chosen != null && context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const _BusyDialog(
+            title: 'Saving image…',
+            subtitle: 'Importing the selected photo',
+          ),
+        );
+        try {
+          webImageUrl = await ref
+              .read(groceryServiceProvider)
+              .importProductImage(chosen.original, storeId);
+        } catch (e) {
+          if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+        }
+        if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+    if (!context.mounted) return;
+
     _openAddDialog(
       context,
       ref,
       storeId,
-      image: file,
+      // Use the imported web image if one was chosen, else the captured photo.
+      image: webImageUrl == null ? file : null,
+      imageUrl: webImageUrl,
       aiPrefilled: identified,
       name: r['name'] as String?,
       brand: r['brand'] as String?,
@@ -1170,9 +1213,11 @@ class _BarcodeChip extends StatelessWidget {
   }
 }
 
-/// Blocking "identifying…" dialog shown while the photo is sent to AI.
-class _IdentifyingDialog extends StatelessWidget {
-  const _IdentifyingDialog();
+/// Blocking progress dialog with a title + subtitle.
+class _BusyDialog extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const _BusyDialog({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -1193,15 +1238,18 @@ class _IdentifyingDialog extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Identifying product…',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Reading the photo with AI',
-                    style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                    subtitle,
+                    style: const TextStyle(fontSize: 12.5, color: Colors.grey),
                   ),
                 ],
               ),
@@ -1231,6 +1279,7 @@ class _AddGroceryProductDialog extends StatefulWidget {
   final String? initialCategory;
   final String? initialUnit;
   final File? initialImage;
+  final String? initialImageUrl; // already-hosted image (e.g. web-imported)
 
   const _AddGroceryProductDialog({
     required this.storeId,
@@ -1245,6 +1294,7 @@ class _AddGroceryProductDialog extends StatefulWidget {
     this.initialCategory,
     this.initialUnit,
     this.initialImage,
+    this.initialImageUrl,
   });
 
   @override
@@ -1266,7 +1316,9 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   String? _customCategory;
   String _selectedUnit = 'each';
   bool _saving = false;
+  bool _importingImage = false;
   File? _imageFile;
+  String? _selectedImageUrl; // already-hosted image chosen from the web
   String? _uploadedImageUrl;
 
   final _units = ['each', 'lb', 'kg', 'oz', 'pack', 'bottle', 'can', 'bag'];
@@ -1279,6 +1331,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
     _weightCtrl.text = widget.initialWeight ?? '';
     _descCtrl.text = widget.initialDescription ?? '';
     _imageFile = widget.initialImage;
+    _selectedImageUrl = widget.initialImageUrl;
     if (widget.initialUnit != null && _units.contains(widget.initialUnit)) {
       _selectedUnit = widget.initialUnit!;
     }
@@ -1311,11 +1364,66 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
       imageQuality: 80,
     );
     if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
+      setState(() {
+        _imageFile = File(picked.path);
+        _selectedImageUrl = null; // a local photo replaces any web image
+      });
     }
   }
 
+  /// Search the web for a catalogue image and import the chosen one.
+  Future<void> _searchWebImage() async {
+    final q = _nameCtrl.text.trim();
+    if (q.isEmpty) {
+      AppSnackbar.info(context, 'Enter the product name first, then search');
+      return;
+    }
+    final chosen = await showModalBottomSheet<ProductImageResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WebImageSearchSheet(
+        query: q,
+        service: widget.groceryService,
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    setState(() => _importingImage = true);
+    try {
+      final url = await widget.groceryService.importProductImage(
+        chosen.original,
+        widget.storeId,
+      );
+      setState(() {
+        _selectedImageUrl = url;
+        _imageFile = null;
+      });
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _importingImage = false);
+    }
+  }
+
+  Widget _imagePlaceholder() => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(
+        Icons.add_photo_alternate_outlined,
+        size: 36,
+        color: Colors.grey[700],
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Tap to add a photo, or use the buttons below',
+        style: TextStyle(color: Colors.grey[700], fontSize: 13),
+      ),
+    ],
+  );
+
   Future<String?> _uploadImage() async {
+    // A web-imported image is already hosted — use it directly.
+    if (_selectedImageUrl != null) return _selectedImageUrl;
     if (_imageFile == null) return null;
     try {
       final fileName =
@@ -1464,41 +1572,65 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                   const SizedBox(height: 12),
                 ],
 
-                // Image picker
+                // Image preview
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
-                    height: 120,
+                    height: 140,
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: _imageFile != null
+                    child: _importingImage
+                        ? const Center(child: CircularProgressIndicator())
+                        : _selectedImageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              _selectedImageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  _imagePlaceholder(),
+                            ),
+                          )
+                        : _imageFile != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.file(_imageFile!, fit: BoxFit.cover),
                           )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 36,
-                                color: Colors.grey[700],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tap to add photo',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                        : _imagePlaceholder(),
                   ),
+                ),
+                const SizedBox(height: 8),
+                // Image source buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _importingImage ? null : _searchWebImage,
+                        icon: const Icon(Icons.travel_explore, size: 18),
+                        label: const Text('Web image'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF6941C6),
+                          side: const BorderSide(color: Color(0xFF6941C6)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _importingImage ? null : _pickImage,
+                        icon: const Icon(Icons.photo_library_outlined, size: 18),
+                        label: const Text('Gallery'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 
@@ -2684,6 +2816,202 @@ class _MovementRow extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Web image search sheet ───────────────────────────────────────────────────
+
+/// Shows real web catalogue images for a product name (via SerpAPI, server
+/// side). Tapping one pops with that [ProductImageResult]; dismissing returns
+/// null (keep the current / captured photo).
+class _WebImageSearchSheet extends StatefulWidget {
+  final String query;
+  final GroceryService service;
+  const _WebImageSearchSheet({required this.query, required this.service});
+
+  @override
+  State<_WebImageSearchSheet> createState() => _WebImageSearchSheetState();
+}
+
+class _WebImageSearchSheetState extends State<_WebImageSearchSheet> {
+  late final TextEditingController _searchCtrl;
+  bool _loading = true;
+  String? _error;
+  List<ProductImageResult> _images = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl = TextEditingController(text: widget.query);
+    _run(widget.query);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(String q) async {
+    final query = q.trim();
+    if (query.isEmpty) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final imgs = await widget.service.searchProductImages(query);
+      if (mounted) {
+        setState(() {
+          _images = imgs;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = friendlyError(e);
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.travel_explore, color: Color(0xFF6941C6)),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Choose a product image',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+              child: TextField(
+                controller: _searchCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: _run,
+                decoration: InputDecoration(
+                  hintText: 'Search products',
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.arrow_forward, size: 20),
+                    onPressed: () => _run(_searchCtrl.text),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? AppErrorState(
+                      message: _error!,
+                      onRetry: () => _run(_searchCtrl.text),
+                    )
+                  : _images.isEmpty
+                  ? const AppEmptyState(
+                      icon: Icons.image_search,
+                      title: 'No images found',
+                      subtitle: 'Try a different search term.',
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                      itemCount: _images.length,
+                      itemBuilder: (_, i) {
+                        final img = _images[i];
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => Navigator.of(context).pop(img),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.network(
+                              img.thumbnail,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (_, child, progress) =>
+                                  progress == null
+                                  ? child
+                                  : const Center(
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
