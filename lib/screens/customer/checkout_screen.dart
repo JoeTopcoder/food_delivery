@@ -1,4 +1,4 @@
-﻿// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
@@ -27,6 +27,8 @@ import '../../utils/safe_state_mixin.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../services/driver/delivery_fee_service.dart';
+import '../../features/recipient/recipient_service.dart';
+import '../../features/recipient/recipient_selector.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../widgets/outstanding_debt_banner.dart';
 import '../../providers/recommendation_provider.dart';
@@ -191,20 +193,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
     final loyaltyDiscount = redeemPoints * AppConstants.loyaltyPointValue;
 
+    // ── Recipient ────────────────────────────────────────────────────────
+    // Choosing a student redirects the whole delivery: the destination becomes
+    // their school and the fee becomes the flat student rate, whatever the
+    // distance. Pickup is excluded — you cannot collect an order on a child's
+    // behalf and still have it reach the school.
+    final student = ref.watch(selectedStudentDetailProvider);
+    final isStudentOrder = student != null && student.hasSchool && !isPickup;
+
     // Admin-configured delivery fee via Edge Function
-    final delLat = selectedAddress?.latitude ?? currentUser?.latitude;
-    final delLng = selectedAddress?.longitude ?? currentUser?.longitude;
+    final delLat = isStudentOrder
+        ? student.schoolLat
+        : (selectedAddress?.latitude ?? currentUser?.latitude);
+    final delLng = isStudentOrder
+        ? student.schoolLng
+        : (selectedAddress?.longitude ?? currentUser?.longitude);
     final hasCoords = delLat != null && delLng != null && restaurantId != null;
     final feeKey = hasCoords
         ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
-    final feeAsync = feeKey.isNotEmpty && !isPickup
+    final feeAsync = feeKey.isNotEmpty && !isPickup && !isStudentOrder
         ? ref.watch(deliveryFeeProvider(feeKey))
         : const AsyncValue<DeliveryFeeResult?>.data(null);
-    final feeLoading = hasCoords && !isPickup && feeAsync.isLoading;
+    final feeLoading =
+        hasCoords && !isPickup && !isStudentOrder && feeAsync.isLoading;
     final feeResult = feeAsync.valueOrNull;
-    final baseDeliveryFee =
-        feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee;
+    // A school delivery is a flat rate by design, so no distance lookup runs
+    // and none of its result is consulted.
+    final baseDeliveryFee = isStudentOrder
+        ? AppConstants.studentDeliveryFee
+        : (feeResult?.deliveryFee ?? AppConstants.defaultDeliveryFee);
     final distanceKm = feeResult?.distanceKm;
 
     // ── Group order discount (60% of regular delivery fee) ──────────
@@ -215,7 +233,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final pickupServiceFee =
         restaurant?.serviceFee ?? AppConstants.pickupServiceFee;
 
-    // ── MealHub+ subscription benefit ──────────────────────────────
+    // ── QuickDash+ subscription benefit ──────────────────────────────
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subEligible =
         activeSub != null &&
@@ -231,7 +249,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? (pickupServiceFee - subServiceDiscount).clamp(0.0, double.infinity)
         : deliveryFee;
     final activeFee = subDeliveryFree ? 0.0 : rawFee;
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: activeFee,
+    );
 
     // Zone-based tax: look up the delivery zone only when coords are known.
     final taxKey = (!isPickup && delLat != null && delLng != null)
@@ -242,7 +263,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         : null;
     final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
     final tax = subtotal * effectiveTaxRate;
-    final promoDiscount = appliedPromo?.computeDiscount(subtotal, deliveryFee: activeFee, taxAmount: tax) ?? 0.0;
+    final promoDiscount =
+        appliedPromo?.computeDiscount(
+          subtotal,
+          deliveryFee: activeFee,
+          taxAmount: tax,
+        ) ??
+        0.0;
     final orderTotal =
         (subtotal -
                 promoDiscount -
@@ -255,8 +282,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
 
-    final deliveryAddress =
-        selectedAddress?.address ?? currentUser?.address ?? 'No address saved';
+    // The school wins over every saved address when the order is for a student:
+    // it is the destination, not a suggestion the parent can override.
+    final deliveryAddress = isStudentOrder
+        ? student.schoolAddress!
+        : (selectedAddress?.address ??
+              currentUser?.address ??
+              'No address saved');
 
     return Scaffold(
       appBar: AppBar(
@@ -286,7 +318,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       body: Stack(
         children: [
           SingleChildScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: EdgeInsets.only(
               bottom: Responsive.bottomPaddingForFixedButton(context),
               left: Responsive.horizontalPadding(context),
@@ -305,7 +339,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       padding: EdgeInsets.all(Responsive.spacingSmall(context)),
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                        borderRadius: BorderRadius.circular(
+                          Responsive.cardRadius(context) - 2,
+                        ),
                         border: Border.all(
                           color: const Color(
                             0xFF10B981,
@@ -359,8 +395,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     icon: Icons.location_on_rounded,
                     child: Column(
                       children: [
-                        // Saved address book
-                        if (addressAsync != null)
+                        // Who the order is for, asked before where it goes —
+                        // choosing a student decides the address, so offering
+                        // the address book first would be offering a choice
+                        // this can overrule.
+                        if (!isPickup) ...[
+                          RecipientSelector(
+                            onChanged: () =>
+                                setState(() => _addressConfirmed = false),
+                          ),
+                          const SchoolDestinationBanner(),
+                          const SizedBox(height: 6),
+                        ],
+
+                        // Saved address book. A student order already has its
+                        // destination, so the parent's own addresses are hidden
+                        // rather than shown as if they were still in play.
+                        if (addressAsync != null && !isStudentOrder)
                           addressAsync.when(
                             loading: () => const SizedBox.shrink(),
                             error: (error, stackTrace) =>
@@ -395,47 +446,60 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     ),
                                   ),
                           ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
-                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.place_rounded,
-                                color: AppTheme.primaryColor,
-                                size: 18,
+                        // Skipped for a student order: the school banner above
+                        // already names the destination, and "Manage" would
+                        // offer to change an address this order does not use.
+                        if (!isStudentOrder) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: EdgeInsets.all(
+                              Responsive.spacingSmall(context),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(
+                                Responsive.cardRadius(context) - 2,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  deliveryAddress,
-                                  style: TextStyle(
-                                    fontSize: Responsive.smallText(context),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.place_rounded,
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    deliveryAddress,
+                                    style: TextStyle(
+                                      fontSize: Responsive.smallText(context),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  '/address-book',
+                                TextButton(
+                                  onPressed: () => Navigator.pushNamed(
+                                    context,
+                                    '/address-book',
+                                  ),
+                                  child: const Text(
+                                    'Manage',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'Manage',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 6),
                         _AddressSlider(
                           confirmed: _addressConfirmed,
                           onConfirmed: () =>
@@ -446,7 +510,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Schedule (optional / forced when closed) ─────────
                 Builder(
@@ -474,13 +538,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           if (isClosed) ...[
                             Container(
                               width: double.infinity,
-                              padding: EdgeInsets.all(Responsive.spacingSmall(context)),
-                              margin: EdgeInsets.only(bottom: Responsive.spacing(context)),
+                              padding: EdgeInsets.all(
+                                Responsive.spacingSmall(context),
+                              ),
+                              margin: EdgeInsets.only(
+                                bottom: Responsive.spacing(context),
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.accentColor.withValues(
                                   alpha: 0.08,
                                 ),
-                                borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                                borderRadius: BorderRadius.circular(
+                                  Responsive.cardRadius(context) - 2,
+                                ),
                                 border: Border.all(
                                   color: AppTheme.accentColor.withValues(
                                     alpha: 0.3,
@@ -533,7 +603,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     );
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Payment ───────────────────────────────────────────
                 _Section(
@@ -544,7 +614,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       // Wallet payment option
                       Consumer(
                         builder: (context, ref, _) {
-                          final walletAsync = ref.watch(walletBalanceStreamProvider);
+                          final walletAsync = ref.watch(
+                            walletBalanceStreamProvider,
+                          );
                           final walletBalance =
                               walletAsync.valueOrNull?.availableBalance ?? 0;
                           return _PaymentTile(
@@ -562,7 +634,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _PaymentTile(
                         icon: Icons.credit_card_rounded,
                         label: 'Credit / Debit Card',
@@ -593,12 +665,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               if (verifiedCards.isEmpty) {
                                 return Container(
                                   width: double.infinity,
-                                  padding: EdgeInsets.all(Responsive.cardPadding(context)),
+                                  padding: EdgeInsets.all(
+                                    Responsive.cardPadding(context),
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(
+                                      Responsive.cardRadius(context),
+                                    ),
                                     border: Border.all(
-                                      color: Theme.of(context).colorScheme.outlineVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outlineVariant,
                                     ),
                                   ),
                                   child: Column(
@@ -608,7 +688,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                         size: 32,
                                         color: Colors.grey.shade700,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       Text(
                                         'No saved cards',
                                         style: TextStyle(
@@ -620,7 +700,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                       Text(
                                         'Add a card from your Wallet first',
                                         style: TextStyle(
-                                          fontSize: Responsive.smallText(context),
+                                          fontSize: Responsive.smallText(
+                                            context,
+                                          ),
                                           color: Colors.grey.shade700,
                                         ),
                                       ),
@@ -709,7 +791,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── AI-Assigned Promo Banner ──────────────────────
                 OutstandingDebtBanner(debtAmount: outstandingDebt),
@@ -725,12 +807,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     children: [
                       if (appliedPromo != null)
                         Container(
-                          padding: EdgeInsets.all(Responsive.spacingSmall(context)),
+                          padding: EdgeInsets.all(
+                            Responsive.spacingSmall(context),
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(
                               0xFF10B981,
                             ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+                            borderRadius: BorderRadius.circular(
+                              Responsive.cardRadius(context) - 2,
+                            ),
                             border: Border.all(
                               color: const Color(
                                 0xFF10B981,
@@ -796,11 +882,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               onPressed: _applyingPromo
                                   ? null
                                   : () => _applyPromo(
-                                        subtotal,
-                                        restaurantId: restaurantId,
-                                        deliveryFee: activeFee,
-                                        taxAmount: tax,
-                                      ),
+                                      subtotal,
+                                      restaurantId: restaurantId,
+                                      deliveryFee: activeFee,
+                                      taxAmount: tax,
+                                    ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
@@ -825,7 +911,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Loyalty Points ────────────────────────────────────
                 if (loyaltyAsync != null)
@@ -849,11 +935,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               children: [
                                 Flexible(
                                   child: Text(
-                                  'You have ${account.points} pts '
-                                  '(= \$${account.redemptionValue.toStringAsFixed(2)})',
-                                  style: const TextStyle(fontSize: 13),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                    'You have ${account.points} pts '
+                                    '(= \$${account.redemptionValue.toStringAsFixed(2)})',
+                                    style: const TextStyle(fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Switch(
@@ -894,7 +980,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     },
                   ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Contactless Delivery (hidden for pickup) ──────────
                 if (!isPickup)
@@ -919,7 +1005,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 'Driver will verify with a one-time PIN',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -934,7 +1022,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Driver Tip (hidden for pickup) ────────────────────
                 if (!isPickup)
@@ -947,11 +1035,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         Text(
                           '100% goes directly to your driver',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             // No-tip chip
@@ -961,20 +1051,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   horizontal: 3,
                                 ),
                                 child: ChoiceChip(
-                                  label: const Text(
-                                    'No Tip',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'None',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                   selected: _driverTip == 0,
                                   selectedColor: AppTheme.primaryColor,
-                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   labelStyle: TextStyle(
                                     color: _driverTip == 0
                                         ? Colors.white
-                                        : Theme.of(context).colorScheme.onSurface,
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                   ),
                                   onSelected: (_) {
                                     setState(() {
@@ -993,20 +1093,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                     horizontal: 3,
                                   ),
                                   child: ChoiceChip(
-                                    label: Text(
-                                      '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                                    labelPadding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    label: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        '${AppConstants.currencySymbol}${amount.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                     selected: isSelected,
                                     selectedColor: const Color(0xFF10B981),
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
                                     labelStyle: TextStyle(
                                       color: isSelected
                                           ? Colors.white
-                                          : Theme.of(context).colorScheme.onSurface,
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                     ),
                                     onSelected: (_) {
                                       setState(() {
@@ -1020,21 +1130,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             }),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _customTipCtrl,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            prefixText: '\$ ',
+                            prefixText: '${AppConstants.currencySymbol} ',
                             hintText: 'Custom tip amount',
                             filled: true,
-                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.outlineVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
@@ -1055,7 +1169,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Notes ─────────────────────────────────────────────
                 _Section(
@@ -1074,14 +1188,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Order Summary ──────────────────────────────────────
                 Container(
                   padding: EdgeInsets.all(Responsive.cardPadding(context)),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+                    borderRadius: BorderRadius.circular(
+                      Responsive.cardRadius(context),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -1101,16 +1217,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '−\$${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
+                      // Most restaurants charge nothing to collect, and a
+                      // J$0.00 row is just one more fee-shaped line to read.
                       if (isPickup)
-                        _SummaryRow(
-                          subServiceDiscount > 0
-                              ? 'Service Fee (MealHub+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
-                              : 'Service Fee',
-                          '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
-                          valueColor: subServiceDiscount > 0
-                              ? const Color(0xFF6C63FF)
-                              : const Color(0xFF10B981),
-                        )
+                        rawFee > 0
+                            ? _SummaryRow(
+                                subServiceDiscount > 0
+                                    ? 'Pickup Fee (QuickDash+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                    : 'Pickup Fee',
+                                '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                valueColor: subServiceDiscount > 0
+                                    ? const Color(0xFF528BFF)
+                                    : const Color(0xFF10B981),
+                              )
+                            : const SizedBox.shrink()
                       else if (isGroupOrder)
                         _SummaryRow(
                           'Delivery (Group 40% off – $groupParticipantCount members)',
@@ -1122,7 +1242,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       else
                         _SummaryRow(
                           subDeliveryFree
-                              ? 'Delivery (MealHub+ FREE)'
+                              ? 'Delivery (QuickDash+ FREE)'
                               : 'Delivery${feeResult?.calculation == 'distance_based'
                                     ? ''
                                     : feeResult?.restaurantOverride != null
@@ -1138,7 +1258,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               ? '\$0.00'
                               : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
                           valueColor: subDeliveryFree
-                              ? const Color(0xFF6C63FF)
+                              ? const Color(0xFF528BFF)
                               : null,
                         ),
                       _SummaryRow(
@@ -1162,7 +1282,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
                           valueColor: const Color(0xFFEA580C),
                         ),
-                      Divider(color: Theme.of(context).colorScheme.outlineVariant, height: 16),
+                      Divider(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        height: 16,
+                      ),
                       _SummaryRow(
                         'Total',
                         '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
@@ -1207,10 +1330,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the MealHub terms and conditions',
+                            'I agree to the QuickDash terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1252,6 +1377,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   tax: tax,
                                   total: total,
                                   deliveryAddress: deliveryAddress,
+                                  studentId: isStudentOrder ? student.id : null,
                                   currentUser: currentUser,
                                   promoDiscount: promoDiscount,
                                   loyaltyDiscount: loyaltyDiscount,
@@ -1282,11 +1408,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 )
                               : Text(
                                   () {
-                                    final amt = grandTotal.toStringAsFixed(2);
+                                    final amt =
+                                        '${AppConstants.currencySymbol}'
+                                        '${grandTotal.toStringAsFixed(2)}';
                                     if (_selectedPayment == 'stripe') {
-                                      return 'Pay Now \u2014 \$$amt';
+                                      return 'Pay Now \u2014 $amt';
                                     }
-                                    return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 \$$amt';
+                                    return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 $amt';
                                   }(),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
@@ -1370,6 +1498,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required double tax,
     required double total,
     required String deliveryAddress,
+
+    /// Set when the order is for a linked student. The server re-checks the
+    /// link and re-derives the school and fee from it; this is a request, not
+    /// a statement of fact.
+    String? studentId,
     required dynamic currentUser,
     required double promoDiscount,
     required double loyaltyDiscount,
@@ -1385,11 +1518,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     // Wallet: block order if balance is too low (must cover order + outstanding debt)
     if (_selectedPayment == 'wallet') {
       final walletBalance =
-          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ?? 0;
+          ref.read(walletBalanceStreamProvider).valueOrNull?.availableBalance ??
+          0;
       if (walletBalance < grandTotal) {
         AppSnackbar.error(
           context,
-          'Insufficient wallet balance (\$${walletBalance.toStringAsFixed(2)}). '
+          'Insufficient wallet balance (${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}). '
           'Top up \$${(grandTotal - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
         );
         return;
@@ -1515,7 +1649,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       if (_selectedPayment == 'stripe') {
         final savedCard = _selectedSavedCard;
         savedCardPmId = savedCard?.stripePaymentMethodId;
-        if (savedCard == null || savedCardPmId == null || savedCardPmId.isEmpty) {
+        if (savedCard == null ||
+            savedCardPmId == null ||
+            savedCardPmId.isEmpty) {
           setState(() => _placingOrder = false);
           if (!mounted) return;
           AppSnackbar.warning(
@@ -1558,6 +1694,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,
         savedCardPaymentMethodId: savedCardPmId,
+        studentId: studentId,
       );
 
       // Clear active ad after order placed
@@ -1720,7 +1857,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       }
     }
   }
-
 }
 
 // ─── Widgets ──────────────────────────────────────────────────────────────────
@@ -1852,20 +1988,23 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: Responsive.spacingSmall(context),
-        vertical: Responsive.spacingSmall(context),
+        horizontal: Responsive.spacingSmall(context) + 2,
+        vertical: Responsive.spacingSmall(context) + 1,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 15, color: AppTheme.primaryColor),
+              Icon(icon, size: 14, color: AppTheme.primaryColor),
               const SizedBox(width: 6),
               Text(
                 title,
@@ -1877,7 +2016,7 @@ class _Section extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),
@@ -1893,16 +2032,23 @@ class _AddressChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(right: Responsive.spacing(context) * 0.5, bottom: Responsive.spacing(context) * 0.5),
+      margin: EdgeInsets.only(
+        right: Responsive.spacing(context) * 0.5,
+        bottom: Responsive.spacing(context) * 0.5,
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.spacingSmall(context),
         vertical: Responsive.spacingSmall(context) * 0.5,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: isSelected
+            ? AppTheme.primaryColor
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+          color: isSelected
+              ? AppTheme.primaryColor
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Text(
@@ -1944,9 +2090,13 @@ class _TimeChip extends StatelessWidget {
             color: selected
                 ? AppTheme.primaryColor.withValues(alpha: 0.08)
                 : Theme.of(context).colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+            borderRadius: BorderRadius.circular(
+              Responsive.cardRadius(context) - 2,
+            ),
             border: Border.all(
-              color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Theme.of(context).colorScheme.outlineVariant,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -1966,7 +2116,10 @@ class _TimeChip extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: Responsive.bodyText(context) * 0.75, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: Responsive.bodyText(context) * 0.75,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -2005,29 +2158,33 @@ class _PaymentTile extends StatelessWidget {
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.06)
               : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(Responsive.cardRadius(context) - 2),
+          borderRadius: BorderRadius.circular(
+            Responsive.cardRadius(context) - 2,
+          ),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 27,
+              height: 27,
               decoration: BoxDecoration(
                 color: selected
                     ? AppTheme.primaryColor.withValues(alpha: 0.12)
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(7),
               ),
               child: Icon(
                 icon,
                 color: selected
                     ? AppTheme.primaryColor
                     : Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 10),
@@ -2107,7 +2264,9 @@ class _SavedCardTile extends StatelessWidget {
               : Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
           border: Border.all(
-            color: selected ? AppTheme.primaryColor : Theme.of(context).colorScheme.outlineVariant,
+            color: selected
+                ? AppTheme.primaryColor
+                : Theme.of(context).colorScheme.outlineVariant,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -2253,7 +2412,9 @@ class _SummaryRow extends StatelessWidget {
               label,
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
-                fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
+                fontSize: isBold
+                    ? Responsive.headingSmall(context)
+                    : Responsive.smallText(context),
                 color: Theme.of(
                   context,
                 ).colorScheme.onSurface.withValues(alpha: isBold ? 1.0 : 0.75),
@@ -2266,7 +2427,9 @@ class _SummaryRow extends StatelessWidget {
             value,
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              fontSize: isBold ? Responsive.headingSmall(context) : Responsive.smallText(context),
+              fontSize: isBold
+                  ? Responsive.headingSmall(context)
+                  : Responsive.smallText(context),
               color: valueColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),

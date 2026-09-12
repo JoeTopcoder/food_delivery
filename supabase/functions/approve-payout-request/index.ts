@@ -28,7 +28,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method ?? 'standard',
-          app: '7Dash',
+          app: 'QuickDash',
         },
       },
       { idempotencyKey: `transfer_${pr.id}` },
@@ -54,7 +54,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method ?? 'standard',
-          app: '7Dash',
+          app: 'QuickDash',
         },
       }
       if (isInstant) payoutParams.method = 'instant'

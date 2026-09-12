@@ -1,4 +1,4 @@
-﻿import 'package:confetti/confetti.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
@@ -149,38 +149,40 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: widget.deliveryOtp!
-                                  .split('')
-                                  .map(
-                                    (d) => Container(
-                                      width: 44,
-                                      height: 52,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 3,
-                                      ),
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(
-                                            0xFF6366F1,
-                                          ).withValues(alpha: 0.3),
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: widget.deliveryOtp!
+                                    .split('')
+                                    .map(
+                                      (d) => Container(
+                                        width: 44,
+                                        height: 52,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 3,
+                                        ),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFF6366F1,
+                                            ).withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          d,
+                                          style: const TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF6366F1),
+                                          ),
                                         ),
                                       ),
-                                      child: Text(
-                                        d,
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF6366F1),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
+                                    )
+                                    .toList(),
+                              ),
                             ),
                             const SizedBox(height: 8),
                             const Text(

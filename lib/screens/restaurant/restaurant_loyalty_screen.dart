@@ -165,7 +165,7 @@ class RestaurantLoyaltyScreen extends ConsumerWidget {
                 child: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                      colors: [Color(0xFF155EEF), Color(0xFF9333EA)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -320,12 +320,12 @@ class _LoyaltyBody extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                          color: const Color(0xFF155EEF).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
                           Icons.people_rounded,
-                          color: Color(0xFF7C3AED),
+                          color: Color(0xFF155EEF),
                           size: 20,
                         ),
                       ),
@@ -440,7 +440,7 @@ class _LoyaltyBody extends StatelessWidget {
                   label: 'Platinum',
                   count: platinum,
                   total: loyaltyCustomers,
-                  color: const Color(0xFF7C3AED),
+                  color: const Color(0xFF155EEF),
                 ),
                 const SizedBox(height: 10),
                 _TierBar(
@@ -488,7 +488,7 @@ class _LoyaltyBody extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      color: Color(0xFF7C3AED),
+                      color: Color(0xFF155EEF),
                       size: 20,
                     ),
                     SizedBox(width: 8),
@@ -811,7 +811,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF7C3AED), size: 16),
+        Icon(icon, color: const Color(0xFF155EEF), size: 16),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return handleOptions()
   try {
     const user = await requireAuth(req)
-    const { role = 'driver', country = 'US', currency = 'usd' } = await req.json()
+    const { role = 'driver', country = 'JM', currency = 'jmd' } = await req.json()
 
     if (!['driver', 'restaurant'].includes(role)) {
       return json({ error: 'BAD_REQUEST: invalid role' }, 400)
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       capabilities: { transfers: { requested: true } },
       business_type: role === 'restaurant' ? 'company' : 'individual',
       tos_acceptance: { service_agreement: 'recipient' },
-      metadata: { user_id: user.id, role, app: '7Dash' },
+      metadata: { user_id: user.id, role, app: 'QuickDash' },
     })
 
     const { data: inserted, error } = await serviceClient

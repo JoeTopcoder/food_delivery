@@ -1,4 +1,4 @@
-// reputation-agent-draft — Reputation Management Agent (7Dash AI Operations)
+// reputation-agent-draft — Reputation Management Agent (QuickDash AI Operations)
 // Drafts a public response to a customer review. Scope: in-app reviews only
 // (the `reviews` table) — external platforms (Google/App Store/Play Store)
 // aren't wired up to any API yet, so this agent doesn't claim to monitor
@@ -53,12 +53,12 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are the 7Dash Reputation Management Agent, drafting a PUBLIC reply to a customer review that other customers will see. Rules:
+            content: `You are the QuickDash Reputation Management Agent, drafting a PUBLIC reply to a customer review that other customers will see. Rules:
 - Never promise or imply a refund, credit, replacement, or any specific compensation — that must be handled privately through Support, not in a public reply.
 - Never fabricate details about what happened; only reference what's in the review itself.
 - Tone: warm and professional for positive reviews, genuinely apologetic and non-defensive for negative ones. 2-4 sentences.
 - Also classify: sentiment ("positive"|"neutral"|"negative"), urgency ("low"|"medium"|"high" — high only for serious complaints like food safety, safety incidents, or repeated failures), and whether this needs escalation to a human before any reply is posted (needs_escalation: true/false).
-- The "Known issues from other 7Dash agents" section is real findings from Restaurant Success / Menu Intelligence about this restaurant, not something you should mention by name in the public reply — but if the review's complaint matches a known issue (e.g. slow prep, missing menu photos), that raises urgency since it's a pattern, not a one-off, and needs_escalation should lean true.
+- The "Known issues from other QuickDash agents" section is real findings from Restaurant Success / Menu Intelligence about this restaurant, not something you should mention by name in the public reply — but if the review's complaint matches a known issue (e.g. slow prep, missing menu photos), that raises urgency since it's a pattern, not a one-off, and needs_escalation should lean true.
 Respond ONLY with JSON: { "draft_response": string, "sentiment": string, "urgency": string, "needs_escalation": boolean, "reasoning": string }`,
           },
           {
@@ -69,7 +69,7 @@ Food quality: ${review.food_quality ?? 'N/A'}, Delivery speed: ${review.delivery
 Would recommend: ${review.would_recommend}
 Review text: ${review.review_text ?? '(no written review)'}
 
-Known issues from other 7Dash agents about this restaurant:
+Known issues from other QuickDash agents about this restaurant:
 ${crossAgentSummary}`,
           },
         ],

@@ -15,14 +15,25 @@ import '../services/food/order_calculation_service.dart';
 import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
 import '../utils/app_logger.dart';
+import 'address_provider.dart';
+import 'auth_provider.dart';
 
 // Tracks the currently selected bottom-nav tab index so any screen can gate
 // behaviour (e.g. popup banners) on which tab is visible.
 final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 // Service Providers
+// Watches the customer's location so listings can hide stores too far away to
+// order from. Watching rather than reading means changing your delivery address
+// re-runs the listings, which is what a customer expects to happen.
 final restaurantServiceProvider = Provider<RestaurantService>((ref) {
-  return RestaurantService(SupabaseConfig.client);
+  final address = ref.watch(selectedAddressProvider);
+  final user = ref.watch(currentUserProvider);
+  return RestaurantService(
+    SupabaseConfig.client,
+    originLat: address?.latitude ?? user?.latitude,
+    originLng: address?.longitude ?? user?.longitude,
+  );
 });
 
 final menuServiceProvider = Provider<MenuService>((ref) {
@@ -1160,7 +1171,19 @@ class GroceryCartNotifier extends StateNotifier<List<CartItem>> {
   /// Returns all distinct store IDs currently in the cart.
   Set<String> get storeIds => state.map((c) => c.menuItem.restaurantId).toSet();
 
+  /// The single grocery store the cart currently holds, or null if empty.
+  /// One order = one store, so all cart items share this store.
+  String? get currentStoreId =>
+      state.isEmpty ? null : state.first.menuItem.restaurantId;
+
   void addItem(MenuItem menuItem) {
+    // One grocery store per cart (one order = one store). Ignore an item from a
+    // different store than the cart already holds — the UI prompts the customer
+    // to start a new cart (clearCart) first. This is the data-level backstop
+    // that covers every add path (browse, search, voice, suggestions).
+    if (state.isNotEmpty && menuItem.restaurantId != currentStoreId) {
+      return;
+    }
     final existingIndex = state.indexWhere(
       (item) => item.menuItem.id == menuItem.id,
     );

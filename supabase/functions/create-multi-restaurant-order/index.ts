@@ -121,6 +121,8 @@ interface CreateMultiOrderRequest {
   delivery_address: string;
   delivery_latitude: number;
   delivery_longitude: number;
+  /// Set when a parent is sending this order to a linked student at school.
+  student_id?: string;
   payment_method: string;
   client_delivery_fee?: number;
   notes?: string;
@@ -146,14 +148,54 @@ Deno.serve(async (req: Request) => {
     payment_method, client_delivery_fee, notes,
     contactless_delivery, driver_tip,
     payment_intent_id, saved_card_payment_method_id,
-    stripe_currency,
+    stripe_currency, student_id,
   } = body;
+
+  // Mutable copies: a student recipient overrides the destination, and the
+  // rest of this function reads these rather than the request fields.
+  let deliveryAddress = delivery_address;
+  let deliveryLatitude = delivery_latitude;
+  let deliveryLongitude = delivery_longitude;
 
   if (!customer_id || !restaurant_orders?.length || !delivery_address) {
     return json({ error: "Missing required fields: customer_id, restaurant_orders, delivery_address" }, 400);
   }
   if (restaurant_orders.length < 2) {
     return json({ error: "Use place-order for single-restaurant orders" }, 400);
+  }
+
+  // ── STUDENT RECIPIENT GATE ──────────────────────────────────────────────
+  // Same rule as place-order and grocery-order: permission, destination and
+  // fee come from the database. The caller's token is verified explicitly
+  // because customer_id arrives in the body.
+  let studentDelivery: {
+    school_id: string;
+    school_name: string;
+    school_address: string;
+    school_lat: number | null;
+    school_lng: number | null;
+    delivery_fee: number;
+  } | null = null;
+
+  if (student_id) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : "";
+    if (!token) return json({ error: "Sign in again to order for a student." }, 401);
+    const { data: authUser, error: authErr } = await admin.auth.getUser(token);
+    if (authErr || !authUser?.user || authUser.user.id !== customer_id) {
+      return json({ error: "Sign in again to order for a student." }, 401);
+    }
+    const { data: resolved, error: resolveErr } = await admin.rpc(
+      "resolve_student_delivery",
+      { p_parent_id: customer_id, p_student_id: student_id },
+    );
+    if (resolveErr || !resolved) {
+      return json({ error: resolveErr?.message ?? "Could not order for that student." }, 403);
+    }
+    studentDelivery = resolved as typeof studentDelivery;
+    deliveryAddress = studentDelivery!.school_address;
+    if (studentDelivery!.school_lat != null) deliveryLatitude = studentDelivery!.school_lat;
+    if (studentDelivery!.school_lng != null) deliveryLongitude = studentDelivery!.school_lng;
   }
 
   // ── Validate multi-restaurant feature is enabled ─────────────────────────
@@ -234,8 +276,21 @@ Deno.serve(async (req: Request) => {
     if (!restaurant) return json({ error: `Restaurant ${order.restaurant_id} not found` }, 404);
 
     const { fee, distanceKm } = await calcRestaurantDeliveryFee(
-      restaurant, delivery_latitude, delivery_longitude,
+      restaurant, deliveryLatitude, deliveryLongitude,
     );
+
+    // A student order takes a flat fee and so never consults the client's
+    // delivery-fee lookup — which is also what rejects an out-of-range
+    // address. The range check therefore has to happen here, per restaurant:
+    // a flat price is a pricing decision, not a promise to drive any distance.
+    if (studentDelivery && distanceKm !== null) {
+      const maxKm = await getConfig("delivery_max_km", 30);
+      if (distanceKm > maxKm) {
+        return json({
+          error: `${restaurant.name} is ${distanceKm.toFixed(1)} km from that school, beyond the ${maxKm} km delivery range.`,
+        }, 400);
+      }
+    }
 
     let subtotal = 0;
     const processedItems: RestaurantCalc["items"] = [];
@@ -269,10 +324,16 @@ Deno.serve(async (req: Request) => {
 
   totalSubtotal    = round2(totalSubtotal);
   const serverDeliveryFee = round2(totalDeliveryFee);
-  totalDeliveryFee = (client_delivery_fee != null && client_delivery_fee > 0)
-    ? round2(client_delivery_fee) : serverDeliveryFee;
+  // A school run is one flat fee however many kitchens it collects from, and
+  // it is taken from the database rather than the request.
+  totalDeliveryFee = studentDelivery
+    ? round2(Number(studentDelivery.delivery_fee))
+    : ((client_delivery_fee != null && client_delivery_fee > 0)
+        ? round2(client_delivery_fee) : serverDeliveryFee);
 
-  if (client_delivery_fee != null && client_delivery_fee > 0 && serverDeliveryFee > 0) {
+  // The flat fee is still split across sub-orders in proportion to what each
+  // would have cost, so every sub-order total keeps adding up.
+  if (totalDeliveryFee !== serverDeliveryFee && serverDeliveryFee > 0) {
     for (const calc of perRestaurant) {
       calc.deliveryFee = round2(totalDeliveryFee * (calc.deliveryFee / serverDeliveryFee));
     }
@@ -305,7 +366,7 @@ Deno.serve(async (req: Request) => {
     // Off-session saved card charge — charge first, create order only on success
     if (!stripeKey) return json({ error: "Payment provider not configured." }, 500);
     const custId = await getStripeCustomerId(customer_id);
-    const currency = stripe_currency ?? "usd";
+    const currency = stripe_currency ?? "jmd";
     const amountCents = Math.round(grandTotal * 100);
     const pi = await stripePost("/payment_intents", {
       amount:                  String(amountCents),
@@ -369,9 +430,9 @@ Deno.serve(async (req: Request) => {
         customer_id,
         master_order_number:  masterOrderNumber,
         status:               "pending",   // restaurant accepts from here
-        delivery_address,
-        delivery_latitude,
-        delivery_longitude,
+        delivery_address:     deliveryAddress,
+        delivery_latitude:    deliveryLatitude,
+        delivery_longitude:   deliveryLongitude,
         payment_method,
         payment_status:       "paid",      // always paid — we verified above
         subtotal:             totalSubtotal,
@@ -470,9 +531,14 @@ Deno.serve(async (req: Request) => {
         discount:                0,
         total_amount:            round2(calc.subtotal + calc.deliveryFee),
         status:                  "pending",    // payment confirmed before reaching here
-        delivery_address,
-        delivery_latitude,
-        delivery_longitude,
+        delivery_address:        deliveryAddress,
+        delivery_latitude:       deliveryLatitude,
+        delivery_longitude:      deliveryLongitude,
+        recipient_type:          studentDelivery ? "student" : "self",
+        student_id:              studentDelivery ? student_id : null,
+        school_id:               studentDelivery?.school_id ?? null,
+        school_name:             studentDelivery?.school_name ?? null,
+        school_address:          studentDelivery?.school_address ?? null,
         notes:                   notes ?? null,
         payment_method,
         payment_status:          "completed",  // already paid

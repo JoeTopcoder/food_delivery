@@ -9,11 +9,11 @@ class StripePayoutService {
   Future<PayoutRequest> requestPayout({
     required String role,
     required int amountCents,
-    String currency = 'usd',
+    String currency = 'jmd',
     String payoutMethod = 'standard',
   }) async {
     final res = await _client.functions.invoke(
-      'request-payout',
+      'payouts/request',
       body: {
         'role': role,
         'amount_cents': amountCents,
@@ -52,7 +52,7 @@ class StripePayoutService {
     String? adminNote,
   }) async {
     final res = await _client.functions.invoke(
-      'approve-payout-request',
+      'payouts/approve',
       body: {
         'payout_request_id': payoutRequestId,
         'admin_note': adminNote,
@@ -70,7 +70,7 @@ class StripePayoutService {
     required String adminNote,
   }) async {
     final res = await _client.functions.invoke(
-      'reject-payout-request',
+      'payouts/reject',
       body: {
         'payout_request_id': payoutRequestId,
         'admin_note': adminNote,
@@ -82,7 +82,7 @@ class StripePayoutService {
   /// Admin: retry a failed payout.
   Future<PayoutRequest> retryPayout({required String payoutRequestId}) async {
     final res = await _client.functions.invoke(
-      'retry-payout-request',
+      'payouts/retry',
       body: {'payout_request_id': payoutRequestId},
     );
     _checkError(res);

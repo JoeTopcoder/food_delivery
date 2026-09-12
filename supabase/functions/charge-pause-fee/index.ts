@@ -114,7 +114,7 @@ serve(async (req) => {
           try {
             const pi = await stripe.paymentIntents.create({
               amount: Math.round(pauseFeeJmd * 100), // USD → cents
-              currency: "usd",
+              currency: "jmd",
               customer: card.stripe_customer_id,
               payment_method: card.stripe_payment_method_id,
               confirm: true,

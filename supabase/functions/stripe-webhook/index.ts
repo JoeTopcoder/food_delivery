@@ -106,7 +106,7 @@ async function onSucceeded(
   const txnType = meta["type"] ?? "order";
   const userId = meta["user_id"] ?? null;
   const amountReceived = ((pi.amount_received as number) ?? (pi.amount as number) ?? 0) / 100;
-  const currency = ((pi.currency as string) ?? "usd").toUpperCase();
+  const currency = ((pi.currency as string) ?? "jmd").toUpperCase();
   const now = new Date().toISOString();
 
   // ── Ride payment captured ─────────────────────────────────────────────────

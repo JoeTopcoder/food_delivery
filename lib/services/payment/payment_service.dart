@@ -178,7 +178,7 @@ class PaymentService {
                 paymentIntentId: paymentIntentId,
                 clientSecret: clientSecret,
                 amount: amount,
-                currency: (retryData['currency'] as String?) ?? 'usd',
+                currency: (retryData['currency'] as String?) ?? 'jmd',
                 customerId: retryData['customerId'] as String?,
                 ephemeralKey: retryData['ephemeralKey'] as String?,
               );
@@ -197,7 +197,7 @@ class PaymentService {
         paymentIntentId: paymentIntentId,
         clientSecret: clientSecret,
         amount: amount,
-        currency: (data['currency'] as String?) ?? 'usd',
+        currency: (data['currency'] as String?) ?? 'jmd',
         customerId: data['customerId'] as String?,
         ephemeralKey: data['ephemeralKey'] as String?,
       );
@@ -409,7 +409,7 @@ class PaymentService {
   /// Returns {'status': 'paid'} on success, null if user cancels.
   Future<Map<String, dynamic>?> presentStripePaymentSheetForRide({
     required int amountCents,
-    String currency = 'usd',
+    String currency = 'jmd',
     String? customerEmail,
     String? customerName,
   }) async {
@@ -829,7 +829,7 @@ class PaymentService {
     try {
       AppLogger.info('Verifying payment status: $transactionId');
       final response = await _invokeStripeFunction(
-        'stripe-payment',
+        'stripe/payment',
         body: {'action': 'verify', 'transaction_id': transactionId},
       );
       final data = response.data as Map<String, dynamic>?;
@@ -851,7 +851,7 @@ class PaymentService {
         'Processing refund: $transactionId - ${AppConstants.currencySymbol}$amount',
       );
       final response = await _invokeStripeFunction(
-        'stripe-payment',
+        'stripe/payment',
         body: {
           'action': 'refund',
           'transaction_id': transactionId,
@@ -1373,12 +1373,12 @@ class PaymentService {
       AppLogger.info('Processing Stripe payout: $payoutId, amount=$amount');
 
       final response = await _supabaseClient.functions.invoke(
-        'stripe-payment',
+        'stripe/payment',
         body: {
           'action': 'create_payout',
           'payoutId': payoutId,
           'amount': amount,
-          'currency': 'usd',
+          'currency': 'jmd',
           'recipientName': recipientName,
           'bankAccount': bankAccount,
           'bankName': bankName,

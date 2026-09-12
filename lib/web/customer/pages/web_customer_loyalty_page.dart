@@ -126,7 +126,7 @@ class _LoyaltyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tier = account.tier as String;
     final (tierColor, tierIcon) = switch (tier) {
-      'platinum' => (const Color(0xFF8B5CF6), Icons.diamond_rounded),
+      'platinum' => (const Color(0xFF528BFF), Icons.diamond_rounded),
       'gold'     => (const Color(0xFFF59E0B), Icons.military_tech_rounded),
       'silver'   => (const Color(0xFF94A3B8), Icons.workspace_premium_rounded),
       _          => (const Color(0xFFCD7F32), Icons.emoji_events_rounded),

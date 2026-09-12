@@ -95,10 +95,10 @@ class _WebAdminRestaurantsPageState extends ConsumerState<WebAdminRestaurantsPag
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${commission.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
+              Text('${commission.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF528BFF))),
               Slider(
                 value: commission, min: 0, max: 50, divisions: 50,
-                activeColor: const Color(0xFF8B5CF6),
+                activeColor: const Color(0xFF528BFF),
                 label: '${commission.toStringAsFixed(0)}%',
                 onChanged: (v) => setS(() => commission = v),
               ),
@@ -118,7 +118,7 @@ class _WebAdminRestaurantsPageState extends ConsumerState<WebAdminRestaurantsPag
                   if (mounted) AppSnackbar.error(context, friendlyError(e));
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF528BFF), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               child: const Text('Save'),
             ),
           ],
@@ -343,7 +343,7 @@ class _RestaurantsTable extends StatelessWidget {
                       width: 80,
                       child: Text(
                         '${((r.commissionRate ?? 0.15) * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF8B5CF6), fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF528BFF), fontWeight: FontWeight.w600),
                       ),
                     ),
                     Expanded(child: Text(r.address ?? '—', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis)),
@@ -362,7 +362,7 @@ class _RestaurantsTable extends StatelessWidget {
                         },
                         itemBuilder: (_) => [
                           const PopupMenuItem(value: 'details', child: Row(children: [Icon(Icons.info_outline_rounded, size: 18), SizedBox(width: 8), Text('View Details')])),
-                          const PopupMenuItem(value: 'commission', child: Row(children: [Icon(Icons.percent_rounded, size: 18, color: Color(0xFF8B5CF6)), SizedBox(width: 8), Text('Set Commission', style: TextStyle(color: Color(0xFF8B5CF6)))])),
+                          const PopupMenuItem(value: 'commission', child: Row(children: [Icon(Icons.percent_rounded, size: 18, color: Color(0xFF528BFF)), SizedBox(width: 8), Text('Set Commission', style: TextStyle(color: Color(0xFF528BFF)))])),
                           const PopupMenuItem(value: 'service_fee', child: Row(children: [Icon(Icons.shopping_bag_rounded, size: 18, color: Color(0xFF0EA5E9)), SizedBox(width: 8), Text('Set Service Fee', style: TextStyle(color: Color(0xFF0EA5E9)))])),
                           if (!isVerified)
                             const PopupMenuItem(value: 'verify', child: Row(children: [Icon(Icons.verified_rounded, size: 18, color: Color(0xFF10B981)), SizedBox(width: 8), Text('Verify', style: TextStyle(color: Color(0xFF10B981)))])),

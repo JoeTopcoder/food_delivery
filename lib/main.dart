@@ -42,6 +42,10 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/all_restaurants_screen.dart';
 import 'screens/customer/restaurant_detail_screen.dart';
 import 'screens/customer/cart_screen.dart';
+import 'screens/admin/admin_margin_screen.dart';
+import 'screens/admin/admin_operating_dashboard_screen.dart';
+import 'screens/admin/admin_survival_screen.dart';
+import 'features/concierge/presentation/concierge_screen.dart';
 import 'screens/customer/grocery_cart_screen.dart';
 import 'screens/customer/checkout_screen.dart';
 import 'screens/customer/grocery_checkout_screen.dart';
@@ -129,6 +133,7 @@ import 'screens/restaurant/restaurant_analytics_screen.dart';
 import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/restaurant/grocery_management_screen.dart';
+import 'screens/admin/admin_grocery_stores_screen.dart';
 import 'screens/restaurant/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
@@ -460,6 +465,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     // Bump configVersionProvider so maintenanceModeProvider (and any other
     // provider watching config) re-evaluates with the values just loaded from DB.
     ref.read(configVersionProvider.notifier).state++;
+    // Screen-visibility flags are now loaded — let the customer nav render.
+    ref.read(configReadyProvider.notifier).state = true;
     setState(() {
       _startupHydrated = true;
     });
@@ -502,7 +509,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   }
 
   // Set at build time via --dart-define=WEB_MODE=restaurant|admin|full
-  static const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
+  static const _webMode = String.fromEnvironment(
+    'WEB_MODE',
+    defaultValue: 'full',
+  );
 
   static Widget _getHomeForRole(String? role) {
     switch (role) {
@@ -559,7 +569,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       navigatorKey: _navigatorKey,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
-        title: '7Dash',
+        title: 'QuickDash',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
@@ -706,7 +716,30 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['admin'],
-                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) ? const AdminWebApp() : const AdminDashboardScreen(),
+                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin'))
+                      ? const AdminWebApp()
+                      : const AdminDashboardScreen(),
+                ),
+              );
+            case '/admin-operating-dashboard':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminOperatingDashboardScreen(),
+                ),
+              );
+            case '/admin-survival':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminSurvivalScreen(),
+                ),
+              );
+            case '/admin-margins':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMarginScreen(),
                 ),
               );
             case '/admin-users':
@@ -746,7 +779,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['restaurant'],
-                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'restaurant')) ? const RestaurantWebApp() : const RestaurantDashboardScreen(),
+                  child:
+                      (kIsWeb &&
+                          (_webMode == 'full' || _webMode == 'restaurant'))
+                      ? const RestaurantWebApp()
+                      : const RestaurantDashboardScreen(),
                 ),
               );
             case '/restaurant-orders':
@@ -784,19 +821,41 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: GroceryManagementScreen(),
                 ),
               );
+            case '/admin-grocery-products':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminGroceryStoresScreen(),
+                ),
+              );
             case '/restaurant-detail':
               // No RoleGuard — guests may view restaurant menus and pricing.
               // Auth-required actions (add to cart) are guarded inside the screen.
               if (settings.arguments is! Restaurant) return null;
               final restaurant = settings.arguments as Restaurant;
               return MaterialPageRoute(
-                builder: (context) => RestaurantDetailScreen(restaurant: restaurant),
+                builder: (context) =>
+                    RestaurantDetailScreen(restaurant: restaurant),
               );
             case '/cart':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user'],
                   child: CartScreen(),
+                ),
+              );
+            case '/concierge':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: ConciergeScreen(),
+                ),
+              );
+            case '/grocery-concierge':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user'],
+                  child: ConciergeScreen(grocery: true),
                 ),
               );
             case '/grocery-cart':
@@ -1922,9 +1981,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (_) => const SubscriptionTermsScreen(),
               );
             case '/about':
-              return MaterialPageRoute(
-                builder: (_) => const AboutScreen(),
-              );
+              return MaterialPageRoute(builder: (_) => const AboutScreen());
             case '/data-deletion-request':
               return MaterialPageRoute(
                 builder: (_) => const DataDeletionRequestScreen(),

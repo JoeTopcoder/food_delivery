@@ -96,7 +96,7 @@ class PayoutRequest {
         role: j['role'] as String,
         stripeAccountId: j['stripe_account_id'] as String,
         amountCents: j['amount_cents'] as int,
-        currency: j['currency'] as String? ?? 'usd',
+        currency: j['currency'] as String? ?? 'jmd',
         status: PayoutStatus.fromString(j['status'] as String? ?? 'requested'),
         payoutMethod: j['payout_method'] as String? ?? 'standard',
         instantFeeCents: j['instant_fee_cents'] as int? ?? 0,

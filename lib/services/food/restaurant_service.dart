@@ -3,6 +3,7 @@ import '../../config/app_constants.dart';
 import '../../models/restaurant_model.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/api_retry.dart';
+import '../driver/delivery_fee_service.dart';
 
 // Columns needed by Restaurant.fromJson — explicit list avoids pulling large
 // unused fields (description, operating_hours JSON, etc.) on list requests.
@@ -15,7 +16,93 @@ const _kRestaurantListCols = 'id, name, image_url, cuisine_type, rating, '
 class RestaurantService {
   final SupabaseClient _supabaseClient;
 
-  RestaurantService(this._supabaseClient);
+  /// Where the customer is. Supplied by restaurantServiceProvider from the
+  /// selected address, falling back to the account's own coordinates.
+  final double? originLat;
+  final double? originLng;
+
+  RestaurantService(this._supabaseClient, {this.originLat, this.originLng});
+
+  /// Drops stores too far away for the customer to order from.
+  ///
+  /// Applied to every browse and search listing, so no screen can forget it.
+  /// Deliberately NOT applied to fetching one restaurant by id — following a
+  /// link or an old order to a specific store should still work — nor to an
+  /// owner's own restaurants.
+  ///
+  /// When we do not know where the customer is — a new account with no
+  /// address, or location refused — this measures from Kingston rather than
+  /// giving up and showing everything. Showing everything on a Jamaican launch
+  /// means showing the Cayman catalogue; a new customer should see the same
+  /// Kingston list a Kingston customer sees.
+  ///
+  /// One case still passes through: a store with no coordinates cannot be
+  /// measured, and is shown rather than hidden. Silently dropping a store an
+  /// admin just added, because nobody geocoded it, is a miserable bug to
+  /// chase. Every store currently has coordinates, so this costs nothing
+  /// today; the warning below is what makes it visible if that changes.
+  List<Restaurant> _inRange(List<Restaurant> all) {
+    final lat = originLat ?? AppConstants.defaultOriginLat;
+    final lng = originLng ?? AppConstants.defaultOriginLng;
+    final maxKm = AppConstants.browseMaxKm;
+    if (maxKm <= 0) return all;
+
+    final near = all.where((r) {
+      final rLat = r.latitude;
+      final rLng = r.longitude;
+      if (rLat == null || rLng == null) {
+        AppLogger.warning('Store "${r.name}" has no coordinates — cannot be '
+            'distance-filtered, showing it anyway');
+        return true;
+      }
+      return DeliveryFeeService.haversineKm(lat, lng, rLat, rLng) <= maxKm;
+    }).toList();
+
+    if (near.length != all.length) {
+      // Origin included: a listing full of the wrong city is almost always the
+      // customer's selected address, not the filter. Chasing that once without
+      // this line took a while.
+      AppLogger.info(
+        'Hid ${all.length - near.length} of ${all.length} store(s) beyond '
+        '${maxKm.toStringAsFixed(0)}km of '
+        '(${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)})',
+      );
+    }
+    return near;
+  }
+
+  /// Distance to the closest store, ignoring the browse radius.
+  ///
+  /// The listings cannot answer "is this customer out of area?" — an empty list
+  /// looks the same whether the catalogue is empty, everything is closed, or
+  /// the nearest store is 400km away, and those need different words on screen.
+  /// Returns null when there is nothing measurable to compare against.
+  Future<double?> nearestStoreKm() async {
+    final lat = originLat ?? AppConstants.defaultOriginLat;
+    final lng = originLng ?? AppConstants.defaultOriginLng;
+    try {
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select('latitude, longitude')
+          .eq('is_verified', true)
+          .not('latitude', 'is', null);
+
+      double? best;
+      for (final row in (response as List)) {
+        final rLat = (row['latitude'] as num?)?.toDouble();
+        final rLng = (row['longitude'] as num?)?.toDouble();
+        if (rLat == null || rLng == null) continue;
+        final km = DeliveryFeeService.haversineKm(lat, lng, rLat, rLng);
+        if (best == null || km < best) best = km;
+      }
+      return best;
+    } catch (e) {
+      // Never let this decide anything on failure — the caller treats null as
+      // "cannot tell", which shows the normal screen rather than a wrong one.
+      AppLogger.error('nearestStoreKm failed: $e');
+      return null;
+    }
+  }
 
   static String _sanitizeQuery(String q) =>
       q.replaceAll(RegExp(r'[%_(),.\\]'), '');
@@ -38,9 +125,9 @@ class RestaurantService {
           .range(offset, offset + limit! - 1)
           .order('rating', ascending: false);
 
-      final restaurants = (response as List)
-          .map((r) => Restaurant.fromJson(r))
-          .toList();
+      final restaurants = _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'getAllRestaurants');
@@ -61,9 +148,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = (response as List)
-          .map((r) => Restaurant.fromJson(r))
-          .toList();
+      final restaurants = _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
       AppLogger.info('Found ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'searchRestaurants');
@@ -134,10 +221,11 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = (response as List)
-          .map((restaurant) => Restaurant.fromJson(restaurant))
-          .toList();
-
+      final restaurants = _inRange(
+        (response as List)
+            .map((restaurant) => Restaurant.fromJson(restaurant))
+            .toList(),
+      );
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     } catch (e) {
@@ -158,7 +246,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('rating', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getTopRatedRestaurants');
   }
 
@@ -173,7 +263,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('created_at', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getNewlyAddedRestaurants');
   }
 
@@ -187,7 +279,9 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .or('cuisine_type.ilike.%breakfast%,tags.cs.{breakfast}')
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getBreakfastRestaurants');
   }
 
@@ -202,7 +296,9 @@ class RestaurantService {
           .gte('rating', 4.0)
           .order('review_count', ascending: false)
           .limit(limit);
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return _inRange(
+        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
+      );
     }, label: 'getMustTryRestaurants');
   }
 

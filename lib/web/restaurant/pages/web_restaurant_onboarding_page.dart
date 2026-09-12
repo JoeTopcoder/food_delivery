@@ -724,7 +724,7 @@ class _LeftPanel extends StatelessWidget {
                 child: const Icon(Icons.bolt_rounded, color: _navy, size: 22),
               ),
               const SizedBox(width: 10),
-              const Text('MealHub', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5)),
+              const Text('QuickDash', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5)),
             ]),
             const SizedBox(height: 48),
 

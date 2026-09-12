@@ -33,7 +33,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: '7Dash',
+          app: 'QuickDash',
         },
       },
       { idempotencyKey: `transfer_${pr.id}` },
@@ -59,7 +59,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: '7Dash',
+          app: 'QuickDash',
         },
       }
       if (isInstant) payoutParams.method = 'instant'
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return handleOptions()
   try {
     const user = await requireAuth(req)
-    const { role, amount_cents, currency = 'usd', payout_method = 'standard' } = await req.json()
+    const { role, amount_cents, currency = 'jmd', payout_method = 'standard' } = await req.json()
 
     if (!['standard', 'instant'].includes(payout_method)) {
       return json({ error: 'BAD_REQUEST: payout_method must be standard or instant' }, 400)
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
         instant_fee_cents: instantFeeCents,
         requested_by: user.id,
         idempotency_key: idempotencyKey,
-        metadata: { source: 'user_request', payout_method, app: '7Dash' },
+        metadata: { source: 'user_request', payout_method, app: 'QuickDash' },
       })
       .select('*')
       .single()

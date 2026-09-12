@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = '7Dash';
+  static const String appName = 'QuickDash';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -28,7 +28,7 @@
   /// Checked at payment-screen entry to surface a visible warning in debug.
   static bool get stripeIsTestMode =>
       stripePublishableKey.startsWith('pk_test');
-  static const String stripePaymentFunction = 'stripe-payment';
+  static const String stripePaymentFunction = 'stripe/payment';
   static const String stripeMerchantId = 'merchant.com.sevendash.app';
 
   // Stripe-only: Legacy Lunipay and WiPay configurations removed
@@ -40,7 +40,7 @@
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
-  static const String appDisplayName = '7Dash';
+  static const String appDisplayName = 'QuickDash';
   static const String businessLegalName = 'SevenDash Technologies Limited';
   static const String supportEmailAddress = 'support@7dash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
@@ -160,8 +160,11 @@
   static int pageSize = 20;
 
   // Currency — overridden from app_config table at startup
-  static String currencySymbol = '\$';
-  static String currencyCode = 'USD';
+  // Compile-time fallbacks only — both are overwritten from app_config at
+  // startup, which is the authority. They match the configured values so a
+  // first frame rendered before config loads is not briefly wrong.
+  static String currencySymbol = 'J\$';
+  static String currencyCode = 'JMD';
   static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
 
@@ -175,15 +178,41 @@
   static double platformServiceFeeRate = 0.05;
   static double platformCommissionCap = 0.85;
 
-  // Platform service fee components: (subtotal × 2.9%) + $0.30 + $1.00
-  static const double stripeFeeRate = 0.029;  // Stripe processing rate
-  static const double stripeFixedFee = 0.30;  // Stripe per-transaction fixed
-  static const double platformFlatFee = 1.00; // Platform margin per transaction
+  // Platform service fee components, in JMD:
+  //   (subtotal × 2.9%) + J$46.50 + J$155
+  //
+  // The rate is a percentage and is currency-independent. The two cash amounts
+  // are not: they were US$0.30 and US$1.00 and have been redenominated at 155
+  // JMD/USD alongside the rest of the platform, so the economics are unchanged.
+  //
+  // The fixed component is the processor's per-transaction charge. When this
+  // moves from Stripe to NCB it should be reset to whatever NCB actually
+  // charges rather than left as a converted Stripe figure.
+  static const double stripeFeeRate = 0.029; // processor percentage
+  static const double stripeFixedFee = 46.50; // processor per-transaction (JMD)
+  static const double platformFlatFee = 155.00; // platform margin (JMD)
 
   /// Customer-facing platform service fee.
-  /// Formula: (subtotal × 2.9%) + $0.30 + $1.00
-  static double calculateServiceFee(double subtotal) {
-    final fee = (subtotal * stripeFeeRate) + stripeFixedFee + platformFlatFee;
+  ///
+  /// Recovers Stripe's cut plus the platform's flat margin. Stripe charges its
+  /// percentage on the TOTAL amount captured — food + delivery + this fee —
+  /// but the old formula applied it to the subtotal alone, so every order
+  /// under-recovered (about $0.20 on a $25 order, $0.35 on a $220 one) and the
+  /// gap widened with basket size.
+  ///
+  /// The fee sits inside the amount it is charged on, so it is solved rather
+  /// than approximated:
+  ///   f = (subtotal + other + f) * rate + fixed + flat
+  ///   f = ((subtotal + other) * rate + fixed + flat) / (1 - rate)
+  ///
+  /// [otherCharges] is everything else being captured on the same transaction
+  /// (delivery, extra-stop fees). Callers that pass nothing get the same
+  /// correct recovery on the subtotal alone.
+  static double calculateServiceFee(double subtotal, {double otherCharges = 0}) {
+    final base = subtotal + otherCharges;
+    final fee =
+        ((base * stripeFeeRate) + stripeFixedFee + platformFlatFee) /
+        (1 - stripeFeeRate);
     return double.parse(fee.toStringAsFixed(2));
   }
 
@@ -193,9 +222,34 @@
     return double.parse(fee.toStringAsFixed(2));
   }
 
-  static double defaultDeliveryFee = 5.0;
-  static double pickupServiceFee = 2.0;
-  static double driverFeePerDelivery = 5.0;
+  static double defaultDeliveryFee = 775.0; // JMD; overwritten from app_config
+  static double pickupServiceFee = 0.0; // JMD; overwritten from app_config
+
+  /// Flat delivery fee for an order sent to a student at their school.
+  /// Replaces the distance-based fee entirely: a parent pays the same to send
+  /// lunch to school whether the restaurant is around the corner or across
+  /// town. Overwritten from app_config (`student_delivery_fee`).
+  static double studentDeliveryFee = 350.0; // JMD
+
+  /// How far from the customer a store may be and still appear in listings, in
+  /// km. Overwritten from app_config (`browse_max_km`).
+  ///
+  /// This is a BROWSE limit, separate from `delivery_max_km`, which is what
+  /// actually refuses an order. Set it above the delivery radius and customers
+  /// will find stores that reject them at checkout.
+  static double browseMaxKm = 50.0;
+
+  /// Where to measure from when we do not know where the customer is — a fresh
+  /// account with no address, or location permission refused.
+  ///
+  /// Kingston. The alternative is showing every store in the catalogue, which
+  /// on a Jamaican launch means showing the 34 Cayman restaurants left over
+  /// from the app's previous life. A new customer should see the same Kingston
+  /// list a Kingston customer sees. Overwritten from app_config
+  /// (`default_origin_lat` / `default_origin_lng`).
+  static double defaultOriginLat = 18.0179;
+  static double defaultOriginLng = -76.8099;
+  static double driverFeePerDelivery = 465.0; // JMD; overwritten from app_config
   static double cardFeePercent = 0;
   static double cashFeePercent = 0;
   static double bankTransferFeePercent = 0;
@@ -213,17 +267,23 @@
       'Fast, reliable rides at your fingertips';
   static String ridePromoReturningCta = 'Book a ride';
 
-  // Delivery (distance-based, USD — $2.00–$2.50 per mile)
-  static double deliveryBaseFee = 3.0; // base fee for first baseMiles
-  static double deliveryPerMileFee = 2.00; // $/mile standard
-  static double deliveryPerMileFeePeak = 2.50; // $/mile peak/surge cap
-  static double deliveryPerKmFee = 3.22; // $2.00/mi in km (fallback)
+  // Delivery (distance-based, JMD — J$310–J$390 per mile)
+  //
+  // These are overwritten from app_config at startup; the literals are the
+  // fallback used before config arrives or if the fetch fails. They were left
+  // in USD after the JMD redenomination, which meant a delivery fee could
+  // render as 3.00 instead of J$465 on the first frame — the same number the
+  // app would charge with if config never loaded.
+  static double deliveryBaseFee = 465.0; // base fee for first baseMiles
+  static double deliveryPerMileFee = 310.0; // per mile, standard
+  static double deliveryPerMileFeePeak = 390.0; // per mile, peak
+  static double deliveryPerKmFee = 500.0; // per km (fallback)
   static double deliveryBaseMiles = 1.0; // miles included in base fee
   static double deliveryBaseKm = 1.6; // ~1 mile in km (fallback)
   static double deliveryMaxKm = 30.0;
-  static double deliverySurgeMultiplier = 1.0;
-  static double driverPayPercent = 0.80;
-  static double minDeliveryFee = 3.0;
+  static double deliverySurgeMultiplier = 1.0; // multiplier, not currency
+  static double driverPayPercent = 0.80; // share, not currency
+  static double minDeliveryFee = 700.0;
   static double driverBonusPerOrder = 0.0;
 
   // Driver pay ($1.50/mile compliance)
@@ -282,10 +342,13 @@
   static double carServicePlatformFeePct = 0.20;
   static double carServiceServiceFee = 2.50;
 
-  // Tips (in USD)
-  static List<double> presetTips = [2, 5, 10, 20];
+  // Tips, in JMD. These were US$2/5/10/20 and were missed when the rest of
+  // the platform was redenominated, so the chips read "J$2" while meaning a
+  // US tip — small enough on a J$ order to look like a mistake by the
+  // customer rather than by us.
+  static List<double> presetTips = [200, 300, 500, 1000];
 
-  // Subscription (MealHub+) — overridden from app_config table
+  // Subscription (QuickDash+) — overridden from app_config table
   static double subscriptionBasicPrice = 12.0;
   static int subscriptionBasicDeliveries = 9;
   static double subscriptionProPrice = 24.0;
@@ -316,6 +379,14 @@
   static bool serviceRidesEnabled = true;
   static bool serviceLaundryEnabled = true;
   static bool serviceCarServiceEnabled = true;
+
+  // Customer bottom-nav tab visibility (admin-controlled via app_config).
+  // false = tab hidden from customers entirely.
+  static bool screenHomeEnabled = true;
+  static bool screenGroceryEnabled = true;
+  static bool screenOrdersEnabled = true;
+  static bool screenCarServicesEnabled = true;
+  static bool screenProfileEnabled = true;
 
   /// Canonical food categories surfaced on the customer home screen.
   /// Restaurants should tag their menu items with one of these names so they

@@ -11,7 +11,7 @@ class DelayedStripeConnectService {
 
   Future<bool> ensureConnectedForDriverPayout() async {
     final response = await _client.functions.invoke(
-      'stripe-connect',
+      'stripe/connect',
       body: {'action': 'onboard'},
     );
 

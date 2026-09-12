@@ -305,7 +305,7 @@ class _LeadDetailSheetState extends State<_LeadDetailSheet> {
             const Divider(height: 28),
             Row(
               children: const [
-                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
                 SizedBox(width: 6),
                 Text('AI Sales Outreach', style: TextStyle(fontWeight: FontWeight.w600)),
               ],

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -233,7 +233,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         _redirecting = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/signin', (_) => false);
           }
         });
       }
@@ -258,8 +260,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       }
       // Show no-profile screen when the provider resolved with null
       // (auto-create failed) OR when the async value itself is null.
-      if (driverProfileAsync == null ||
-          driverProfileAsync.hasValue == true) {
+      if (driverProfileAsync == null || driverProfileAsync.hasValue == true) {
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
           body: _buildNoProfile(currentUserId),
@@ -309,9 +310,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         icon = Icons.hourglass_top_rounded;
         color = Colors.orangeAccent;
         title = 'Application Under Review';
-        message = 'Your application has been submitted and is being reviewed by our team. This typically takes 1–3 business days. You will be notified once approved.';
+        message =
+            'Your application has been submitted and is being reviewed by our team. This typically takes 1–3 business days. You will be notified once approved.';
         buttonLabel = 'View Application Status';
-        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+        onButton = () =>
+            Navigator.pushNamed(context, '/driver-application-status');
       case 'rejected':
         icon = Icons.cancel_outlined;
         color = Colors.redAccent;
@@ -320,30 +323,38 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             ? 'Your application was rejected: ${driver.rejectionReason}'
             : 'Your application was not approved. Please re-upload your documents and resubmit.';
         buttonLabel = 'Re-upload Documents';
-        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+        onButton = () =>
+            Navigator.pushNamed(context, '/driver-application-status');
       case 'suspended':
         icon = Icons.block_rounded;
         color = Colors.red;
         title = 'Account Suspended';
-        message = 'Your driver account has been suspended. Please contact support for assistance.';
+        message =
+            'Your driver account has been suspended. Please contact support for assistance.';
         buttonLabel = 'Contact Support';
-        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+        onButton = () =>
+            Navigator.pushNamed(context, '/driver-application-status');
       case 'expired_documents':
         icon = Icons.warning_amber_rounded;
         color = Colors.amber;
         title = 'Documents Expired';
-        message = 'One or more of your verification documents have expired. Please re-upload valid documents to continue driving.';
+        message =
+            'One or more of your verification documents have expired. Please re-upload valid documents to continue driving.';
         buttonLabel = 'Update Documents';
-        onButton = () => Navigator.pushNamed(context, '/driver-application-status');
+        onButton = () =>
+            Navigator.pushNamed(context, '/driver-application-status');
       default:
         icon = Icons.edit_document;
         color = Colors.white54;
         title = 'Complete Verification';
-        message = 'Complete your driver verification to start accepting deliveries on our platform.';
+        message =
+            'Complete your driver verification to start accepting deliveries on our platform.';
         buttonLabel = 'Start Verification';
         onButton = () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => DriverVerificationScreen(driver: driver)),
+          MaterialPageRoute(
+            builder: (_) => DriverVerificationScreen(driver: driver),
+          ),
         );
     }
 
@@ -377,7 +388,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               const SizedBox(height: 12),
               Text(
                 message,
-                style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, height: 1.6),
+                style: const TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 14,
+                  height: 1.6,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -389,22 +404,35 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: color,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  child: Text(
+                    buttonLabel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () async {
                   final userId = ref.read(currentUserIdProvider);
-                  if (userId != null) ref.invalidate(driverProfileProvider(userId));
+                  if (userId != null)
+                    ref.invalidate(driverProfileProvider(userId));
                 },
-                child: const Text('Refresh Status', style: TextStyle(color: Color(0xFF9CA3AF))),
+                child: const Text(
+                  'Refresh Status',
+                  style: TextStyle(color: Color(0xFF9CA3AF)),
+                ),
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+                onPressed: () =>
+                    ref.read(authNotifierProvider.notifier).signOut(),
                 child: const Text(
                   '← Back to role selection',
                   style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
@@ -684,7 +712,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                         _MiniStat(
                           label: 'Success',
                           value: _completionRate(driver),
-                          color: const Color(0xFF8B5CF6),
+                          color: const Color(0xFF528BFF),
                         ),
                         const _VertDivider(),
                         _MiniStat(
@@ -728,7 +756,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         .clamp(0.0, double.infinity);
 
     return CustomScrollView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       slivers: [
         // ── HERO ────────────────────────────────────────────────────
         SliverToBoxAdapter(
@@ -775,7 +805,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                       child: _ServiceCard(
                         icon: Icons.inventory_2_rounded,
                         label: 'Packages',
-                        color: const Color(0xFF7C3AED),
+                        color: const Color(0xFF155EEF),
                         isEnabled: activeServices.contains('package_delivery'),
                         isLoading: _togglingServices.contains(
                           'package_delivery',
@@ -945,7 +975,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               _ActionCard(
                 icon: Icons.inventory_2_rounded,
                 label: 'Packages',
-                color: const Color(0xFF7C3AED),
+                color: const Color(0xFF155EEF),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DriverPackagesScreen(),

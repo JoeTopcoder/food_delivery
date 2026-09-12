@@ -267,7 +267,7 @@ class _PromotionDraftSheetState extends State<_PromotionDraftSheet> {
             const SizedBox(height: 16),
             Row(
               children: [
-                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
                 const SizedBox(width: 6),
                 Text(
                   widget.restaurantName != null ? 'Promotion for ${widget.restaurantName}' : 'Platform-Wide Promotion',
@@ -282,7 +282,7 @@ class _PromotionDraftSheetState extends State<_PromotionDraftSheet> {
               if (_rationale != null && _rationale!.isNotEmpty) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFF7C3AED).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFEDE9FE))),
+                  decoration: BoxDecoration(color: const Color(0xFF155EEF).withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFEDE9FE))),
                   child: Text(_rationale!, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, height: 1.4)),
                 ),
                 const SizedBox(height: 14),

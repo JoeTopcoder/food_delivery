@@ -217,14 +217,14 @@ class _AdminLoyaltyBody extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                  colors: [Color(0xFF155EEF), Color(0xFF9333EA)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                    color: const Color(0xFF155EEF).withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -339,7 +339,7 @@ class _AdminLoyaltyBody extends StatelessWidget {
                       child: _TierCard(
                         label: 'Platinum',
                         count: platinum,
-                        color: const Color(0xFF7C3AED),
+                        color: const Color(0xFF155EEF),
                         icon: Icons.diamond_rounded,
                       ),
                     ),

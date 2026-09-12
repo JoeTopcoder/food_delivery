@@ -121,7 +121,7 @@ class _DataDeletionRequestScreenState extends State<DataDeletionRequestScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Request deletion of your personal data from 7Dash. You do not need to be logged in to submit this form.',
+              'Request deletion of your personal data from QuickDash. You do not need to be logged in to submit this form.',
               style: TextStyle(fontSize: 14, height: 1.5),
             ),
             const SizedBox(height: 20),

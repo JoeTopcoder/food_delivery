@@ -14,39 +14,48 @@ import '../../core/utils/responsive.dart';
 
 class MultiRestaurantOrderDetailScreen extends ConsumerWidget {
   final String masterOrderId;
-  const MultiRestaurantOrderDetailScreen({super.key, required this.masterOrderId});
+  const MultiRestaurantOrderDetailScreen({
+    super.key,
+    required this.masterOrderId,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(masterOrderDetailProvider(masterOrderId));
 
     // Real-time: invalidate whenever any restaurant_order changes
-    ref.listen(masterOrderRealtimeProvider(
-      ref.watch(currentUserIdProvider) ?? '',
-    ), (_, __) {});
+    ref.listen(
+      masterOrderRealtimeProvider(ref.watch(currentUserIdProvider) ?? ''),
+      (_, __) {},
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Order Details',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.invalidate(masterOrderDetailProvider(masterOrderId)),
+            onPressed: () =>
+                ref.invalidate(masterOrderDetailProvider(masterOrderId)),
           ),
         ],
       ),
       body: detailAsync.when(
         loading: () => const AppLoadingIndicator(message: 'Loading order…'),
-        error:   (e, _) => AppErrorState(
-          message:  friendlyError(e),
-          onRetry:  () => ref.invalidate(masterOrderDetailProvider(masterOrderId)),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () =>
+              ref.invalidate(masterOrderDetailProvider(masterOrderId)),
         ),
         data: (order) {
           if (order == null) {
             return const AppEmptyState(
-              icon:     Icons.receipt_long_rounded,
-              title:    'Order not found',
+              icon: Icons.receipt_long_rounded,
+              title: 'Order not found',
               subtitle: 'This order could not be loaded.',
             );
           }
@@ -73,29 +82,39 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
 
   static Color _statusColor(String status) {
     switch (status) {
-      case 'delivered':            return const Color(0xFF10B981);
+      case 'delivered':
+        return const Color(0xFF10B981);
       case 'cancelled':
-      case 'partially_cancelled':  return Colors.red;
-      case 'out_for_delivery':     return const Color(0xFF6366F1);
-      case 'ready_for_pickup':     return const Color(0xFF8B5CF6);
-      case 'preparing':            return const Color(0xFFF59E0B);
-      case 'accepted':             return const Color(0xFF3B82F6);
-      default:                     return AppTheme.primaryColor;
+      case 'partially_cancelled':
+        return Colors.red;
+      case 'out_for_delivery':
+        return const Color(0xFF6366F1);
+      case 'ready_for_pickup':
+        return const Color(0xFF528BFF);
+      case 'preparing':
+        return const Color(0xFFF59E0B);
+      case 'accepted':
+        return const Color(0xFF3B82F6);
+      default:
+        return AppTheme.primaryColor;
     }
   }
 
   static String _statusLabel(String status) {
     switch (status) {
-      case 'partially_cancelled': return 'PART CANCELLED';
-      case 'out_for_delivery':    return 'DELIVERING';
-      case 'ready_for_pickup':    return 'READY';
-      default: return status.replaceAll('_', ' ').toUpperCase();
+      case 'partially_cancelled':
+        return 'PART CANCELLED';
+      case 'out_for_delivery':
+        return 'DELIVERING';
+      case 'ready_for_pickup':
+        return 'READY';
+      default:
+        return status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
   bool get _canCancelOrder =>
-      widget.order.status != 'cancelled' &&
-      widget.order.status != 'delivered';
+      widget.order.status != 'cancelled' && widget.order.status != 'delivered';
 
   Future<void> _cancelEntireOrder() async {
     final confirmed = await showDialog<bool>(
@@ -122,7 +141,9 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
 
     setState(() => _cancelling = true);
     try {
-      await ref.read(orderServiceProvider).cancelMasterOrder(widget.masterOrderId);
+      await ref
+          .read(orderServiceProvider)
+          .cancelMasterOrder(widget.masterOrderId);
       // Invalidate both the detail view and the orders list so all screens
       // immediately reflect the cancellation without waiting for realtime.
       ref.invalidate(masterOrderDetailProvider(widget.masterOrderId));
@@ -159,55 +180,70 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
 
   @override
   Widget build(BuildContext context) {
-    final order    = widget.order;
-    final fmt      = DateFormat('MMM d, y · h:mm a');
+    final order = widget.order;
+    final fmt = DateFormat('MMM d, y · h:mm a');
     final currency = AppConstants.currencySymbol;
-    final color    = _statusColor(order.status);
+    final color = _statusColor(order.status);
 
     return ListView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: EdgeInsets.fromLTRB(
-        Responsive.horizontalPadding(context), 16,
-        Responsive.horizontalPadding(context), 32,
+        Responsive.horizontalPadding(context),
+        16,
+        Responsive.horizontalPadding(context),
+        32,
       ),
       children: [
         // ── Master order header ────────────────────────────────────────────
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color:        color.withValues(alpha: 0.07),
+            color: color.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(16),
-            border:       Border.all(color: color.withValues(alpha: 0.25)),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.store_mall_directory_rounded, size: 18, color: color),
+                  Icon(
+                    Icons.store_mall_directory_rounded,
+                    size: 18,
+                    color: color,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Multi-Restaurant Order',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize:   Responsive.headingSmall(context),
-                      color:      color,
+                      fontSize: Responsive.headingSmall(context),
+                      color: color,
                     ),
                   ),
                   const Spacer(),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 130),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color:        color.withValues(alpha: 0.12),
+                        color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _statusLabel(order.status),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
                       ),
                     ),
                   ),
@@ -219,11 +255,18 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                 children: [
                   Text(
                     '#${order.masterOrderNumber ?? order.id.substring(0, 8).toUpperCase()}',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   Text(
                     fmt.format(order.createdAt),
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -231,15 +274,21 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         order.deliveryAddress,
-                        style: TextStyle(fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -249,8 +298,10 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                 const SizedBox(height: 6),
                 Text(
                   '${order.restaurantCount} restaurant${order.restaurantCount > 1 ? 's' : ''}',
-                  style: TextStyle(fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],
@@ -267,9 +318,9 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
         else
           ...order.restaurantOrders!.map(
             (ro) => _RestaurantOrderCard(
-              ro:           ro,
+              ro: ro,
               masterOrderId: widget.masterOrderId,
-              masterStatus:  order.status,
+              masterStatus: order.status,
             ),
           ),
 
@@ -279,59 +330,97 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color:        Theme.of(context).cardColor,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color:      Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8, offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Payment Summary',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text(
+                'Payment Summary',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
               const Divider(height: 20),
               if (order.restaurantOrders != null)
-                ...order.restaurantOrders!.map((ro) => Column(
-                  children: [
-                    _SummaryRow(
-                      label: ro.restaurantName ?? 'Restaurant ${ro.sequenceInGroup}',
-                      value: '$currency${ro.subtotal.toStringAsFixed(2)}',
-                      light: true,
-                    ),
-                    if (ro.deliveryFee > 0)
+                ...order.restaurantOrders!.map(
+                  (ro) => Column(
+                    children: [
                       _SummaryRow(
-                        label: '  └ Delivery',
-                        value: '$currency${ro.deliveryFee.toStringAsFixed(2)}',
+                        label:
+                            ro.restaurantName ??
+                            'Restaurant ${ro.sequenceInGroup}',
+                        value: '$currency${ro.subtotal.toStringAsFixed(2)}',
                         light: true,
                       ),
-                  ],
-                )),
+                      if (ro.deliveryFee > 0)
+                        _SummaryRow(
+                          label: '  └ Delivery',
+                          value:
+                              '$currency${ro.deliveryFee.toStringAsFixed(2)}',
+                          light: true,
+                        ),
+                    ],
+                  ),
+                ),
               const Divider(height: 16),
-              if (order.deliveryFee > 0 && (order.restaurantOrders == null || order.restaurantOrders!.isEmpty))
-                _SummaryRow(label: 'Delivery Fee', value: '$currency${order.deliveryFee.toStringAsFixed(2)}', light: true),
+              if (order.deliveryFee > 0 &&
+                  (order.restaurantOrders == null ||
+                      order.restaurantOrders!.isEmpty))
+                _SummaryRow(
+                  label: 'Delivery Fee',
+                  value: '$currency${order.deliveryFee.toStringAsFixed(2)}',
+                  light: true,
+                ),
               if (order.extraStopFee > 0)
-                _SummaryRow(label: 'Multi-Stop Fee', value: '$currency${order.extraStopFee.toStringAsFixed(0)}', light: true),
+                _SummaryRow(
+                  label: 'Multi-Stop Fee',
+                  value: '$currency${order.extraStopFee.toStringAsFixed(0)}',
+                  light: true,
+                ),
               if (order.platformFee > 0)
-                _SummaryRow(label: 'Service Fee',   value: '$currency${order.platformFee.toStringAsFixed(0)}', light: true),
+                _SummaryRow(
+                  label: 'Service Fee',
+                  value: '$currency${order.platformFee.toStringAsFixed(0)}',
+                  light: true,
+                ),
               if (order.taxAmount > 0)
-                _SummaryRow(label: 'Tax',           value: '$currency${order.taxAmount.toStringAsFixed(0)}', light: true),
+                _SummaryRow(
+                  label: 'Tax',
+                  value: '$currency${order.taxAmount.toStringAsFixed(0)}',
+                  light: true,
+                ),
               if (order.discount > 0)
-                _SummaryRow(label: 'Discount',      value: '-$currency${order.discount.toStringAsFixed(0)}', light: true),
+                _SummaryRow(
+                  label: 'Discount',
+                  value: '-$currency${order.discount.toStringAsFixed(0)}',
+                  light: true,
+                ),
               if (order.driverTip != null && order.driverTip! > 0)
-                _SummaryRow(label: 'Driver Tip',    value: '$currency${order.driverTip!.toStringAsFixed(0)}', light: true),
+                _SummaryRow(
+                  label: 'Driver Tip',
+                  value: '$currency${order.driverTip!.toStringAsFixed(0)}',
+                  light: true,
+                ),
               const Divider(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const Text(
+                    'Total',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                   Text(
                     '$currency${order.totalAmount.toStringAsFixed(0)}',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
                       color: AppTheme.primaryColor,
                     ),
                   ),
@@ -340,8 +429,10 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
               const SizedBox(height: 8),
               Text(
                 'Paid via ${order.paymentMethod.toUpperCase()}',
-                style: TextStyle(fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -356,18 +447,27 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
               onPressed: _cancelling ? null : _cancelEntireOrder,
               icon: _cancelling
                   ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.red,
+                      ),
                     )
                   : const Icon(Icons.cancel_outlined, color: Colors.red),
               label: Text(
                 _cancelling ? 'Cancelling…' : 'Cancel Entire Order',
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -390,7 +490,8 @@ class _RestaurantOrderCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_RestaurantOrderCard> createState() => _RestaurantOrderCardState();
+  ConsumerState<_RestaurantOrderCard> createState() =>
+      _RestaurantOrderCardState();
 }
 
 class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
@@ -398,12 +499,18 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
 
   static Color _statusColor(String status) {
     switch (status) {
-      case 'ready':      return const Color(0xFF8B5CF6);
-      case 'preparing':  return const Color(0xFFF59E0B);
-      case 'accepted':   return const Color(0xFF3B82F6);
-      case 'cancelled':  return Colors.red;
-      case 'picked_up':  return const Color(0xFF10B981);
-      default:           return const Color(0xFF9CA3AF);
+      case 'ready':
+        return const Color(0xFF528BFF);
+      case 'preparing':
+        return const Color(0xFFF59E0B);
+      case 'accepted':
+        return const Color(0xFF3B82F6);
+      case 'cancelled':
+        return Colors.red;
+      case 'picked_up':
+        return const Color(0xFF10B981);
+      default:
+        return const Color(0xFF9CA3AF);
     }
   }
 
@@ -444,10 +551,12 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
 
     setState(() => _cancelling = true);
     try {
-      await ref.read(orderServiceProvider).cancelRestaurantSubOrder(
-        restaurantOrderId: ro.id,
-        masterOrderId: ro.masterOrderId,
-      );
+      await ref
+          .read(orderServiceProvider)
+          .cancelRestaurantSubOrder(
+            restaurantOrderId: ro.id,
+            masterOrderId: ro.masterOrderId,
+          );
       ref.invalidate(masterOrderDetailProvider(widget.masterOrderId));
       final userId = ref.read(currentUserIdProvider);
       if (userId != null) ref.invalidate(customerMasterOrdersProvider(userId));
@@ -483,19 +592,20 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
 
   @override
   Widget build(BuildContext context) {
-    final ro       = widget.ro;
-    final color    = _statusColor(ro.status);
+    final ro = widget.ro;
+    final color = _statusColor(ro.status);
     final currency = AppConstants.currencySymbol;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color:        Theme.of(context).cardColor,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8, offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -506,12 +616,18 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             decoration: BoxDecoration(
-              color:        color.withValues(alpha: 0.07),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              color: color.withValues(alpha: 0.07),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.storefront_rounded, size: 16, color: Color(0xFF6B7280)),
+                const Icon(
+                  Icons.storefront_rounded,
+                  size: 16,
+                  color: Color(0xFF6B7280),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -519,7 +635,10 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                     children: [
                       Text(
                         ro.restaurantName ?? 'Restaurant ${ro.sequenceInGroup}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
@@ -534,14 +653,21 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color:        color.withValues(alpha: 0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     ro.status.replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
                 ),
               ],
@@ -559,25 +685,32 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                     padding: const EdgeInsets.only(bottom: 5),
                     child: Row(
                       children: [
-                        Text('${item.quantity}×',
-                            style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            )),
+                        Text(
+                          '${item.quantity}×',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.itemName,
-                                  style: const TextStyle(fontSize: 13),
-                                  overflow: TextOverflow.ellipsis),
+                              Text(
+                                item.itemName,
+                                style: const TextStyle(fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               if (item.sides != null && item.sides!.isNotEmpty)
                                 Text(
                                   item.sides!.map((s) => s.sideName).join(', '),
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -588,7 +721,9 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                           '$currency${item.subtotal.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -609,13 +744,17 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                   children: [
                     Text(
                       'Subtotal',
-                      style: TextStyle(fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     Text(
                       '$currency${ro.subtotal.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -626,13 +765,17 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                     children: [
                       Text(
                         'Delivery',
-                        style: TextStyle(fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       Text(
                         '$currency${ro.deliveryFee.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -641,26 +784,38 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Restaurant Total',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(
+                      'Restaurant Total',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                     Text(
                       '$currency${(ro.subtotal + ro.deliveryFee).toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
                 if (ro.deliveryOtp != null && ro.status != 'cancelled') ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color:        const Color(0xFF6366F1).withValues(alpha: 0.08),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       'Pickup PIN: ${ro.deliveryOtp}',
                       style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: Color(0xFF6366F1),
                       ),
                     ),
@@ -680,10 +835,18 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                   onPressed: _cancelling ? null : _cancelSubOrder,
                   icon: _cancelling
                       ? const SizedBox(
-                          width: 14, height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.red,
+                          ),
                         )
-                      : const Icon(Icons.remove_circle_outline, size: 16, color: Colors.red),
+                      : const Icon(
+                          Icons.remove_circle_outline,
+                          size: 16,
+                          color: Colors.red,
+                        ),
                   label: Text(
                     _cancelling ? 'Cancelling…' : 'Cancel This Order',
                     style: const TextStyle(
@@ -695,7 +858,9 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red, width: 1),
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -714,7 +879,11 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final bool light;
-  const _SummaryRow({required this.label, required this.value, this.light = false});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.light = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -726,7 +895,14 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Flexible(child: Text(label, overflow: TextOverflow.ellipsis, maxLines: 1, style: TextStyle(fontSize: 13, color: color))),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(fontSize: 13, color: color),
+            ),
+          ),
           Text(value, style: TextStyle(fontSize: 13, color: color)),
         ],
       ),

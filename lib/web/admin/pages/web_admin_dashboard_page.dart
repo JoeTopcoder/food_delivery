@@ -47,7 +47,7 @@ class WebAdminDashboardPage extends ConsumerWidget {
                     label: 'Total Revenue',
                     value: '${AppConstants.currencySymbol}${((d['total_revenue'] ?? 0.0) as num).toStringAsFixed(2)}',
                     icon: Icons.attach_money_rounded,
-                    color: const Color(0xFF8B5CF6),
+                    color: const Color(0xFF528BFF),
                   )),
                   const SizedBox(width: 16),
                   Expanded(child: _KpiCard(

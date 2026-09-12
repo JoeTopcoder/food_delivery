@@ -21,7 +21,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const systemPrompt = `You are an expert food delivery app copywriter for 7DASH, a food delivery platform.
+    const systemPrompt = `You are an expert food delivery app copywriter for QUICKDASH, a food delivery platform.
 You write short, punchy, emoji-rich promotional popups that appear to customers on the home screen.
 Popups must be exciting, clear, and action-oriented. Always respond with valid JSON only — no markdown.`
 

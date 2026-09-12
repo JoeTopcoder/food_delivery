@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -80,7 +80,9 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
             height: 44,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _filterCategories.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -100,7 +102,9 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? AppTheme.primaryColor
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: isSelected

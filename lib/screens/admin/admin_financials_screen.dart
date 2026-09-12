@@ -129,7 +129,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                 _FinancialCard(
                   title: 'Commission Earnings',
                   icon: Icons.percent_rounded,
-                  color: const Color(0xFF8B5CF6),
+                  color: const Color(0xFF528BFF),
                   mainValue: totalCommission,
                   subLabel: 'This Month',
                   subValue: monthlyCommission,
@@ -253,7 +253,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                       _BreakdownRow(
                         label: 'Platform Commission',
                         value: totalCommission,
-                        color: const Color(0xFF8B5CF6),
+                        color: const Color(0xFF528BFF),
                       ),
                       _BreakdownRow(
                         label: 'Restaurant Payouts',

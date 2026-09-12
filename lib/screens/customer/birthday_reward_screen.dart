@@ -51,7 +51,8 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
         .order('birthday_date', ascending: false)
         .limit(1)
         .maybeSingle();
-    final code = (row?['promo_codes'] as Map<String, dynamic>?)?['code'] as String?;
+    final code =
+        (row?['promo_codes'] as Map<String, dynamic>?)?['code'] as String?;
     if (code == null) return null;
     return promoService.getByCode(code);
   }
@@ -64,10 +65,7 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      appBar: AppBar(
-        title: const Text('Birthday Reward'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Birthday Reward'), elevation: 0),
       body: FutureBuilder<PromoCode?>(
         future: _future,
         builder: (context, snapshot) {
@@ -83,7 +81,8 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
 
           final isUsed = promo.usedCount > 0;
           final isExpired =
-              promo.expiresAt != null && DateTime.now().isAfter(promo.expiresAt!);
+              promo.expiresAt != null &&
+              DateTime.now().isAfter(promo.expiresAt!);
           final isAvailable = !isUsed && !isExpired && promo.isActive;
 
           return SingleChildScrollView(
@@ -100,15 +99,18 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                       ? 'Birthday Reward Expired'
                       : 'Happy Birthday, $firstName!',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   isUsed
-                      ? 'You already used your birthday reward. Happy Birthday from 7Dash ❤️'
+                      ? 'You already used your birthday reward. Happy Birthday from QuickDash ❤️'
                       : isExpired
                       ? 'This reward was only valid on your birthday.'
-                      : 'Celebrate your special day with 7Dash ❤️',
+                      : 'Celebrate your special day with QuickDash ❤️',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -139,19 +141,25 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      if (promo.minOrderAmount != null && promo.minOrderAmount! > 0)
+                      if (promo.minOrderAmount != null &&
+                          promo.minOrderAmount! > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             'Minimum order: $c${promo.minOrderAmount!.toStringAsFixed(0)}',
-                            style: const TextStyle(color: Colors.white70, fontSize: 13),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       const SizedBox(height: 16),
                       GestureDetector(
                         onTap: isAvailable
                             ? () {
-                                Clipboard.setData(ClipboardData(text: promo.code));
+                                Clipboard.setData(
+                                  ClipboardData(text: promo.code),
+                                );
                                 AppSnackbar.success(context, 'Code copied!');
                               }
                             : null,
@@ -180,7 +188,10 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                                 const SizedBox(height: 4),
                                 const Text(
                                   'Tap to copy',
-                                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ],
@@ -206,9 +217,9 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).popUntil(
-                        (route) => route.isFirst,
-                      ),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).popUntil((route) => route.isFirst),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
@@ -219,7 +230,10 @@ class _BirthdayRewardScreenState extends ConsumerState<BirthdayRewardScreen> {
                       ),
                       child: const Text(
                         'Order Now',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),

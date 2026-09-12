@@ -65,7 +65,12 @@ class MealsByCategoryScreen extends ConsumerWidget {
               );
             }
             return ListView.separated(
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 14, Responsive.horizontalPadding(context), 24),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                14,
+                Responsive.horizontalPadding(context),
+                24,
+              ),
               itemCount: meals.length,
               separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, i) => _MealCard(meal: meals[i], ref: ref),

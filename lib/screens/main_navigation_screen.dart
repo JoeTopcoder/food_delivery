@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'customer/home_screen.dart';
@@ -61,7 +61,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Icon(Icons.lock_outline_rounded, size: 40, color: Color(0xFFFF7A1A)),
+            const Icon(
+              Icons.lock_outline_rounded,
+              size: 40,
+              color: Color(0xFFFF7A1A),
+            ),
             const SizedBox(height: 12),
             const Text(
               'Sign in to continue',
@@ -89,7 +93,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Sign In / Create Account', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Sign In / Create Account',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -168,112 +175,162 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         ? allActiveOrders.first.id
         : null;
 
-    return Scaffold(
-      floatingActionButton: AiFab(
-        role: 'customer',
-        orderId: activeOrderId,
-        activeOrders: allActiveOrders.isNotEmpty ? allActiveOrders : null,
+    // Hold the nav until the admin screen-visibility flags have loaded, so a
+    // disabled tab never flashes on a cold, slow start. configReady flips true
+    // once AppConfigService.load() completes (even if it fails — defaults then
+    // apply), so this never sticks. In practice the launch splash covers the
+    // load, so this loader is rarely seen.
+    if (!ref.watch(configReadyProvider)) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // ── Customer tabs, filtered by admin screen-visibility flags ──
+    // A tab whose screen_*_enabled flag is false is removed entirely (not shown
+    // to customers), unlike the service "coming soon" state which greys it.
+    final l10n = context.l10n;
+    final allTabs = <_NavTab>[
+      _NavTab(
+        0,
+        'home',
+        _screens[0],
+        Icons.home_outlined,
+        Icons.home,
+        l10n.home,
       ),
+      _NavTab(
+        1,
+        'grocery',
+        _screens[1],
+        Icons.local_grocery_store_outlined,
+        Icons.local_grocery_store,
+        l10n.grocery,
+        serviceKey: 'grocery',
+      ),
+      _NavTab(
+        2,
+        'orders',
+        _screens[2],
+        Icons.receipt_outlined,
+        Icons.receipt,
+        l10n.orders,
+        guestGated: true,
+      ),
+      _NavTab(
+        3,
+        'car_services',
+        _screens[3],
+        Icons.car_repair,
+        Icons.car_repair,
+        'Services',
+        serviceKey: 'car_service',
+      ),
+      _NavTab(
+        4,
+        'profile',
+        _screens[4],
+        Icons.account_circle_outlined,
+        Icons.account_circle,
+        l10n.profile,
+        guestGated: true,
+      ),
+    ];
+    final tabs = allTabs
+        .where((t) => ref.watch(screenEnabledProvider(t.key)))
+        .toList();
+    if (tabs.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'The app is temporarily unavailable. Please check back soon.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+    final sel = _selectedIndex.clamp(0, tabs.length - 1);
+    _loadedTabs.add(tabs[sel].originalIndex);
+    final groceryEnabled = ref.watch(serviceEnabledProvider('grocery'));
+    final carEnabled = ref.watch(serviceEnabledProvider('car_service'));
+
+    return Scaffold(
+      // Not on Home. Home has its own concierge button next to the delivery
+      // address, and a floating robot on top of it was a second AI entry
+      // point competing with the first — as well as covering the last card of
+      // the services row. The other tabs keep it.
+      floatingActionButton: tabs[sel].key == 'home'
+          ? null
+          : AiFab(
+              role: 'customer',
+              orderId: activeOrderId,
+              activeOrders: allActiveOrders.isNotEmpty ? allActiveOrders : null,
+            ),
       body: IndexedStack(
-        index: _selectedIndex,
+        index: sel,
         children: [
-          for (int i = 0; i < _screens.length; i++)
-            _loadedTabs.contains(i) ? _screens[i] : const SizedBox.shrink(),
+          for (final t in tabs)
+            _loadedTabs.contains(t.originalIndex)
+                ? t.screen
+                : const SizedBox.shrink(),
         ],
       ),
-      bottomNavigationBar: Builder(builder: (context) {
-        final groceryEnabled =
-            ref.watch(serviceEnabledProvider('grocery'));
-        final carEnabled =
-            ref.watch(serviceEnabledProvider('car_service'));
-
-        return BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            // Tab 4 = Profile — guests must sign in first.
-            if (index == 4 && !authState.isAuthenticated) {
-              _showGuestSignInPrompt(context);
-              return;
-            }
-            // Tab 2 = Orders — guests must sign in first.
-            if (index == 2 && !authState.isAuthenticated) {
-              _showGuestSignInPrompt(context);
-              return;
-            }
-            // Tab 1 = Grocery, Tab 3 = Car Services
-            if (index == 1 && !groceryEnabled) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Grocery is coming soon!'),
-                  duration: Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
-            if (index == 3 && !carEnabled) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Car Services is coming soon!'),
-                  duration: Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-              return;
-            }
-            ref.read(currentTabIndexProvider.notifier).state = index;
-            setState(() {
-              _loadedTabs.add(index);
-              _selectedIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: context.theme.cardColor,
-          selectedItemColor: AppTheme.primaryColor,
-          unselectedItemColor: context.colors.onSurfaceVariant,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.home_outlined),
-              activeIcon: const Icon(Icons.home),
-              label: context.l10n.home,
+      // A BottomNavigationBar needs >= 2 items; if the admin hid all but one
+      // tab, show that single screen with no bar rather than crash.
+      bottomNavigationBar: tabs.length < 2
+          ? null
+          : BottomNavigationBar(
+              currentIndex: sel,
+              onTap: (index) {
+                final tab = tabs[index];
+                if (tab.guestGated && !authState.isAuthenticated) {
+                  _showGuestSignInPrompt(context);
+                  return;
+                }
+                if (tab.serviceKey != null) {
+                  final on = tab.serviceKey == 'grocery'
+                      ? groceryEnabled
+                      : carEnabled;
+                  if (!on) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${tab.label} is coming soon!'),
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                }
+                ref.read(currentTabIndexProvider.notifier).state = index;
+                setState(() {
+                  _loadedTabs.add(tab.originalIndex);
+                  _selectedIndex = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: context.theme.cardColor,
+              selectedItemColor: AppTheme.primaryColor,
+              unselectedItemColor: context.colors.onSurfaceVariant,
+              items: [
+                for (final t in tabs)
+                  BottomNavigationBarItem(
+                    icon:
+                        (t.serviceKey != null &&
+                            !(t.serviceKey == 'grocery'
+                                ? groceryEnabled
+                                : carEnabled))
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: [Icon(t.icon), _ComingSoonDot()],
+                          )
+                        : Icon(t.icon),
+                    activeIcon: Icon(t.activeIcon),
+                    label: t.label,
+                  ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.local_grocery_store_outlined),
-                  if (!groceryEnabled)
-                    _ComingSoonDot(),
-                ],
-              ),
-              activeIcon: const Icon(Icons.local_grocery_store),
-              label: groceryEnabled ? context.l10n.grocery : 'Grocery',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.receipt_outlined),
-              activeIcon: const Icon(Icons.receipt),
-              label: context.l10n.orders,
-            ),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.car_repair),
-                  if (!carEnabled)
-                    _ComingSoonDot(),
-                ],
-              ),
-              activeIcon: const Icon(Icons.car_repair),
-              label: carEnabled ? 'Services' : 'Services',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.account_circle_outlined),
-              activeIcon: const Icon(Icons.account_circle),
-              label: context.l10n.profile,
-            ),
-          ],
-        );
-      }),
     );
   }
 }
@@ -296,8 +353,10 @@ class OrdersScreen extends ConsumerWidget {
       );
     }
 
-    final ordersAsync       = ref.watch(userOrdersProvider(currentUserId));
-    final masterOrdersAsync = ref.watch(customerMasterOrdersProvider(currentUserId));
+    final ordersAsync = ref.watch(userOrdersProvider(currentUserId));
+    final masterOrdersAsync = ref.watch(
+      customerMasterOrdersProvider(currentUserId),
+    );
 
     ref.watch(customerOrderRealtimeProvider(currentUserId));
     ref.watch(masterOrderRealtimeProvider(currentUserId));
@@ -322,13 +381,13 @@ class OrdersScreen extends ConsumerWidget {
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : ordersAsync.hasError
-                ? Center(child: Text(friendlyError(ordersAsync.error!)))
-                : _buildBody(
-                    context,
-                    ref,
-                    orders: ordersAsync.valueOrNull ?? [],
-                    masterOrders: masterOrdersAsync.valueOrNull ?? [],
-                  ),
+            ? Center(child: Text(friendlyError(ordersAsync.error!)))
+            : _buildBody(
+                context,
+                ref,
+                orders: ordersAsync.valueOrNull ?? [],
+                masterOrders: masterOrdersAsync.valueOrNull ?? [],
+              ),
       ),
     );
   }
@@ -349,21 +408,27 @@ class OrdersScreen extends ConsumerWidget {
     }).toList();
 
     final activeSingle = filteredOrders
-        .where((o) => !['delivered', 'cancelled'].contains((o as dynamic).status))
+        .where(
+          (o) => !['delivered', 'cancelled'].contains((o as dynamic).status),
+        )
         .toList();
     final pastSingle = filteredOrders
-        .where((o) => ['delivered', 'cancelled'].contains((o as dynamic).status))
+        .where(
+          (o) => ['delivered', 'cancelled'].contains((o as dynamic).status),
+        )
         .toList();
 
     final activeMaster = masterOrders.where((m) => m.isActive).toList();
-    final pastMaster   = masterOrders.where((m) => !m.isActive).toList();
+    final pastMaster = masterOrders.where((m) => !m.isActive).toList();
 
     final hasActive = activeSingle.isNotEmpty || activeMaster.isNotEmpty;
-    final hasPast   = pastSingle.isNotEmpty   || pastMaster.isNotEmpty;
+    final hasPast = pastSingle.isNotEmpty || pastMaster.isNotEmpty;
 
     if (!hasActive && !hasPast) {
       return ListView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.7,
@@ -371,14 +436,25 @@ class OrdersScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[300]),
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 64,
+                    color: Colors.grey[300],
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'No orders yet',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  Text('Your order history will appear here', style: TextStyle(color: Colors.grey[700])),
+                  Text(
+                    'Your order history will appear here',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
                 ],
               ),
             ),
@@ -388,49 +464,75 @@ class OrdersScreen extends ConsumerWidget {
     }
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (hasActive) ...[
-            const Text('Active Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Active Orders',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...activeMaster.map((m) => _MasterOrderCard(masterOrder: m)),
             ...activeSingle.map((o) {
               final order = o as Order;
               final isCancellable = const {
-                'draft', 'pending', 'confirmed', 'accepted', 'preparing'
+                'draft',
+                'pending',
+                'confirmed',
+                'accepted',
+                'preparing',
               }.contains(order.status);
               return _OrderCard(
                 orderId: '#${order.id.substring(0, 8)}',
                 status: order.status.replaceAll('_', ' '),
                 date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
-                total: '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                total:
+                    '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                 itemCount: order.items.length,
                 statusColor: _getStatusColor(order.status),
                 orderedAt: order.orderedAt,
                 estimatedPrepMinutes: order.estimatedPrepMinutes,
                 isActive: true,
-                onTap: () => Navigator.pushNamed(context, '/order-tracking', arguments: order.id),
-                onCancel: isCancellable ? () => _confirmCancel(context, ref, order) : null,
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/order-tracking',
+                  arguments: order.id,
+                ),
+                onCancel: isCancellable
+                    ? () => _confirmCancel(context, ref, order)
+                    : null,
               );
             }),
             const SizedBox(height: 24),
           ],
           if (hasPast) ...[
-            const Text('Past Orders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Past Orders',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...pastMaster.map((m) => _MasterOrderCard(masterOrder: m)),
-            ...pastSingle.map((o) => _OrderCard(
-              orderId: '#${(o as dynamic).id.substring(0, 8)}',
-              status: o.status.replaceAll('_', ' '),
-              date: DateFormat('MMM d, h:mm a').format(o.orderedAt),
-              total: '${AppConstants.currencySymbol}${o.totalAmount.toStringAsFixed(2)}',
-              itemCount: o.items.length,
-              statusColor: _getStatusColor(o.status),
-              onTap: () => Navigator.pushNamed(context, '/order-tracking', arguments: o.id),
-            )),
+            ...pastSingle.map(
+              (o) => _OrderCard(
+                orderId: '#${(o as dynamic).id.substring(0, 8)}',
+                status: o.status.replaceAll('_', ' '),
+                date: DateFormat('MMM d, h:mm a').format(o.orderedAt),
+                total:
+                    '${AppConstants.currencySymbol}${o.totalAmount.toStringAsFixed(2)}',
+                itemCount: o.items.length,
+                statusColor: _getStatusColor(o.status),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/order-tracking',
+                  arguments: o.id,
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -487,23 +589,33 @@ class OrdersScreen extends ConsumerWidget {
               Navigator.pop(ctx);
               try {
                 final userId = ref.read(currentUserIdProvider);
-                await ref.read(walletNotifierProvider.notifier).cancelOrder(
-                  order.id,
-                  refundMethod: isWalletPayment ? 'wallet' : null,
-                );
+                await ref
+                    .read(walletNotifierProvider.notifier)
+                    .cancelOrder(
+                      order.id,
+                      refundMethod: isWalletPayment ? 'wallet' : null,
+                    );
                 if (userId != null) ref.invalidate(userOrdersProvider(userId));
-                if (userId != null) ref.invalidate(customerMasterOrdersProvider(userId));
+                if (userId != null)
+                  ref.invalidate(customerMasterOrdersProvider(userId));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(isWalletPayment
-                        ? 'Order cancelled. Refund sent to your wallet.'
-                        : 'Order cancelled.')),
+                    SnackBar(
+                      content: Text(
+                        isWalletPayment
+                            ? 'Order cancelled. Refund sent to your wallet.'
+                            : 'Order cancelled.',
+                      ),
+                    ),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: Colors.red),
+                    SnackBar(
+                      content: Text('Failed to cancel: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               }
@@ -511,7 +623,9 @@ class OrdersScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Yes, Cancel'),
           ),
@@ -587,23 +701,40 @@ class _OrderCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Order $orderId',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(
+                          'Order $orderId',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('$itemCount items · $date',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text(
+                          '$itemCount items · $date',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             status.toUpperCase(),
-                            style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -612,7 +743,13 @@ class _OrderCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(total, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(
+                        total,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                       if (isActive && orderedAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
@@ -640,7 +777,9 @@ class _OrderCard extends StatelessWidget {
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -657,31 +796,43 @@ class _MasterOrderCard extends StatelessWidget {
 
   static String _masterStatusLabel(String status) {
     switch (status) {
-      case 'partially_cancelled': return 'PART CANCELLED';
-      case 'out_for_delivery':    return 'DELIVERING';
-      case 'ready_for_pickup':    return 'READY';
-      default: return status.replaceAll('_', ' ').toUpperCase();
+      case 'partially_cancelled':
+        return 'PART CANCELLED';
+      case 'out_for_delivery':
+        return 'DELIVERING';
+      case 'ready_for_pickup':
+        return 'READY';
+      default:
+        return status.replaceAll('_', ' ').toUpperCase();
     }
   }
 
   Color get _statusColor {
     switch (masterOrder.status) {
-      case 'delivered':         return Colors.green;
+      case 'delivered':
+        return Colors.green;
       case 'cancelled':
-      case 'partially_cancelled': return Colors.red;
-      case 'out_for_delivery':  return Colors.blue;
-      case 'preparing':         return Colors.orange;
-      default:                  return AppTheme.primaryColor;
+      case 'partially_cancelled':
+        return Colors.red;
+      case 'out_for_delivery':
+        return Colors.blue;
+      case 'preparing':
+        return Colors.orange;
+      default:
+        return AppTheme.primaryColor;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final color     = _statusColor;
-    final currency  = AppConstants.currencySymbol;
-    final date      = DateFormat('MMM d, h:mm a').format(masterOrder.createdAt);
-    final itemCount = masterOrder.restaurantOrders
-            ?.fold<int>(0, (s, ro) => s + (ro.items?.length ?? 0)) ??
+    final color = _statusColor;
+    final currency = AppConstants.currencySymbol;
+    final date = DateFormat('MMM d, h:mm a').format(masterOrder.createdAt);
+    final itemCount =
+        masterOrder.restaurantOrders?.fold<int>(
+          0,
+          (s, ro) => s + (ro.items?.length ?? 0),
+        ) ??
         0;
     final restCount = masterOrder.restaurantCount;
 
@@ -698,7 +849,10 @@ class _MasterOrderCard extends StatelessWidget {
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+            ),
           ],
         ),
         child: Row(
@@ -713,18 +867,30 @@ class _MasterOrderCard extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(Icons.store_mall_directory_rounded, size: 28, color: color),
+                  Icon(
+                    Icons.store_mall_directory_rounded,
+                    size: 28,
+                    color: color,
+                  ),
                   Positioned(
-                    bottom: 4, right: 4,
+                    bottom: 4,
+                    right: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.deepOrange,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '$restCount',
-                        style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -739,7 +905,10 @@ class _MasterOrderCard extends StatelessWidget {
                   Text(
                     'Multi-Restaurant Order',
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -749,7 +918,10 @@ class _MasterOrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -758,7 +930,11 @@ class _MasterOrderCard extends StatelessWidget {
                       _masterStatusLabel(masterOrder.status),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -793,4 +969,29 @@ class _ComingSoonDot extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One customer bottom-nav tab. `originalIndex` is its position in the fixed
+/// _screens list (stable regardless of which tabs are hidden), used to key the
+/// lazy-load set so hiding a tab never reshuffles which screens are built.
+class _NavTab {
+  const _NavTab(
+    this.originalIndex,
+    this.key,
+    this.screen,
+    this.icon,
+    this.activeIcon,
+    this.label, {
+    this.serviceKey,
+    this.guestGated = false,
+  });
+
+  final int originalIndex;
+  final String key;
+  final Widget screen;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String? serviceKey; // grocery / car_service -> "coming soon" behaviour
+  final bool guestGated; // requires sign-in (Orders, Profile)
 }

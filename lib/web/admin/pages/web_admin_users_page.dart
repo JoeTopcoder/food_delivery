@@ -519,7 +519,7 @@ class _RoleBadge extends StatelessWidget {
   const _RoleBadge({required this.role});
 
   static const _colors = {
-    'admin': Color(0xFF8B5CF6),
+    'admin': Color(0xFF528BFF),
     'restaurant': Color(0xFF0EA5E9),
     'driver': Color(0xFF10B981),
     'customer': Color(0xFF6366F1),

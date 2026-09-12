@@ -8,6 +8,8 @@ import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/full_screen_image.dart';
+import '../../widgets/grocery_cart_dialogs.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryStoreDetailScreen extends ConsumerStatefulWidget {
@@ -335,26 +337,50 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – fixed height for uniform sizing
+          // Image – fixed height for uniform sizing. Tap to view full-screen.
           SizedBox(
             height: 130,
             width: double.infinity,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  product.imageUrl != null && product.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          product.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _productPlaceholder(),
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _productPlaceholder(),
-                        )
-                      : _productPlaceholder(),
+            child: GestureDetector(
+              onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                  ? () => FullScreenImage.show(
+                      context,
+                      imageUrl: product.imageUrl!,
+                      title: product.name,
+                    )
+                  : null,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(14),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // White tile so product shots (usually on white) sit
+                    // cleanly and uniformly; contain shows the whole product.
+                    Container(color: Colors.white),
+                    product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Image.network(
+                              product.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  _productPlaceholder(),
+                              loadingBuilder: (_, child, progress) =>
+                                  progress == null
+                                  ? child
+                                  : _productPlaceholder(),
+                            ),
+                          )
+                        : _productPlaceholder(),
+                    if (product.imageUrl != null &&
+                        product.imageUrl!.isNotEmpty)
+                      const Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: _ZoomBadge(),
+                      ),
                   if (!inStock)
                     Container(
                       color: Colors.black54,
@@ -393,6 +419,7 @@ class _ProductCard extends ConsumerWidget {
                       ),
                     ),
                 ],
+                ),
               ),
             ),
           ),
@@ -594,8 +621,17 @@ class _ProductCard extends ConsumerWidget {
     );
   }
 
-  void _addToCart(WidgetRef ref, BuildContext context) {
+  Future<void> _addToCart(WidgetRef ref, BuildContext context) async {
     final cartNotifier = ref.read(groceryCartProvider.notifier);
+
+    // One grocery store per order: if the cart holds a different store, ask to
+    // start a new cart before adding.
+    final currentStore = cartNotifier.currentStoreId;
+    if (currentStore != null && currentStore != product.restaurantId) {
+      final replace = await confirmNewGroceryCart(context);
+      if (replace != true || !context.mounted) return;
+      cartNotifier.clearCart();
+    }
 
     // Enforce stock / max quantity
     final cartItems = ref.read(groceryCartProvider);
@@ -703,6 +739,23 @@ class _GroceryCartBar extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Small "tap to enlarge" affordance shown over a product image.
+class _ZoomBadge extends StatelessWidget {
+  const _ZoomBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
+        color: Colors.black38,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.zoom_out_map, size: 14, color: Colors.white),
     );
   }
 }

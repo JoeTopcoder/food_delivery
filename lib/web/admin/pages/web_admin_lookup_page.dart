@@ -239,7 +239,7 @@ class _CardResultsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(icon: Icons.credit_card_rounded, title: '${results.length} Card Match${results.length > 1 ? 'es' : ''}', color: const Color(0xFF7C3AED)),
+        _SectionHeader(icon: Icons.credit_card_rounded, title: '${results.length} Card Match${results.length > 1 ? 'es' : ''}', color: const Color(0xFF155EEF)),
         const SizedBox(height: 12),
         ...results.map((entry) {
           final card = entry['card'] as Map<String, dynamic>? ?? {};
@@ -252,7 +252,7 @@ class _CardResultsSection extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Icon(Icons.credit_card_rounded, size: 20, color: Color(0xFF7C3AED)),
+                  const Icon(Icons.credit_card_rounded, size: 20, color: Color(0xFF155EEF)),
                   const SizedBox(width: 8),
                   Text('•••• •••• •••• ${card['last4'] ?? '????'}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 2)),
                   const SizedBox(width: 12),

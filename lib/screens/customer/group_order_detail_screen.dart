@@ -162,16 +162,19 @@ class _GroupOrderDetailScreenState
   }
 
   String _inviteLink(GroupOrder group) =>
-      'https://mealhub.app/join-group/${group.inviteCode}';
+      'https://quickdash.app/join-group/${group.inviteCode}';
 
   void _shareInvite(GroupOrder group) {
     final link = _inviteLink(group);
-    SharePlus.instance.share(ShareParams(
-      text: '🍽️ Join my group order "${group.name}" on MealHub!\n\n'
-          'Tap the link to join instantly:\n$link\n\n'
-          'Or open MealHub → Group Orders → Join → enter code: ${group.inviteCode}',
-      subject: 'Join my MealHub group order!',
-    ));
+    SharePlus.instance.share(
+      ShareParams(
+        text:
+            '🍽️ Join my group order "${group.name}" on QuickDash!\n\n'
+            'Tap the link to join instantly:\n$link\n\n'
+            'Or open QuickDash → Group Orders → Join → enter code: ${group.inviteCode}',
+        subject: 'Join my QuickDash group order!',
+      ),
+    );
   }
 
   void _showQrDialog(GroupOrder group) {
@@ -947,7 +950,10 @@ class _ParticipantTileState extends State<_ParticipantTile> {
           ),
           // ── Expanded item list ────────────────────────────────────
           if (_expanded && hasItems) ...[
-            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Column(

@@ -76,7 +76,7 @@ class _ActivePackageDriverScreenState
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
+                backgroundColor: const Color(0xFF155EEF),
                 foregroundColor: Colors.white),
             child: const Text('Confirm'),
           ),
@@ -133,7 +133,7 @@ class _ActivePackageDriverScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Package Delivery'),
-        backgroundColor: const Color(0xFF7C3AED),
+        backgroundColor: const Color(0xFF155EEF),
         foregroundColor: Colors.white,
       ),
       body: streamAsync.when(
@@ -339,7 +339,7 @@ class _EarningCard extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: Color(0xFF7C3AED)),
+                      color: Color(0xFF155EEF)),
                 ),
                 Text(
                   delivery.paymentMethod == 'cash'
@@ -432,7 +432,7 @@ class _ActionBar extends StatelessWidget {
                     }
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
+              backgroundColor: const Color(0xFF155EEF),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),

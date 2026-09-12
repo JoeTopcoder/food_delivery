@@ -34,7 +34,7 @@ const _serviceDefs = [
   (key: 'service_grocery_enabled', label: 'Grocery', subtitle: 'Grocery store browsing & orders', icon: Icons.local_grocery_store_rounded, color: Color(0xFF059669)),
   (key: 'service_rides_enabled', label: 'Ride Sharing', subtitle: 'Taxi & ride booking', icon: Icons.directions_car_rounded, color: Color(0xFF1E40AF)),
   (key: 'service_laundry_enabled', label: 'Laundry', subtitle: 'Pickup, wash & return delivery', icon: Icons.local_laundry_service_rounded, color: Color(0xFF0F4C81)),
-  (key: 'service_car_service_enabled', label: 'Car Services', subtitle: 'Car wash & detailing bookings', icon: Icons.car_repair_rounded, color: Color(0xFF7C3AED)),
+  (key: 'service_car_service_enabled', label: 'Car Services', subtitle: 'Car wash & detailing bookings', icon: Icons.car_repair_rounded, color: Color(0xFF155EEF)),
 ];
 
 class WebAdminServicesPage extends ConsumerWidget {

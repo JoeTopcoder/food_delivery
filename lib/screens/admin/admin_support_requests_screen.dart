@@ -440,7 +440,7 @@ class _DetailSheetState extends State<_DetailSheet> {
           const Divider(height: 24),
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7C3AED)),
+              const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF155EEF)),
               const SizedBox(width: 6),
               const Text('AI Support Assistant', style: TextStyle(fontWeight: FontWeight.w600)),
             ],

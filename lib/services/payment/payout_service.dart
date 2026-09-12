@@ -337,14 +337,14 @@ class PayoutService {
           .eq('id', payoutId);
 
       try {
-        // Call Stripe payout via the stripe-payment edge function
+        // Call Stripe payout via the consolidated stripe function (/payment route)
         final response = await _client.functions.invoke(
-          'stripe-payment',
+          'stripe/payment',
           body: {
             'action': 'create_payout',
             'payoutId': payoutId,
             'amount': amount,
-            'currency': 'usd',
+            'currency': 'jmd',
             'recipientName': recipientName,
             'bankAccount': bankAccount,
             'bankName': bankName,
@@ -506,7 +506,7 @@ class PayoutService {
   Future<Map<String, dynamic>> processRestaurantPayout(String payoutId) async {
     try {
       final response = await _client.functions.invoke(
-        'process-restaurant-payout',
+        'payouts/restaurant',
         body: {'payout_request_id': payoutId},
       );
 
@@ -604,7 +604,7 @@ class PayoutRecord {
       driverId: json['driver_id'] as String,
       stripePayoutId: json['stripe_payout_id'] as String?,
       amount: (json['amount'] as num).toDouble(),
-      currency: json['currency'] as String? ?? 'usd',
+      currency: json['currency'] as String? ?? 'jmd',
       payoutType: json['payout_type'] as String? ?? 'instant',
       status: json['status'] as String? ?? 'pending',
       failureMessage: json['failure_message'] as String?,
@@ -630,7 +630,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'onboard'},
       );
     } on FunctionException catch (e) {
@@ -648,7 +648,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'add_card', 'token': stripeToken},
       );
     } on FunctionException catch (e) {
@@ -663,7 +663,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'create_account'},
       );
     } on FunctionException catch (e) {
@@ -690,7 +690,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {
           'action': 'update_kyc',
           'first_name': firstName,
@@ -723,7 +723,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {
           'action': 'add_bank',
           'account_number': accountNumber,
@@ -773,7 +773,7 @@ class StripePayoutService {
     late final FunctionResponse res;
     try {
       res = await _client.functions.invoke(
-        'stripe-connect',
+        'stripe/connect',
         body: {'action': 'status'},
       );
     } on FunctionException catch (e) {
@@ -792,7 +792,7 @@ class StripePayoutService {
     String payoutType = 'instant',
   }) async {
     final res = await _client.functions.invoke(
-      'payout-driver',
+      'payouts/driver',
       body: {'amount_cents': amountCents, 'payout_type': payoutType},
     );
 
@@ -934,7 +934,7 @@ class DriverPayoutMethod {
         last4: j['last4'] as String,
         brand: j['brand'] as String?,
         bankName: j['bank_name'] as String?,
-        currency: j['currency'] as String? ?? 'usd',
+        currency: j['currency'] as String? ?? 'jmd',
         isDefault: j['is_default'] as bool? ?? true,
         createdAt: DateTime.parse(j['created_at'] as String),
       );
@@ -976,7 +976,7 @@ class DriverTransaction {
         driverId: j['driver_id'] as String,
         type: j['type'] as String,
         amount: (j['amount'] as num).toDouble(),
-        currency: j['currency'] as String? ?? 'usd',
+        currency: j['currency'] as String? ?? 'jmd',
         status: j['status'] as String? ?? 'completed',
         description: j['description'] as String?,
         orderId: j['order_id'] as String?,

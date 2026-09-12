@@ -4,6 +4,8 @@ import '../models/recommendation_model.dart';
 import '../models/user_intelligence_model.dart';
 import '../services/ai/behavior_tracking_service.dart';
 import '../services/ai/recommendation_service.dart';
+import '../config/app_constants.dart';
+import 'address_provider.dart';
 import 'auth_provider.dart';
 
 // ── Service Providers ──────────────────────────────────────────
@@ -28,7 +30,29 @@ final brainEngineProvider = FutureProvider.autoDispose<BrainEngineResponse>((
   // Track app open event
   ref.read(behaviorTrackingProvider).trackAppOpen(userId);
 
-  return service.runBrainEngine(userId: userId);
+  // Without coordinates the engine scores every restaurant in the catalogue
+  // and caps nothing, so "Made for You" recommended Cayman restaurants the
+  // browse listings were already hiding. Same origin as the listings, Kingston
+  // included, so the two agree about what exists.
+  final origin = ref.watch(_recommendationOriginProvider);
+  return service.runBrainEngine(
+    userId: userId,
+    latitude: origin.lat,
+    longitude: origin.lng,
+  );
+});
+
+/// Where recommendations are measured from: the selected delivery address,
+/// then the account's own coordinates, then the configured launch city.
+final _recommendationOriginProvider = Provider<({double lat, double lng})>((
+  ref,
+) {
+  final address = ref.watch(selectedAddressProvider);
+  final user = ref.watch(currentUserProvider);
+  return (
+    lat: address?.latitude ?? user?.latitude ?? AppConstants.defaultOriginLat,
+    lng: address?.longitude ?? user?.longitude ?? AppConstants.defaultOriginLng,
+  );
 });
 
 /// Overload that accepts explicit coordinates (from location provider).
@@ -57,8 +81,13 @@ final groceryBrainEngineProvider =
 
       final service = ref.watch(recommendationServiceProvider);
       ref.read(behaviorTrackingProvider).trackAppOpen(userId);
+      final origin = ref.watch(_recommendationOriginProvider);
 
-      return service.runGroceryBrainEngine(userId: userId);
+      return service.runGroceryBrainEngine(
+        userId: userId,
+        latitude: origin.lat,
+        longitude: origin.lng,
+      );
     });
 
 // ── User Intelligence Profile ──────────────────────────────────

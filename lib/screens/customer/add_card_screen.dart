@@ -124,7 +124,10 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
             children: [
               // ── Header + card preview ──────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -146,7 +149,10 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                               ),
                               Text(
                                 'Securely add your credit or debit card',
-                                style: TextStyle(fontSize: 13, color: hintColor),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: hintColor,
+                                ),
                               ),
                             ],
                           ),
@@ -169,7 +175,9 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.3 : 0.08,
+                      ),
                       blurRadius: 18,
                       offset: const Offset(0, 4),
                     ),
@@ -179,181 +187,195 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                // Card form header row
-                Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF635BFF).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: const Icon(
-                        Icons.credit_card_rounded,
-                        color: Color(0xFF635BFF),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Card Details',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: textColor,
-                            ),
+                    // Card form header row
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF635BFF,
+                            ).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(9),
                           ),
-                          Text(
-                            'Enter your card information below',
-                            style: TextStyle(fontSize: 11.5, color: hintColor),
+                          child: const Icon(
+                            Icons.credit_card_rounded,
+                            color: Color(0xFF635BFF),
+                            size: 20,
                           ),
-                        ],
-                      ),
-                    ),
-                    const _BrandChip('VISA', Color(0xFF1A1F71), Colors.white),
-                    const SizedBox(width: 4),
-                    const _BrandChip('MC', Color(0xFFEB001B), Colors.white),
-                    const SizedBox(width: 4),
-                    const _BrandChip('AMEX', Color(0xFF007DC5), Colors.white),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Stripe CardFormField (custom embedded — no native sheet)
-                // Only rendered after applySettings() completes to avoid
-                // "stripeSdk has not been initialized" on Android.
-                if (_stripeReady)
-                  CardFormField(
-                    onCardChanged: _onCardChanged,
-                    enablePostalCode: false,
-                    style: CardFormStyle(
-                      backgroundColor:
-                          isDark ? const Color(0xFF1F2937) : Colors.white,
-                      textColor: isDark
-                          ? Colors.white
-                          : const Color(0xFF1A1A2E),
-                      placeholderColor: isDark
-                          ? const Color(0xFF6B7280)
-                          : const Color(0xFFAAAAAA),
-                      borderColor: isDark
-                          ? const Color(0xFF374151)
-                          : const Color(0xFFDDDDDD),
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      fontSize: 16,
-                      cursorColor: const Color(0xFF635BFF),
-                    ),
-                  )
-                else
-                  const SizedBox(
-                    height: 116,
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-
-                // Security note
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.lock_rounded,
-                      size: 12,
-                      color: Color(0xFF10B981),
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        'Secured by Stripe · A small verification charge will be refunded',
-                        style: TextStyle(fontSize: 11, color: hintColor),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Save Card button
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: enabled
-                        ? const LinearGradient(
-                            colors: [Color(0xFF635BFF), Color(0xFF4C47E5)],
-                          )
-                        : null,
-                    color: enabled
-                        ? null
-                        : (isDark
-                            ? const Color(0xFF374151)
-                            : const Color(0xFFCDD5E0)),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: enabled
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFF635BFF)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      onTap: enabled ? _addCardWithStripe : null,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Center(
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Card Details',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: textColor,
                                 ),
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.lock_rounded,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Save Card',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 17,
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                ],
                               ),
+                              Text(
+                                'Enter your card information below',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: hintColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const _BrandChip(
+                          'VISA',
+                          Color(0xFF1A1F71),
+                          Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        const _BrandChip('MC', Color(0xFFEB001B), Colors.white),
+                        const SizedBox(width: 4),
+                        const _BrandChip(
+                          'AMEX',
+                          Color(0xFF007DC5),
+                          Colors.white,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Stripe CardFormField (custom embedded — no native sheet)
+                    // Only rendered after applySettings() completes to avoid
+                    // "stripeSdk has not been initialized" on Android.
+                    if (_stripeReady)
+                      CardFormField(
+                        onCardChanged: _onCardChanged,
+                        enablePostalCode: false,
+                        style: CardFormStyle(
+                          backgroundColor: isDark
+                              ? const Color(0xFF1F2937)
+                              : Colors.white,
+                          textColor: isDark
+                              ? Colors.white
+                              : const Color(0xFF1A1A2E),
+                          placeholderColor: isDark
+                              ? const Color(0xFF6B7280)
+                              : const Color(0xFFAAAAAA),
+                          borderColor: isDark
+                              ? const Color(0xFF374151)
+                              : const Color(0xFFDDDDDD),
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          fontSize: 16,
+                          cursorColor: const Color(0xFF635BFF),
+                        ),
+                      )
+                    else
+                      const SizedBox(
+                        height: 116,
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+
+                    // Security note
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.lock_rounded,
+                          size: 12,
+                          color: Color(0xFF10B981),
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Secured by Stripe · A small verification charge will be refunded',
+                            style: TextStyle(fontSize: 11, color: hintColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Save Card button
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: enabled
+                            ? const LinearGradient(
+                                colors: [Color(0xFF635BFF), Color(0xFF4C47E5)],
+                              )
+                            : null,
+                        color: enabled
+                            ? null
+                            : (isDark
+                                  ? const Color(0xFF374151)
+                                  : const Color(0xFFCDD5E0)),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: enabled
+                            ? [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF635BFF,
+                                  ).withValues(alpha: 0.3),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          onTap: enabled ? _addCardWithStripe : null,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Center(
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Save Card',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 17,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
     );
   }
-
 
   Widget _buildCardPreview(bool isDark) {
     return Container(
@@ -537,12 +559,13 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
       if (!mounted) return;
 
-      final verificationResult = await paymentService.completeVerificationCharge(
-        setupIntentId: setupIntentId,
-        cardholderName: cardholderName.isNotEmpty ? cardholderName : null,
-        email: email.isNotEmpty ? email : null,
-        phone: phone.isNotEmpty ? phone : null,
-      );
+      final verificationResult = await paymentService
+          .completeVerificationCharge(
+            setupIntentId: setupIntentId,
+            cardholderName: cardholderName.isNotEmpty ? cardholderName : null,
+            email: email.isNotEmpty ? email : null,
+            phone: phone.isNotEmpty ? phone : null,
+          );
 
       if (!mounted) return;
 
@@ -568,14 +591,12 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         throw Exception('Unable to verify card setup.');
       }
 
-      final expiresAt =
-          DateTime.now().toUtc().add(const Duration(minutes: 30));
+      final expiresAt = DateTime.now().toUtc().add(const Duration(minutes: 30));
       final savedCard = await paymentService.savePendingCard(
         userId: userId,
         cardBrand: cardBrand,
         lastFour: lastFour,
-        cardholderName:
-            cardholderName.isNotEmpty ? cardholderName : 'Unknown',
+        cardholderName: cardholderName.isNotEmpty ? cardholderName : 'Unknown',
         email: email,
         phone: phone,
         verificationId: verificationId,
@@ -601,7 +622,8 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       if (mounted) {
         AppSnackbar.error(
           context,
-          e.error.localizedMessage ?? 'Card verification failed. Please try again.',
+          e.error.localizedMessage ??
+              'Card verification failed. Please try again.',
         );
       }
     } catch (e) {

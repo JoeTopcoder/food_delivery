@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/grocery_category_model.dart';
+import '../models/inventory_model.dart';
+import '../models/product_image_result.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 
@@ -83,6 +85,17 @@ class GroceryService {
       AppLogger.error('Error fetching grocery stores: $e');
       rethrow;
     }
+  }
+
+  /// Admin: every grocery store (verified or not) so an admin can manage a
+  /// store's catalogue before it goes live. RLS restricts this to admins.
+  Future<List<Restaurant>> getGroceryStoresForAdmin() async {
+    final response = await _client
+        .from(AppConstants.tableRestaurants)
+        .select()
+        .or('store_type.eq.grocery,store_type.eq.both')
+        .order('name');
+    return (response as List).map((r) => Restaurant.fromJson(r)).toList();
   }
 
   /// Search grocery stores by name.
@@ -272,6 +285,7 @@ class GroceryService {
     String? brand,
     String? weight,
     int maxQuantity = 99,
+    double? costPrice,
   }) async {
     try {
       final response = await _client
@@ -290,6 +304,7 @@ class GroceryService {
             'weight': weight,
             'in_stock': true,
             'max_quantity': maxQuantity,
+            if (costPrice != null) 'cost_price': costPrice,
           })
           .select()
           .single();
@@ -310,6 +325,201 @@ class GroceryService {
           .eq('id', productId);
     } catch (e) {
       AppLogger.error('Error updating stock status: $e');
+      rethrow;
+    }
+  }
+
+  // ── Inventory ──────────────────────────────────────────────────────────────
+
+  /// Inventory snapshot for every grocery product in a store, keyed by product
+  /// id. A targeted column read so [MenuItem] doesn't need remodelling.
+  Future<Map<String, ProductInventory>> getStoreInventory(
+    String storeId,
+  ) async {
+    try {
+      final rows = await _client
+          .from(AppConstants.tableMenus)
+          .select(
+            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock, barcode, cost_price',
+          )
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery');
+      final map = <String, ProductInventory>{};
+      for (final row in (rows as List)) {
+        final inv = ProductInventory.fromJson(row as Map<String, dynamic>);
+        map[inv.productId] = inv;
+      }
+      return map;
+    } catch (e) {
+      AppLogger.error('Error fetching store inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Apply a signed change (restock / waste / manual adjustment) via the atomic
+  /// SECURITY DEFINER RPC. Returns the new on-hand quantity.
+  /// [reason] must be one of restock | adjustment | waste.
+  Future<int> adjustInventory(
+    String productId,
+    int change, {
+    String reason = 'adjustment',
+    String? note,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'adjust_inventory',
+        params: {
+          'p_product_id': productId,
+          'p_change': change,
+          'p_reason': reason,
+          'p_note': note,
+        },
+      );
+      return (res as num).toInt();
+    } catch (e) {
+      AppLogger.error('Error adjusting inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Set an absolute on-hand count (stocktake) via the atomic RPC. Enables
+  /// tracking on the product if it wasn't already. Returns the new quantity.
+  Future<int> setInventory(
+    String productId,
+    int newQuantity, {
+    String? note,
+  }) async {
+    try {
+      final res = await _client.rpc(
+        'set_inventory',
+        params: {
+          'p_product_id': productId,
+          'p_new_qty': newQuantity,
+          'p_note': note,
+        },
+      );
+      return (res as num).toInt();
+    } catch (e) {
+      AppLogger.error('Error setting inventory: $e');
+      rethrow;
+    }
+  }
+
+  /// Update the reorder (low-stock) threshold for a product. Uses the existing
+  /// owner/admin UPDATE policy on menus.
+  Future<void> setLowStockThreshold(String productId, int threshold) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'low_stock_threshold': threshold})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error setting low-stock threshold: $e');
+      rethrow;
+    }
+  }
+
+  /// Turn quantity tracking off for a product (it reverts to the manual
+  /// in_stock flag). Tracking is turned back ON automatically by the first
+  /// restock / set-count. Uses the existing owner/admin UPDATE policy.
+  Future<void> stopTrackingInventory(String productId) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'track_inventory': false})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error disabling inventory tracking: $e');
+      rethrow;
+    }
+  }
+
+  /// Link a scanned barcode / QR code to a product (so pickers can scan it).
+  /// Uses the atomic assign_barcode RPC, which rejects a code already used by
+  /// another product in the same store.
+  Future<void> setProductBarcode(String productId, String code) async {
+    try {
+      await _client.rpc(
+        'assign_barcode',
+        params: {'p_product_id': productId, 'p_barcode': code},
+      );
+    } on PostgrestException catch (e) {
+      // Surface the RPC's own human message (e.g. "This QR code is already on
+      // …") — a raw PostgrestException would otherwise be genericised.
+      AppLogger.error('assign_barcode failed: ${e.message}');
+      throw Exception(e.message);
+    } catch (e) {
+      AppLogger.error('Error setting product barcode: $e');
+      rethrow;
+    }
+  }
+
+  /// If the store already stocks a grocery product with this name (case-
+  /// insensitive), return that product's name; otherwise null. Used to warn
+  /// before adding a likely duplicate.
+  Future<String?> findDuplicateProductName(String storeId, String name) async {
+    final n = name.trim();
+    if (n.isEmpty) return null;
+    try {
+      final rows = await _client
+          .from(AppConstants.tableMenus)
+          .select('name')
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery')
+          .ilike('name', n) // exact match, case-insensitive (no wildcards)
+          .limit(1);
+      final list = rows as List;
+      return list.isEmpty ? null : (list.first['name'] as String?);
+    } catch (e) {
+      AppLogger.error('Error checking duplicate product: $e');
+      return null; // never block an add on a failed check
+    }
+  }
+
+  /// Set a product's cost price (for margin reporting). Uses the existing
+  /// owner/admin UPDATE policy on menus.
+  Future<void> setProductCostPrice(String productId, double? cost) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'cost_price': cost})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error setting cost price: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove the linked barcode / QR code from a product.
+  Future<void> clearProductBarcode(String productId) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'barcode': null})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error clearing product barcode: $e');
+      rethrow;
+    }
+  }
+
+  /// Recent movement-ledger rows for a product (newest first).
+  Future<List<InventoryMovement>> getProductMovements(
+    String productId, {
+    int limit = 50,
+  }) async {
+    try {
+      final rows = await _client
+          .from('inventory_movements')
+          .select('id, change, balance_after, reason, note, created_at')
+          .eq('product_id', productId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return (rows as List)
+          .map((r) => InventoryMovement.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      AppLogger.error('Error fetching inventory movements: $e');
       rethrow;
     }
   }
@@ -359,6 +569,108 @@ class GroceryService {
     }
   }
 
+  /// Fresh Authorization header for edge calls (avoids stale legacy-JWT
+  /// rejections by refreshing the session first).
+  Future<Map<String, String>> _freshAuthHeader() async {
+    String? token;
+    try {
+      final res = await _client.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    token ??= _client.auth.currentSession?.accessToken;
+    return (token != null && token.isNotEmpty)
+        ? {'Authorization': 'Bearer $token'}
+        : {};
+  }
+
+  Map<String, dynamic> _decodeFn(dynamic data) {
+    final body = data is String
+        ? jsonDecode(data) as Map<String, dynamic>
+        : data as Map<String, dynamic>;
+    if (body['error'] != null) throw Exception(body['error']);
+    return body;
+  }
+
+  String _fnError(FunctionException fe, String fallback) {
+    final details = fe.details;
+    if (details is Map) {
+      final m = (details['error'] ?? details['message'])?.toString();
+      if (m != null && m.isNotEmpty) return m;
+    }
+    return fallback;
+  }
+
+  /// Identify a grocery product from a photo via the AI vision edge route.
+  /// Returns the structured guess (name, brand, size, dimensions, category,
+  /// unit, description, confidence, notes). Throws with a friendly message on
+  /// failure.
+  Future<Map<String, dynamic>> identifyProduct(
+    List<int> imageBytes, {
+    String mime = 'image/jpeg',
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/identify-product',
+        body: {'image_base64': base64Encode(imageBytes), 'mime': mime},
+        headers: await _freshAuthHeader(),
+      );
+      return _decodeFn(response.data);
+    } on FunctionException catch (fe) {
+      throw Exception(
+        _fnError(fe, 'Could not identify the product. Please try again.'),
+      );
+    } catch (e) {
+      AppLogger.error('Error identifying product: $e');
+      rethrow;
+    }
+  }
+
+  /// Web image search for a product name (SerpAPI, server-side). Returns
+  /// candidate catalogue images the admin can choose from.
+  Future<List<ProductImageResult>> searchProductImages(
+    String query, {
+    int num = 12,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/product-images',
+        body: {'query': query, 'num': num},
+        headers: await _freshAuthHeader(),
+      );
+      final body = _decodeFn(response.data);
+      final list = (body['images'] as List?) ?? const [];
+      return list
+          .map((e) => ProductImageResult.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on FunctionException catch (fe) {
+      throw Exception(_fnError(fe, 'Image search failed. Please try again.'));
+    } catch (e) {
+      AppLogger.error('Error searching product images: $e');
+      rethrow;
+    }
+  }
+
+  /// Re-host a chosen web image into our storage and return a stable public URL
+  /// to use as the product image.
+  Future<String> importProductImage(String imageUrl, String storeId) async {
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/import-image',
+        body: {'image_url': imageUrl, 'store_id': storeId},
+        headers: await _freshAuthHeader(),
+      );
+      final body = _decodeFn(response.data);
+      final url = body['image_url'] as String?;
+      if (url == null || url.isEmpty) throw Exception('No image URL returned');
+      return url;
+    } on FunctionException catch (fe) {
+      throw Exception(_fnError(fe, 'Could not import the image. Pick another.'));
+    } catch (e) {
+      AppLogger.error('Error importing product image: $e');
+      rethrow;
+    }
+  }
+
   /// Place a grocery order via edge function (server-side validated).
   Future<Map<String, dynamic>> placeGroceryOrder({
     required String storeId,
@@ -375,6 +687,10 @@ class GroceryService {
     // Payment gate: pass one so the edge function charges/verifies before insert.
     String? savedCardPaymentMethodId,
     String? paymentIntentId,
+
+    /// When set, the order goes to this linked student's school. The edge
+    /// function re-checks the link and re-derives school and fee.
+    String? studentId,
   }) async {
     try {
       AppLogger.info('Placing grocery order via edge function');
@@ -388,10 +704,13 @@ class GroceryService {
         if (deliveryAddress != null) 'delivery_address': deliveryAddress,
         if (deliveryLatitude != null) 'delivery_latitude': deliveryLatitude,
         if (deliveryLongitude != null) 'delivery_longitude': deliveryLongitude,
+        if (studentId != null) 'student_id': studentId,
         'driver_tip': driverTip,
-        if (specialInstructions != null) 'special_instructions': specialInstructions,
+        if (specialInstructions != null)
+          'special_instructions': specialInstructions,
         if (promoCode != null) 'promo_code': promoCode,
-        if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty)
+        if (savedCardPaymentMethodId != null &&
+            savedCardPaymentMethodId.isNotEmpty)
           'saved_card_payment_method_id': savedCardPaymentMethodId,
         if (paymentIntentId != null && paymentIntentId.isNotEmpty)
           'payment_intent_id': paymentIntentId,
@@ -431,26 +750,34 @@ class GroceryService {
 
       FunctionResponse response;
       try {
-        response = await _client.functions.invoke('grocery-order',
-            body: invokeBody, headers: await freshHeader());
+        response = await _client.functions.invoke(
+          'grocery/order',
+          body: invokeBody,
+          headers: await freshHeader(),
+        );
       } on FunctionException catch (fe) {
         final raw = fe.details?.toString() ?? '';
-        final isJwtError = fe.status == 401 ||
+        final isJwtError =
+            fe.status == 401 ||
             fe.status == 403 ||
             raw.contains('LEGACY_JWT') ||
             raw.contains('ES256') ||
             raw.contains('JWT');
         if (isJwtError) {
           try {
-            response = await _client.functions.invoke('grocery-order',
-                body: invokeBody, headers: await freshHeader());
+            response = await _client.functions.invoke(
+              'grocery/order',
+              body: invokeBody,
+              headers: await freshHeader(),
+            );
           } on FunctionException catch (fe2) {
             if (fe2.status == 401 || fe2.status == 403) {
               throw Exception(
                 'Your session has expired. Please sign out and sign in again to place your order.',
               );
             }
-            final msg = extractFunctionError(fe2.details) ??
+            final msg =
+                extractFunctionError(fe2.details) ??
                 'Order placement failed (${fe2.status}). Please try again.';
             throw Exception(msg);
           }

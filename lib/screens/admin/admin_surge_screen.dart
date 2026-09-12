@@ -9,6 +9,7 @@ import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
+import '../../widgets/app_map_tiles.dart';
 
 class AdminSurgeScreen extends ConsumerStatefulWidget {
   const AdminSurgeScreen({super.key});
@@ -132,11 +133,7 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
         mapController: _mapController,
         options: MapOptions(initialCenter: center, initialZoom: zoom),
         children: [
-          TileLayer(
-            urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c', 'd'],
-            userAgentPackageName: 'sevendash.app',
-          ),
+          appMapTileLayer(),
           CircleLayer(
             circles: zones.map((zone) {
               final lat = (zone['latitude'] as num?)?.toDouble() ?? 0;
@@ -480,11 +477,7 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
               }),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'sevendash.app',
-              ),
+              appMapTileLayer(),
               // Delivery region circles (green, behind surge)
               CircleLayer(
                 circles: regions

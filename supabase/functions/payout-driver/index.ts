@@ -168,7 +168,7 @@ const user = { id: _uid };
     .insert({
       driver_id: driver.id,
       amount: amount_cents / 100,
-      currency: "usd",
+      currency: "jmd",
       payout_type,
       status: "pending",
       idempotency_key: idempotencyKey,
@@ -186,8 +186,8 @@ const user = { id: _uid };
     amount: number;
     currency: string;
   }>;
-  const usdBalance = available.find((b) => b.currency === "usd");
-  if (!usdBalance || usdBalance.amount < amount_cents) {
+  const jmdBalance = available.find((b) => b.currency === "jmd");
+  if (!jmdBalance || jmdBalance.amount < amount_cents) {
     // Update payout record to failed
     await adminClient
       .from("payout_history")
@@ -208,7 +208,7 @@ const user = { id: _uid };
   // --- Create Stripe payout ---
   const stripeParams: Record<string, string> = {
     amount: String(amount_cents),
-    currency: "usd",
+    currency: "jmd",
   };
   if (payout_type === "instant") {
     stripeParams.method = "instant";
@@ -258,7 +258,7 @@ const user = { id: _uid };
     payout_id: payoutRecord.id,
     stripe_payout_id: (payout as any).id,
     amount: amount_cents / 100,
-    currency: "usd",
+    currency: "jmd",
     payout_type,
     arrival_date: (payout as any).arrival_date,
     status: (payout as any).status,

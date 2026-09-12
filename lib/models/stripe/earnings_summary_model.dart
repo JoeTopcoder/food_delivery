@@ -73,6 +73,6 @@ class PayoutSettings {
         restaurantHoldDays: j['restaurant_hold_days'] as int? ?? 2,
         requireAdminApproval: j['require_admin_approval'] as bool? ?? true,
         instantPayoutsEnabled: j['instant_payouts_enabled'] as bool? ?? false,
-        platformCurrency: j['platform_currency'] as String? ?? 'usd',
+        platformCurrency: j['platform_currency'] as String? ?? 'jmd',
       );
 }

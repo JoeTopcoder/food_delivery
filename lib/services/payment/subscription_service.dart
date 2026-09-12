@@ -231,7 +231,7 @@ class SubscriptionService {
   }) async {
     try {
       final response = await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {'action': 'subscribe', 'plan': plan},
       );
 
@@ -254,7 +254,7 @@ class SubscriptionService {
   Future<bool> cancelDeliverySubscription(String subscriptionId) async {
     try {
       final response = await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {'action': 'cancel', 'subscription_id': subscriptionId},
       );
 
@@ -273,7 +273,7 @@ class SubscriptionService {
   Future<bool> reactivateDeliverySubscription(String subscriptionId) async {
     try {
       final response = await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {'action': 'reactivate', 'subscription_id': subscriptionId},
       );
 
@@ -293,7 +293,7 @@ class SubscriptionService {
   Future<void> deletePendingSubscription(String subscriptionId) async {
     try {
       await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {
           'action': 'delete_pending',
           'subscription_id': subscriptionId,
@@ -309,7 +309,7 @@ class SubscriptionService {
     try {
       AppLogger.info('Activating subscription: $subscriptionId');
       final response = await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {'action': 'activate', 'subscription_id': subscriptionId},
       );
 
@@ -339,7 +339,7 @@ class SubscriptionService {
   }) async {
     try {
       final response = await _client.functions.invoke(
-        'create-subscription',
+        'stripe/subscription',
         body: {
           'action': 'change_plan',
           'subscription_id': subscriptionId,

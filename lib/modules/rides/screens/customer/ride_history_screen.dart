@@ -1021,7 +1021,7 @@ class _StatusChip extends StatelessWidget {
       case RideStatus.searchingDriver:
         return ('Searching', _kAmber);
       case RideStatus.scheduled:
-        return ('Scheduled', const Color(0xFF7C3AED));
+        return ('Scheduled', const Color(0xFF155EEF));
       default:
         return ('Requested', _kAmber);
     }

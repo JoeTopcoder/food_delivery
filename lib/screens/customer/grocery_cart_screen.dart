@@ -87,7 +87,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     }
     final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
 
-    // MealHub+ free-delivery preview (delivery only).
+    // QuickDash+ free-delivery preview (delivery only).
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
     final subDeliveryFree =
         activeSub != null &&
@@ -96,7 +96,10 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
         !isPickup;
     final effectiveFee = subDeliveryFree ? 0.0 : totalActiveFee;
 
-    final platformServiceFee = AppConstants.calculateServiceFee(subtotal);
+    final platformServiceFee = AppConstants.calculateServiceFee(
+      subtotal,
+      otherCharges: totalActiveFee,
+    );
     final tax = subtotal * AppConstants.taxRate;
     final total = subtotal + effectiveFee + platformServiceFee + tax;
 
@@ -514,15 +517,18 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                             ),
                             const SizedBox(height: 8),
                             if (isPickup)
-                              _PriceRow(
-                                'Service Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
-                                '${AppConstants.currencySymbol}${effectiveFee.toStringAsFixed(2)}',
-                                valueColor: const Color(0xFF10B981),
-                              )
+                              // Hidden when the store charges nothing to collect.
+                              effectiveFee > 0
+                                  ? _PriceRow(
+                                      'Pickup Fee${storeIds.length > 1 ? ' (${storeIds.length} stores)' : ''}',
+                                      '${AppConstants.currencySymbol}${effectiveFee.toStringAsFixed(2)}',
+                                      valueColor: const Color(0xFF10B981),
+                                    )
+                                  : const SizedBox.shrink()
                             else
                               _PriceRow(
                                 subDeliveryFree
-                                    ? 'Delivery (MealHub+ FREE)'
+                                    ? 'Delivery (QuickDash+ FREE)'
                                     : surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                                     : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
@@ -532,7 +538,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     ? '\$0.00'
                                     : '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: subDeliveryFree
-                                    ? const Color(0xFF6C63FF)
+                                    ? const Color(0xFF528BFF)
                                     : surgeMultiplier > 1.0
                                     ? const Color(0xFFFFA630)
                                     : null,
@@ -589,7 +595,7 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                           elevation: 0,
                         ),
                         child: Text(
-                          'Proceed to Checkout - \$${total.toStringAsFixed(2)}',
+                          'Proceed to Checkout - ${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -793,13 +799,17 @@ class _SuggestedItems extends ConsumerWidget {
     final shown = suggestions.take(10).toList();
 
     // Card width = 42 % of screen, clamped for tiny → tablet
-    final cardW = (MediaQuery.of(context).size.width * 0.42)
-        .clamp(140.0, 200.0);
+    final cardW = (MediaQuery.of(context).size.width * 0.42).clamp(
+      140.0,
+      200.0,
+    );
     // Card total height is screen-proportional — no manual content maths.
     // The image section uses Expanded to fill whatever space is left after
     // the fixed-height text + button area. Nothing can overflow.
-    final cardH = (MediaQuery.of(context).size.width * 0.58)
-        .clamp(200.0, 260.0);
+    final cardH = (MediaQuery.of(context).size.width * 0.58).clamp(
+      200.0,
+      260.0,
+    );
     // Image fills whatever remains after the fixed 110 dp text+button area
     final imgH = (cardH - 110).clamp(88.0, 150.0);
 
@@ -986,15 +996,15 @@ class _SuggestionCard extends ConsumerWidget {
               child: ElevatedButton.icon(
                 onPressed: inCart
                     ? null
-                    : () => ref
-                        .read(groceryCartProvider.notifier)
-                        .addItem(item),
+                    : () =>
+                          ref.read(groceryCartProvider.notifier).addItem(item),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: inCart
                       ? scheme.surfaceContainerHighest
                       : const Color(0xFF2BA84A),
-                  foregroundColor:
-                      inCart ? scheme.onSurfaceVariant : Colors.white,
+                  foregroundColor: inCart
+                      ? scheme.onSurfaceVariant
+                      : Colors.white,
                   elevation: 0,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,

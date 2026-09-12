@@ -16,6 +16,8 @@ import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
 import '../web/admin/admin_web_app.dart';
 import '../web/customer/customer_web_app.dart';
+import '../widgets/quickdash_logo.dart';
+import '../widgets/riding_courier.dart';
 import '../widgets/role_guard.dart';
 
 const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
@@ -223,11 +225,13 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Opacity(
                           opacity: _logoOpacity.value,
                           child: Container(
-                            width: 120,
-                            height: 120,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 18,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(28),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.2),
@@ -236,14 +240,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/mealhub_logo.png',
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                            child: const QuickDashMark(size: 168),
                           ),
                         ),
                       ),
@@ -263,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            '7DASH',
+                            'QuickDash',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -283,7 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'Food. Fast. Delivered.',
+                            'Good Food. Faster.',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -329,6 +326,23 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 26),
+
+                // The rider: a courier on a scooter with the delivery box on
+                // the back, wheels turning and the road running under him.
+                // Drawn, not an asset, so it takes the role's own colours.
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, _) => Opacity(
+                    opacity: _subtitleOpacity.value,
+                    child: RidingCourier(
+                      width: (size.width * 0.62).clamp(180.0, 300.0),
+                      color: Colors.white,
+                      accent: config.gradientStart,
                     ),
                   ),
                 ),
@@ -397,7 +411,7 @@ class _SplashScreenState extends State<SplashScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(
-                    alpha: 0.04 + random.nextDouble() * 0.04,
+                    alpha: 0.03 + random.nextDouble() * 0.03,
                   ),
                 ),
               ),
@@ -438,7 +452,7 @@ class _RoleConfig {
         return const _RoleConfig(
           gradientStart: Color(0xFF1E1B4B),
           gradientEnd: Color(0xFF4C1D95),
-          iconColor: Color(0xFF7C3AED),
+          iconColor: Color(0xFF155EEF),
           icon: Icons.admin_panel_settings_rounded,
           title: 'Admin Portal',
           subtitle: 'Manage your platform',
@@ -476,12 +490,12 @@ class _RoleConfig {
         );
       default: // customer
         return const _RoleConfig(
-          gradientStart: Color(0xFF581C87),
-          gradientEnd: Color(0xFF7C3AED),
-          iconColor: Color(0xFF7C3AED),
+          gradientStart: Color(0xFF0B1220),
+          gradientEnd: Color(0xFF1743B5),
+          iconColor: Color(0xFF155EEF),
           icon: Icons.fastfood_rounded,
           title: 'Welcome Back!',
-          subtitle: 'Discover & order deliciou food',
+          subtitle: 'Discover & order delicious food',
           loadingText: 'Finding restaurants near you...',
         );
     }
@@ -729,9 +743,9 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: const [
-                    Color(0xFF581C87),
-                    Color(0xFF7C3AED),
-                    Color(0xFF581C87),
+                    Color(0xFF0B1220),
+                    Color(0xFF1743B5),
+                    Color(0xFF0B1220),
                   ],
                   stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
                 ),
@@ -756,11 +770,13 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                     child: Opacity(
                       opacity: _logoOpacity.value,
                       child: Container(
-                        width: 120,
-                        height: 120,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.25),
@@ -769,14 +785,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                             ),
                           ],
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/mealhub_logo.png',
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                        child: const QuickDashMark(size: 168),
                       ),
                     ),
                   ),
@@ -794,7 +803,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            '7DASH',
+                            'QuickDash',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,
@@ -811,7 +820,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Food. Fast. Delivered.',
+                            'Good Food. Faster.',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.85),
@@ -820,6 +829,24 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // The rider: a courier on a scooter with the delivery box on
+                // the back, wheels turning and the road running underneath.
+                // Drawn rather than shipped as an asset, so it stays crisp at
+                // any density and needs no image to load before it can appear.
+                AnimatedBuilder(
+                  animation: _contentController,
+                  builder: (_, __) => Opacity(
+                    opacity: _titleOpacity.value,
+                    child: RidingCourier(
+                      width: (MediaQuery.of(context).size.width * 0.64)
+                          .clamp(190.0, 320.0),
+                      accent: const Color(0xFF0B1220),
                     ),
                   ),
                 ),
@@ -887,7 +914,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(
-                    alpha: 0.04 + rng.nextDouble() * 0.04,
+                    alpha: 0.03 + rng.nextDouble() * 0.03,
                   ),
                 ),
               ),

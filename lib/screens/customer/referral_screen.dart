@@ -1,3 +1,4 @@
+import '../../config/app_constants.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
@@ -119,10 +120,12 @@ class ReferralScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '\$${EarningConfig.directOrderRate.toStringAsFixed(2)} per order from referrals',
+                                '${AppConstants.currencySymbol}${EarningConfig.directOrderRate.toStringAsFixed(2)} per order from referrals',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -161,7 +164,10 @@ class ReferralScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'Your Referral Code',
-                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   codeAsync.when(
@@ -207,9 +213,12 @@ class ReferralScreen extends ConsumerWidget {
                   ? SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => SharePlus.instance.share(ShareParams(
-                          text: 'Join MealHub and use my referral code $code to get bonus loyalty points! Download the app now.',
-                        )),
+                        onPressed: () => SharePlus.instance.share(
+                          ShareParams(
+                            text:
+                                'Join QuickDash and use my referral code $code to get bonus loyalty points! Download the app now.',
+                          ),
+                        ),
                         icon: const Icon(Icons.share_rounded),
                         label: const Text(
                           'Share with Friends',
@@ -272,7 +281,9 @@ class ReferralScreen extends ConsumerWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLowest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -285,12 +296,18 @@ class ReferralScreen extends ConsumerWidget {
                         SizedBox(height: 8),
                         Text(
                           'No referrals yet',
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         Text(
                           'Share your code to start earning!',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -366,7 +383,10 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

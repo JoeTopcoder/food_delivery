@@ -1,4 +1,4 @@
-// ops-report-agent — consolidated read-only report agents (7Dash AI Operations)
+// ops-report-agent — consolidated read-only report agents (QuickDash AI Operations)
 //
 // One function hosts every read-only "compute metrics deterministically,
 // narrate with AI, take no action" agent, dispatched by agent_slug. This is
@@ -20,7 +20,7 @@ import { sendEmail } from '../_shared/resend.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? ''
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const SALES_FROM_EMAIL = Deno.env.get('SALES_FROM_EMAIL') ?? '7Dash Partnerships <onboarding@resend.dev>'
+const SALES_FROM_EMAIL = Deno.env.get('SALES_FROM_EMAIL') ?? 'QuickDash Partnerships <onboarding@resend.dev>'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -163,7 +163,7 @@ async function liveOrderOps(): Promise<ReportResult> {
   return {
     metrics: { active_order_count: rows.length, flagged_count: flagged.length, flagged_orders: flagged },
     relatedEntities: rows.map((o) => ({ type: 'order', id: o.id })),
-    systemPrompt: `You are the 7Dash Live Order Operations Agent. You're given currently active orders and which ones are flagged as delayed (prep_delay = kitchen hasn't marked ready in 45+ min, unassigned_after_ready = ready but no driver assigned, delivery_delay = picked up 60+ min ago and not delivered). driver_performance_risk_score (only set for delivery_delay cases) comes from a different 7Dash agent (Driver Performance) — if it's present and high, mention that this driver has a known pattern, not just a one-off delay. Write a short briefing (80-140 words) on what needs attention right now. If flagged_count is 0, say operations look healthy — don't invent a problem. Never invent an order or number not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Live Order Operations Agent. You're given currently active orders and which ones are flagged as delayed (prep_delay = kitchen hasn't marked ready in 45+ min, unassigned_after_ready = ready but no driver assigned, delivery_delay = picked up 60+ min ago and not delivered). driver_performance_risk_score (only set for delivery_delay cases) comes from a different QuickDash agent (Driver Performance) — if it's present and high, mention that this driver has a known pattern, not just a one-off delay. Write a short briefing (80-140 words) on what needs attention right now. If flagged_count is 0, say operations look healthy — don't invent a problem. Never invent an order or number not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -203,7 +203,7 @@ async function driverCompliance(): Promise<ReportResult> {
       flagged_drivers: flagged,
     },
     relatedEntities: rows.map((d) => ({ type: 'driver', id: d.id })),
-    systemPrompt: `You are the 7Dash Driver Compliance Agent. You're given approved drivers' license expiry status. "expired" means their license has already expired and they should not be actively delivering; "expiring_soon" means within 30 days. Write a short briefing (80-140 words) on which drivers need renewal reminders or immediate suspension review, most urgent first. If missing_expiry_date_on_file is high, note that as a data-quality gap worth fixing during onboarding — don't treat missing data as a compliance violation itself. You may only ever recommend sending a reminder or flagging for review — never state that you've suspended or deactivated anyone, that requires a human decision. Never invent a driver or date not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Driver Compliance Agent. You're given approved drivers' license expiry status. "expired" means their license has already expired and they should not be actively delivering; "expiring_soon" means within 30 days. Write a short briefing (80-140 words) on which drivers need renewal reminders or immediate suspension review, most urgent first. If missing_expiry_date_on_file is high, note that as a data-quality gap worth fixing during onboarding — don't treat missing data as a compliance violation itself. You may only ever recommend sending a reminder or flagging for review — never state that you've suspended or deactivated anyone, that requires a human decision. Never invent a driver or date not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -267,7 +267,7 @@ async function fraudRisk(): Promise<ReportResult> {
   return {
     metrics: { total_disputes_30d: disputeRows.length, flagged_count: flagged.length, flagged_users: flagged },
     relatedEntities: Array.from(allUserIds).map((id) => ({ type: 'user', id })),
-    systemPrompt: `You are the 7Dash Fraud and Risk Agent. You're given customers flagged for repeated disputes and/or repeated Support Agent wallet credits within 30 days — a pattern worth reviewing for possible abuse. Write a short briefing (80-140 words) naming who's most worth reviewing and why (cite the actual counts). This is a REVIEW recommendation only — you may never state that an account was banned, restricted, or penalized; only that it should be reviewed by a human. If flagged_count is 0, say no notable patterns were found. Never invent a user or number not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Fraud and Risk Agent. You're given customers flagged for repeated disputes and/or repeated Support Agent wallet credits within 30 days — a pattern worth reviewing for possible abuse. Write a short briefing (80-140 words) naming who's most worth reviewing and why (cite the actual counts). This is a REVIEW recommendation only — you may never state that an account was banned, restricted, or penalized; only that it should be reviewed by a human. If flagged_count is 0, say no notable patterns were found. Never invent a user or number not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -326,7 +326,7 @@ async function financeReconciliation(): Promise<ReportResult> {
       open_dispute_exposure: openDisputeExposure,
     },
     relatedEntities: stuckPending.map((o) => ({ type: 'order', id: o.id })),
-    systemPrompt: `You are the 7Dash Finance and Reconciliation Agent. You're given 30-day payment status breakdown and orders stuck in 'pending' payment status for over an hour (which is anomalous — payment is normally confirmed before an order is even created, so a lingering pending order usually means a payment webhook or edge function failure). open_dispute_count and open_dispute_exposure come from a different 7Dash agent (Refund & Resolution) — treat exposure as real unresolved financial liability, not just an informational count, and mention it in your summary if non-zero. Write a short briefing (80-140 words) summarizing revenue/commission, dispute exposure, and flagging any stuck payments needing investigation, citing actual numbers. You explain the numbers — you are NOT the authoritative ledger; if something looks off, recommend a human check Stripe directly. Never invent a figure not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Finance and Reconciliation Agent. You're given 30-day payment status breakdown and orders stuck in 'pending' payment status for over an hour (which is anomalous — payment is normally confirmed before an order is even created, so a lingering pending order usually means a payment webhook or edge function failure). open_dispute_count and open_dispute_exposure come from a different QuickDash agent (Refund & Resolution) — treat exposure as real unresolved financial liability, not just an informational count, and mention it in your summary if non-zero. Write a short briefing (80-140 words) summarizing revenue/commission, dispute exposure, and flagging any stuck payments needing investigation, citing actual numbers. You explain the numbers — you are NOT the authoritative ledger; if something looks off, recommend a human check Stripe directly. Never invent a figure not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -399,7 +399,7 @@ async function payoutTriage(): Promise<ReportResult> {
       payouts: triaged,
     },
     relatedEntities: rows.map((r) => ({ type: 'user', id: r.user_id })),
-    systemPrompt: `You are the 7Dash Payout Agent. You're given pending driver/restaurant payout requests, each triaged as ready_to_pay or blocked (with specific issues: connected_account_not_payout_ready means their Stripe Connect onboarding isn't finished, below_minimum/above_maximum are against configured thresholds, recent_fraud_risk_flag means the Fraud & Risk Agent — a different 7Dash agent — flagged this same recipient recently for a real pattern like repeated disputes or wallet credits). Treat recent_fraud_risk_flag as the most serious issue type — never call a payout "ready" if it's present, and say explicitly it needs manual review before paying, not just a routine block. Write a short briefing (80-140 words). You do NOT submit payouts yourself — an admin does that through the existing payout approval screen. Never invent a payout or amount not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Payout Agent. You're given pending driver/restaurant payout requests, each triaged as ready_to_pay or blocked (with specific issues: connected_account_not_payout_ready means their Stripe Connect onboarding isn't finished, below_minimum/above_maximum are against configured thresholds, recent_fraud_risk_flag means the Fraud & Risk Agent — a different QuickDash agent — flagged this same recipient recently for a real pattern like repeated disputes or wallet credits). Treat recent_fraud_risk_flag as the most serious issue type — never call a payout "ready" if it's present, and say explicitly it needs manual review before paying, not just a routine block. Write a short briefing (80-140 words). You do NOT submit payouts yourself — an admin does that through the existing payout approval screen. Never invent a payout or amount not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -445,7 +445,7 @@ async function refundResolution(): Promise<ReportResult> {
       ...rows.map((d) => ({ type: 'order', id: d.order_id })).filter((r) => r.id),
       ...rows.map((d) => ({ type: 'user', id: d.user_id })).filter((r) => r.id),
     ],
-    systemPrompt: `You are the 7Dash Refund and Resolution Agent. You're given open customer disputes with their order context. For each, suggest a likely-fair outcome (no compensation / partial refund / full refund / redelivery / needs human investigation) with brief reasoning, based only on the type/description/order data given — never invent facts about what happened. Prioritize disputes open longest. Write a short briefing (100-160 words) — you are a recommendation only, an admin still resolves each case through the dispute screen. If open_dispute_count is 0, say there's nothing pending. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Refund and Resolution Agent. You're given open customer disputes with their order context. For each, suggest a likely-fair outcome (no compensation / partial refund / full refund / redelivery / needs human investigation) with brief reasoning, based only on the type/description/order data given — never invent facts about what happened. Prioritize disputes open longest. Write a short briefing (100-160 words) — you are a recommendation only, an admin still resolves each case through the dispute screen. If open_dispute_count is 0, say there's nothing pending. Plain text, no markdown.`,
   }
 }
 
@@ -502,7 +502,7 @@ async function customerRetention(): Promise<ReportResult> {
   return {
     metrics: { total_customers_with_orders: [...orderCountByUser.keys()].length, at_risk_count: atRisk.length, at_risk_customers: topAtRisk },
     relatedEntities: [],
-    systemPrompt: `You are the 7Dash Customer Retention Agent. You're given customers who've ordered before but not in 21+ days, ranked by longest absence. flagged_by_fraud_risk comes from a different 7Dash agent (Fraud & Risk) — if true, do NOT recommend a win-back offer for that customer; say explicitly they should be excluded from retention spend pending fraud review, regardless of their lifetime value. For everyone else, write a short briefing (80-140 words) on who's most worth a reactivation nudge and why (cite lifetime orders/spend). You may only ever RECOMMEND outreach here — an admin drafts and sends the actual email separately, per customer, after reviewing this list. If at_risk_count is 0, say retention looks healthy. Never invent a customer or number not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Customer Retention Agent. You're given customers who've ordered before but not in 21+ days, ranked by longest absence. flagged_by_fraud_risk comes from a different QuickDash agent (Fraud & Risk) — if true, do NOT recommend a win-back offer for that customer; say explicitly they should be excluded from retention spend pending fraud review, regardless of their lifetime value. For everyone else, write a short briefing (80-140 words) on who's most worth a reactivation nudge and why (cite lifetime orders/spend). You may only ever RECOMMEND outreach here — an admin drafts and sends the actual email separately, per customer, after reviewing this list. If at_risk_count is 0, say retention looks healthy. Never invent a customer or number not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -568,11 +568,11 @@ async function retentionDraftOutreach(customerId: string, admin: { id: string })
       messages: [
         {
           role: 'system',
-          content: `You are the 7Dash Customer Retention drafting assistant. Draft a short, warm win-back email to a returning customer who hasn't ordered in a while. Rules:
+          content: `You are the QuickDash Customer Retention drafting assistant. Draft a short, warm win-back email to a returning customer who hasn't ordered in a while. Rules:
 - Use ONLY the real stats given (lifetime orders, days since last order) — reference them naturally if it helps ("we've missed having you order with us").
 - Propose a modest, personal win-back discount between 10 and 20 (percent). Reference it in the body using the LITERAL tokens [DISCOUNT] and [PROMO_CODE] exactly as written — e.g. "enjoy [DISCOUNT]% off your next order with code [PROMO_CODE]" — never write a real number or code yourself; those tokens get replaced with a real, one-time code when an admin approves and sends.
 - Warm, personal tone — this is a 1:1 email, not a mass blast. 3-4 short paragraphs, end with a clear call to action (open the app / order again).
-- Sign off as "The 7Dash Team".
+- Sign off as "The QuickDash Team".
 Respond ONLY with JSON: { "subject": string, "body": string, "discount_percent": number }`,
         },
         { role: 'user', content: JSON.stringify({ customer: { name: customer.name, email: customer.email }, lifetime_orders: lifetimeOrders, lifetime_spend: lifetimeSpend, days_since_last_order: daysSinceLastOrder }) },
@@ -587,7 +587,7 @@ Respond ONLY with JSON: { "subject": string, "body": string, "discount_percent":
   }
   const completion = await res.json()
   const parsed = JSON.parse(completion.choices?.[0]?.message?.content ?? '{}')
-  const subject = String(parsed.subject ?? `We miss you at 7Dash`).slice(0, 200)
+  const subject = String(parsed.subject ?? `We miss you at QuickDash`).slice(0, 200)
   const body = String(parsed.body ?? '').slice(0, 4000)
   const discountPercent = Math.min(20, Math.max(10, Math.round(Number(parsed.discount_percent) || 15)))
 
@@ -663,7 +663,7 @@ async function retentionApproveOutreach(customerId: string, decision: string, fi
     return json({ success: true, status: 'rejected' })
   }
 
-  let subject = (finalSubject ?? '').trim() || 'We miss you at 7Dash'
+  let subject = (finalSubject ?? '').trim() || 'We miss you at QuickDash'
   let body = (finalBody ?? '').trim()
   if (!body) return json({ error: 'BAD_REQUEST: no message body to send' }, 400)
 
@@ -748,7 +748,7 @@ async function restaurantOnboarding(): Promise<ReportResult> {
   return {
     metrics: { draft_restaurant_count: rows.length, ready_count: checklist.filter((c) => c.launch_ready).length, checklist },
     relatedEntities: rows.map((r) => ({ type: 'restaurant', id: r.id })),
-    systemPrompt: `You are the 7Dash Restaurant Onboarding Agent. You're given restaurants still in "draft" status with their launch checklist (currently checking: has at least one menu item). Write a short briefing (80-140 words) on which are close to launch-ready and which need follow-up, citing days since application and what's missing. You recommend only — an admin still approves each restaurant. Never invent a restaurant or fact not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Restaurant Onboarding Agent. You're given restaurants still in "draft" status with their launch checklist (currently checking: has at least one menu item). Write a short briefing (80-140 words) on which are close to launch-ready and which need follow-up, citing days since application and what's missing. You recommend only — an admin still approves each restaurant. Never invent a restaurant or fact not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -779,7 +779,7 @@ async function driverRecruitment(): Promise<ReportResult> {
   return {
     metrics: { pending_applicant_count: rows.length, ready_for_approval_count: checklist.filter((c) => c.ready_for_approval).length, checklist },
     relatedEntities: rows.map((d) => ({ type: 'driver', id: d.id })),
-    systemPrompt: `You are the 7Dash Driver Recruitment Agent. You're given pending driver applications and what's missing from each (license number/document, vehicle registration, insurance, identity verification). Write a short briefing (80-140 words) on which applicants are ready for approval and which need to be chased for missing documents, prioritizing by days waiting. You recommend only — an admin still approves each driver per policy. Never invent an applicant or fact not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Driver Recruitment Agent. You're given pending driver applications and what's missing from each (license number/document, vehicle registration, insurance, identity verification). Write a short briefing (80-140 words) on which applicants are ready for approval and which need to be chased for missing documents, prioritizing by days waiting. You recommend only — an admin still approves each driver per policy. Never invent an applicant or fact not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -829,7 +829,7 @@ async function marketingStrategy(): Promise<ReportResult> {
   return {
     metrics: { active_promo_count: rows.length, promos: analysis, promo_opportunities: promoOpportunities },
     relatedEntities: [],
-    systemPrompt: `You are the 7Dash Marketing Strategy Agent. You're given currently active promo codes with redemption counts and utilization, plus promo_opportunities — at-risk restaurants (from a different 7Dash agent, Restaurant Success) that don't currently have any active promo. Write a short briefing (80-140 words): call out underperforming promos (low utilization, especially if expiring soon), any close to their usage limit (may be worth extending), and if promo_opportunities is non-empty, suggest a co-marketing promo could help the highest-risk restaurant there re-engage customers. You recommend only — no budget or promo is created/changed by you. If active_promo_count is 0 and promo_opportunities is empty, say there's nothing notable right now. Never invent a promo, restaurant, or number not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Marketing Strategy Agent. You're given currently active promo codes with redemption counts and utilization, plus promo_opportunities — at-risk restaurants (from a different QuickDash agent, Restaurant Success) that don't currently have any active promo. Write a short briefing (80-140 words): call out underperforming promos (low utilization, especially if expiring soon), any close to their usage limit (may be worth extending), and if promo_opportunities is non-empty, suggest a co-marketing promo could help the highest-risk restaurant there re-engage customers. You recommend only — no budget or promo is created/changed by you. If active_promo_count is 0 and promo_opportunities is empty, say there's nothing notable right now. Never invent a promo, restaurant, or number not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -891,7 +891,7 @@ async function restaurantLeadGen(): Promise<ReportResult> {
   return {
     metrics: { new_lead_count: leadRows.length, duplicate_count: scored.filter((s) => s.possible_duplicate_of_existing_restaurant).length, leads: scored },
     relatedEntities: leadRows.map((l) => ({ type: 'restaurant_lead', id: l.id })),
-    systemPrompt: `You are the 7Dash Restaurant Lead Generation Agent. Leads are entered manually by an admin — you never invent a restaurant. You're given each new lead's score (contact completeness + how underrepresented their cuisine is on the platform — a real gap signal) and whether they look like a duplicate of an existing partner (score forced to 0 if so). Write a short briefing (80-140 words) on which leads are worth prioritizing for outreach and why, and flag any duplicates for cleanup. If new_lead_count is 0, say there are no new leads to review. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Restaurant Lead Generation Agent. Leads are entered manually by an admin — you never invent a restaurant. You're given each new lead's score (contact completeness + how underrepresented their cuisine is on the platform — a real gap signal) and whether they look like a duplicate of an existing partner (score forced to 0 if so). Write a short briefing (80-140 words) on which leads are worth prioritizing for outreach and why, and flag any duplicates for cleanup. If new_lead_count is 0, say there are no new leads to review. Plain text, no markdown.`,
   }
 }
 
@@ -998,7 +998,7 @@ async function dispatchRankDrivers(orderId: string, admin: { id: string }): Prom
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `You are the 7Dash Dispatch Optimization Agent. You're given available drivers ranked by distance (already sorted, nearest first), EXCEPT drivers with compliance_flag "expired" are always sorted last regardless of distance — that's a deterministic safety rule, not your judgment, and it comes from a different 7Dash agent (Driver Compliance). Explain in 2-3 sentences why the top driver is the recommended pick. If the nearest driver has an expired license and got pushed down the list, say so explicitly so the admin understands why they weren't recommended first. An admin still confirms the assignment manually. Never invent a driver or distance not in the data. Plain text.` },
+          { role: 'system', content: `You are the QuickDash Dispatch Optimization Agent. You're given available drivers ranked by distance (already sorted, nearest first), EXCEPT drivers with compliance_flag "expired" are always sorted last regardless of distance — that's a deterministic safety rule, not your judgment, and it comes from a different QuickDash agent (Driver Compliance). Explain in 2-3 sentences why the top driver is the recommended pick. If the nearest driver has an expired license and got pushed down the list, say so explicitly so the admin understands why they weren't recommended first. An admin still confirms the assignment manually. Never invent a driver or distance not in the data. Plain text.` },
           { role: 'user', content: JSON.stringify({ order: order.receipt_number, restaurant: restaurant.name, ranked_drivers: ranked }) },
         ],
         temperature: 0.3,
@@ -1058,7 +1058,7 @@ async function marketExpansion(): Promise<ReportResult> {
   return {
     metrics: { active_zone_count: (regions ?? []).length, zones: analysis },
     relatedEntities: [],
-    systemPrompt: `You are the 7Dash Market Expansion Agent. Scope note: this app has no external population/competitor/regulatory data, so this analysis is limited to your EXISTING delivery zones only — not new external markets. You're given each zone's order volume and what percentage of orders land near the outer edge of its radius (a signal that widening the zone could capture nearby unmet demand). Write a short briefing (80-140 words) recommending which zone(s), if any, are worth widening, citing the actual percentages. Do not recommend launching in any city/market not already in the data — you have no basis for that. If no zone shows a notable edge pattern, say so. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Market Expansion Agent. Scope note: this app has no external population/competitor/regulatory data, so this analysis is limited to your EXISTING delivery zones only — not new external markets. You're given each zone's order volume and what percentage of orders land near the outer edge of its radius (a signal that widening the zone could capture nearby unmet demand). Write a short briefing (80-140 words) recommending which zone(s), if any, are worth widening, citing the actual percentages. Do not recommend launching in any city/market not already in the data — you have no basis for that. If no zone shows a notable edge pattern, say so. Plain text, no markdown.`,
   }
 }
 
@@ -1096,7 +1096,7 @@ async function technicalOperationsAiHealth(): Promise<ReportResult> {
   return {
     metrics: { total_runs_7d: rows.length, total_failures_7d: recentFailures.length, by_agent: byAgent, recent_failures: recentFailures.slice(0, 10) },
     relatedEntities: [],
-    systemPrompt: `You are the 7Dash Technical Operations Agent. Scope note: this app has no application-wide error/incident tracking (no Sentry-equivalent), so this monitors the one thing reliably tracked — the AI agent platform's own run failures over the last 7 days. Write a short briefing (80-140 words) on which agent(s) are failing most and what the errors suggest, if a pattern is visible. If total_failures_7d is 0, say the AI agent platform is running cleanly. Never invent a failure or number not in the data. Plain text, no markdown.`,
+    systemPrompt: `You are the QuickDash Technical Operations Agent. Scope note: this app has no application-wide error/incident tracking (no Sentry-equivalent), so this monitors the one thing reliably tracked — the AI agent platform's own run failures over the last 7 days. Write a short briefing (80-140 words) on which agent(s) are failing most and what the errors suggest, if a pattern is visible. If total_failures_7d is 0, say the AI agent platform is running cleanly. Never invent a failure or number not in the data. Plain text, no markdown.`,
   }
 }
 
@@ -1116,7 +1116,7 @@ async function generateMarketingContent(brief: string, admin: { id: string }): P
       messages: [
         {
           role: 'system',
-          content: `You are the 7Dash Marketing Content Agent. Given a brief, draft the requested marketing content (social post, promo copy, recruitment ad, etc.) for 7Dash — a food/grocery/ride delivery marketplace. Rules:
+          content: `You are the QuickDash Marketing Content Agent. Given a brief, draft the requested marketing content (social post, promo copy, recruitment ad, etc.) for QuickDash — a food/grocery/ride delivery marketplace. Rules:
 - Never invent a specific discount amount, promo code, or claim ("#1 rated", "fastest in town") unless the brief explicitly gives you that detail — leave a placeholder like [DISCOUNT]% instead.
 - Keep tone upbeat and on-brand for a delivery app. Match length to the platform implied by the brief (short for social, longer for email).
 - Output plain text ready to copy — no markdown formatting, no commentary about what you wrote.`,
@@ -1151,7 +1151,7 @@ async function generateMarketingContent(brief: string, admin: { id: string }): P
 // ── restaurant_sales ──────────────────────────────────────────────────────
 // Draft/approve pattern, same discipline as Support Agent: drafting never
 // sends anything; only the approve step (after admin review/edit) emails
-// the lead via Resend. Grounded in real 7Dash stats — never invents
+// the lead via Resend. Grounded in real QuickDash stats — never invents
 // commission rates or numbers.
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1182,11 +1182,11 @@ async function salesDraftOutreach(leadId: string, admin: { id: string }): Promis
       messages: [
         {
           role: 'system',
-          content: `You are the 7Dash Restaurant Sales drafting assistant. Draft a short, warm outreach email inviting this restaurant to join 7Dash as a delivery partner. Rules:
+          content: `You are the QuickDash Restaurant Sales drafting assistant. Draft a short, warm outreach email inviting this restaurant to join QuickDash as a delivery partner. Rules:
 - Use ONLY the real platform stats given (restaurant count, commission rate) — if commission rate is null, don't state a specific number, say "competitive commission rates" instead.
 - Never guarantee revenue, order volume, or specific results — those are promises we can't make.
 - Reference their cuisine type / name naturally if given. 3-5 short paragraphs, end with a clear call to action (reply or call).
-- Sign off as "The 7Dash Partnerships Team".
+- Sign off as "The QuickDash Partnerships Team".
 Respond ONLY with JSON: { "subject": string, "body": string }`,
         },
         { role: 'user', content: JSON.stringify({ lead, platform_restaurant_count: restaurantCount ?? 0, commission_rate: commissionRate }) },
@@ -1201,7 +1201,7 @@ Respond ONLY with JSON: { "subject": string, "body": string }`,
   }
   const completion = await res.json()
   const parsed = JSON.parse(completion.choices?.[0]?.message?.content ?? '{}')
-  const subject = String(parsed.subject ?? `Partner with 7Dash`).slice(0, 200)
+  const subject = String(parsed.subject ?? `Partner with QuickDash`).slice(0, 200)
   const body = String(parsed.body ?? '').slice(0, 4000)
 
   const { data: run, error: runErr } = await serviceClient
@@ -1242,7 +1242,7 @@ async function salesApproveOutreach(leadId: string, decision: string, finalSubje
     return json({ success: true, status: 'rejected' })
   }
 
-  const subject = (finalSubject ?? '').trim() || 'Partner with 7Dash'
+  const subject = (finalSubject ?? '').trim() || 'Partner with QuickDash'
   const body = (finalBody ?? '').trim()
   if (!body) return json({ error: 'BAD_REQUEST: no message body to send' }, 400)
 
@@ -1316,12 +1316,12 @@ async function draftPromotion(restaurantId: string | null, admin: { id: string }
       messages: [
         {
           role: 'system',
-          content: `You are the 7Dash Promotion Agent. Propose ONE new promo code, grounded only in the real context given: promo_opportunities (from the Marketing Strategy agent — at-risk restaurants without an active promo) and retention_at_risk_count (from the Customer Retention agent). If a target_restaurant is given, scope the promo to that restaurant specifically and explain why in the rationale. If not, propose a modest platform-wide promo only if the data supports it (e.g. a notable retention_at_risk_count); otherwise propose a small, conservative restaurant-scoped promo for the top promo_opportunity if one exists.
+          content: `You are the QuickDash Promotion Agent. Propose ONE new promo code, grounded only in the real context given: promo_opportunities (from the Marketing Strategy agent — at-risk restaurants without an active promo) and retention_at_risk_count (from the Customer Retention agent). If a target_restaurant is given, scope the promo to that restaurant specifically and explain why in the rationale. If not, propose a modest platform-wide promo only if the data supports it (e.g. a notable retention_at_risk_count); otherwise propose a small, conservative restaurant-scoped promo for the top promo_opportunity if one exists.
 Rules:
 - discount_type must be "percentage" (1-30) or "fixed" (1-15, in dollars). Keep discounts modest — this is a small delivery marketplace, not a discount house.
 - max_uses: a sensible bounded number (10-200), never unlimited.
 - expires_in_days: 7-30.
-- code: 6-10 uppercase letters/numbers, no spaces, on-brand (7DASH-flavored is fine but not required).
+- code: 6-10 uppercase letters/numbers, no spaces, on-brand (QUICKDASH-flavored is fine but not required).
 - rationale: 1-2 sentences citing the actual data point that justifies this, not a generic marketing pitch.
 Respond ONLY with JSON: { "code": string, "description": string, "discount_type": "percentage"|"fixed", "discount_value": number, "max_uses": number, "expires_in_days": number, "rationale": string }`,
         },
@@ -1523,7 +1523,7 @@ async function answerDatabaseQuestion(question: string, history: { role: string;
   const messages: Record<string, unknown>[] = [
     {
       role: 'system',
-      content: `You are the 7Dash "Ask AI" assistant, built for admins to ask anything about the real business data in plain conversation. You can explore and query the actual production database (strictly read-only — every query is enforced read-only at the database level, so you cannot write no matter what).
+      content: `You are the QuickDash "Ask AI" assistant, built for admins to ask anything about the real business data in plain conversation. You can explore and query the actual production database (strictly read-only — every query is enforced read-only at the database level, so you cannot write no matter what).
 Available tables (public schema): ${tableNames.join(', ')}
 Rules:
 - Call describe_table before querying any table you haven't already described in this conversation — never guess a column name.

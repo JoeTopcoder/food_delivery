@@ -7,8 +7,9 @@ import '../../services/app_config_service.dart';
 import '../../config/supabase_config.dart';
 
 // ── Provider: live state of the 5 service toggles from DB ───────────────────
-final _serviceTogglesProvider =
-    FutureProvider.autoDispose<Map<String, bool>>((ref) async {
+final _serviceTogglesProvider = FutureProvider.autoDispose<Map<String, bool>>((
+  ref,
+) async {
   final rows = await SupabaseConfig.client
       .from('app_config')
       .select('key, value')
@@ -18,6 +19,11 @@ final _serviceTogglesProvider =
         'service_rides_enabled',
         'service_laundry_enabled',
         'service_car_service_enabled',
+        'screen_home_enabled',
+        'screen_grocery_enabled',
+        'screen_orders_enabled',
+        'screen_car_services_enabled',
+        'screen_profile_enabled',
       ]);
   final map = <String, bool>{};
   for (final r in rows as List) {
@@ -29,6 +35,11 @@ final _serviceTogglesProvider =
   map.putIfAbsent('service_rides_enabled', () => true);
   map.putIfAbsent('service_laundry_enabled', () => true);
   map.putIfAbsent('service_car_service_enabled', () => true);
+  map.putIfAbsent('screen_home_enabled', () => true);
+  map.putIfAbsent('screen_grocery_enabled', () => true);
+  map.putIfAbsent('screen_orders_enabled', () => true);
+  map.putIfAbsent('screen_car_services_enabled', () => true);
+  map.putIfAbsent('screen_profile_enabled', () => true);
   return map;
 });
 
@@ -71,7 +82,47 @@ class AdminServicesScreen extends ConsumerWidget {
       label: 'Car Services',
       subtitle: 'Car wash & detailing bookings',
       icon: Icons.car_repair_rounded,
-      color: Color(0xFF7C3AED),
+      color: Color(0xFF155EEF),
+    ),
+  ];
+
+  // Customer bottom-nav tabs. Turning one off HIDES it from customers entirely
+  // (the whole tab disappears), unlike a disabled service which shows a badge.
+  static const _screens = [
+    _ServiceDef(
+      key: 'screen_home_enabled',
+      label: 'Home Tab',
+      subtitle: 'Customer landing screen',
+      icon: Icons.home_rounded,
+      color: Color(0xFF155EEF),
+    ),
+    _ServiceDef(
+      key: 'screen_grocery_enabled',
+      label: 'Grocery Tab',
+      subtitle: 'Grocery browsing tab',
+      icon: Icons.local_grocery_store_rounded,
+      color: Color(0xFF059669),
+    ),
+    _ServiceDef(
+      key: 'screen_orders_enabled',
+      label: 'Orders Tab',
+      subtitle: 'Order history & tracking',
+      icon: Icons.receipt_long_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    _ServiceDef(
+      key: 'screen_car_services_enabled',
+      label: 'Services Tab',
+      subtitle: 'Car services tab',
+      icon: Icons.car_repair_rounded,
+      color: Color(0xFF0D9488),
+    ),
+    _ServiceDef(
+      key: 'screen_profile_enabled',
+      label: 'Profile Tab',
+      subtitle: 'Account & settings',
+      icon: Icons.account_circle_rounded,
+      color: Color(0xFF6366F1),
     ),
   ];
 
@@ -107,13 +158,16 @@ class AdminServicesScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
-                      color: Colors.amber.shade700, size: 20),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.amber.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Disabled services show a "Coming Soon" badge on the '
-                      'customer home screen and block navigation into the service.',
+                      'Disabled services are hidden from the customer home screen and '
+                      'their entry points are blocked.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.amber.shade900,
@@ -130,8 +184,31 @@ class AdminServicesScreen extends ConsumerWidget {
               (svc) => _ServiceToggleTile(
                 def: svc,
                 enabled: toggles[svc.key] ?? true,
-                onChanged: (val) =>
-                    _toggle(context, ref, svc.key, val),
+                onChanged: (val) => _toggle(context, ref, svc.key, val),
+              ),
+            )),
+
+            const SizedBox(height: 24),
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'Customer Screens',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Turn a tab off to hide it from customers completely. At least '
+                'one tab must stay on.',
+                style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+              ),
+            ),
+            ...(_screens.map(
+              (scr) => _ServiceToggleTile(
+                def: scr,
+                enabled: toggles[scr.key] ?? true,
+                onChanged: (val) => _toggle(context, ref, scr.key, val),
               ),
             )),
           ],
@@ -162,9 +239,10 @@ class AdminServicesScreen extends ConsumerWidget {
       ref.invalidate(_serviceTogglesProvider);
 
       if (context.mounted) {
-        final label = _services
-            .firstWhere((s) => s.key == key)
-            .label;
+        final label = [
+          ..._services,
+          ..._screens,
+        ].firstWhere((s) => s.key == key).label;
         AppSnackbar.success(
           context,
           '$label is now ${enabled ? 'enabled ✓' : 'disabled — Coming Soon shown'}',
@@ -230,8 +308,7 @@ class _ServiceToggleTile extends StatelessWidget {
         ],
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
           width: 44,
           height: 44,
@@ -269,8 +346,7 @@ class _ServiceToggleTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: enabled
                     ? const Color(0xFF10B981).withValues(alpha: 0.12)

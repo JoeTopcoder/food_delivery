@@ -180,7 +180,7 @@ class _MasterOrderCard extends StatelessWidget {
       case 'out_for_delivery':
         return const Color(0xFF6366F1);
       case 'ready_for_pickup':
-        return const Color(0xFF8B5CF6);
+        return const Color(0xFF528BFF);
       case 'preparing':
         return const Color(0xFFF59E0B);
       case 'accepted':
@@ -1119,7 +1119,7 @@ class _OrderCard extends ConsumerWidget {
           children: [
             Center(
               child: Text(
-                'MealHub',
+                'QuickDash',
                 style: TextStyle(
                   fontSize: Responsive.headingLarge(context),
                   fontWeight: FontWeight.bold,
@@ -1217,7 +1217,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 20),
             const Center(
               child: Text(
-                'Thank you for using MealHub!',
+                'Thank you for using QuickDash!',
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,

@@ -1,4 +1,4 @@
-﻿// driver_wallet_screen.dart — Full Stripe Connect wallet screen
+// driver_wallet_screen.dart — Full Stripe Connect wallet screen
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -8,10 +8,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/stripe/earnings_provider.dart';
 import '../../services/payment/payout_service.dart'
-    show
-        StripePayoutService,
-        PayoutRecord,
-        DriverPayoutMethod;
+    show StripePayoutService, PayoutRecord, DriverPayoutMethod;
 import '../../utils/friendly_error.dart';
 import '../../utils/safe_state_mixin.dart';
 import '../../config/app_constants.dart';
@@ -55,7 +52,7 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
   String? _successMessage;
 
   static const _bg = Color(0xFF0F1117);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
   static const _green = Color(0xFF00C896);
 
   // ── Create Stripe account ─────────────────────────────────────────────
@@ -171,7 +168,10 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
             amountCents: netCents,
             payoutMethod: payoutType == 'instant' ? 'instant' : 'standard',
           );
-      if (pr == null) throw Exception(ref.read(earningsProvider('driver')).error ?? 'Payout failed');
+      if (pr == null)
+        throw Exception(
+          ref.read(earningsProvider('driver')).error ?? 'Payout failed',
+        );
       ref.invalidate(payoutHistoryProvider(driver.id));
       setState(
         () => _successMessage =
@@ -239,7 +239,9 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
           ref.read(earningsProvider('driver').notifier).load();
         },
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             SliverAppBar(
               floating: true,
@@ -251,7 +253,12 @@ class _DriverWalletScreenState extends ConsumerState<DriverWalletScreen>
               ),
             ),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(Responsive.horizontalPadding(context), 8, Responsive.horizontalPadding(context), 32),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                8,
+                Responsive.horizontalPadding(context),
+                32,
+              ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Balance card
@@ -416,14 +423,14 @@ class _BalanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF3D5AFE)],
+          colors: [Color(0xFF528BFF), Color(0xFF3D5AFE)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+            color: const Color(0xFF528BFF).withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -502,7 +509,7 @@ class _StripeAccountCard extends StatelessWidget {
   });
 
   static const _cardBg = Color(0xFF1C1F2E);
-  static const _accent = Color(0xFF6C63FF);
+  static const _accent = Color(0xFF528BFF);
   static const _green = Color(0xFF00C896);
 
   @override
@@ -840,7 +847,7 @@ class _PayoutMethodsSummary extends StatelessWidget {
             children: [
               Icon(
                 m.isCard ? Icons.credit_card : Icons.account_balance,
-                color: const Color(0xFF6C63FF),
+                color: const Color(0xFF528BFF),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -1246,7 +1253,7 @@ class _AddCardSheetState extends State<_AddCardSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(12)),
-                borderSide: BorderSide(color: Color(0xFF6C63FF)),
+                borderSide: BorderSide(color: Color(0xFF528BFF)),
               ),
             ),
             onCardChanged: (d) =>
@@ -1265,9 +1272,9 @@ class _AddCardSheetState extends State<_AddCardSheet> {
             child: ElevatedButton(
               onPressed: (_cardComplete && !_loading) ? _submit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
+                backgroundColor: const Color(0xFF528BFF),
                 disabledBackgroundColor: const Color(
-                  0xFF6C63FF,
+                  0xFF528BFF,
                 ).withValues(alpha: 0.4),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

@@ -797,7 +797,7 @@ class _AiAdGeneratorDialogState extends State<_AiAdGeneratorDialog> {
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF7C3AED), Color(0xFFEC4899)],
+                colors: [Color(0xFF155EEF), Color(0xFFEC4899)],
               ),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -890,10 +890,10 @@ class _AiAdGeneratorDialogState extends State<_AiAdGeneratorDialog> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFF155EEF),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor:
-                        const Color(0xFF7C3AED).withValues(alpha: 0.5),
+                        const Color(0xFF155EEF).withValues(alpha: 0.5),
                   ),
                   icon: _generating
                       ? const SizedBox(

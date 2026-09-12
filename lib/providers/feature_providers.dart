@@ -25,42 +25,50 @@ import './auth_provider.dart';
 /// Any provider that watches this will automatically recalculate.
 final configVersionProvider = StateProvider<int>((ref) => 0);
 
+/// False until AppConfigService.load() has populated AppConstants at startup.
+/// The customer nav waits on this so it never renders tabs using the default
+/// (all-on) flags before the admin's real screen-visibility flags arrive.
+final configReadyProvider = StateProvider<bool>((ref) => false);
+
 // ── Food categories (Browse by Category on home screen) ─────
 /// Fetched from the `food_categories` table so admins can manage them
 /// without an app release.  Falls back to an empty list on error.
-final foodCategoriesProvider = FutureProvider.autoDispose<List<Map<String, String>>>((
-  ref,
-) async {
-  ref.keepAlive();
-  try {
-    final rows = await SupabaseConfig.client
-        .from('food_categories')
-        .select('name, emoji, image_url')
-        .eq('is_active', true)
-        .order('sort_order');
-    return (rows as List)
-        .map((r) => {
-              'name': r['name'] as String,
-              'emoji': r['emoji'] as String,
-              'image_url': (r['image_url'] as String?) ?? '',
-            })
-        .toList();
-  } catch (_) {
-    // image_url column may not exist yet — fall back to name + emoji only
-    final rows = await SupabaseConfig.client
-        .from('food_categories')
-        .select('name, emoji')
-        .eq('is_active', true)
-        .order('sort_order');
-    return (rows as List)
-        .map((r) => {
-              'name': r['name'] as String,
-              'emoji': r['emoji'] as String,
-              'image_url': '',
-            })
-        .toList();
-  }
-});
+final foodCategoriesProvider =
+    FutureProvider.autoDispose<List<Map<String, String>>>((ref) async {
+      ref.keepAlive();
+      try {
+        final rows = await SupabaseConfig.client
+            .from('food_categories')
+            .select('name, emoji, image_url')
+            .eq('is_active', true)
+            .order('sort_order');
+        return (rows as List)
+            .map(
+              (r) => {
+                'name': r['name'] as String,
+                'emoji': r['emoji'] as String,
+                'image_url': (r['image_url'] as String?) ?? '',
+              },
+            )
+            .toList();
+      } catch (_) {
+        // image_url column may not exist yet — fall back to name + emoji only
+        final rows = await SupabaseConfig.client
+            .from('food_categories')
+            .select('name, emoji')
+            .eq('is_active', true)
+            .order('sort_order');
+        return (rows as List)
+            .map(
+              (r) => {
+                'name': r['name'] as String,
+                'emoji': r['emoji'] as String,
+                'image_url': '',
+              },
+            )
+            .toList();
+      }
+    });
 
 /// Call `ref.read(appConfigRealtimeProvider)` once at startup to begin
 /// listening for admin pricing changes in real time.
@@ -92,12 +100,40 @@ final appConfigRealtimeProvider = Provider<void>((ref) {
 final serviceEnabledProvider = Provider.family<bool, String>((ref, key) {
   ref.watch(configVersionProvider); // re-run on any config change
   switch (key) {
-    case 'food':        return AppConstants.serviceFoodEnabled;
-    case 'grocery':     return AppConstants.serviceGroceryEnabled;
-    case 'rides':       return AppConstants.serviceRidesEnabled;
-    case 'laundry':     return AppConstants.serviceLaundryEnabled;
-    case 'car_service': return AppConstants.serviceCarServiceEnabled;
-    default:            return true;
+    case 'food':
+      return AppConstants.serviceFoodEnabled;
+    case 'grocery':
+      return AppConstants.serviceGroceryEnabled;
+    case 'rides':
+      return AppConstants.serviceRidesEnabled;
+    case 'laundry':
+      return AppConstants.serviceLaundryEnabled;
+    case 'car_service':
+      return AppConstants.serviceCarServiceEnabled;
+    default:
+      return true;
+  }
+});
+
+// ── Screen (bottom-nav tab) visibility provider ────────────
+/// Whether a customer bottom-nav tab is shown. Admin-controlled via app_config;
+/// re-evaluates on any config change. Keys: 'home','grocery','orders',
+/// 'car_services','profile'. false = tab hidden from customers.
+final screenEnabledProvider = Provider.family<bool, String>((ref, key) {
+  ref.watch(configVersionProvider);
+  switch (key) {
+    case 'home':
+      return AppConstants.screenHomeEnabled;
+    case 'grocery':
+      return AppConstants.screenGroceryEnabled;
+    case 'orders':
+      return AppConstants.screenOrdersEnabled;
+    case 'car_services':
+      return AppConstants.screenCarServicesEnabled;
+    case 'profile':
+      return AppConstants.screenProfileEnabled;
+    default:
+      return true;
   }
 });
 
@@ -279,9 +315,7 @@ final availablePlansProvider = FutureProvider.autoDispose<List<MealPlan>>(
 
 /// All meal plans (admin) — real-time via Supabase Realtime.
 final allMealPlansProvider = FutureProvider.autoDispose<List<MealPlan>>((ref) {
-  final channel = Supabase.instance.client.realtime.channel(
-    'meal_plans_all',
-  );
+  final channel = Supabase.instance.client.realtime.channel('meal_plans_all');
   channel
       .onPostgresChanges(
         event: PostgresChangeEvent.all,
@@ -307,35 +341,36 @@ final userSubscriptionsProvider = FutureProvider.family
 /// Active delivery subscription (Uber One-style) for the current user.
 /// Listens to Supabase Realtime on user_subscriptions so it auto-updates
 /// when the webhook activates/cancels/renews the subscription.
-final activeSubscriptionProvider = FutureProvider.autoDispose<UserSubscription?>((
-  ref,
-) {
-  final userId = ref.watch(currentUserIdProvider);
-  if (userId == null) return Future.value(null);
+final activeSubscriptionProvider =
+    FutureProvider.autoDispose<UserSubscription?>((ref) {
+      final userId = ref.watch(currentUserIdProvider);
+      if (userId == null) return Future.value(null);
 
-  // Subscribe to Realtime changes on user_subscriptions for this user
-  final channel = Supabase.instance.client.realtime.channel(
-    'active_sub_${userId.hashCode.abs()}',
-  );
-  channel
-      .onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'user_subscriptions',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'user_id',
-          value: userId,
-        ),
-        callback: (_) => ref.invalidateSelf(),
-      )
-      .subscribe();
-  ref.onDispose(() => Supabase.instance.client.realtime.removeChannel(channel));
+      // Subscribe to Realtime changes on user_subscriptions for this user
+      final channel = Supabase.instance.client.realtime.channel(
+        'active_sub_${userId.hashCode.abs()}',
+      );
+      channel
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'user_subscriptions',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) => ref.invalidateSelf(),
+          )
+          .subscribe();
+      ref.onDispose(
+        () => Supabase.instance.client.realtime.removeChannel(channel),
+      );
 
-  return ref
-      .watch(subscriptionServiceProvider)
-      .getActiveDeliverySubscription(userId);
-});
+      return ref
+          .watch(subscriptionServiceProvider)
+          .getActiveDeliverySubscription(userId);
+    });
 
 // Feedback
 final userFeedbackProvider = FutureProvider.family
@@ -376,40 +411,38 @@ final allSurgeZonesProvider =
 
 /// Surge multiplier for a delivery location. Pass `'$lat,$lng'` as the family key.
 /// Refreshes in real-time when surge_zones table changes.
-final surgeMultiplierProvider = FutureProvider.autoDispose.family<double, String>((
-  ref,
-  latLng,
-) async {
-  final parts = latLng.split(',');
-  if (parts.length != 2) return 1.0;
-  final lat = double.tryParse(parts[0]);
-  final lng = double.tryParse(parts[1]);
-  if (lat == null || lng == null || (lat == 0 && lng == 0)) return 1.0;
+final surgeMultiplierProvider = FutureProvider.autoDispose
+    .family<double, String>((ref, latLng) async {
+      final parts = latLng.split(',');
+      if (parts.length != 2) return 1.0;
+      final lat = double.tryParse(parts[0]);
+      final lng = double.tryParse(parts[1]);
+      if (lat == null || lng == null || (lat == 0 && lng == 0)) return 1.0;
 
-  // Real-time: re-fetch when any surge zone is created/updated/deleted
-  try {
-    final channel = Supabase.instance.client.realtime.channel(
-      'surge_mult_${latLng.hashCode.abs()}',
-    );
-    channel
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'surge_zones',
-          callback: (_) => ref.invalidateSelf(),
-        )
-        .subscribe();
-    ref.onDispose(
-      () => Supabase.instance.client.realtime.removeChannel(channel),
-    );
-  } catch (_) {
-    // Realtime subscription failed — still proceed with the DB query.
-  }
+      // Real-time: re-fetch when any surge zone is created/updated/deleted
+      try {
+        final channel = Supabase.instance.client.realtime.channel(
+          'surge_mult_${latLng.hashCode.abs()}',
+        );
+        channel
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'surge_zones',
+              callback: (_) => ref.invalidateSelf(),
+            )
+            .subscribe();
+        ref.onDispose(
+          () => Supabase.instance.client.realtime.removeChannel(channel),
+        );
+      } catch (_) {
+        // Realtime subscription failed — still proceed with the DB query.
+      }
 
-  return ref
-      .watch(surgeServiceProvider)
-      .getSurgeMultiplier(latitude: lat, longitude: lng);
-});
+      return ref
+          .watch(surgeServiceProvider)
+          .getSurgeMultiplier(latitude: lat, longitude: lng);
+    });
 
 // ── Maintenance mode ─────────────────────────────────────────────────────────
 
@@ -425,11 +458,15 @@ final maintenanceModeProvider = Provider<bool>((ref) {
 
 /// Active airports from the DB — used for airport pickup/dropoff in ride booking.
 /// Falls back to an empty list on error; the screen uses hardcoded constants as fallback.
-final airportsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+final airportsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((
+  ref,
+) async {
   ref.keepAlive();
   final rows = await SupabaseConfig.client
       .from('airports')
-      .select('code, name, city, address, latitude, longitude, surcharge, terminals')
+      .select(
+        'code, name, city, address, latitude, longitude, surcharge, terminals',
+      )
       .eq('is_active', true)
       .order('sort_order');
   return (rows as List).cast<Map<String, dynamic>>();
@@ -440,7 +477,9 @@ final airportsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>(
 /// Feature flags from the DB as `Map<String, bool>` keyed by flag name.
 /// Empty map means all features are considered enabled (fail-open).
 /// Admin can toggle any feature without an app release.
-final featureFlagsProvider = FutureProvider.autoDispose<Map<String, bool>>((ref) async {
+final featureFlagsProvider = FutureProvider.autoDispose<Map<String, bool>>((
+  ref,
+) async {
   ref.keepAlive();
   try {
     final rows = await SupabaseConfig.client

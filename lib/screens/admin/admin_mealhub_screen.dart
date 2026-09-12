@@ -64,9 +64,9 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
   };
 
   static const _hints = <String, String>{
-    'subscription_basic_price': 'Monthly price for MealHub Basic',
+    'subscription_basic_price': 'Monthly price for QuickDash Basic',
     'subscription_basic_deliveries': 'Free deliveries per month (Basic)',
-    'subscription_pro_price': 'Monthly price for MealHub Pro',
+    'subscription_pro_price': 'Monthly price for QuickDash Pro',
     'subscription_pro_deliveries': 'Free deliveries per month (Pro)',
     'subscription_min_cart': 'Order must exceed this to use free delivery',
     'subscription_service_fee_discount': '0.50 = 50% off service fee',
@@ -119,7 +119,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     ok
-        ? AppSnackbar.success(context, 'MealHub+ settings saved')
+        ? AppSnackbar.success(context, 'QuickDash+ settings saved')
         : AppSnackbar.error(context, 'Some values failed to save');
   }
 
@@ -131,10 +131,10 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'MealHub+ Plans',
+          'QuickDash+ Plans',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF6C63FF),
+        backgroundColor: const Color(0xFF528BFF),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -164,7 +164,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
 
                 // Basic Plan section
                 _SectionHeader(
-                  title: 'MealHub Basic',
+                  title: 'QuickDash Basic',
                   color: const Color(0xFF2196F3),
                 ),
                 const SizedBox(height: 8),
@@ -188,8 +188,8 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
 
                 // Pro Plan section
                 _SectionHeader(
-                  title: 'MealHub Pro',
-                  color: const Color(0xFF6C63FF),
+                  title: 'QuickDash Pro',
+                  color: const Color(0xFF528BFF),
                 ),
                 const SizedBox(height: 8),
                 _ConfigField(
@@ -257,7 +257,7 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C63FF),
+                      backgroundColor: const Color(0xFF528BFF),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -277,8 +277,8 @@ class _AdminMealhubScreenState extends ConsumerState<AdminMealhubScreen> {
                     icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
                     label: const Text('Manage Meal Plans'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6C63FF),
-                      side: const BorderSide(color: Color(0xFF6C63FF)),
+                      foregroundColor: const Color(0xFF528BFF),
+                      side: const BorderSide(color: Color(0xFF528BFF)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -309,7 +309,7 @@ class _StatsBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF4CAF50)],
+          colors: [Color(0xFF528BFF), Color(0xFF4CAF50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -328,7 +328,7 @@ class _StatsBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'MealHub+ Subscribers',
+                  'QuickDash+ Subscribers',
                   style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 const SizedBox(height: 4),

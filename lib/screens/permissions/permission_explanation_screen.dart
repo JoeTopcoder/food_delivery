@@ -65,14 +65,14 @@ class _PermissionExplanationScreenState
           reasons: [
             'Voice calls between customers and drivers are powered by Agora.',
             'Microphone access is only active when you are in an active call.',
-            'Calls are not recorded by 7Dash.',
+            'Calls are not recorded by QuickDash.',
           ],
           permission: Permission.microphone,
         );
       case AppPermissionType.notifications:
         return const _PermissionConfig(
           icon: Icons.notifications_active_rounded,
-          iconColor: Color(0xFF8B5CF6),
+          iconColor: Color(0xFF528BFF),
           title: 'Notification Access',
           subtitle: 'Stay updated on orders and deliveries',
           reasons: [
@@ -205,7 +205,7 @@ class _PermissionExplanationScreenState
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(
-                          'You can change this permission at any time in your device Settings → 7Dash.',
+                          'You can change this permission at any time in your device Settings → QuickDash.',
                           style: TextStyle(fontSize: 12, height: 1.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ),
