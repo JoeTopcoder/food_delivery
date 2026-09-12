@@ -1345,6 +1345,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   final _weightCtrl = TextEditingController();
   final _maxQtyCtrl = TextEditingController(text: '99');
   final _stockQtyCtrl = TextEditingController();
+  final _costCtrl = TextEditingController();
 
   String? _selectedCategory;
   String? _customCategory;
@@ -1380,6 +1381,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   @override
   void dispose() {
     _stockQtyCtrl.dispose();
+    _costCtrl.dispose();
     _nameCtrl.dispose();
     _priceCtrl.dispose();
     _descCtrl.dispose();
@@ -1546,6 +1548,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
             ? null
             : _weightCtrl.text.trim(),
         maxQuantity: int.tryParse(_maxQtyCtrl.text) ?? 99,
+        costPrice: double.tryParse(_costCtrl.text.trim()),
       );
 
       // Seed starting stock (turns on inventory tracking for the product).
@@ -1723,7 +1726,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                       flex: 2,
                       child: TextFormField(
                         controller: _priceCtrl,
-                        decoration: _inputDecor('Price *'),
+                        decoration: _inputDecor('Sale price *'),
                         keyboardType: TextInputType.number,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Required';
@@ -1748,6 +1751,26 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+
+                // Cost price (optional) — what you pay per unit, for margin.
+                TextFormField(
+                  controller: _costCtrl,
+                  decoration: _inputDecor('Cost price (optional)'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null; // optional
+                    return double.tryParse(v.trim()) == null ? 'Invalid' : null;
+                  },
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'What you pay per unit — used for margin & stock value. '
+                  'Leave blank if unknown.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 12),
 
