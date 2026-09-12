@@ -13,6 +13,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/smart_home_widgets.dart';
+import '../../widgets/full_screen_image.dart';
 import 'grocery_store_detail_screen.dart';
 import 'grocery_category_products_screen.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -464,26 +465,58 @@ class _SearchProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image – fixed height
+            // Image – fixed height. Tap = full screen.
             SizedBox(
               height: 130,
               width: double.infinity,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(14),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    product.imageUrl != null && product.imageUrl!.isNotEmpty
-                        ? Image.network(
-                            product.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder(),
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null ? child : _placeholder(),
-                          )
-                        : _placeholder(),
+              child: GestureDetector(
+                onTap:
+                    (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                    ? () => FullScreenImage.show(
+                        context,
+                        imageUrl: product.imageUrl!,
+                        title: product.name,
+                      )
+                    : null,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(14),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // White tile + contain: packaged goods show fully.
+                      Container(color: Colors.white),
+                      product.imageUrl != null && product.imageUrl!.isNotEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Image.network(
+                                product.imageUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => _placeholder(),
+                                loadingBuilder: (_, child, progress) =>
+                                    progress == null ? child : _placeholder(),
+                              ),
+                            )
+                          : _placeholder(),
+                      if (product.imageUrl != null &&
+                          product.imageUrl!.isNotEmpty)
+                        Positioned(
+                          right: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black38,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.zoom_out_map,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                     if (!inStock)
                       Container(
                         color: Colors.black54,
@@ -521,7 +554,8 @@ class _SearchProductCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
