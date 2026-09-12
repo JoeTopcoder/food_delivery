@@ -4,6 +4,7 @@ import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/grocery_category_model.dart';
 import '../models/inventory_model.dart';
+import '../models/product_image_result.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 
@@ -525,6 +526,37 @@ class GroceryService {
     }
   }
 
+  /// Fresh Authorization header for edge calls (avoids stale legacy-JWT
+  /// rejections by refreshing the session first).
+  Future<Map<String, String>> _freshAuthHeader() async {
+    String? token;
+    try {
+      final res = await _client.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    token ??= _client.auth.currentSession?.accessToken;
+    return (token != null && token.isNotEmpty)
+        ? {'Authorization': 'Bearer $token'}
+        : {};
+  }
+
+  Map<String, dynamic> _decodeFn(dynamic data) {
+    final body = data is String
+        ? jsonDecode(data) as Map<String, dynamic>
+        : data as Map<String, dynamic>;
+    if (body['error'] != null) throw Exception(body['error']);
+    return body;
+  }
+
+  String _fnError(FunctionException fe, String fallback) {
+    final details = fe.details;
+    if (details is Map) {
+      final m = (details['error'] ?? details['message'])?.toString();
+      if (m != null && m.isNotEmpty) return m;
+    }
+    return fallback;
+  }
+
   /// Identify a grocery product from a photo via the AI vision edge route.
   /// Returns the structured guess (name, brand, size, dimensions, category,
   /// unit, description, confidence, notes). Throws with a friendly message on
@@ -533,34 +565,65 @@ class GroceryService {
     List<int> imageBytes, {
     String mime = 'image/jpeg',
   }) async {
-    // Fresh Authorization header (avoids stale legacy-JWT rejections).
-    String? token;
-    try {
-      final res = await _client.auth.refreshSession();
-      token = res.session?.accessToken;
-    } catch (_) {}
-    token ??= _client.auth.currentSession?.accessToken;
-
     try {
       final response = await _client.functions.invoke(
         'grocery/identify-product',
         body: {'image_base64': base64Encode(imageBytes), 'mime': mime},
-        headers: (token != null && token.isNotEmpty)
-            ? {'Authorization': 'Bearer $token'}
-            : {},
+        headers: await _freshAuthHeader(),
       );
-      final body = response.data is String
-          ? jsonDecode(response.data as String) as Map<String, dynamic>
-          : response.data as Map<String, dynamic>;
-      if (body['error'] != null) throw Exception(body['error']);
-      return body;
+      return _decodeFn(response.data);
     } on FunctionException catch (fe) {
-      final details = fe.details;
-      String? msg;
-      if (details is Map) msg = (details['error'] ?? details['message'])?.toString();
-      throw Exception(msg ?? 'Could not identify the product. Please try again.');
+      throw Exception(
+        _fnError(fe, 'Could not identify the product. Please try again.'),
+      );
     } catch (e) {
       AppLogger.error('Error identifying product: $e');
+      rethrow;
+    }
+  }
+
+  /// Web image search for a product name (SerpAPI, server-side). Returns
+  /// candidate catalogue images the admin can choose from.
+  Future<List<ProductImageResult>> searchProductImages(
+    String query, {
+    int num = 12,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/product-images',
+        body: {'query': query, 'num': num},
+        headers: await _freshAuthHeader(),
+      );
+      final body = _decodeFn(response.data);
+      final list = (body['images'] as List?) ?? const [];
+      return list
+          .map((e) => ProductImageResult.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on FunctionException catch (fe) {
+      throw Exception(_fnError(fe, 'Image search failed. Please try again.'));
+    } catch (e) {
+      AppLogger.error('Error searching product images: $e');
+      rethrow;
+    }
+  }
+
+  /// Re-host a chosen web image into our storage and return a stable public URL
+  /// to use as the product image.
+  Future<String> importProductImage(String imageUrl, String storeId) async {
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/import-image',
+        body: {'image_url': imageUrl, 'store_id': storeId},
+        headers: await _freshAuthHeader(),
+      );
+      final body = _decodeFn(response.data);
+      final url = body['image_url'] as String?;
+      if (url == null || url.isEmpty) throw Exception('No image URL returned');
+      return url;
+    } on FunctionException catch (fe) {
+      throw Exception(_fnError(fe, 'Could not import the image. Pick another.'));
+    } catch (e) {
+      AppLogger.error('Error importing product image: $e');
       rethrow;
     }
   }
