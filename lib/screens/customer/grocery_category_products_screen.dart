@@ -7,6 +7,7 @@ import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../core/utils/responsive.dart';
+import '../../widgets/full_screen_image.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryCategoryProductsScreen extends ConsumerStatefulWidget {
@@ -189,25 +190,56 @@ class _CategoryProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – scales with card width via aspect ratio
+          // Image – scales with card width via aspect ratio. Tap = full screen.
           AspectRatio(
             aspectRatio: 1.2,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  product.imageUrl != null && product.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          product.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholder(),
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _placeholder(),
-                        )
-                      : _placeholder(),
+            child: GestureDetector(
+              onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                  ? () => FullScreenImage.show(
+                      context,
+                      imageUrl: product.imageUrl!,
+                      title: product.name,
+                    )
+                  : null,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(14),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // White tile + contain: packaged goods show fully, uniform.
+                    Container(color: Colors.white),
+                    product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Image.network(
+                              product.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => _placeholder(),
+                              loadingBuilder: (_, child, progress) =>
+                                  progress == null ? child : _placeholder(),
+                            ),
+                          )
+                        : _placeholder(),
+                    if (product.imageUrl != null &&
+                        product.imageUrl!.isNotEmpty)
+                      Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black38,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.zoom_out_map,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                   if (!inStock)
                     Container(
                       color: Colors.black54,
@@ -245,7 +277,8 @@ class _CategoryProductCard extends ConsumerWidget {
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
