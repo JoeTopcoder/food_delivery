@@ -200,7 +200,7 @@ export async function handle(request: Request): Promise<Response> {
     const productIds = items.map((i) => i.menu_item_id);
     const { data: products, error: prodErr } = await admin
       .from("menus")
-      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type, stock_quantity, track_inventory")
+      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type, stock_quantity, track_inventory, restaurant_id")
       .in("id", productIds);
 
     if (prodErr || !products) {
@@ -218,6 +218,13 @@ export async function handle(request: Request): Promise<Response> {
       }
       if (dbProduct.product_type !== "grocery") {
         return json({ error: `"${dbProduct.name}" is not a grocery product` }, 400);
+      }
+      // One order = one store. Reject items that belong to a different store
+      // (a mixed-store cart must not be smuggled in under a single store_id).
+      if ((dbProduct.restaurant_id as string) !== storeId) {
+        return json({
+          error: "All items in an order must be from the same grocery store.",
+        }, 400);
       }
       if (!dbProduct.is_available) {
         return json({ error: `"${dbProduct.name}" is currently unavailable` }, 400);

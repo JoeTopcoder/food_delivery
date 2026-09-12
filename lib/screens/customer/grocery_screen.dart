@@ -14,6 +14,7 @@ import '../../utils/friendly_error.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/full_screen_image.dart';
+import '../../widgets/grocery_cart_dialogs.dart';
 import 'grocery_store_detail_screen.dart';
 import 'grocery_category_products_screen.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -726,8 +727,17 @@ class _SearchProductCard extends ConsumerWidget {
     );
   }
 
-  void _addToCart(WidgetRef ref, BuildContext context) {
+  Future<void> _addToCart(WidgetRef ref, BuildContext context) async {
     final cartNotifier = ref.read(groceryCartProvider.notifier);
+
+    // One grocery store per order: if the cart holds a different store, ask.
+    final currentStore = cartNotifier.currentStoreId;
+    if (currentStore != null && currentStore != product.restaurantId) {
+      final replace = await confirmNewGroceryCart(context);
+      if (replace != true || !context.mounted) return;
+      cartNotifier.clearCart();
+    }
+
     final cartItems = ref.read(groceryCartProvider);
     final existing = cartItems.where((c) => c.menuItem.id == product.id);
     final currentQty = existing.isNotEmpty ? existing.first.quantity : 0;
