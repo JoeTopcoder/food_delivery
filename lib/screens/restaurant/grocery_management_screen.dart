@@ -1478,6 +1478,10 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   }
 
   Future<void> _save() async {
+    // Re-entry guard: block a second tap while the first save is in flight.
+    // (_saving is set synchronously below, before any await, so the second
+    //  Save tap bails here instead of inserting a duplicate row.)
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
 
     final category = _selectedCategory == '__custom__'
@@ -1490,40 +1494,41 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
       return;
     }
 
-    // Warn on a likely duplicate before creating it.
-    final dupName = await widget.groceryService.findDuplicateProductName(
-      widget.storeId,
-      _nameCtrl.text.trim(),
-    );
-    if (dupName != null && mounted) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Possible duplicate'),
-          content: Text(
-            'This store already stocks "$dupName". Add another product with '
-            'the same name anyway?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Add anyway'),
-            ),
-          ],
-        ),
-      );
-      if (proceed != true) return;
-    }
-
     setState(() => _saving = true);
 
     try {
+      // Warn on a likely duplicate before creating it.
+      final dupName = await widget.groceryService.findDuplicateProductName(
+        widget.storeId,
+        _nameCtrl.text.trim(),
+      );
+      if (dupName != null && mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Possible duplicate'),
+            content: Text(
+              'This store already stocks "$dupName". Add another product with '
+              'the same name anyway?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Add anyway'),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return; // finally resets _saving
+      }
+
       _uploadedImageUrl = await _uploadImage();
 
       final created = await widget.groceryService.addGroceryProduct(
