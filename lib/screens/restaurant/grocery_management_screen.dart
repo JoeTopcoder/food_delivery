@@ -352,6 +352,11 @@ class _GroceryStoreBody extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add_a_photo_outlined),
+            tooltip: 'Add product from photo',
+            onPressed: () => _addFromPhoto(context, ref, store.id),
+          ),
+          IconButton(
             icon: const Icon(Icons.local_shipping_outlined),
             tooltip: 'Delivery Settings',
             onPressed: () => _showDeliverySettings(context, ref, store),
@@ -529,6 +534,24 @@ class _GroceryStoreBody extends ConsumerWidget {
     WidgetRef ref,
     String storeId,
   ) {
+    _openAddDialog(context, ref, storeId);
+  }
+
+  /// Opens the add-product dialog, optionally pre-filled (from AI photo
+  /// identification) and with a starting photo.
+  void _openAddDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String storeId, {
+    File? image,
+    bool aiPrefilled = false,
+    String? name,
+    String? brand,
+    String? weight,
+    String? description,
+    String? category,
+    String? unit,
+  }) {
     final categoriesAsync = ref.read(groceryCategoriesProvider);
     final existingCategories = <String>[];
     categoriesAsync.whenData((cats) {
@@ -544,6 +567,18 @@ class _GroceryStoreBody extends ConsumerWidget {
       }
     });
 
+    String? clean(String? s) => (s == null ||
+            s.trim().isEmpty ||
+            s.trim().toLowerCase() == 'null')
+        ? null
+        : s.trim();
+
+    // Include a new AI category so it can be pre-selected.
+    final cat = clean(category);
+    if (cat != null && !existingCategories.contains(cat)) {
+      existingCategories.add(cat);
+    }
+
     showDialog(
       context: context,
       builder: (_) => _AddGroceryProductDialog(
@@ -552,8 +587,121 @@ class _GroceryStoreBody extends ConsumerWidget {
         groceryService: ref.read(groceryServiceProvider),
         onProductAdded: () {
           ref.invalidate(ownerGroceryProductsProvider(storeId));
+          ref.invalidate(storeInventoryProvider(storeId));
         },
+        aiPrefilled: aiPrefilled,
+        initialName: clean(name),
+        initialBrand: clean(brand),
+        initialWeight: clean(weight),
+        initialDescription: clean(description),
+        initialCategory: cat,
+        initialUnit: clean(unit),
+        initialImage: image,
       ),
+    );
+  }
+
+  /// Take/pick a product photo, identify it with AI, then open the add dialog
+  /// pre-filled with the result and the captured photo.
+  Future<void> _addFromPhoto(
+    BuildContext context,
+    WidgetRef ref,
+    String storeId,
+  ) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !context.mounted) return;
+
+    XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 82,
+      );
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+      return;
+    }
+    if (picked == null || !context.mounted) return;
+    final file = File(picked.path);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _IdentifyingDialog(),
+    );
+
+    Map<String, dynamic>? result;
+    Object? error;
+    try {
+      final bytes = await file.readAsBytes();
+      result = await ref.read(groceryServiceProvider).identifyProduct(bytes);
+    } catch (e) {
+      error = e;
+    }
+
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+    if (!context.mounted) return;
+
+    if (error != null) {
+      // Identification failed — still let the admin add manually with the photo.
+      AppSnackbar.error(context, friendlyError(error));
+      _openAddDialog(context, ref, storeId, image: file);
+      return;
+    }
+
+    final r = result ?? const {};
+    final identified = r['identified'] == true;
+    if (!identified) {
+      final note = (r['notes'] as String?)?.trim();
+      AppSnackbar.warning(
+        context,
+        (note != null && note.isNotEmpty)
+            ? note
+            : 'Couldn’t identify it — please fill in the details.',
+      );
+    }
+
+    final aiDesc = (r['description'] as String?)?.trim() ?? '';
+    final dims = (r['dimensions'] as String?)?.trim();
+    final desc = [
+      if (aiDesc.isNotEmpty) aiDesc,
+      if (dims != null && dims.isNotEmpty && dims.toLowerCase() != 'null')
+        'Dimensions: $dims',
+    ].join('\n');
+
+    _openAddDialog(
+      context,
+      ref,
+      storeId,
+      image: file,
+      aiPrefilled: identified,
+      name: r['name'] as String?,
+      brand: r['brand'] as String?,
+      weight: r['size'] as String?,
+      description: desc.isEmpty ? null : desc,
+      category: r['category'] as String?,
+      unit: r['unit'] as String?,
     );
   }
 
@@ -1022,6 +1170,49 @@ class _BarcodeChip extends StatelessWidget {
   }
 }
 
+/// Blocking "identifying…" dialog shown while the photo is sent to AI.
+class _IdentifyingDialog extends StatelessWidget {
+  const _IdentifyingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 16),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Identifying product…',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Reading the photo with AI',
+                    style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Add Product Dialog ──────────────────────────────────────────────────────
 
 class _AddGroceryProductDialog extends StatefulWidget {
@@ -1030,11 +1221,30 @@ class _AddGroceryProductDialog extends StatefulWidget {
   final GroceryService groceryService;
   final VoidCallback onProductAdded;
 
+  // AI-identified prefills (all optional). When [aiPrefilled] is true the
+  // dialog shows an "AI-identified" banner and pre-selects the photo.
+  final bool aiPrefilled;
+  final String? initialName;
+  final String? initialBrand;
+  final String? initialWeight;
+  final String? initialDescription;
+  final String? initialCategory;
+  final String? initialUnit;
+  final File? initialImage;
+
   const _AddGroceryProductDialog({
     required this.storeId,
     required this.existingCategories,
     required this.groceryService,
     required this.onProductAdded,
+    this.aiPrefilled = false,
+    this.initialName,
+    this.initialBrand,
+    this.initialWeight,
+    this.initialDescription,
+    this.initialCategory,
+    this.initialUnit,
+    this.initialImage,
   });
 
   @override
@@ -1050,6 +1260,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   final _brandCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _maxQtyCtrl = TextEditingController(text: '99');
+  final _stockQtyCtrl = TextEditingController();
 
   String? _selectedCategory;
   String? _customCategory;
@@ -1061,7 +1272,27 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   final _units = ['each', 'lb', 'kg', 'oz', 'pack', 'bottle', 'can', 'bag'];
 
   @override
+  void initState() {
+    super.initState();
+    _nameCtrl.text = widget.initialName ?? '';
+    _brandCtrl.text = widget.initialBrand ?? '';
+    _weightCtrl.text = widget.initialWeight ?? '';
+    _descCtrl.text = widget.initialDescription ?? '';
+    _imageFile = widget.initialImage;
+    if (widget.initialUnit != null && _units.contains(widget.initialUnit)) {
+      _selectedUnit = widget.initialUnit!;
+    }
+    // Pre-select the AI category only if it's one the store already uses;
+    // otherwise leave it for the admin to pick / add as a custom category.
+    final cat = widget.initialCategory?.trim();
+    if (cat != null && cat.isNotEmpty && widget.existingCategories.contains(cat)) {
+      _selectedCategory = cat;
+    }
+  }
+
+  @override
   void dispose() {
+    _stockQtyCtrl.dispose();
     _nameCtrl.dispose();
     _priceCtrl.dispose();
     _descCtrl.dispose();
@@ -1119,7 +1350,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
     try {
       _uploadedImageUrl = await _uploadImage();
 
-      await widget.groceryService.addGroceryProduct(
+      final created = await widget.groceryService.addGroceryProduct(
         storeId: widget.storeId,
         name: _nameCtrl.text.trim(),
         price: double.parse(_priceCtrl.text.trim()),
@@ -1135,6 +1366,16 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
             : _weightCtrl.text.trim(),
         maxQuantity: int.tryParse(_maxQtyCtrl.text) ?? 99,
       );
+
+      // Seed starting stock (turns on inventory tracking for the product).
+      final startQty = int.tryParse(_stockQtyCtrl.text.trim());
+      if (created != null && startQty != null && startQty > 0) {
+        try {
+          await widget.groceryService.setInventory(created.id, startQty);
+        } catch (_) {
+          // Product was created; a stock-seed failure shouldn't block it.
+        }
+      }
 
       widget.onProductAdded();
       if (mounted) Navigator.pop(context);
@@ -1187,6 +1428,41 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                 ),
                 const Divider(),
                 const SizedBox(height: 8),
+
+                if (widget.aiPrefilled) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6941C6).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF6941C6).withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 16,
+                          color: Color(0xFF6941C6),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Filled in from the photo — check the details, then '
+                            'set price & quantity.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Image picker
                 GestureDetector(
@@ -1331,6 +1607,20 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                   controller: _maxQtyCtrl,
                   decoration: _inputDecor('Max Quantity per Order'),
                   keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+
+                // Starting stock — seeds inventory tracking for the product.
+                TextFormField(
+                  controller: _stockQtyCtrl,
+                  decoration: _inputDecor('Starting stock quantity (optional)'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Enter how many you have in stock to start tracking inventory. '
+                  'Leave blank to add without tracking.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 20),
 
