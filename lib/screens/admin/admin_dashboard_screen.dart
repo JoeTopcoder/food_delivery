@@ -626,6 +626,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-grocery-products'),
                           ),
+                          _GridAction(
+                            icon: Icons.school_rounded,
+                            label: 'Student Verification',
+                            color: const Color(0xFF6941C6),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-student-verification'),
+                          ),
                         ],
                       ),
 
