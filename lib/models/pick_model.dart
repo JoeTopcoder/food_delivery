@@ -1,3 +1,22 @@
+/// Compact picking progress for an order (for the order-list card badge).
+class PickProgress {
+  final int pickedLines;
+  final int totalLines;
+  final int pickedUnits;
+  final int totalUnits;
+
+  const PickProgress({
+    required this.pickedLines,
+    required this.totalLines,
+    required this.pickedUnits,
+    required this.totalUnits,
+  });
+
+  bool get hasItems => totalLines > 0;
+  bool get started => pickedUnits > 0;
+  bool get allPicked => totalLines > 0 && pickedLines == totalLines;
+}
+
 /// One line of a grocery order as seen by the in-store picker.
 ///
 /// Read with a targeted query (order_items + the product's barcode/image) so the

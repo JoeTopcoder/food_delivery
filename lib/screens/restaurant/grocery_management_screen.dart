@@ -400,6 +400,23 @@ class _GroceryStoreBody extends ConsumerWidget {
               if (invMap[p.id]?.isLow ?? false) (product: p, inv: invMap[p.id]!),
           ]..sort((a, b) => a.inv.stockQuantity.compareTo(b.inv.stockQuantity));
 
+          // Store-level stock valuation (tracked items only).
+          int trackedCount = 0;
+          int totalUnits = 0;
+          double costValue = 0;
+          double retailValue = 0;
+          for (final p in products) {
+            final inv = invMap[p.id];
+            if (inv == null || !inv.trackInventory) continue;
+            trackedCount += 1;
+            totalUnits += inv.stockQuantity;
+            retailValue += inv.stockQuantity * p.price;
+            if (inv.costPrice != null) {
+              costValue += inv.stockQuantity * inv.costPrice!;
+            }
+          }
+          final hasLeading = lowStock.isNotEmpty || trackedCount > 0;
+
           // Group items by category
           final grouped = <String, List<MenuItem>>{};
           for (final item in products) {
@@ -413,15 +430,28 @@ class _GroceryStoreBody extends ConsumerWidget {
             ),
             scrollCacheExtent: const ScrollCacheExtent.pixels(500),
             padding: const EdgeInsets.all(16),
-            // +1 leading slot for the low-stock banner.
+            // +1 leading slot for the stock-value summary + low-stock banner.
             itemCount: categories.length + 1,
             itemBuilder: (context, rawIndex) {
               if (rawIndex == 0) {
-                if (lowStock.isEmpty) return const SizedBox.shrink();
-                return _LowStockBanner(
-                  items: lowStock,
-                  onTapItem: (item) =>
-                      _showInventorySheet(context, ref, item, store.id),
+                if (!hasLeading) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (trackedCount > 0)
+                      _StockValueCard(
+                        trackedCount: trackedCount,
+                        totalUnits: totalUnits,
+                        costValue: costValue,
+                        retailValue: retailValue,
+                      ),
+                    if (lowStock.isNotEmpty)
+                      _LowStockBanner(
+                        items: lowStock,
+                        onTapItem: (item) =>
+                            _showInventorySheet(context, ref, item, store.id),
+                      ),
+                  ],
                 );
               }
               final catIndex = rawIndex - 1;
@@ -1453,6 +1483,37 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
       return;
     }
 
+    // Warn on a likely duplicate before creating it.
+    final dupName = await widget.groceryService.findDuplicateProductName(
+      widget.storeId,
+      _nameCtrl.text.trim(),
+    );
+    if (dupName != null && mounted) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Possible duplicate'),
+          content: Text(
+            'This store already stocks "$dupName". Add another product with '
+            'the same name anyway?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Add anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -2093,6 +2154,108 @@ class _StockChip extends StatelessWidget {
   }
 }
 
+// ── Inventory: store-level stock valuation ──────────────────────────────────
+
+class _StockValueCard extends StatelessWidget {
+  final int trackedCount;
+  final int totalUnits;
+  final double costValue;
+  final double retailValue;
+  const _StockValueCard({
+    required this.trackedCount,
+    required this.totalUnits,
+    required this.costValue,
+    required this.retailValue,
+  });
+
+  String _money(double v) =>
+      '${AppConstants.currencySymbol}${v.toStringAsFixed(2)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final margin = retailValue - costValue;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insights_rounded, size: 18, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+              Text(
+                'Stock value',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$trackedCount tracked · $totalUnits units',
+                style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _metric('Retail value', _money(retailValue), const Color(0xFF067647)),
+              _divider(),
+              _metric(
+                'Cost value',
+                costValue > 0 ? _money(costValue) : '—',
+                Colors.grey[800]!,
+              ),
+              _divider(),
+              _metric(
+                'Est. margin',
+                costValue > 0 ? _money(margin) : '—',
+                const Color(0xFF6941C6),
+              ),
+            ],
+          ),
+          if (costValue <= 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Add cost prices (in a product’s Manage stock sheet) to see cost & margin.',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _metric(String label, String value, Color color) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _divider() =>
+      Container(width: 1, height: 30, color: Colors.grey[300]);
+}
+
 // ── Inventory: store-level low-stock banner ─────────────────────────────────
 
 class _LowStockBanner extends StatelessWidget {
@@ -2195,16 +2358,40 @@ class _InventorySheetState extends ConsumerState<_InventorySheet> {
   final _qtyCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _thresholdCtrl = TextEditingController();
+  final _costCtrl = TextEditingController();
   String _mode = 'add'; // add | remove | set
   bool _busy = false;
   bool _thresholdInit = false;
+  bool _costInit = false;
 
   @override
   void dispose() {
     _qtyCtrl.dispose();
     _noteCtrl.dispose();
     _thresholdCtrl.dispose();
+    _costCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveCost() async {
+    final raw = _costCtrl.text.trim();
+    final cost = raw.isEmpty ? null : double.tryParse(raw);
+    if (raw.isNotEmpty && (cost == null || cost < 0)) {
+      AppSnackbar.error(context, 'Enter a valid cost price');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(groceryServiceProvider)
+          .setProductCostPrice(widget.product.id, cost);
+      _refresh();
+      if (mounted) AppSnackbar.success(context, 'Cost price saved');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _refresh() {
@@ -2343,6 +2530,18 @@ class _InventorySheetState extends ConsumerState<_InventorySheet> {
       _thresholdCtrl.text = inv.lowStockThreshold.toString();
       _thresholdInit = true;
     }
+    if (!_costInit && inv != null) {
+      _costCtrl.text = inv.costPrice != null
+          ? inv.costPrice!.toStringAsFixed(2)
+          : '';
+      _costInit = true;
+    }
+    // Live margin from the entered cost vs the selling price.
+    final costNow = double.tryParse(_costCtrl.text.trim());
+    final sell = widget.product.price;
+    final marginPct = (costNow != null && costNow > 0 && sell > 0)
+        ? ((sell - costNow) / sell * 100)
+        : null;
 
     final Color qtyColor = !tracked
         ? Colors.grey
@@ -2552,6 +2751,58 @@ class _InventorySheetState extends ConsumerState<_InventorySheet> {
                     onPressed: _busy ? null : _saveThreshold,
                     child: const Text('Save'),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Cost price (for margin reporting)
+              Text(
+                'Cost price',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[800],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'What you pay per unit — used for margin & stock value. '
+                'Sells for ${AppConstants.currencySymbol}${sell.toStringAsFixed(2)}.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _costCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (_) => setState(() {}), // live margin
+                      decoration: _decor(
+                        'Cost',
+                      ).copyWith(prefixText: AppConstants.currencySymbol),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton(
+                    onPressed: _busy ? null : _saveCost,
+                    child: const Text('Save'),
+                  ),
+                  const Spacer(),
+                  if (marginPct != null)
+                    Text(
+                      '${marginPct.toStringAsFixed(0)}% margin',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: marginPct >= 0
+                            ? const Color(0xFF067647)
+                            : Colors.red,
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),

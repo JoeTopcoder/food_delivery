@@ -64,6 +64,35 @@ class OrderPickingService {
     }
   }
 
+  /// Lightweight picking progress for an order (no menus join) — for the
+  /// order-list card badge.
+  Future<PickProgress> getPickProgress(String orderId) async {
+    try {
+      final rows = await _client
+          .from('order_items')
+          .select('quantity, picked_quantity')
+          .eq('order_id', orderId);
+      var pickedLines = 0, totalLines = 0, pickedUnits = 0, totalUnits = 0;
+      for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+        final qty = (r['quantity'] as num?)?.toInt() ?? 0;
+        final picked = (r['picked_quantity'] as num?)?.toInt() ?? 0;
+        totalLines += 1;
+        totalUnits += qty;
+        pickedUnits += picked;
+        if (picked >= qty) pickedLines += 1;
+      }
+      return PickProgress(
+        pickedLines: pickedLines,
+        totalLines: totalLines,
+        pickedUnits: pickedUnits,
+        totalUnits: totalUnits,
+      );
+    } catch (e) {
+      AppLogger.error('Error loading pick progress: $e');
+      rethrow;
+    }
+  }
+
   /// Register one scanned unit of [code] against the order. See the RPC for the
   /// returned `status` values (picked / already_complete / not_in_order /
   /// unknown_code).

@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../providers/order_picking_provider.dart';
 import 'order_picking_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
@@ -553,6 +554,12 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                         ),
                       ),
                     ),
+                    // Grocery picking progress (only while it's being fulfilled)
+                    if (widget.isGrocery &&
+                        (order.status == AppConstants.orderPending ||
+                            order.status == AppConstants.orderConfirmed ||
+                            order.status == AppConstants.orderPreparing))
+                      _PickProgressChip(orderId: order.id),
                     AnimatedRotation(
                       turns: _itemsExpanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
@@ -758,11 +765,15 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => OrderPickingScreen(order: order),
-                    ),
-                  ),
+                  onPressed: () => Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          builder: (_) => OrderPickingScreen(order: order),
+                        ),
+                      )
+                      // Refresh the progress chip after picking.
+                      .then((_) =>
+                          ref.invalidate(orderPickProgressProvider(order.id))),
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                   label: const Text('Pick / scan items'),
                   style: OutlinedButton.styleFrom(
@@ -1430,6 +1441,55 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Small "N/M picked" badge on a grocery order card, from a light progress
+/// query. Hidden until there's at least one item.
+class _PickProgressChip extends ConsumerWidget {
+  final String orderId;
+  const _PickProgressChip({required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(orderPickProgressProvider(orderId));
+    return async.maybeWhen(
+      data: (p) {
+        if (!p.hasItems) return const SizedBox.shrink();
+        final done = p.allPicked;
+        final color = done
+            ? const Color(0xFF067647)
+            : (p.started ? const Color(0xFF0E7490) : Colors.grey);
+        return Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                done ? Icons.check_circle : Icons.shopping_basket_outlined,
+                size: 13,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                done ? 'Picked' : '${p.pickedLines}/${p.totalLines} picked',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }

@@ -338,7 +338,7 @@ class GroceryService {
       final rows = await _client
           .from(AppConstants.tableMenus)
           .select(
-            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock, barcode',
+            'id, track_inventory, stock_quantity, low_stock_threshold, in_stock, barcode, cost_price',
           )
           .eq('restaurant_id', storeId)
           .eq('product_type', 'grocery');
@@ -443,6 +443,42 @@ class GroceryService {
       );
     } catch (e) {
       AppLogger.error('Error setting product barcode: $e');
+      rethrow;
+    }
+  }
+
+  /// If the store already stocks a grocery product with this name (case-
+  /// insensitive), return that product's name; otherwise null. Used to warn
+  /// before adding a likely duplicate.
+  Future<String?> findDuplicateProductName(String storeId, String name) async {
+    final n = name.trim();
+    if (n.isEmpty) return null;
+    try {
+      final rows = await _client
+          .from(AppConstants.tableMenus)
+          .select('name')
+          .eq('restaurant_id', storeId)
+          .eq('product_type', 'grocery')
+          .ilike('name', n) // exact match, case-insensitive (no wildcards)
+          .limit(1);
+      final list = rows as List;
+      return list.isEmpty ? null : (list.first['name'] as String?);
+    } catch (e) {
+      AppLogger.error('Error checking duplicate product: $e');
+      return null; // never block an add on a failed check
+    }
+  }
+
+  /// Set a product's cost price (for margin reporting). Uses the existing
+  /// owner/admin UPDATE policy on menus.
+  Future<void> setProductCostPrice(String productId, double? cost) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'cost_price': cost})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error setting cost price: $e');
       rethrow;
     }
   }

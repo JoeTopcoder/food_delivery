@@ -11,6 +11,7 @@ class ProductInventory {
   final int lowStockThreshold;
   final bool inStock;
   final String? barcode; // linked scan code (barcode / QR), if any
+  final double? costPrice; // unit cost, for margin reporting
 
   const ProductInventory({
     required this.productId,
@@ -19,6 +20,7 @@ class ProductInventory {
     required this.lowStockThreshold,
     required this.inStock,
     required this.barcode,
+    required this.costPrice,
   });
 
   factory ProductInventory.fromJson(Map<String, dynamic> json) =>
@@ -29,6 +31,7 @@ class ProductInventory {
         lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt() ?? 5,
         inStock: json['in_stock'] as bool? ?? true,
         barcode: json['barcode'] as String?,
+        costPrice: (json['cost_price'] as num?)?.toDouble(),
       );
 
   bool get hasBarcode => barcode != null && barcode!.isNotEmpty;

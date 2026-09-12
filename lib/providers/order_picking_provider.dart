@@ -34,3 +34,10 @@ final pickListProvider = FutureProvider.family
 
       return ref.watch(orderPickingServiceProvider).getPickList(orderId);
     });
+
+/// Compact picking progress for an order — used by the grocery order card.
+/// Not realtime (kept light for a list of cards); invalidate it after picking.
+final orderPickProgressProvider = FutureProvider.family
+    .autoDispose<PickProgress, String>((ref, orderId) {
+      return ref.watch(orderPickingServiceProvider).getPickProgress(orderId);
+    });
