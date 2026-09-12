@@ -270,6 +270,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
           .getUserById(userId)
           .timeout(const Duration(seconds: 8), onTimeout: () => null);
       if (user == null) {
+        // The fresh read failed (timeout / transient error). If we already have
+        // this user's profile from cache, KEEP it — never overwrite a known
+        // role (e.g. admin) with a default 'user' fallback, which would make a
+        // real admin briefly appear as a customer.
+        if (state.user?.id == userId) {
+          state = state.copyWith(isLoading: false, isAuthenticated: true);
+          return;
+        }
         final supabaseUser = _authService.getCurrentUser();
         final meta = supabaseUser?.userMetadata ?? {};
         user = User(
