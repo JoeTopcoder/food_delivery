@@ -488,7 +488,11 @@ class OrdersScreen extends ConsumerWidget {
                 'preparing',
               }.contains(order.status);
               return _OrderCard(
-                orderId: '#${order.id.substring(0, 8)}',
+                // Show the same friendly number as the receipt (e.g.
+                // GRO-20260912-0001), not the raw UUID prefix.
+                orderId: order.receiptNumber ??
+                    order.restaurantOrderNumber ??
+                    '#${order.id.substring(0, 8)}',
                 status: order.status.replaceAll('_', ' '),
                 date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
                 total:
@@ -519,7 +523,9 @@ class OrdersScreen extends ConsumerWidget {
             ...pastMaster.map((m) => _MasterOrderCard(masterOrder: m)),
             ...pastSingle.map(
               (o) => _OrderCard(
-                orderId: '#${(o as dynamic).id.substring(0, 8)}',
+                orderId: (o as dynamic).receiptNumber ??
+                    (o as dynamic).restaurantOrderNumber ??
+                    '#${(o as dynamic).id.substring(0, 8)}',
                 status: o.status.replaceAll('_', ' '),
                 date: DateFormat('MMM d, h:mm a').format(o.orderedAt),
                 total:
