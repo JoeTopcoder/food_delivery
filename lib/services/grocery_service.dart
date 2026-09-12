@@ -285,6 +285,7 @@ class GroceryService {
     String? brand,
     String? weight,
     int maxQuantity = 99,
+    double? costPrice,
   }) async {
     try {
       final response = await _client
@@ -303,6 +304,7 @@ class GroceryService {
             'weight': weight,
             'in_stock': true,
             'max_quantity': maxQuantity,
+            if (costPrice != null) 'cost_price': costPrice,
           })
           .select()
           .single();
