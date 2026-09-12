@@ -525,6 +525,46 @@ class GroceryService {
     }
   }
 
+  /// Identify a grocery product from a photo via the AI vision edge route.
+  /// Returns the structured guess (name, brand, size, dimensions, category,
+  /// unit, description, confidence, notes). Throws with a friendly message on
+  /// failure.
+  Future<Map<String, dynamic>> identifyProduct(
+    List<int> imageBytes, {
+    String mime = 'image/jpeg',
+  }) async {
+    // Fresh Authorization header (avoids stale legacy-JWT rejections).
+    String? token;
+    try {
+      final res = await _client.auth.refreshSession();
+      token = res.session?.accessToken;
+    } catch (_) {}
+    token ??= _client.auth.currentSession?.accessToken;
+
+    try {
+      final response = await _client.functions.invoke(
+        'grocery/identify-product',
+        body: {'image_base64': base64Encode(imageBytes), 'mime': mime},
+        headers: (token != null && token.isNotEmpty)
+            ? {'Authorization': 'Bearer $token'}
+            : {},
+      );
+      final body = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
+      if (body['error'] != null) throw Exception(body['error']);
+      return body;
+    } on FunctionException catch (fe) {
+      final details = fe.details;
+      String? msg;
+      if (details is Map) msg = (details['error'] ?? details['message'])?.toString();
+      throw Exception(msg ?? 'Could not identify the product. Please try again.');
+    } catch (e) {
+      AppLogger.error('Error identifying product: $e');
+      rethrow;
+    }
+  }
+
   /// Place a grocery order via edge function (server-side validated).
   Future<Map<String, dynamic>> placeGroceryOrder({
     required String storeId,
