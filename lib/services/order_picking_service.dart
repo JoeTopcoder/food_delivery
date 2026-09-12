@@ -136,6 +136,10 @@ class OrderPickingService {
         'assign_barcode',
         params: {'p_product_id': productId, 'p_barcode': barcode},
       );
+    } on PostgrestException catch (e) {
+      // Surface the RPC's human message (e.g. "This QR code is already on …").
+      AppLogger.error('assignBarcode failed: ${e.message}');
+      throw Exception(e.message);
     } catch (e) {
       AppLogger.error('Error assigning barcode: $e');
       rethrow;
