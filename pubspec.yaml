@@ -122,6 +122,10 @@ dependencies:
   # Grocery order picking: camera barcode scanning (ML Kit / CameraX).
   mobile_scanner: ^7.4.1
 
+  # Student ID verification: on-device Tesseract OCR (self-hosted, no third
+  # party). Approval is still decided server-side; this only extracts text.
+  flutter_tesseract_ocr: ^0.4.31
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

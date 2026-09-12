@@ -121,6 +121,14 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           onTap: () =>
                               Navigator.of(context).pushNamed('/subscriptions'),
                         ),
+                        _MenuItem(
+                          icon: Icons.school_rounded,
+                          color: const Color(0xFF6941C6),
+                          title: 'Student Verification',
+                          sub: 'Verify a student ID for student benefits',
+                          onTap: () => Navigator.of(context)
+                              .pushNamed('/student-verification'),
+                        ),
                       ],
                     ),
 

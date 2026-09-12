@@ -7,6 +7,7 @@ import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
+import 'student_delivery_confirm.dart';
 
 class DeliveryProofScreen extends ConsumerStatefulWidget {
   final Order order;
@@ -75,6 +76,10 @@ class _DeliveryProofScreenState extends ConsumerState<DeliveryProofScreen> {
 
   Future<void> _completeDelivery() async {
     try {
+      // Student orders: confirm the school delivery before completing.
+      final proceed =
+          await ensureStudentDeliveryConfirmed(context, ref, widget.order.id);
+      if (!proceed || !mounted) return;
       final service = ref.read(driverServiceProvider);
       await service.completeDelivery(widget.order.id);
       // Refresh earnings data immediately
