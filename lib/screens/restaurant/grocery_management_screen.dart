@@ -1356,7 +1356,17 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   String? _selectedImageUrl; // already-hosted image chosen from the web
   String? _uploadedImageUrl;
 
-  final _units = ['each', 'lb', 'kg', 'oz', 'pack', 'bottle', 'can', 'bag'];
+  final _units = [
+    'each',
+    'lb',
+    'kg',
+    'oz',
+    'pack',
+    'case',
+    'bottle',
+    'can',
+    'bag',
+  ];
 
   @override
   void initState() {
