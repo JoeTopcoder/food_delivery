@@ -164,6 +164,16 @@
   // startup, which is the authority. They match the configured values so a
   // first frame rendered before config loads is not briefly wrong.
   static String currencySymbol = 'J\$';
+
+  /// Customer-facing order/receipt number without the daily sequence suffix,
+  /// e.g. "GRO-20260912-0001" -> "GRO-20260912". The full value stays stored
+  /// for lookups; this is display only. Returns [fallback] when empty.
+  static String displayOrderNumber(String? raw, {String fallback = ''}) {
+    final v = raw?.trim();
+    if (v == null || v.isEmpty) return fallback;
+    return v.replaceFirst(RegExp(r'-\d+$'), '');
+  }
+
   static String currencyCode = 'JMD';
   static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
