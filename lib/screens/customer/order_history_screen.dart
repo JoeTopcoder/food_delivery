@@ -1118,6 +1118,20 @@ class _OrderCard extends ConsumerWidget {
           padding: const EdgeInsets.all(24),
           children: [
             Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/app_icon.png',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  // Never let a missing asset break the receipt.
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
               child: Text(
                 'QuickDash',
                 style: TextStyle(
@@ -1151,7 +1165,7 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      '\$ ${item.subtotal.toStringAsFixed(2)}',
+                      '${AppConstants.currencySymbol}${item.subtotal.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13),
                     ),
                   ],
@@ -1188,7 +1202,8 @@ class _OrderCard extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '\$ ${(order.totalAmount + order.outstandingDebtCharged).toStringAsFixed(2)}',
+                  '${AppConstants.currencySymbol}'
+                  '${(order.totalAmount + order.outstandingDebtCharged).toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -1262,7 +1277,8 @@ class _OrderCard extends ConsumerWidget {
           ),
           const Spacer(),
           Text(
-            '${isNegative ? '-' : ''}\$ ${amount.abs().toStringAsFixed(2)}',
+            '${isNegative ? '-' : ''}${AppConstants.currencySymbol}'
+            '${amount.abs().toStringAsFixed(2)}',
             style: TextStyle(
               fontSize: 13,
               color:
