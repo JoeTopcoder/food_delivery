@@ -379,10 +379,12 @@ export async function handle(request: Request): Promise<Response> {
     }
 
     // ── 7. Calculate totals ─────────────────────────────────────────────
-    // Tax: gated by tax_enabled flag from app_config (master on/off switch).
-    const effectiveTaxRate = (isTaxEnabled && !isPickup)
-      ? await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate)
-      : 0;
+    // Tax: the configured global tax_rate applies whenever tax_enabled is on
+    // (no tax on pickup). Flat rate, so it always shows and matches the
+    // checkout. (A delivery region may still be used to VARY tax per zone via
+    // getTaxRateForLocation, but the default is the global rate, not 0.)
+    void getTaxRateForLocation;
+    const effectiveTaxRate = (isTaxEnabled && !isPickup) ? globalTaxRate : 0;
     const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
     // Customer-facing platform service fee — MUST match the Flutter checkout's
     // AppConstants.calculateServiceFee(subtotal, otherCharges: deliveryFee) so
