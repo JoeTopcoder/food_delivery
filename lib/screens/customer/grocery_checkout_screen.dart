@@ -236,20 +236,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       otherCharges: activeFee,
     );
 
-    // Tax: mirror the server (grocery/order.ts getTaxRateForLocation) — the
-    // global tax_enabled flag gates it, and the RATE comes from the delivery
-    // region, not a flat number, so a region with tax off shows no tax exactly
-    // as the receipt does. Falls back to the flat rate only when the delivery
-    // coords (hence region) are unknown.
-    double effectiveTaxRate = 0.0;
-    if (AppConstants.taxEnabled && !isPickup) {
-      if (hasDeliveryCoords) {
-        final zt = ref.watch(zoneTaxProvider('$delLat|$delLng')).valueOrNull;
-        effectiveTaxRate = (zt != null && zt.taxEnabled) ? zt.taxRate : 0.0;
-      } else {
-        effectiveTaxRate = AppConstants.taxRate;
-      }
-    }
+    // Tax: mirrors the server (grocery/order.ts) — the configured global
+    // tax_rate applies whenever tax_enabled is on, and never on pickup.
+    final effectiveTaxRate = (AppConstants.taxEnabled && !isPickup)
+        ? AppConstants.taxRate
+        : 0.0;
     final tax = subtotal * effectiveTaxRate;
     final promoDiscount =
         appliedPromo?.computeDiscount(
