@@ -509,6 +509,8 @@ class _GroceryStoreBody extends ConsumerWidget {
                           _removeBarcode(context, ref, item, store.id),
                       onManageStock: () =>
                           _showInventorySheet(context, ref, item, store.id),
+                      onEditPrice: () =>
+                          _editSalePrice(context, ref, item, store.id),
                       onToggleStock: () =>
                           _toggleStock(context, ref, item, store.id),
                       onToggleAvailability: () =>
@@ -874,6 +876,70 @@ class _GroceryStoreBody extends ConsumerWidget {
     }
   }
 
+  Future<void> _editSalePrice(
+    BuildContext context,
+    WidgetRef ref,
+    MenuItem product,
+    String storeId,
+  ) async {
+    final ctrl = TextEditingController(text: product.price.toStringAsFixed(2));
+    final newPrice = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit sale price'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              product.name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Sale price',
+                prefixText: AppConstants.currencySymbol,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final v = double.tryParse(ctrl.text.trim());
+              if (v == null || v < 0) {
+                AppSnackbar.error(ctx, 'Enter a valid price');
+                return;
+              }
+              Navigator.of(ctx).pop(v);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newPrice == null) return;
+    try {
+      await ref.read(groceryServiceProvider).setProductPrice(product.id, newPrice);
+      ref.invalidate(ownerGroceryProductsProvider(storeId));
+      if (context.mounted) AppSnackbar.success(context, 'Sale price updated');
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -924,6 +990,7 @@ class _GroceryProductTile extends StatelessWidget {
   final VoidCallback onScanBarcode;
   final VoidCallback onRemoveBarcode;
   final VoidCallback onManageStock;
+  final VoidCallback onEditPrice;
   final VoidCallback onToggleStock;
   final VoidCallback onToggleAvailability;
   final VoidCallback onDelete;
@@ -934,6 +1001,7 @@ class _GroceryProductTile extends StatelessWidget {
     required this.onScanBarcode,
     required this.onRemoveBarcode,
     required this.onManageStock,
+    required this.onEditPrice,
     required this.onToggleStock,
     required this.onToggleAvailability,
     required this.onDelete,
@@ -1053,6 +1121,9 @@ class _GroceryProductTile extends StatelessWidget {
                   case 'inventory':
                     onManageStock();
                     break;
+                  case 'edit_price':
+                    onEditPrice();
+                    break;
                   case 'stock':
                     onToggleStock();
                     break;
@@ -1109,6 +1180,20 @@ class _GroceryProductTile extends StatelessWidget {
                             ? 'Manage stock'
                             : 'Track stock',
                       ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'edit_price',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sell_outlined,
+                        size: 18,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Edit sale price'),
                     ],
                   ),
                 ),

@@ -490,6 +490,20 @@ class GroceryService {
     }
   }
 
+  /// Update a product's sale (selling) price. Uses the owner/admin UPDATE
+  /// policy on menus.
+  Future<void> setProductPrice(String productId, double price) async {
+    try {
+      await _client
+          .from(AppConstants.tableMenus)
+          .update({'price': price})
+          .eq('id', productId);
+    } catch (e) {
+      AppLogger.error('Error setting sale price: $e');
+      rethrow;
+    }
+  }
+
   /// Remove the linked barcode / QR code from a product.
   Future<void> clearProductBarcode(String productId) async {
     try {
