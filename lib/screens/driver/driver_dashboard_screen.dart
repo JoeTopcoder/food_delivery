@@ -785,7 +785,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                     Expanded(
                       child: _ServiceCard(
                         icon: Icons.restaurant_rounded,
-                        label: 'Food',
+                        label: 'Food & Groceries',
                         color: const Color(0xFFF97316),
                         isEnabled: activeServices.contains('food_delivery'),
                         isLoading: _togglingServices.contains('food_delivery'),
