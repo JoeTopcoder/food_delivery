@@ -86,13 +86,17 @@ class RecommendationService {
         }
       }
 
+      // Collapse multi-location chains to one nearest branch (matches the
+      // browse listings), so "Made for You" etc. never show two KFCs.
+      final chainCollapsed = await _collapseChainRecs(allRecs);
+
       // 3. Sort into sections
       final forYou = <SmartRecommendation>[];
       final becauseYouLove = <SmartRecommendation>[];
       final dealsForYou = <SmartRecommendation>[];
       final quickDelivery = <SmartRecommendation>[];
 
-      for (final rec in allRecs) {
+      for (final rec in chainCollapsed) {
         switch (rec.section) {
           case 'because_you_love':
             becauseYouLove.add(rec);
@@ -138,6 +142,55 @@ class RecommendationService {
       // Return empty response so UI can still render fallback content
       return const BrainEngineResponse();
     }
+  }
+
+  /// Collapse recommendations that belong to the same restaurant chain
+  /// (`chain_id`) down to the single nearest branch, shown under the brand name
+  /// (`chain_name`). Keeps recommendation sections from listing two KFCs.
+  Future<List<SmartRecommendation>> _collapseChainRecs(
+    List<SmartRecommendation> recs,
+  ) async {
+    if (recs.isEmpty) return recs;
+    final ids = recs.map((r) => r.restaurantId).toSet().toList();
+    final chainOf = <String, String>{};
+    final nameOf = <String, String>{};
+    try {
+      final rows = await _client
+          .from('restaurants')
+          .select('id, chain_id, chain_name')
+          .inFilter('id', ids);
+      for (final row in (rows as List)) {
+        final cid = (row['chain_id'] as String?)?.trim();
+        if (cid == null || cid.isEmpty) continue;
+        final id = row['id'] as String;
+        chainOf[id] = cid;
+        final cn = (row['chain_name'] as String?)?.trim();
+        if (cn != null && cn.isNotEmpty) nameOf[id] = cn;
+      }
+    } catch (e) {
+      AppLogger.error('chain collapse lookup failed: $e');
+      return recs; // fall back to uncollapsed rather than dropping content
+    }
+    if (chainOf.isEmpty) return recs;
+
+    final nearestByChain = <String, SmartRecommendation>{};
+    final out = <SmartRecommendation>[];
+    for (final rec in recs) {
+      final chain = chainOf[rec.restaurantId];
+      if (chain == null) {
+        out.add(rec);
+        continue;
+      }
+      final cur = nearestByChain[chain];
+      if (cur == null || rec.distanceKm < cur.distanceKm) {
+        nearestByChain[chain] = rec;
+      }
+    }
+    for (final rec in nearestByChain.values) {
+      final cn = nameOf[rec.restaurantId];
+      out.add(cn != null ? rec.copyWith(restaurantName: cn) : rec);
+    }
+    return out;
   }
 
   /// Run the grocery brain engine — same pipeline but grocery-specific RPC.
