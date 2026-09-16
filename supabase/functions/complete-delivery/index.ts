@@ -221,12 +221,13 @@ Deno.serve(async (request) => {
         .eq("id", driverId);
 
       // ── 4. Cash float for cash orders ───────────────────────────────
+      // On COD the driver collects the FULL order total from the customer in
+      // cash, so the float they hold equals the order total. Their delivery
+      // earning is tracked in total_earnings and settled via payout — it is not
+      // skimmed from the collected cash.
       if (order.payment_method === "cash") {
         const totalAmount = Number(order.total_amount) || 0;
-        const deliveryFee = Number(order.delivery_fee) || 0;
-        const tip = Number(order.driver_tip) || 0;
-        const driverKeeps = deliveryFee * driverPayPercent + tip;
-        const floatAmount = totalAmount - driverKeeps;
+        const floatAmount = totalAmount;
 
         if (floatAmount > 0) {
           // Try atomic increment via RPC, fall back to manual

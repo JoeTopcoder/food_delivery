@@ -366,13 +366,9 @@ class _OrderCard extends ConsumerWidget {
       estMinutes = (totalKm * 3 + 5).round();
     }
 
-    // Driver pay = $1.50/mile × distance (minimum $3)
-    // Uses actual delivery distance (restaurant → drop-off)
-    final distanceMiles = (restToDropKm ?? 0) * AppConstants.kmToMiles;
-    final driverPay = (distanceMiles * AppConstants.driverRatePerMile).clamp(
-      AppConstants.driverMinBasePay,
-      double.infinity,
-    );
+    // Driver pay = driverPayPercent (80%) of the delivery fee the customer paid.
+    // e.g. J$700 delivery fee → driver earns J$560.
+    final driverPay = order.deliveryFee * AppConstants.driverPayPercent;
     final tipAmount = order.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
 
@@ -523,7 +519,7 @@ class _OrderCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${AppConstants.currencySymbol}${((orderScore?.payout.totalPayout ?? 0) > 0 ? orderScore!.payout.totalPayout : totalPay).toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${totalPay.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 26,

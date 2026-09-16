@@ -627,12 +627,8 @@ class _DeliveryCard extends ConsumerWidget {
       estMinutes = (totalKm * 3 + 5).round();
     }
 
-    // Driver pay = $1.50/mile × distance (minimum $3)
-    final distanceMiles = (restToDropKm ?? 0) * AppConstants.kmToMiles;
-    final driverPay = (distanceMiles * AppConstants.driverRatePerMile).clamp(
-      AppConstants.driverMinBasePay,
-      double.infinity,
-    );
+    // Driver pay = driverPayPercent (80%) of the delivery fee, plus tips.
+    final driverPay = delivery.deliveryFee * AppConstants.driverPayPercent;
     final tipAmount = delivery.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
 

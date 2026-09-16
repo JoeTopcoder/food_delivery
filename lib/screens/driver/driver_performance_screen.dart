@@ -271,7 +271,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${AppConstants.currencySymbol}${AppConstants.driverRatePerMile.toStringAsFixed(2)}/mile',
+                                    '${(AppConstants.driverPayPercent * 100).round()}% of delivery fee',
                                     style: const TextStyle(
                                       color: Color(0xFF22C55E),
                                       fontWeight: FontWeight.w800,
@@ -279,7 +279,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   Text(
-                                    'Your guaranteed pay rate + tips',
+                                    'Your guaranteed pay rate + 100% of tips',
                                     style: TextStyle(
                                       color: Colors.grey[700],
                                       fontSize: 12,
@@ -289,7 +289,7 @@ class DriverPerformanceScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              'Min \$${AppConstants.driverMinBasePay.toStringAsFixed(0)}',
+                              '+ tips',
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontSize: 12,
