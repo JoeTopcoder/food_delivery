@@ -15,6 +15,27 @@ class GroceryService {
 
   static String _sanitize(String q) => q.replaceAll(RegExp(r'[%_(),.\\]'), '');
 
+  /// White-label mask for customer-facing grocery stores.
+  ///
+  /// Real partner names (e.g. "Loshusan Supermarket") must never reach the
+  /// customer. This replaces [Restaurant.name] with the store's per-store
+  /// public alias (`public_name`) or the global brand fallback, and blanks the
+  /// real logo (`imageUrl` → '') unless a `public_image_url` is set, so the UI
+  /// falls back to the default Quickdash grocery logo. All other fields — id,
+  /// fees, coordinates, store_type — are preserved for fulfilment.
+  /// Use ONLY in customer paths; owner/admin/driver paths keep the real name.
+  static Restaurant maskGroceryStore(Map<String, dynamic> row) {
+    final base = Restaurant.fromJson(row);
+    final alias = (row['public_name'] as String?)?.trim();
+    final publicImg = (row['public_image_url'] as String?)?.trim();
+    return base.copyWith(
+      name: (alias != null && alias.isNotEmpty)
+          ? alias
+          : AppConstants.groceryPublicBrand,
+      imageUrl: (publicImg != null && publicImg.isNotEmpty) ? publicImg : '',
+    );
+  }
+
   /// Fetch the grocery store owned by a specific user.
   Future<Restaurant?> getGroceryStoreByOwnerId(String ownerId) async {
     try {
@@ -80,7 +101,7 @@ class GroceryService {
       }
 
       final response = await query;
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return (response as List).map((r) => maskGroceryStore(r)).toList();
     } catch (e) {
       AppLogger.error('Error fetching grocery stores: $e');
       rethrow;
@@ -98,6 +119,45 @@ class GroceryService {
     return (response as List).map((r) => Restaurant.fromJson(r)).toList();
   }
 
+  /// Admin: read a store's customer-facing storefront override.
+  /// Returns (publicName, publicImageUrl); either may be null (falls back to
+  /// the global "Quickdash Groceries" brand and the default logo).
+  Future<({String? publicName, String? publicImageUrl})> getStorePublicStorefront(
+    String storeId,
+  ) async {
+    final row = await _client
+        .from(AppConstants.tableRestaurants)
+        .select('public_name, public_image_url')
+        .eq('id', storeId)
+        .maybeSingle();
+    return (
+      publicName: row?['public_name'] as String?,
+      publicImageUrl: row?['public_image_url'] as String?,
+    );
+  }
+
+  /// Admin: set a store's customer-facing public storefront name (alias) and
+  /// optional logo URL. Empty/blank clears the override (store then shows the
+  /// global brand + default logo). The real name is never changed.
+  Future<void> setStorePublicStorefront(
+    String storeId, {
+    String? publicName,
+    String? publicImageUrl,
+  }) async {
+    String? clean(String? v) {
+      final t = v?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
+    await _client
+        .from(AppConstants.tableRestaurants)
+        .update({
+          'public_name': clean(publicName),
+          'public_image_url': clean(publicImageUrl),
+        })
+        .eq('id', storeId);
+  }
+
   /// Search grocery stores by name.
   Future<List<Restaurant>> searchGroceryStores(String query) async {
     try {
@@ -109,7 +169,7 @@ class GroceryService {
           .ilike('name', '%${_sanitize(query)}%')
           .order('rating', ascending: false);
 
-      return (response as List).map((r) => Restaurant.fromJson(r)).toList();
+      return (response as List).map((r) => maskGroceryStore(r)).toList();
     } catch (e) {
       AppLogger.error('Error searching grocery stores: $e');
       rethrow;
