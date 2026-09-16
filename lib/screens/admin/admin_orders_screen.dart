@@ -504,7 +504,19 @@ class _OrderCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                _StatusBadge(status: status),
+                GestureDetector(
+                  onTap: () => _showTimeline(context, id),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _StatusBadge(status: status),
+                      const SizedBox(width: 4),
+                      Icon(Icons.history_rounded,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
               ],
             ),
 
@@ -619,6 +631,44 @@ class _OrderCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
+    );
+  }
+
+  void _showTimeline(BuildContext context, String orderId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text('Order status timeline',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            OrderStatusTimeline(orderId: orderId),
+          ],
+        ),
       ),
     );
   }
@@ -1434,11 +1484,6 @@ class _OrderDetailSheet extends StatelessWidget {
           Text(
             receipt.isNotEmpty ? receipt : 'Order #$shortId',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'ID: $id',
-            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 18),
 
