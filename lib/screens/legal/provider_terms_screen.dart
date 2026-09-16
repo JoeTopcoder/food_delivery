@@ -13,7 +13,7 @@ class ProviderTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Partner Agreement',
           body:
-              'This agreement governs the relationship between SevenDash Technologies Limited ("QuickDash") and any restaurant, grocery store, car service provider, laundry provider, or other business partner ("Provider") listed on the QuickDash platform. By registering as a Provider, you accept these terms.',
+              'This agreement governs the relationship between QuickDash Technologies Limited ("QuickDash") and any restaurant, grocery store, car service provider, laundry provider, or other business partner ("Provider") listed on the QuickDash platform. By registering as a Provider, you accept these terms.',
         ),
         LegalSection(
           heading: '2. Eligibility',

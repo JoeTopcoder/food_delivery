@@ -488,7 +488,12 @@ class OrdersScreen extends ConsumerWidget {
                 'preparing',
               }.contains(order.status);
               return _OrderCard(
-                orderId: '#${order.id.substring(0, 8)}',
+                // Show the same friendly number as the receipt (e.g.
+                // GRO-20260912), without the daily sequence suffix.
+                orderId: AppConstants.displayOrderNumber(
+                  order.receiptNumber ?? order.restaurantOrderNumber,
+                  fallback: '#${order.id.substring(0, 8)}',
+                ),
                 status: order.status.replaceAll('_', ' '),
                 date: DateFormat('MMM d, h:mm a').format(order.orderedAt),
                 total:
@@ -519,7 +524,11 @@ class OrdersScreen extends ConsumerWidget {
             ...pastMaster.map((m) => _MasterOrderCard(masterOrder: m)),
             ...pastSingle.map(
               (o) => _OrderCard(
-                orderId: '#${(o as dynamic).id.substring(0, 8)}',
+                orderId: AppConstants.displayOrderNumber(
+                  (o as dynamic).receiptNumber ??
+                      (o as dynamic).restaurantOrderNumber,
+                  fallback: '#${(o as dynamic).id.substring(0, 8)}',
+                ),
                 status: o.status.replaceAll('_', ' '),
                 date: DateFormat('MMM d, h:mm a').format(o.orderedAt),
                 total:

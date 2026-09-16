@@ -18,7 +18,7 @@ class SubscriptionTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '2. Billing',
           body:
-              'Your subscription is billed monthly on the date you first subscribed. The charge appears as "QuickDash+" or "SevenDash Technologies" on your payment statement. All charges are in USD unless otherwise indicated. By subscribing, you authorize QuickDash to charge your selected payment method automatically each billing period.',
+              'Your subscription is billed monthly on the date you first subscribed. The charge appears as "QuickDash+" or "QuickDash Technologies" on your payment statement. All charges are in USD unless otherwise indicated. By subscribing, you authorize QuickDash to charge your selected payment method automatically each billing period.',
         ),
         LegalSection(
           heading: '3. What Is Included',

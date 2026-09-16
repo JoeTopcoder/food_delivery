@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/app_constants.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/order_model.dart';
@@ -41,7 +42,13 @@ final menuServiceProvider = Provider<MenuService>((ref) {
 });
 
 final menuCategoryServiceProvider = Provider<MenuCategoryService>((ref) {
-  return MenuCategoryService(SupabaseConfig.client);
+  final address = ref.watch(selectedAddressProvider);
+  final user = ref.watch(currentUserProvider);
+  return MenuCategoryService(
+    SupabaseConfig.client,
+    originLat: address?.latitude ?? user?.latitude,
+    originLng: address?.longitude ?? user?.longitude,
+  );
 });
 
 // Meals across open restaurants for a specific category, fetched via the
@@ -619,11 +626,20 @@ final customerMasterOrdersProvider = FutureProvider.family
         if (restaurantIds.isNotEmpty) {
           final restRows = await SupabaseConfig.client
               .from('restaurants')
-              .select('id, name')
+              .select('id, name, store_type, public_name')
               .inFilter('id', restaurantIds);
           for (final r in (restRows as List)) {
-            restNameMap[(r as Map)['id'] as String] =
-                r['name'] as String? ?? '';
+            final row = r as Map;
+            final st = row['store_type'] as String?;
+            final isGrocery = st == 'grocery' || st == 'both';
+            final alias = (row['public_name'] as String?)?.trim();
+            // Customers only ever see the grocery brand/alias, never the real
+            // partner store name. Food stores keep their real name.
+            restNameMap[row['id'] as String] = isGrocery
+                ? (alias != null && alias.isNotEmpty
+                      ? alias
+                      : AppConstants.groceryPublicBrand)
+                : (row['name'] as String? ?? '');
           }
         }
 

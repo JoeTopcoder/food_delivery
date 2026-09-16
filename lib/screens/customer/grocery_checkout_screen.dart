@@ -148,7 +148,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final storeIds = cart.map((c) => c.menuItem.restaurantId).toSet().toList();
     final storeData = <String, Restaurant?>{};
     for (final sid in storeIds) {
-      final sAsync = ref.watch(restaurantByIdProvider(sid));
+      // Masked grocery store: name/logo anonymised, fees & coords intact.
+      final sAsync = ref.watch(groceryStoreByIdProvider(sid));
       storeData[sid] = sAsync.valueOrNull;
     }
 
@@ -236,8 +237,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       otherCharges: activeFee,
     );
 
-    // Tax: controlled by tax_enabled + tax_rate in app_config (DB toggle).
-    // No tax for pickup. taxEnabled is the master on/off switch.
+    // Tax: mirrors the server (grocery/order.ts) — the configured global
+    // tax_rate applies whenever tax_enabled is on, and never on pickup.
     final effectiveTaxRate = (AppConstants.taxEnabled && !isPickup)
         ? AppConstants.taxRate
         : 0.0;

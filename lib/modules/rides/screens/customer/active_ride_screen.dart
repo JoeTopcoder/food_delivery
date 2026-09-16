@@ -406,7 +406,7 @@ class _ActiveRideScreenState extends ConsumerState<ActiveRideScreen>
                 if (pickup.isNotEmpty) msg.writeln('📍 From: $pickup');
                 if (dest.isNotEmpty)   msg.writeln('🏁 To: $dest');
                 if (fare.isNotEmpty)   msg.writeln('💳 Fare: $fare');
-                msg.write('\nBook rides on QuickDash 👉 https://sevendash.app');
+                msg.write('\nBook rides on QuickDash 👉 https://quickdash.app');
                 SharePlus.instance.share(ShareParams(text: msg.toString()));
               },
               onCancel: _cancelRide,

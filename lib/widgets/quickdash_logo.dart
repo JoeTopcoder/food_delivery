@@ -237,14 +237,18 @@ class QuickDashLogo extends StatelessWidget {
         QuickDashWordmark(fontSize: wordSize, monochrome: monochrome),
         if (showTagline) ...[
           SizedBox(height: width * 0.03),
-          Text(
-            'Good Food. Faster.',
+          SizedBox(
+            width: width,
+            child: Text(
+            'Quick to Order. Fast to Deliver.',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: wordSize * 0.36,
               fontWeight: FontWeight.w800,
               fontStyle: FontStyle.italic,
               letterSpacing: 0.2,
               color: monochrome ?? QuickDashBrand.blueDark,
+            ),
             ),
           ),
         ],
