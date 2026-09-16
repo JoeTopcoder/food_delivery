@@ -26,7 +26,11 @@ final _webAllOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final data = await SupabaseConfig.client
       .from('orders')
-      .select('*, restaurants(name), users(name, email, phone)')
+      // `orders` has two FKs to `users` (user_id, student_id) — disambiguate
+      // the embed or PostgREST errors the whole query.
+      .select(
+        '*, restaurants(name), users!orders_user_id_fkey(name, email, phone)',
+      )
       .order('ordered_at', ascending: false)
       .limit(300);
   return List<Map<String, dynamic>>.from(data as List);
