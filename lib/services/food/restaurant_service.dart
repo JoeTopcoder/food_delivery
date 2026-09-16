@@ -11,7 +11,8 @@ import '../driver/delivery_fee_service.dart';
 const _kRestaurantListCols = 'id, name, image_url, cuisine_type, rating, '
     'review_count, delivery_fee, estimated_delivery_time, is_open, '
     'is_verified, address, latitude, longitude, store_type, tags, '
-    'opening_time, closing_time, commission_rate, owner_id, created_at, updated_at';
+    'opening_time, closing_time, commission_rate, owner_id, created_at, updated_at, '
+    'chain_id, chain_name';
 
 class RestaurantService {
   final SupabaseClient _supabaseClient;
@@ -71,6 +72,50 @@ class RestaurantService {
     return near;
   }
 
+  /// Customer-facing list pipeline: collapse multi-location chains to their
+  /// single nearest branch, then apply the browse-radius filter.
+  List<Restaurant> _process(List rawRows) {
+    final collapsed = _collapseChains(
+      rawRows.map((r) => Map<String, dynamic>.from(r as Map)).toList(),
+    );
+    return _inRange(collapsed.map((r) => Restaurant.fromJson(r)).toList());
+  }
+
+  /// A restaurant chain (same `chain_id`, e.g. all KFC branches) is shown to the
+  /// customer as ONE store — the branch nearest to their location. Because the
+  /// card that shows carries the nearest branch's id, ordering routes to that
+  /// branch automatically. The kept branch's display name is replaced with the
+  /// brand name (`chain_name`, e.g. "KFC"). Restaurants with no chain_id pass
+  /// through unchanged. Operates on raw rows so no model change is needed.
+  List<Map<String, dynamic>> _collapseChains(List<Map<String, dynamic>> rows) {
+    final oLat = originLat ?? AppConstants.defaultOriginLat;
+    final oLng = originLng ?? AppConstants.defaultOriginLng;
+    double dist(Map<String, dynamic> r) {
+      final la = (r['latitude'] as num?)?.toDouble();
+      final lo = (r['longitude'] as num?)?.toDouble();
+      if (la == null || lo == null) return double.infinity;
+      return DeliveryFeeService.haversineKm(oLat, oLng, la, lo);
+    }
+
+    final nearestByChain = <String, Map<String, dynamic>>{};
+    final out = <Map<String, dynamic>>[];
+    for (final r in rows) {
+      final chain = (r['chain_id'] as String?)?.trim();
+      if (chain == null || chain.isEmpty) {
+        out.add(r);
+        continue;
+      }
+      final cur = nearestByChain[chain];
+      if (cur == null || dist(r) < dist(cur)) nearestByChain[chain] = r;
+    }
+    for (final r in nearestByChain.values) {
+      final cn = (r['chain_name'] as String?)?.trim();
+      if (cn != null && cn.isNotEmpty) r['name'] = cn; // show the brand name
+      out.add(r);
+    }
+    return out;
+  }
+
   /// Distance to the closest store, ignoring the browse radius.
   ///
   /// The listings cannot answer "is this customer out of area?" — an empty list
@@ -125,9 +170,7 @@ class RestaurantService {
           .range(offset, offset + limit! - 1)
           .order('rating', ascending: false);
 
-      final restaurants = _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      final restaurants = _process(response as List);
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'getAllRestaurants');
@@ -148,9 +191,7 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      final restaurants = _process(response as List);
       AppLogger.info('Found ${restaurants.length} restaurants');
       return restaurants;
     }, label: 'searchRestaurants');
@@ -221,11 +262,7 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .limit(50);
 
-      final restaurants = _inRange(
-        (response as List)
-            .map((restaurant) => Restaurant.fromJson(restaurant))
-            .toList(),
-      );
+      final restaurants = _process(response as List);
       AppLogger.info('Fetched ${restaurants.length} restaurants');
       return restaurants;
     } catch (e) {
@@ -246,9 +283,7 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('rating', ascending: false)
           .limit(limit);
-      return _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      return _process(response as List);
     }, label: 'getTopRatedRestaurants');
   }
 
@@ -263,9 +298,7 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .order('created_at', ascending: false)
           .limit(limit);
-      return _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      return _process(response as List);
     }, label: 'getNewlyAddedRestaurants');
   }
 
@@ -279,9 +312,7 @@ class RestaurantService {
           .neq('store_type', 'grocery')
           .or('cuisine_type.ilike.%breakfast%,tags.cs.{breakfast}')
           .limit(limit);
-      return _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      return _process(response as List);
     }, label: 'getBreakfastRestaurants');
   }
 
@@ -296,9 +327,7 @@ class RestaurantService {
           .gte('rating', 4.0)
           .order('review_count', ascending: false)
           .limit(limit);
-      return _inRange(
-        (response as List).map((r) => Restaurant.fromJson(r)).toList(),
-      );
+      return _process(response as List);
     }, label: 'getMustTryRestaurants');
   }
 
