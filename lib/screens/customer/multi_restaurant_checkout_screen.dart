@@ -682,6 +682,14 @@ class _MultiRestaurantCheckoutScreenState
                           ],
                         ),
                       ),
+                      const SizedBox(height: 6),
+                      _PaymentTile(
+                        icon: Icons.payments_rounded,
+                        label: 'Cash on Delivery',
+                        subtitle: 'Pay with cash when your order arrives',
+                        selected: _selectedPayment == 'cash',
+                        onTap: () => setState(() => _selectedPayment = 'cash'),
+                      ),
                       if (_selectedPayment == 'stripe' &&
                           savedCards.isNotEmpty) ...[
                         const SizedBox(height: 8),
