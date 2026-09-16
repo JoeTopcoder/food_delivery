@@ -49,7 +49,7 @@
 			<string>Supabase OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>sevendash.app</string>
+				<string>quickdash.app</string>
 			</array>
 		</dict>
 	</array>

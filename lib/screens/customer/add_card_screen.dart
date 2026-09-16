@@ -48,7 +48,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
           Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
         }
       }
-      Stripe.urlScheme = 'sevendash.app';
+      Stripe.urlScheme = 'quickdash.app';
       await Stripe.instance.applySettings();
     } catch (e) {
       AppLogger.error('Stripe init error: $e');

@@ -48,7 +48,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Good Food. Faster.',
+                  'Quick to Order. Fast to Deliver.',
                   style: TextStyle(
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
@@ -116,7 +116,7 @@ class AboutScreen extends StatelessWidget {
 
           Center(
             child: Text(
-              '© 2026 SevenDash Technologies Limited.\nAll rights reserved.',
+              '© 2026 QuickDash Technologies Limited.\nAll rights reserved.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

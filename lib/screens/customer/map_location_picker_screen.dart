@@ -130,7 +130,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
           headers: const {
             // Nominatim's policy requires an agent that identifies the app and
             // can be contacted. A bare name is what gets a client blocked.
-            'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+            'User-Agent': 'QuickDash/1.0 (quickdash.app)',
             'Accept-Language': 'en',
           },
         )
@@ -231,7 +231,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
       final response = await http.get(
         url,
         headers: const {
-          'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+          'User-Agent': 'QuickDash/1.0 (quickdash.app)',
           'Accept-Language': 'en',
         },
       );

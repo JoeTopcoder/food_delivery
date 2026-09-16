@@ -29,7 +29,7 @@
   static bool get stripeIsTestMode =>
       stripePublishableKey.startsWith('pk_test');
   static const String stripePaymentFunction = 'stripe/payment';
-  static const String stripeMerchantId = 'merchant.com.sevendash.app';
+  static const String stripeMerchantId = 'merchant.com.quickdash.app';
 
   // Stripe-only: Legacy Lunipay and WiPay configurations removed
 
@@ -41,7 +41,7 @@
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
   static const String appDisplayName = 'QuickDash';
-  static const String businessLegalName = 'SevenDash Technologies Limited';
+  static const String businessLegalName = 'QuickDash Technologies Limited';
   static const String supportEmailAddress = 'support@7dash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
   static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
@@ -389,6 +389,12 @@
   static bool serviceRidesEnabled = true;
   static bool serviceLaundryEnabled = true;
   static bool serviceCarServiceEnabled = true;
+
+  // ── Grocery white-label storefront ───────────────────────────────────────
+  // Partner grocery stores are anonymised to customers: they never see the real
+  // store name (e.g. "Loshusan Supermarket"), only this brand or a per-store
+  // public alias. Admin / store owner / driver still see the real name.
+  static String groceryPublicBrand = 'Quickdash Groceries';
 
   // Customer bottom-nav tab visibility (admin-controlled via app_config).
   // false = tab hidden from customers entirely.

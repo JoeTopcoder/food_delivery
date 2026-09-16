@@ -280,7 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'Good Food. Faster.',
+                            'Quick to Order. Fast to Deliver.',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -820,7 +820,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Good Food. Faster.',
+                            'Quick to Order. Fast to Deliver.',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.85),

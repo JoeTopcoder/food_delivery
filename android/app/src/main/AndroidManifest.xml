@@ -53,21 +53,21 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sevendash.app" android:host="login-callback" />
+                <data android:scheme="quickdash.app" android:host="login-callback" />
             </intent-filter>
             <!-- Deep link for Stripe 3DS redirect (confirmSetupIntent / confirmPayment) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sevendash.app" android:host="stripe-redirect" />
+                <data android:scheme="quickdash.app" android:host="stripe-redirect" />
             </intent-filter>
             <!-- Deep link for PowerTranz payment return -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sevendash" android:host="payment-result" />
+                <data android:scheme="quickdash" android:host="payment-result" />
             </intent-filter>
         </activity>
 
