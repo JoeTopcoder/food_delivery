@@ -27,7 +27,12 @@ final _adminAllOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final data = await SupabaseConfig.client
           .from('orders')
-          .select('*, restaurants(name), users(name, email, phone)')
+          // Disambiguate the users embed: `orders` has two FKs to `users`
+          // (user_id = customer, student_id = student-verification link), so
+          // PostgREST needs the explicit relationship or the query errors.
+          .select(
+            '*, restaurants(name), users!orders_user_id_fkey(name, email, phone)',
+          )
           .order('ordered_at', ascending: false)
           .limit(200);
       return List<Map<String, dynamic>>.from(data as List);
