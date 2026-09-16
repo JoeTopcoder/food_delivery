@@ -13,7 +13,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Acceptance of Terms',
           body:
-              'By downloading, installing, or using the QuickDash mobile application ("App") operated by SevenDash Technologies Limited ("QuickDash", "we", "us", "our"), you agree to be bound by these Terms & Conditions. If you do not agree to these terms, do not use the App.',
+              'By downloading, installing, or using the QuickDash mobile application ("App") operated by QuickDash Technologies Limited ("QuickDash", "we", "us", "our"), you agree to be bound by these Terms & Conditions. If you do not agree to these terms, do not use the App.',
         ),
         LegalSection(
           heading: '2. Eligibility',

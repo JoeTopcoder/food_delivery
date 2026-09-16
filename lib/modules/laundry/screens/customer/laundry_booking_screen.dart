@@ -1981,7 +1981,7 @@ class _AddrFieldState extends State<_AddrField> {
     if (countryCode != null) params['countrycodes'] = countryCode;
     final uri = Uri.https('nominatim.openstreetmap.org', '/search', params);
     final resp = await http.get(uri, headers: {
-      'User-Agent': 'sevendash.app',
+      'User-Agent': 'com.quickdash.app',
       'Accept-Language': 'en',
     }).timeout(const Duration(seconds: 8));
     if (resp.statusCode != 200) return [];

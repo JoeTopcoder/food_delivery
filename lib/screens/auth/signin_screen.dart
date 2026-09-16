@@ -242,7 +242,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Good Food. Faster.',
+                      'Quick to Order. Fast to Deliver.',
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,

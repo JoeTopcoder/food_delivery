@@ -13,7 +13,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '1. Introduction',
           body:
-              'SevenDash Technologies Limited ("QuickDash", "we", "us", or "our") operates the QuickDash mobile application and related services (collectively, the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using QuickDash, you agree to the collection and use of information in accordance with this policy.',
+              'QuickDash Technologies Limited ("QuickDash", "we", "us", or "our") operates the QuickDash mobile application and related services (collectively, the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By using QuickDash, you agree to the collection and use of information in accordance with this policy.',
         ),
         LegalSection(
           heading: '2. Information We Collect',
@@ -97,7 +97,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           heading: '12. Contact Us',
           body:
               'If you have questions about this Privacy Policy or our data practices, contact us at:\n\n'
-              'SevenDash Technologies Limited\n'
+              'QuickDash Technologies Limited\n'
               'Email: support@7dash.app\n'
               'App: Settings → Contact Support',
         ),
