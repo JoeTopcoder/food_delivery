@@ -10,7 +10,7 @@
   );
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_e-McqdkcLyoxV89A86lWGw_hD3vyVP6',
+    defaultValue: 'sb_publishable_TSislwYLCUtwfkUnglQWBQ_3drsd82-',
   );
 
   // Stripe Payment Configuration — Stripe is the ONLY payment method
