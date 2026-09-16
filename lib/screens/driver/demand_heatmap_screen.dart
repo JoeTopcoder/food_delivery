@@ -51,16 +51,17 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
   Widget build(BuildContext context) {
     final zones = widget.zones;
     final activeZones = zones.where((z) => z.activeOrders > 0).toList();
-    // Center on the driver's own location when we have it; otherwise fall back
-    // to the centroid of active zones (or all zones), then Kingston.
-    final targetZones = activeZones.isNotEmpty ? activeZones : zones;
+    // Center on the driver's own location when we have it; otherwise the
+    // centroid of zones with ACTIVE orders; otherwise Kingston. We deliberately
+    // do NOT use the centroid of all zones — zones span Jamaica and Cayman, so
+    // that average lands in the open sea and shows a blank map.
     final center = widget.driverLatLng ??
-        (targetZones.isNotEmpty
+        (activeZones.isNotEmpty
             ? LatLng(
-                targetZones.map((z) => z.latitude).reduce((a, b) => a + b) /
-                    targetZones.length,
-                targetZones.map((z) => z.longitude).reduce((a, b) => a + b) /
-                    targetZones.length,
+                activeZones.map((z) => z.latitude).reduce((a, b) => a + b) /
+                    activeZones.length,
+                activeZones.map((z) => z.longitude).reduce((a, b) => a + b) /
+                    activeZones.length,
               )
             : const LatLng(18.0095, -76.7936)); // Kingston, Jamaica
 
