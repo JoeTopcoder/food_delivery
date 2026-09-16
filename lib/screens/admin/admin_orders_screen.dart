@@ -5,6 +5,7 @@ import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../widgets/order_status_timeline.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 
@@ -34,6 +35,9 @@ final _adminAllOrdersProvider =
             '*, restaurants(name, store_type), '
             'users!orders_user_id_fkey(name, email, phone)',
           )
+          // `*` already includes the stage timestamp columns (confirmed_at,
+          // preparing_started_at, ready_at, picked_up_at, on_the_way_at,
+          // delivered_at, cancelled_at) used by the status timeline.
           .order('ordered_at', ascending: false)
           .limit(200);
       return List<Map<String, dynamic>>.from(data as List);
@@ -1455,6 +1459,18 @@ class _OrderDetailSheet extends StatelessWidget {
           _detailRow(context, Icons.payment_rounded, 'Payment',
               '${order['payment_method'] ?? 'N/A'} · ${order['payment_status'] ?? 'pending'}'),
 
+          const SizedBox(height: 20),
+          Text('Status timeline',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 10),
+          OrderStatusTimeline(
+            orderId: id,
+            extraTimestamps: _stageTimestamps(),
+          ),
+
           const SizedBox(height: 18),
           Text('Items',
               style: TextStyle(
@@ -1505,22 +1521,65 @@ class _OrderDetailSheet extends StatelessWidget {
           ),
 
           const Divider(height: 28),
-          _totalRow(context, 'Subtotal', _money(order['subtotal'])),
-          if ((order['delivery_fee'] ?? 0).toDouble() != 0)
-            _totalRow(context, 'Delivery fee', _money(order['delivery_fee'])),
-          if ((order['service_fee'] ?? 0).toDouble() != 0)
-            _totalRow(context, 'Service fee', _money(order['service_fee'])),
-          if ((order['tax'] ?? order['tax_amount'] ?? 0).toDouble() != 0)
-            _totalRow(context, 'Tax',
-                _money(order['tax'] ?? order['tax_amount'])),
-          if ((order['discount'] ?? 0).toDouble() != 0)
-            _totalRow(context, 'Discount', '-${_money(order['discount'])}'),
-          const SizedBox(height: 4),
-          _totalRow(context, 'Total', _money(order['total_amount']),
-              bold: true),
+          ..._buildTotals(context),
         ],
       ),
     );
+  }
+
+  /// Canonical stage timestamps from the order row's own *_at columns, merged
+  /// into the timeline for stages that have no explicit status event.
+  Map<String, DateTime> _stageTimestamps() {
+    final map = <String, DateTime>{};
+    void add(String stage, String col) {
+      final v = order[col];
+      if (v == null) return;
+      final t = DateTime.tryParse(v.toString());
+      if (t != null) map[stage] = t;
+    }
+
+    add('pending', 'ordered_at');
+    add('confirmed', 'confirmed_at');
+    add('preparing', 'preparing_started_at');
+    add('ready', 'ready_at');
+    add('picked_up', 'picked_up_at');
+    add('out_for_delivery', 'on_the_way_at');
+    add('delivered', 'delivered_at');
+    add('cancelled', 'cancelled_at');
+    return map;
+  }
+
+  /// Builds the totals breakdown. The grocery/food order flows charge a service
+  /// fee into the total but don't always persist it to `platform_service_fee`,
+  /// so when it's missing we derive it as the residual that reconciles the
+  /// stored total — otherwise the breakdown wouldn't add up to the total.
+  List<Widget> _buildTotals(BuildContext context) {
+    double d(String k) => (order[k] ?? 0).toDouble();
+    final subtotal = d('subtotal');
+    final delivery = d('delivery_fee');
+    final tax = d('tax_amount');
+    final discount = d('discount');
+    final tip = d('driver_tip');
+    final total = d('total_amount');
+    var service = d('platform_service_fee');
+
+    // Derive the service fee from the residual when it isn't stored.
+    if (service == 0) {
+      final residual = total - subtotal - delivery - tax - tip + discount;
+      if (residual > 0.009) service = residual;
+    }
+
+    return [
+      _totalRow(context, 'Subtotal', _money(subtotal)),
+      if (delivery != 0) _totalRow(context, 'Delivery fee', _money(delivery)),
+      if (service != 0) _totalRow(context, 'Service fee', _money(service)),
+      if (tax != 0) _totalRow(context, 'Tax', _money(tax)),
+      if (tip != 0) _totalRow(context, 'Driver tip', _money(tip)),
+      if (discount != 0)
+        _totalRow(context, 'Discount', '-${_money(discount)}'),
+      const SizedBox(height: 4),
+      _totalRow(context, 'Total', _money(total), bold: true),
+    ];
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems(String orderId) async {
