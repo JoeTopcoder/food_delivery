@@ -33,7 +33,10 @@ final _adminAllOrdersProvider =
           // PostgREST needs the explicit relationship or the query errors.
           .select(
             '*, restaurants(name, store_type), '
-            'users!orders_user_id_fkey(name, email, phone)',
+            'users!orders_user_id_fkey(name, email, phone), '
+            // Assigned rider: orders.driver_id -> drivers -> users(name, phone)
+            'driver:drivers!orders_driver_id_fkey(id, vehicle_type, '
+            'user:users(name, phone))',
           )
           // `*` already includes the stage timestamp columns (confirmed_at,
           // preparing_started_at, ready_at, picked_up_at, on_the_way_at,
@@ -436,6 +439,8 @@ class _OrderCard extends StatelessWidget {
     final customerName = (user?['name'] ?? user?['email'] ?? 'Customer')
         .toString();
     final driverId = order['driver_id']?.toString();
+    final riderName =
+        ((order['driver'] as Map?)?['user'] as Map?)?['name']?.toString();
 
     return GestureDetector(
       onTap: () => showModalBottomSheet(
@@ -558,7 +563,11 @@ class _OrderCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    driverId != null ? 'Rider assigned' : 'No rider assigned',
+                    driverId != null
+                        ? (riderName != null && riderName.isNotEmpty
+                              ? 'Rider: $riderName'
+                              : 'Rider assigned')
+                        : 'No rider assigned',
                     style: TextStyle(
                       fontSize: 12,
                       color: driverId != null
@@ -1503,6 +1512,21 @@ class _OrderDetailSheet extends StatelessWidget {
                 address),
           _detailRow(context, Icons.payment_rounded, 'Payment',
               '${order['payment_method'] ?? 'N/A'} · ${order['payment_status'] ?? 'pending'}'),
+          _detailRow(
+            context,
+            Icons.two_wheeler_rounded,
+            'Rider',
+            () {
+              final drv = order['driver'] as Map?;
+              final name = (drv?['user'] as Map?)?['name']?.toString();
+              if (order['driver_id'] == null) return 'Not assigned';
+              final veh = drv?['vehicle_type']?.toString();
+              return [
+                if (name != null && name.isNotEmpty) name else 'Assigned',
+                if (veh != null && veh.isNotEmpty) '($veh)',
+              ].join(' ');
+            }(),
+          ),
 
           const SizedBox(height: 20),
           Text('Status timeline',
