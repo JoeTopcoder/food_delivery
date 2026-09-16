@@ -35,21 +35,21 @@
 
   // Stripe-only: Legacy NCB, WiPay, and Lunipay configurations removed
 
-  static const String appBaseUrl = 'https://mealhubcayman.com';
+  static const String appBaseUrl = 'https://quickdash.app';
   static const String privacyPolicyUrl = '$appBaseUrl/privacy-policy';
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
   static const String appDisplayName = 'QuickDash';
   static const String businessLegalName = 'QuickDash Technologies Limited';
-  static const String supportEmailAddress = 'support@7dash.app';
+  static const String supportEmailAddress = 'support@quickdash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
   static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
   static const String businessAddress = 'TODO_CONFIGURE';
   static const String supportHours = 'Monday–Friday, 9 AM–6 PM EST';
 
   // Reviewer demo credentials (for App Store / Play Store reviewers)
-  static const String reviewerEmail = 'reviewer@7dash.app';
+  static const String reviewerEmail = 'reviewer@quickdash.app';
   static const String reviewerPassword = 'Review123!';
 
   // Compliance table names
