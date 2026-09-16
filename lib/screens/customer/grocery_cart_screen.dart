@@ -680,6 +680,8 @@ class _GroceryCartItemWidget extends StatelessWidget {
                   ),
                 Text(
                   name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,

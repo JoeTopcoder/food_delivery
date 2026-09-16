@@ -167,7 +167,7 @@ class _GroceryCategoryProductsScreenState
   }
 }
 
-// ── Product card with store name ──────────────────────────────────────────────
+// ── Product card (store name hidden — grocery white-label) ────────────────────
 
 class _CategoryProductCard extends ConsumerWidget {
   final MenuItem product;
@@ -176,8 +176,6 @@ class _CategoryProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final inStock = product.inStock;
-    final storeAsync = ref.watch(restaurantByIdProvider(product.restaurantId));
-    final storeName = storeAsync.valueOrNull?.name;
 
     return Container(
       decoration: BoxDecoration(
@@ -291,18 +289,6 @@ class _CategoryProductCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Store name
-                  if (storeName != null)
-                    Text(
-                      storeName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   if (product.brand != null)
                     Text(
                       product.brand!,
