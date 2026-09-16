@@ -93,26 +93,48 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
     }
     if (!context.mounted) return;
 
+    final realNameCtrl = TextEditingController(text: store.name);
+    final addressCtrl = TextEditingController(text: store.address ?? '');
     final nameCtrl = TextEditingController(text: current.publicName ?? '');
     final logoCtrl = TextEditingController(text: current.publicImageUrl ?? '');
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Public storefront'),
+        title: const Text('Edit store'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Real name (admin only): ${store.name}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
+              const Text(
+                'Store details (admin/owner/driver only)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: realNameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Store name',
+                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: addressCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const Divider(height: 28),
+              const Text(
+                'Customer-facing storefront',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
               TextField(
                 controller: nameCtrl,
                 textCapitalization: TextCapitalization.words,
@@ -134,8 +156,8 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Leave blank to use the default "Quickdash Groceries" brand '
-                'and logo. Customers never see the real name.',
+                'Leave the public fields blank to use the default "Quickdash '
+                'Groceries" brand. Customers never see the store name/address.',
                 style: TextStyle(
                   fontSize: 11,
                   color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
@@ -159,13 +181,18 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
 
     if (saved != true) return;
     try {
+      await service.updateStoreDetails(
+        store.id,
+        name: realNameCtrl.text,
+        address: addressCtrl.text,
+      );
       await service.setStorePublicStorefront(
         store.id,
         publicName: nameCtrl.text,
         publicImageUrl: logoCtrl.text,
       );
       if (context.mounted) {
-        AppSnackbar.success(context, 'Public storefront updated');
+        AppSnackbar.success(context, 'Store updated');
         ref.invalidate(adminGroceryStoresProvider);
       }
     } catch (e) {
@@ -241,7 +268,7 @@ class _StoreTile extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Public storefront name',
+                tooltip: 'Edit store details',
                 icon: const Icon(Icons.badge_outlined),
                 color: const Color(0xFF059669),
                 onPressed: onEditStorefront,
