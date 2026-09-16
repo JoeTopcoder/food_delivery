@@ -31,7 +31,8 @@ final _adminAllOrdersProvider =
           // (user_id = customer, student_id = student-verification link), so
           // PostgREST needs the explicit relationship or the query errors.
           .select(
-            '*, restaurants(name), users!orders_user_id_fkey(name, email, phone)',
+            '*, restaurants(name, store_type), '
+            'users!orders_user_id_fkey(name, email, phone)',
           )
           .order('ordered_at', ascending: false)
           .limit(200);
@@ -86,7 +87,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   String _searchQuery = '';
   final _searchCtrl = TextEditingController();
 
+  // Vertical filter: 'all' | 'food' | 'grocery'. Separates grocery orders from
+  // regular food orders on top of the status tabs.
+  String _typeFilter = 'all';
+
   static const _tabs = ['All', 'Pending', 'Active', 'Delivered', 'Cancelled'];
+
+  /// Whether an order belongs to the grocery vertical (its store is a grocery
+  /// store). Non-grocery = regular food order.
+  static bool _isGroceryOrder(Map<String, dynamic> o) {
+    final st = (o['restaurants'] as Map?)?['store_type']?.toString();
+    return st == 'grocery' || st == 'both';
+  }
 
   @override
   void initState() {
@@ -125,6 +137,13 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     int tabIndex,
   ) {
     var filtered = orders;
+
+    // Vertical filter: food vs grocery
+    if (_typeFilter == 'grocery') {
+      filtered = filtered.where(_isGroceryOrder).toList();
+    } else if (_typeFilter == 'food') {
+      filtered = filtered.where((o) => !_isGroceryOrder(o)).toList();
+    }
 
     // Tab filter
     final statuses = _statusesForTab(tabIndex);
@@ -311,6 +330,38 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             ),
           ),
 
+          // Vertical filter: All / Food / Grocery
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Row(
+              children: [
+                for (final t in const [
+                  ('all', 'All'),
+                  ('food', 'Food'),
+                  ('grocery', 'Grocery'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(t.$2),
+                      selected: _typeFilter == t.$1,
+                      onSelected: (_) => setState(() => _typeFilter = t.$1),
+                      selectedColor: AppTheme.primaryColor.withValues(
+                        alpha: 0.15,
+                      ),
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: _typeFilter == t.$1
+                            ? AppTheme.primaryColor
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
           // Orders list
           Expanded(
             child: ordersAsync.when(
@@ -382,7 +433,17 @@ class _OrderCard extends StatelessWidget {
         .toString();
     final driverId = order['driver_id']?.toString();
 
-    return Container(
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => _OrderDetailSheet(order: order),
+      ),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -553,6 +614,7 @@ class _OrderCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1268,6 +1330,249 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Order Detail Sheet ─────────────────────────────────────────────────────
+// Full detail view for a single order, opened when an admin taps an order card.
+// Shows the vertical (Food/Grocery), customer, store, address, payment, totals,
+// and the itemised line items (fetched on open).
+
+class _OrderDetailSheet extends StatelessWidget {
+  final Map<String, dynamic> order;
+  const _OrderDetailSheet({required this.order});
+
+  bool get _isGrocery {
+    final st = (order['restaurants'] as Map?)?['store_type']?.toString();
+    return st == 'grocery' || st == 'both';
+  }
+
+  String _money(dynamic v) =>
+      '${AppConstants.currencySymbol}${(v ?? 0).toDouble().toStringAsFixed(2)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final id = (order['id'] ?? '').toString();
+    final shortId = id.length > 8 ? id.substring(0, 8) : id;
+    final receipt = (order['receipt_number'] ?? '').toString();
+    final status = (order['status'] ?? 'unknown').toString();
+    final user = order['users'] as Map?;
+    final restaurant = order['restaurants'] as Map?;
+    final address = (order['delivery_address'] ?? '').toString();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header: type badge + status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (_isGrocery
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFFF6B35))
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isGrocery
+                          ? Icons.local_grocery_store_rounded
+                          : Icons.fastfood_rounded,
+                      size: 15,
+                      color: _isGrocery
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFFF6B35),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _isGrocery ? 'Grocery' : 'Food',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _isGrocery
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFFF6B35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              _StatusBadge(status: status),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            receipt.isNotEmpty ? receipt : 'Order #$shortId',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'ID: $id',
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 18),
+
+          _detailRow(context, Icons.storefront_rounded,
+              _isGrocery ? 'Store' : 'Restaurant',
+              (restaurant?['name'] ?? 'Unknown').toString()),
+          _detailRow(context, Icons.person_rounded, 'Customer',
+              (user?['name'] ?? user?['email'] ?? 'Customer').toString()),
+          if (user?['phone'] != null)
+            _detailRow(context, Icons.phone_rounded, 'Phone',
+                user!['phone'].toString()),
+          if (user?['email'] != null)
+            _detailRow(context, Icons.email_rounded, 'Email',
+                user!['email'].toString()),
+          if (address.isNotEmpty)
+            _detailRow(context, Icons.location_on_rounded, 'Delivery',
+                address),
+          _detailRow(context, Icons.payment_rounded, 'Payment',
+              '${order['payment_method'] ?? 'N/A'} · ${order['payment_status'] ?? 'pending'}'),
+
+          const SizedBox(height: 18),
+          Text('Items',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchItems(id),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final items = snap.data ?? [];
+              if (items.isEmpty) {
+                return Text('No line items recorded.',
+                    style: TextStyle(color: scheme.onSurfaceVariant));
+              }
+              return Column(
+                children: [
+                  for (final it in items)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${it['quantity'] ?? 1}×',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                                (it['item_name'] ?? 'Item').toString(),
+                                style: const TextStyle(fontSize: 13)),
+                          ),
+                          Text(_money(it['subtotal'] ?? it['price']),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          const Divider(height: 28),
+          _totalRow(context, 'Subtotal', _money(order['subtotal'])),
+          if ((order['delivery_fee'] ?? 0).toDouble() != 0)
+            _totalRow(context, 'Delivery fee', _money(order['delivery_fee'])),
+          if ((order['service_fee'] ?? 0).toDouble() != 0)
+            _totalRow(context, 'Service fee', _money(order['service_fee'])),
+          if ((order['tax'] ?? order['tax_amount'] ?? 0).toDouble() != 0)
+            _totalRow(context, 'Tax',
+                _money(order['tax'] ?? order['tax_amount'])),
+          if ((order['discount'] ?? 0).toDouble() != 0)
+            _totalRow(context, 'Discount', '-${_money(order['discount'])}'),
+          const SizedBox(height: 4),
+          _totalRow(context, 'Total', _money(order['total_amount']),
+              bold: true),
+        ],
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchItems(String orderId) async {
+    final rows = await SupabaseConfig.client
+        .from('order_items')
+        .select('item_name, quantity, price, subtotal, special_instructions')
+        .eq('order_id', orderId);
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Widget _detailRow(
+      BuildContext context, IconData icon, String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 17, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 78,
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12.5, color: scheme.onSurfaceVariant)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _totalRow(BuildContext context, String label, String value,
+      {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: bold ? 15 : 13,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: bold ? 15 : 13,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                  color: bold ? AppTheme.primaryColor : null)),
         ],
       ),
     );
