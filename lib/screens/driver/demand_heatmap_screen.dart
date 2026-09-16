@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../models/driver_intelligence_models.dart';
 import '../../providers/driver_intelligence_provider.dart';
+import '../../providers/location_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/app_map_tiles.dart';
 
@@ -15,6 +16,9 @@ class DemandHeatmapScreen extends ConsumerWidget {
     final zonesAsync = ref.watch(demandZonesProvider);
     // Keep realtime updates flowing
     ref.watch(zoneRealtimeProvider);
+    // Driver's current GPS position — used to center the map on them.
+    final pos = ref.watch(currentPositionProvider).valueOrNull;
+    final driverLatLng = pos != null ? LatLng(pos.latitude, pos.longitude) : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
@@ -25,7 +29,7 @@ class DemandHeatmapScreen extends ConsumerWidget {
         error: (e, _) => Center(
           child: Text('$e', style: const TextStyle(color: Colors.redAccent)),
         ),
-        data: (zones) => _HeatmapBody(zones: zones),
+        data: (zones) => _HeatmapBody(zones: zones, driverLatLng: driverLatLng),
       ),
     );
   }
@@ -33,7 +37,8 @@ class DemandHeatmapScreen extends ConsumerWidget {
 
 class _HeatmapBody extends StatefulWidget {
   final List<DemandZone> zones;
-  const _HeatmapBody({required this.zones});
+  final LatLng? driverLatLng;
+  const _HeatmapBody({required this.zones, this.driverLatLng});
 
   @override
   State<_HeatmapBody> createState() => _HeatmapBodyState();
@@ -45,18 +50,19 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
   @override
   Widget build(BuildContext context) {
     final zones = widget.zones;
-    // Default center: Cayman Islands (George Town)
-    // Center map on active zones (those with orders), or all zones
     final activeZones = zones.where((z) => z.activeOrders > 0).toList();
+    // Center on the driver's own location when we have it; otherwise fall back
+    // to the centroid of active zones (or all zones), then Kingston.
     final targetZones = activeZones.isNotEmpty ? activeZones : zones;
-    final center = targetZones.isNotEmpty
-        ? LatLng(
-            targetZones.map((z) => z.latitude).reduce((a, b) => a + b) /
-                targetZones.length,
-            targetZones.map((z) => z.longitude).reduce((a, b) => a + b) /
-                targetZones.length,
-          )
-        : const LatLng(18.0095, -76.7936); // Kingston, Jamaica
+    final center = widget.driverLatLng ??
+        (targetZones.isNotEmpty
+            ? LatLng(
+                targetZones.map((z) => z.latitude).reduce((a, b) => a + b) /
+                    targetZones.length,
+                targetZones.map((z) => z.longitude).reduce((a, b) => a + b) /
+                    targetZones.length,
+              )
+            : const LatLng(18.0095, -76.7936)); // Kingston, Jamaica
 
     return Stack(
       children: [
@@ -141,6 +147,35 @@ class _HeatmapBodyState extends State<_HeatmapBody> {
                 );
               }).toList(),
             ),
+            // Driver's own location marker
+            if (widget.driverLatLng != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: widget.driverLatLng!,
+                    width: 44,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
 
