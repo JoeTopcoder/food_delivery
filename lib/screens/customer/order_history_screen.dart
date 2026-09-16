@@ -1178,6 +1178,10 @@ class _OrderCard extends ConsumerWidget {
               _ReceiptRow(context, 'Delivery Fee', order.deliveryFee),
             if (order.deliveryFee > 0 && _effectiveDeliveryFee(order) == 0)
               _ReceiptRow(context, 'Delivery Fee (FREE)', 0.0),
+            if ((order.pickupFee ?? 0) > 0)
+              _ReceiptRow(context, 'Pickup Fee', order.pickupFee!),
+            if (_serviceFee(order) > 0)
+              _ReceiptRow(context, 'Service Fee', _serviceFee(order)),
             if (order.taxAmount != null && order.taxAmount! > 0)
               _ReceiptRow(context, context.l10n.tax, order.taxAmount!),
             if (order.discount != null && order.discount! > 0)
@@ -1250,10 +1254,32 @@ class _OrderCard extends ConsumerWidget {
     if (order.deliveryFee <= 0) return 0;
     final taxAmount = order.taxAmount ?? 0;
     final discount = order.discount ?? 0;
+    final service = _serviceFee(order);
     final expectedWithFee =
-        order.subtotal + taxAmount - discount + order.deliveryFee;
+        order.subtotal + taxAmount + service - discount + order.deliveryFee;
     if (order.totalAmount < expectedWithFee - 0.01) return 0;
     return order.deliveryFee;
+  }
+
+  /// Service fee is not stored as its own column, so derive it as the residual
+  /// that reconciles the charged total: total − subtotal − delivery − pickup −
+  /// tax + discount − tips. Keeps the receipt breakdown adding up to the total.
+  double _serviceFee(Order order) {
+    final tax = order.taxAmount ?? 0;
+    final discount = order.discount ?? 0;
+    final tip = order.driverTip ?? 0;
+    final postTip = order.postDeliveryTip ?? 0;
+    final pickup = order.pickupFee ?? 0;
+    final delivery = order.deliveryFee > 0 ? order.deliveryFee : 0;
+    final fee = order.totalAmount -
+        order.subtotal -
+        delivery -
+        pickup -
+        tax +
+        discount -
+        tip -
+        postTip;
+    return fee > 0.01 ? fee : 0;
   }
 
   // ignore: non_constant_identifier_names

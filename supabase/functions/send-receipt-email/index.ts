@@ -32,14 +32,21 @@ function formatCurrency(amount: number): string {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
+  return d.toLocaleString("en-US", {
     weekday: "short",
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Jamaica",
   });
+}
+
+/// Customer-facing order number without the daily sequence suffix
+/// (e.g. "GRO-20260916-0002" -> "GRO-20260916").
+function displayReceipt(receipt: string): string {
+  return receipt.replace(/-\d+$/, "");
 }
 
 function escapeHtml(str: string): string {
@@ -59,10 +66,23 @@ interface OrderItem {
 }
 
 function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], restaurant: Record<string, unknown>, customerName: string): string {
-  const receiptNumber = order.receipt_number as string || `FD-${(order.id as string).substring(0, 8).toUpperCase()}`;
+  const rawReceipt = order.receipt_number as string || `FD-${(order.id as string).substring(0, 8).toUpperCase()}`;
+  const receiptNumber = displayReceipt(rawReceipt);
   const orderDate = formatDate(order.ordered_at as string);
-  const restName = escapeHtml(restaurant.name as string || "Restaurant");
-  const restAddress = escapeHtml(restaurant.address as string || "");
+  // White-label: grocery partner stores are anonymised to customers — show the
+  // public brand / alias and hide the store address. Food stores show the real
+  // name and address.
+  const storeType = restaurant.store_type as string || "";
+  const isGrocery = storeType === "grocery" || storeType === "both";
+  const publicName = (restaurant.public_name as string || "").trim();
+  const restName = escapeHtml(
+    isGrocery
+      ? (publicName || "Quickdash Groceries")
+      : (restaurant.name as string || "Restaurant"),
+  );
+  const restAddress = isGrocery
+    ? ""
+    : escapeHtml(restaurant.address as string || "");
   const deliveryAddress = escapeHtml(order.delivery_address as string || "");
   const isPickup = order.is_pickup === true;
   const paymentMethod = (order.payment_method as string || "cash").replace("_", " ");
@@ -73,6 +93,12 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   const discount = Number(order.discount) || 0;
   const driverTip = Number(order.driver_tip) || 0;
   const totalAmount = Number(order.total_amount) || 0;
+  // Service fee isn't stored as its own column — derive it from the residual so
+  // the receipt breakdown reconciles to the charged total.
+  const serviceFee = Math.max(
+    0,
+    totalAmount - subtotal - deliveryFee - taxAmount + discount - driverTip,
+  );
 
   const itemRows = items.map((item) => {
     const sides = (item.order_item_sides || [])
@@ -158,6 +184,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
       <table style="width:100%;border-collapse:collapse;">
         <tr><td style="padding:6px 0;color:#666;">Subtotal</td><td style="text-align:right;">${formatCurrency(subtotal)}</td></tr>
         <tr><td style="padding:6px 0;color:#666;">${isPickup ? "Pickup Fee" : "Delivery Fee"}</td><td style="text-align:right;">${formatCurrency(deliveryFee)}</td></tr>
+        ${serviceFee > 0.01 ? `<tr><td style="padding:6px 0;color:#666;">Service Fee</td><td style="text-align:right;">${formatCurrency(serviceFee)}</td></tr>` : ""}
         ${taxAmount > 0 ? `<tr><td style="padding:6px 0;color:#666;">Tax</td><td style="text-align:right;">${formatCurrency(taxAmount)}</td></tr>` : ""}
         ${discountRow}
         ${tipRow}
@@ -247,7 +274,7 @@ Deno.serve(async (request) => {
     // ── 3. Fetch restaurant info ─────────────────────────────────────────
     const { data: restaurant } = await admin
       .from("restaurants")
-      .select("name, address, phone")
+      .select("name, address, phone, store_type, public_name")
       .eq("id", order.restaurant_id)
       .single();
 
@@ -256,8 +283,16 @@ Deno.serve(async (request) => {
     const items = (order.order_items || []) as OrderItem[];
     const html = buildReceiptHtml(order, items, restaurant || {}, customerName);
 
-    const receiptNumber = order.receipt_number || `FD-${orderId.substring(0, 8).toUpperCase()}`;
-    const restName = restaurant?.name || "QuickDash";
+    // Customer-facing order number without the daily sequence suffix.
+    const receiptNumber = displayReceipt(
+      (order.receipt_number as string) || `FD-${orderId.substring(0, 8).toUpperCase()}`,
+    );
+    // White-label grocery stores in the subject line too.
+    const st = restaurant?.store_type as string || "";
+    const isGroceryStore = st === "grocery" || st === "both";
+    const restName = isGroceryStore
+      ? ((restaurant?.public_name as string || "").trim() || "Quickdash Groceries")
+      : (restaurant?.name || "QuickDash");
 
     // ── 5. Send via Resend ───────────────────────────────────────────────
     const emailResult = await sendEmail({
