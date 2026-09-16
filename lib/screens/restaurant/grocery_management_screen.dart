@@ -511,6 +511,8 @@ class _GroceryStoreBody extends ConsumerWidget {
                           _showInventorySheet(context, ref, item, store.id),
                       onEditPrice: () =>
                           _editSalePrice(context, ref, item, store.id),
+                      onEditDetails: () =>
+                          _editProductDetails(context, ref, item, store.id),
                       onToggleStock: () =>
                           _toggleStock(context, ref, item, store.id),
                       onToggleAvailability: () =>
@@ -940,6 +942,100 @@ class _GroceryStoreBody extends ConsumerWidget {
     }
   }
 
+  /// Edit a product's name, brand, and size (weight + unit).
+  Future<void> _editProductDetails(
+    BuildContext context,
+    WidgetRef ref,
+    MenuItem product,
+    String storeId,
+  ) async {
+    final nameCtrl = TextEditingController(text: product.name);
+    final brandCtrl = TextEditingController(text: product.brand ?? '');
+    final weightCtrl = TextEditingController(text: product.weight ?? '');
+    final unitCtrl = TextEditingController(text: product.unit ?? '');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit product details'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Product name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: brandCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Brand (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: weightCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Size / dimensions',
+                  hintText: 'e.g. 500 ml, 11.2 oz, 800 g',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: unitCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Unit (optional)',
+                  hintText: 'e.g. each, pack, case, kg',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameCtrl.text.trim().isEmpty) {
+                AppSnackbar.error(ctx, 'Product name is required');
+                return;
+              }
+              Navigator.of(ctx).pop(true);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true) return;
+    try {
+      await ref.read(groceryServiceProvider).updateProductDetails(
+            product.id,
+            name: nameCtrl.text,
+            brand: brandCtrl.text,
+            weight: weightCtrl.text,
+            unit: unitCtrl.text,
+          );
+      ref.invalidate(ownerGroceryProductsProvider(storeId));
+      if (context.mounted) AppSnackbar.success(context, 'Product updated');
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -991,6 +1087,7 @@ class _GroceryProductTile extends StatelessWidget {
   final VoidCallback onRemoveBarcode;
   final VoidCallback onManageStock;
   final VoidCallback onEditPrice;
+  final VoidCallback onEditDetails;
   final VoidCallback onToggleStock;
   final VoidCallback onToggleAvailability;
   final VoidCallback onDelete;
@@ -1002,6 +1099,7 @@ class _GroceryProductTile extends StatelessWidget {
     required this.onRemoveBarcode,
     required this.onManageStock,
     required this.onEditPrice,
+    required this.onEditDetails,
     required this.onToggleStock,
     required this.onToggleAvailability,
     required this.onDelete,
@@ -1130,6 +1228,9 @@ class _GroceryProductTile extends StatelessWidget {
                   case 'edit_price':
                     onEditPrice();
                     break;
+                  case 'edit_details':
+                    onEditDetails();
+                    break;
                   case 'stock':
                     onToggleStock();
                     break;
@@ -1200,6 +1301,20 @@ class _GroceryProductTile extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       const Text('Edit sale price'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'edit_details',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_note_rounded,
+                        size: 18,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Edit product details'),
                     ],
                   ),
                 ),

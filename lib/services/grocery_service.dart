@@ -552,6 +552,51 @@ class GroceryService {
 
   /// Update a product's sale (selling) price. Uses the owner/admin UPDATE
   /// policy on menus.
+  /// Admin/owner: update a grocery store's real name and address. This is the
+  /// internal identity (admin/owner/driver see it), NOT the customer-facing
+  /// public alias set via [setStorePublicStorefront].
+  Future<void> updateStoreDetails(
+    String storeId, {
+    String? name,
+    String? address,
+  }) async {
+    final data = <String, dynamic>{};
+    if (name != null && name.trim().isNotEmpty) data['name'] = name.trim();
+    if (address != null) data['address'] = address.trim();
+    if (data.isEmpty) return;
+    await _client
+        .from(AppConstants.tableRestaurants)
+        .update(data)
+        .eq('id', storeId);
+  }
+
+  /// Update a grocery product's descriptive fields: name, brand, size/weight
+  /// (e.g. "500 ml", "11.2 oz") and unit. Empty strings clear the optional
+  /// fields; a blank name is ignored.
+  Future<void> updateProductDetails(
+    String productId, {
+    String? name,
+    String? brand,
+    String? weight,
+    String? unit,
+  }) async {
+    String? clean(String? v) {
+      final t = v?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
+    final data = <String, dynamic>{};
+    if (name != null && name.trim().isNotEmpty) data['name'] = name.trim();
+    if (brand != null) data['brand'] = clean(brand);
+    if (weight != null) data['weight'] = clean(weight);
+    if (unit != null) data['unit'] = clean(unit);
+    if (data.isEmpty) return;
+    await _client
+        .from(AppConstants.tableMenus)
+        .update(data)
+        .eq('id', productId);
+  }
+
   Future<void> setProductPrice(String productId, double price) async {
     try {
       await _client
