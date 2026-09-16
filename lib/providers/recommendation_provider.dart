@@ -89,13 +89,13 @@ final groceryBrainEngineProvider =
         longitude: origin.lng,
       );
 
-      // White-label: grocery recommendations must never reveal the real
-      // partner store name/logo. Mask every recommendation to the public brand
-      // (also fixes the store-detail tap, which reuses rec.restaurantName).
+      // White-label: grocery recommendations show the public brand name instead
+      // of the real partner store name (also fixes the store-detail tap, which
+      // reuses rec.restaurantName). The storefront image is kept so cards in
+      // "Stores for You" / "Quick Delivery" etc. display the store photo.
       final brand = AppConstants.groceryPublicBrand;
-      List<SmartRecommendation> mask(List<SmartRecommendation> l) => l
-          .map((r) => r.copyWith(restaurantName: brand, imageUrl: ''))
-          .toList();
+      List<SmartRecommendation> mask(List<SmartRecommendation> l) =>
+          l.map((r) => r.copyWith(restaurantName: brand)).toList();
       return BrainEngineResponse(
         forYou: mask(resp.forYou),
         becauseYouLove: mask(resp.becauseYouLove),
