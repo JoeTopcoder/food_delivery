@@ -23,6 +23,7 @@ import '../../utils/context_extensions.dart';
 import '../../core/utils/responsive.dart';
 import '../../widgets/ai_fab.dart';
 import '../../widgets/app_map_tiles.dart';
+import 'student_delivery_confirm.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
   const ActiveDeliveriesScreen({super.key});
@@ -496,6 +497,13 @@ class _ActiveDeliveriesScreenState
               Navigator.pop(ctx);
               try {
                 final driverService = ref.read(driverServiceProvider);
+
+                // Student orders: confirm the school delivery first.
+                if (context.mounted) {
+                  final proceed = await ensureStudentDeliveryConfirmed(
+                      context, ref, delivery.id);
+                  if (!proceed) return;
+                }
 
                 if (_trackingOrderId == delivery.id) {
                   ref.read(locationServiceProvider).stopTracking();

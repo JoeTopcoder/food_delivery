@@ -122,6 +122,10 @@ dependencies:
   # Grocery order picking: camera barcode scanning (ML Kit / CameraX).
   mobile_scanner: ^7.4.1
 
+  # Student ID verification: on-device Tesseract OCR (self-hosted, no third
+  # party). Approval is still decided server-side; this only extracts text.
+  flutter_tesseract_ocr: ^0.4.31
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -174,6 +178,8 @@ flutter:
 
   assets:
     - assets/adi-registration.properties
+    # App logo, shown on order receipts.
+    - assets/images/app_icon.png
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

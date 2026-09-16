@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/order_countdown_timer.dart';
+import '../../widgets/order_status_timeline.dart';
 import '../../providers/order_picking_provider.dart';
 import 'order_picking_screen.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -363,6 +364,44 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
     }
   }
 
+  void _showStatusTimeline(BuildContext context, String orderId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text('Order status timeline',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            OrderStatusTimeline(orderId: orderId),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case AppConstants.orderPending:
@@ -483,21 +522,32 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor(order.status).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    order.status.replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(
-                      color: _statusColor(order.status),
-                      fontWeight: FontWeight.w600,
-                      fontSize: Responsive.smallText(context),
+                GestureDetector(
+                  onTap: () => _showStatusTimeline(context, order.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _statusColor(order.status).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          order.status.replaceAll('_', ' ').toUpperCase(),
+                          style: TextStyle(
+                            color: _statusColor(order.status),
+                            fontWeight: FontWeight.w600,
+                            fontSize: Responsive.smallText(context),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.history_rounded,
+                            size: 14, color: _statusColor(order.status)),
+                      ],
                     ),
                   ),
                 ),

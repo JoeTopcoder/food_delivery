@@ -4,6 +4,7 @@ import '../../config/app_constants.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/grocery_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
@@ -60,7 +61,8 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     bool anyFeeLoading = false;
     final hasDeliveryCoords = delLat != null && delLng != null;
     for (final sid in storeIds) {
-      final sAsync = ref.watch(restaurantByIdProvider(sid));
+      // Masked grocery store: name/logo anonymised, fees & coords intact.
+      final sAsync = ref.watch(groceryStoreByIdProvider(sid));
       final s = sAsync.valueOrNull;
       storeData[sid] = s;
       if (isPickup) {

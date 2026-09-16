@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../config/supabase_config.dart';
 import '../models/restaurant_model.dart';
 import '../models/menu_model.dart';
 import '../models/grocery_category_model.dart';
 import '../models/inventory_model.dart';
 import '../services/grocery_service.dart';
+import 'address_provider.dart';
+import 'auth_provider.dart';
 
 // Service
 final groceryServiceProvider = Provider<GroceryService>((ref) {
@@ -39,8 +42,68 @@ final groceryStoresProvider = FutureProvider.autoDispose<List<Restaurant>>((
       .subscribe();
   ref.onDispose(() => Supabase.instance.client.realtime.removeChannel(channel));
 
-  return ref.watch(groceryServiceProvider).getGroceryStores();
+  return _groceryStoresSortedByDistance(ref);
 });
+
+/// The customer's location used to rank grocery stores: their selected delivery
+/// address, falling back to their saved profile location. Either coordinate may
+/// be null when the customer has no known location.
+final groceryCustomerOriginProvider = Provider<({double? lat, double? lng})>((
+  ref,
+) {
+  final address = ref.watch(selectedAddressProvider);
+  final user = ref.watch(currentUserProvider);
+  return (
+    lat: address?.latitude ?? user?.latitude,
+    lng: address?.longitude ?? user?.longitude,
+  );
+});
+
+/// A short "nearest to you" label for a store (e.g. "2.3 km", "800 m"), or null
+/// when the customer's location or the store's coordinates are unknown.
+String? groceryStoreDistanceLabel({
+  required double? originLat,
+  required double? originLng,
+  required double? storeLat,
+  required double? storeLng,
+}) {
+  if (originLat == null ||
+      originLng == null ||
+      storeLat == null ||
+      storeLng == null) {
+    return null;
+  }
+  final meters = Geolocator.distanceBetween(
+    originLat,
+    originLng,
+    storeLat,
+    storeLng,
+  );
+  if (meters < 1000) return '${meters.round()} m';
+  return '${(meters / 1000).toStringAsFixed(1)} km';
+}
+
+/// Fetch grocery stores and sort them nearest-first relative to the customer's
+/// selected delivery address (falling back to their saved profile location).
+/// Stores without coordinates, and the case where we have no customer location,
+/// fall back to the default order (rating). Distance is straight-line metres.
+Future<List<Restaurant>> _groceryStoresSortedByDistance(Ref ref) async {
+  final stores = await ref.watch(groceryServiceProvider).getGroceryStores();
+
+  final origin = ref.watch(groceryCustomerOriginProvider);
+  final oLat = origin.lat;
+  final oLng = origin.lng;
+  if (oLat == null || oLng == null) return stores;
+
+  double distanceMeters(Restaurant s) {
+    if (s.latitude == null || s.longitude == null) return double.infinity;
+    return Geolocator.distanceBetween(oLat, oLng, s.latitude!, s.longitude!);
+  }
+
+  final sorted = [...stores]
+    ..sort((a, b) => distanceMeters(a).compareTo(distanceMeters(b)));
+  return sorted;
+}
 
 final groceryStoreSearchProvider = FutureProvider.family
     .autoDispose<List<Restaurant>, String>((ref, query) {
@@ -59,7 +122,8 @@ final groceryStoreByIdProvider = FutureProvider.family
           .eq('id', storeId)
           .maybeSingle();
       if (data == null) return null;
-      return Restaurant.fromJson(data);
+      // Customer-facing: anonymise the real partner store behind the brand.
+      return GroceryService.maskGroceryStore(data);
     });
 
 // ── Product Providers (real-time) ───────────────────────────────────────────

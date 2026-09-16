@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_constants.dart';
+import '../../providers/student_verification_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import 'recipient_service.dart';
@@ -88,18 +89,38 @@ class RecipientSelector extends ConsumerWidget {
           selected: selectedId == null,
           onTap: () => select(null),
         ),
-        ...students.map(
-          (s) => _RecipientTile(
+        ...students.map((s) {
+          // Student benefits gate: a suspended/expired student can't be chosen
+          // as a student recipient, but the customer can still order for
+          // themselves (normal ordering is never disabled).
+          final benefitsActive =
+              ref.watch(studentBenefitsActiveProvider(s.id)).valueOrNull ?? true;
+          final blocked = !benefitsActive;
+          return _RecipientTile(
             title: s.name,
-            subtitle: s.hasSchool
-                ? '${s.schoolName} · ${AppConstants.currencySymbol}'
-                      '${AppConstants.studentDeliveryFee.toStringAsFixed(0)}'
-                : 'No school on file',
-            warning: !s.hasSchool,
+            subtitle: blocked
+                ? 'Student benefits unavailable — update ID'
+                : (s.hasSchool
+                    ? '${s.schoolName} · ${AppConstants.currencySymbol}'
+                          '${AppConstants.studentDeliveryFee.toStringAsFixed(0)}'
+                    : 'No school on file'),
+            warning: blocked || !s.hasSchool,
             selected: selectedId == s.id,
-            onTap: () => select(s.id),
-          ),
-        ),
+            onTap: blocked
+                ? () {
+                    if (selectedId == s.id) select(null);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Student benefits are currently unavailable. '
+                          'Please update the student ID to restore access.',
+                        ),
+                      ),
+                    );
+                  }
+                : () => select(s.id),
+          );
+        }),
       ],
     );
   }

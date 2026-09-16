@@ -130,7 +130,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
           headers: const {
             // Nominatim's policy requires an agent that identifies the app and
             // can be contacted. A bare name is what gets a client blocked.
-            'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+            'User-Agent': 'QuickDash/1.0 (quickdash.app)',
             'Accept-Language': 'en',
           },
         )
@@ -165,17 +165,19 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
   void _selectSearchResult(Map<String, dynamic> result) {
     final lat = double.tryParse(result['lat'] as String? ?? '');
     final lng = double.tryParse(result['lon'] as String? ?? '');
-    final name = result['display_name'] as String? ?? '';
     if (lat == null || lng == null) return;
     final pos = LatLng(lat, lng);
     setState(() {
       _selectedPosition = pos;
-      _address = name;
       _searchResults = [];
       _searchController.clear();
     });
     _mapController.move(pos, 17);
     FocusScope.of(context).unfocus();
+    // Re-geocode the picked point so a search gives the same clean, exact
+    // street-level address as dragging the pin — instead of OSM's raw
+    // display_name, which repeats the street and tacks on broad regions.
+    _reverseGeocode(pos);
   }
 
   Future<void> _goToCurrentLocation() async {
@@ -229,7 +231,7 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
       final response = await http.get(
         url,
         headers: const {
-          'User-Agent': 'SevenDash/1.0 (sevendash.app)',
+          'User-Agent': 'QuickDash/1.0 (quickdash.app)',
           'Accept-Language': 'en',
         },
       );
@@ -323,10 +325,13 @@ class _MapLocationPickerScreenState extends State<MapLocationPickerScreen>
         neighbourhood.isEmpty ||
         road.toLowerCase().contains(neighbourhood.toLowerCase());
 
-    final localityPart = [
-      if (!neighbourhoodRedundant) neighbourhood,
-      if (city.isNotEmpty) city,
-    ].join(', ');
+    // Keep ONE area, the most specific available: the immediate
+    // neighbourhood/suburb (e.g. "Half Way Tree"), falling back to the wider
+    // city only when there's no neighbourhood. This keeps the address exact and
+    // stops a broad adjacent region (e.g. "Richmond Park") being tacked on.
+    final localityPart = !neighbourhoodRedundant
+        ? neighbourhood
+        : (city.isNotEmpty ? city : '');
 
     return [
       if (streetPart.isNotEmpty) streetPart,

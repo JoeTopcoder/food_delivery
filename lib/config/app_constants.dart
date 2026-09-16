@@ -29,7 +29,7 @@
   static bool get stripeIsTestMode =>
       stripePublishableKey.startsWith('pk_test');
   static const String stripePaymentFunction = 'stripe/payment';
-  static const String stripeMerchantId = 'merchant.com.sevendash.app';
+  static const String stripeMerchantId = 'merchant.com.quickdash.app';
 
   // Stripe-only: Legacy Lunipay and WiPay configurations removed
 
@@ -41,7 +41,7 @@
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
   static const String appDisplayName = 'QuickDash';
-  static const String businessLegalName = 'SevenDash Technologies Limited';
+  static const String businessLegalName = 'QuickDash Technologies Limited';
   static const String supportEmailAddress = 'support@7dash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
   static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
@@ -164,6 +164,16 @@
   // startup, which is the authority. They match the configured values so a
   // first frame rendered before config loads is not briefly wrong.
   static String currencySymbol = 'J\$';
+
+  /// Customer-facing order/receipt number without the daily sequence suffix,
+  /// e.g. "GRO-20260912-0001" -> "GRO-20260912". The full value stays stored
+  /// for lookups; this is display only. Returns [fallback] when empty.
+  static String displayOrderNumber(String? raw, {String fallback = ''}) {
+    final v = raw?.trim();
+    if (v == null || v.isEmpty) return fallback;
+    return v.replaceFirst(RegExp(r'-\d+$'), '');
+  }
+
   static String currencyCode = 'JMD';
   static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
@@ -379,6 +389,12 @@
   static bool serviceRidesEnabled = true;
   static bool serviceLaundryEnabled = true;
   static bool serviceCarServiceEnabled = true;
+
+  // ── Grocery white-label storefront ───────────────────────────────────────
+  // Partner grocery stores are anonymised to customers: they never see the real
+  // store name (e.g. "Loshusan Supermarket"), only this brand or a per-store
+  // public alias. Admin / store owner / driver still see the real name.
+  static String groceryPublicBrand = 'Quickdash Groceries';
 
   // Customer bottom-nav tab visibility (admin-controlled via app_config).
   // false = tab hidden from customers entirely.

@@ -28,6 +28,34 @@ class SmartRecommendation {
     required this.reason,
   });
 
+  SmartRecommendation copyWith({
+    String? restaurantId,
+    String? restaurantName,
+    String? cuisineType,
+    double? rating,
+    String? imageUrl,
+    double? deliveryFee,
+    int? estimatedDeliveryTime,
+    bool? isOpen,
+    double? distanceKm,
+    double? finalScore,
+    String? section,
+    String? reason,
+  }) => SmartRecommendation(
+    restaurantId: restaurantId ?? this.restaurantId,
+    restaurantName: restaurantName ?? this.restaurantName,
+    cuisineType: cuisineType ?? this.cuisineType,
+    rating: rating ?? this.rating,
+    imageUrl: imageUrl ?? this.imageUrl,
+    deliveryFee: deliveryFee ?? this.deliveryFee,
+    estimatedDeliveryTime: estimatedDeliveryTime ?? this.estimatedDeliveryTime,
+    isOpen: isOpen ?? this.isOpen,
+    distanceKm: distanceKm ?? this.distanceKm,
+    finalScore: finalScore ?? this.finalScore,
+    section: section ?? this.section,
+    reason: reason ?? this.reason,
+  );
+
   factory SmartRecommendation.fromJson(Map<String, dynamic> json) =>
       SmartRecommendation(
         restaurantId: json['restaurant_id'] as String,

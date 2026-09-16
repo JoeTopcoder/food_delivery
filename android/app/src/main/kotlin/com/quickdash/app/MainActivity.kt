@@ -1,4 +1,4 @@
-package sevendash.app
+package com.quickdash.app
 
 import android.content.Intent
 import android.os.Bundle

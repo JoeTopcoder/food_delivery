@@ -322,6 +322,16 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                       (context, index) => RepaintBoundary(
                         child: RestaurantCard(
                           restaurant: stores[index],
+                          distanceLabel: groceryStoreDistanceLabel(
+                            originLat: ref
+                                .watch(groceryCustomerOriginProvider)
+                                .lat,
+                            originLng: ref
+                                .watch(groceryCustomerOriginProvider)
+                                .lng,
+                            storeLat: stores[index].latitude,
+                            storeLng: stores[index].longitude,
+                          ),
                           onTap: () {
                             Navigator.push(
                               context,

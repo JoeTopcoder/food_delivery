@@ -134,6 +134,8 @@ import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/restaurant/grocery_management_screen.dart';
 import 'screens/admin/admin_grocery_stores_screen.dart';
+import 'screens/admin/student_verification_admin_screen.dart';
+import 'screens/customer/student_verification_screen.dart';
 import 'screens/restaurant/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/restaurant_offer_screen.dart';
 import 'screens/restaurant/restaurant_contract_screen.dart';
@@ -827,6 +829,17 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   allowedRoles: ['admin'],
                   child: AdminGroceryStoresScreen(),
                 ),
+              );
+            case '/admin-student-verification':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: StudentVerificationAdminScreen(),
+                ),
+              );
+            case '/student-verification':
+              return MaterialPageRoute(
+                builder: (context) => const StudentVerificationScreen(),
               );
             case '/restaurant-detail':
               // No RoleGuard — guests may view restaurant menus and pricing.

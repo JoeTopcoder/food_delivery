@@ -18,7 +18,7 @@ TileLayer appMapTileLayer() => TileLayer(
   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   // Identifies the app to the tile server, as OSM's policy requires. An
   // anonymous or generic agent is what gets a client blocked.
-  userAgentPackageName: 'sevendash.app',
+  userAgentPackageName: 'com.quickdash.app',
   // OSM retired the a/b/c subdomains; requesting them now just fails.
   maxNativeZoom: 19,
 );

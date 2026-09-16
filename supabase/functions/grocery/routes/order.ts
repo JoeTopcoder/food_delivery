@@ -379,13 +379,23 @@ export async function handle(request: Request): Promise<Response> {
     }
 
     // ── 7. Calculate totals ─────────────────────────────────────────────
-    // Tax: gated by tax_enabled flag from app_config (master on/off switch).
-    const effectiveTaxRate = (isTaxEnabled && !isPickup)
-      ? await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate)
-      : 0;
+    // Tax: the configured global tax_rate applies whenever tax_enabled is on
+    // (no tax on pickup). Flat rate, so it always shows and matches the
+    // checkout. (A delivery region may still be used to VARY tax per zone via
+    // getTaxRateForLocation, but the default is the global rate, not 0.)
+    void getTaxRateForLocation;
+    const effectiveTaxRate = (isTaxEnabled && !isPickup) ? globalTaxRate : 0;
     const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
-    // Service fee from app_config (platform_service_fee_rate).
-    const platformServiceFee = Math.round(subtotal * serviceFeeRate * 100) / 100;
+    // Customer-facing platform service fee — MUST match the Flutter checkout's
+    // AppConstants.calculateServiceFee(subtotal, otherCharges: deliveryFee) so
+    // the preview, the card charge and the receipt agree. Processor-recovery
+    // model: ((base*2.9%) + J$46.50 + J$155) / (1 - 2.9%), base = subtotal +
+    // delivery fee. (serviceFeeRate from app_config is retained for reporting
+    // but no longer drives the customer-facing fee.)
+    void serviceFeeRate;
+    const svcBase = subtotal + deliveryFee;
+    const platformServiceFee =
+      Math.round(((svcBase * 0.029) + 46.50 + 155.00) / (1 - 0.029) * 100) / 100;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + platformServiceFee + tax) * 100) / 100;
     const grandTotal = Math.round((orderTotal + driverTip) * 100) / 100;
     // Commission: per-store rate overrides global default_commission_rate.
