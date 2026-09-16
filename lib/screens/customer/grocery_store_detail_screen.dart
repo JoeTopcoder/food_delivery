@@ -121,16 +121,10 @@ class _GroceryStoreDetailScreenState
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                if (widget.store.address != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.store.address!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                // Partner store address is intentionally hidden here to keep the
+                // store anonymous while browsing. The real pickup address is
+                // revealed only when the customer chooses pickup (at checkout /
+                // after the order is placed).
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -304,10 +298,15 @@ class _GroceryStoreDetailScreenState
   Widget _storePlaceholder() => Container(
     color: AppTheme.primaryColor.withValues(alpha: 0.1),
     child: Center(
-      child: Icon(
-        Icons.storefront_rounded,
-        size: 64,
-        color: AppTheme.primaryColor.withValues(alpha: 0.4),
+      child: Image.asset(
+        'assets/images/app_icon.png',
+        width: 96,
+        height: 96,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.storefront_rounded,
+          size: 64,
+          color: AppTheme.primaryColor.withValues(alpha: 0.4),
+        ),
       ),
     ),
   );

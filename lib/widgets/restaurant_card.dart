@@ -8,10 +8,16 @@ class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
   final VoidCallback onTap;
 
+  /// Optional "nearest to you" distance label (e.g. "2.3 km"). When set, a
+  /// small location chip is shown on the card. Used by the grocery list, which
+  /// orders stores nearest-first relative to the customer's address.
+  final String? distanceLabel;
+
   const RestaurantCard({
     super.key,
     required this.restaurant,
     required this.onTap,
+    this.distanceLabel,
   });
 
   @override
@@ -230,6 +236,27 @@ class RestaurantCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (distanceLabel != null) ...[
+                    SizedBox(height: spacing * 0.4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          size: Responsive.isSmallPhone(context) ? 13 : 15,
+                          color: AppTheme.primaryColor,
+                        ),
+                        SizedBox(width: spacing * 0.2),
+                        Text(
+                          '$distanceLabel away',
+                          style: TextStyle(
+                            fontSize: Responsive.smallText(context),
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -63,6 +63,8 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
                       builder: (_) => GroceryManagementScreen(store: store),
                     ),
                   ),
+                  onEditStorefront: () =>
+                      _editStorefront(context, ref, store),
                 );
               },
             ),
@@ -71,12 +73,116 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
       ),
     );
   }
+
+  /// Admin edits the customer-facing storefront name/logo for a partner store.
+  /// The real store name (e.g. "Loshusan Supermarket") is never shown to
+  /// customers — only this public alias, or the global "Quickdash Groceries"
+  /// brand when left blank.
+  Future<void> _editStorefront(
+    BuildContext context,
+    WidgetRef ref,
+    Restaurant store,
+  ) async {
+    final service = ref.read(groceryServiceProvider);
+    ({String? publicName, String? publicImageUrl}) current;
+    try {
+      current = await service.getStorePublicStorefront(store.id);
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+      return;
+    }
+    if (!context.mounted) return;
+
+    final nameCtrl = TextEditingController(text: current.publicName ?? '');
+    final logoCtrl = TextEditingController(text: current.publicImageUrl ?? '');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Public storefront'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Real name (admin only): ${store.name}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Public name shown to customers',
+                  hintText: 'Quickdash Groceries',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: logoCtrl,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Public logo URL (optional)',
+                  hintText: 'https://…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Leave blank to use the default "Quickdash Groceries" brand '
+                'and logo. Customers never see the real name.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(dialogCtx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+    try {
+      await service.setStorePublicStorefront(
+        store.id,
+        publicName: nameCtrl.text,
+        publicImageUrl: logoCtrl.text,
+      );
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Public storefront updated');
+        ref.invalidate(adminGroceryStoresProvider);
+      }
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
 }
 
 class _StoreTile extends StatelessWidget {
-  const _StoreTile({required this.store, required this.onTap});
+  const _StoreTile({
+    required this.store,
+    required this.onTap,
+    required this.onEditStorefront,
+  });
   final Restaurant store;
   final VoidCallback onTap;
+  final VoidCallback onEditStorefront;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +239,12 @@ class _StoreTile extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                tooltip: 'Public storefront name',
+                icon: const Icon(Icons.badge_outlined),
+                color: const Color(0xFF059669),
+                onPressed: onEditStorefront,
               ),
               Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
             ],

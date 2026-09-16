@@ -1061,11 +1061,15 @@ class _GroceryProductTile extends StatelessWidget {
                       ),
                       if (product.brand != null) ...[
                         const SizedBox(width: 8),
-                        Text(
-                          product.brand!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
+                        Flexible(
+                          child: Text(
+                            product.brand!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
                           ),
                         ),
                       ],
@@ -1073,6 +1077,8 @@ class _GroceryProductTile extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           product.weight!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[700],

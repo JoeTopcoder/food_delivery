@@ -83,10 +83,28 @@ final groceryBrainEngineProvider =
       ref.read(behaviorTrackingProvider).trackAppOpen(userId);
       final origin = ref.watch(_recommendationOriginProvider);
 
-      return service.runGroceryBrainEngine(
+      final resp = await service.runGroceryBrainEngine(
         userId: userId,
         latitude: origin.lat,
         longitude: origin.lng,
+      );
+
+      // White-label: grocery recommendations must never reveal the real
+      // partner store name/logo. Mask every recommendation to the public brand
+      // (also fixes the store-detail tap, which reuses rec.restaurantName).
+      final brand = AppConstants.groceryPublicBrand;
+      List<SmartRecommendation> mask(List<SmartRecommendation> l) => l
+          .map((r) => r.copyWith(restaurantName: brand, imageUrl: ''))
+          .toList();
+      return BrainEngineResponse(
+        forYou: mask(resp.forYou),
+        becauseYouLove: mask(resp.becauseYouLove),
+        dealsForYou: mask(resp.dealsForYou),
+        quickDelivery: mask(resp.quickDelivery),
+        activeCoupon: resp.activeCoupon,
+        userSegment: resp.userSegment,
+        churnRisk: resp.churnRisk,
+        topCuisine: resp.topCuisine,
       );
     });
 
