@@ -144,6 +144,9 @@ interface Ctx {
   userId: string;
   lat: number | null;
   lng: number | null;
+  /// The customer's latest raw message. Used to recover a deadline's DAY word
+  /// ("tomorrow") that the model tends to drop when it fills deadline_text.
+  userMessage?: string;
   /// How far a store may be and still be offered, from app_config
   /// browse_max_km. The concierge queries Postgres directly and never goes
   /// through RestaurantService, so it does not inherit the listing filter —
@@ -876,6 +879,18 @@ function jaYMD(nowMs: number): { y: number; mo: number; d: number } {
 function jaLocalToUtcMs(y: number, mo: number, d: number, h: number, mi: number) {
   return Date.UTC(y, mo - 1, d, h + JA_OFFSET_H, mi, 0);
 }
+function ymdPlusDays(y: number, mo: number, d: number, days: number) {
+  const t = new Date(Date.UTC(y, mo - 1, d + days));
+  return { y: t.getUTCFullYear(), mo: t.getUTCMonth() + 1, d: t.getUTCDate() };
+}
+/** Jamaica weekday index (0=Sun..6=Sat) for a given ms. */
+function jaWeekday(nowMs: number): number {
+  const wd = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Jamaica',
+    weekday: 'short',
+  }).format(new Date(nowMs));
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
+}
 /** Resolve a natural deadline phrase to a UTC ms timestamp, or null for none. */
 function resolveDeadline(text: string, nowMs: number): number | null {
   const t = (text || '').toLowerCase().trim();
@@ -884,7 +899,7 @@ function resolveDeadline(text: string, nowMs: number): number | null {
     return null; // no hard deadline
   }
   // Relative: "in 30 minutes", "within 2 hours", "within the hour", "half hour"
-  if (/(in|within|next)\b/.test(t)) {
+  if (/\b(in|within)\b/.test(t) && !/\btomorrow\b/.test(t)) {
     let mins = 0;
     const h = t.match(/(\d+)\s*(hours?|hrs?|h)\b/);
     if (h) mins += Number(h[1]) * 60;
@@ -894,6 +909,26 @@ function resolveDeadline(text: string, nowMs: number): number | null {
     if (!mins && /half\s+(an?\s+)?hour/.test(t)) mins = 30;
     if (mins > 0) return nowMs + mins * 60_000;
   }
+
+  // Which DAY: default today. Date words shift the base date and, crucially,
+  // stop us collapsing "tomorrow at 5pm" onto today.
+  const base = jaYMD(nowMs);
+  let dayOffset = 0;
+  let hasDateWord = false;
+  if (/\bday after tomorrow\b/.test(t)) { dayOffset = 2; hasDateWord = true; }
+  else if (/\btomorrow\b/.test(t)) { dayOffset = 1; hasDateWord = true; }
+  else if (/\b(today|tonight|this (evening|afternoon|morning))\b/.test(t)) { dayOffset = 0; hasDateWord = true; }
+  else {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const wi = days.findIndex((d) => t.includes(d));
+    if (wi >= 0) {
+      const today = jaWeekday(nowMs);
+      dayOffset = (wi - today + 7) % 7 || 7; // next occurrence (not today)
+      hasDateWord = true;
+    }
+  }
+  const day = ymdPlusDays(base.y, base.mo, base.d, dayOffset);
+
   // Absolute clock time: "before 7", "by 6:30 pm", "7 o'clock"
   const cm = t.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
   if (cm) {
@@ -902,24 +937,30 @@ function resolveDeadline(text: string, nowMs: number): number | null {
     const am = cm[3]?.startsWith('a');
     const pm = cm[3]?.startsWith('p');
     if (hh >= 0 && hh <= 23 && mi >= 0 && mi <= 59) {
-      const { y, mo, d } = jaYMD(nowMs);
-      const cands: number[] = [];
       if (am || pm || hh > 12 || hh === 0) {
         let H = hh;
         if (pm && hh < 12) H = hh + 12;
         if (am && hh === 12) H = 0;
-        cands.push(jaLocalToUtcMs(y, mo, d, H, mi));
-      } else {
-        // Bare 1-12: consider both AM and PM today, pick the clock instance
-        // nearest to now (that is what a person means by a bare hour).
-        cands.push(jaLocalToUtcMs(y, mo, d, hh % 12, mi));
-        cands.push(jaLocalToUtcMs(y, mo, d, (hh % 12) + 12, mi));
+        return jaLocalToUtcMs(day.y, day.mo, day.d, H, mi);
       }
+      // Bare 1-12.
+      if (hasDateWord) {
+        // On another day there is no "now" to anchor to; a bare meal-time hour
+        // (1-11) is almost always PM. 12 -> noon.
+        const H = hh === 12 ? 12 : hh + 12;
+        return jaLocalToUtcMs(day.y, day.mo, day.d, H, mi);
+      }
+      // Today with no am/pm: pick the clock instance nearest to now.
+      const cands = [
+        jaLocalToUtcMs(day.y, day.mo, day.d, hh % 12, mi),
+        jaLocalToUtcMs(day.y, day.mo, day.d, (hh % 12) + 12, mi),
+      ];
       cands.sort((x, z) => Math.abs(x - nowMs) - Math.abs(z - nowMs));
       return cands[0];
     }
   }
-  return null; // unparseable → treat as no hard deadline
+  // A date word with no clock time (e.g. "tomorrow") is not a precise deadline.
+  return null;
 }
 
 /** True when a menu row cannot currently be fulfilled at the requested qty. */
@@ -1023,7 +1064,15 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     };
   }
 
-  const deadlineText = typeof a.deadline_text === 'string' ? a.deadline_text : '';
+  let deadlineText = typeof a.deadline_text === 'string' ? a.deadline_text : '';
+  // The model reliably fills the clock time but frequently drops the DAY word.
+  // If the customer's actual message names a day the deadline_text doesn't,
+  // fold it back in so "tomorrow at 5pm" isn't collapsed onto today.
+  const dayWord = /\b(day after tomorrow|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
+  if (deadlineText && !dayWord.test(deadlineText.toLowerCase())) {
+    const m = (ctx.userMessage ?? '').toLowerCase().match(dayWord);
+    if (m) deadlineText = `${m[1]} ${deadlineText}`;
+  }
   const deliverByResolved = resolveDeadline(deadlineText, Date.now());
   const deliverBy = deliverByResolved ?? NaN;
   if (!Number.isNaN(deliverBy)) {
@@ -2166,6 +2215,7 @@ Deno.serve(async (req) => {
       lat: profile?.latitude ?? null,
       lng: profile?.longitude ?? null,
       maxKm,
+      userMessage: String(body.message ?? ''),
       walletCents: wallet?.balance != null ? toCents(wallet.balance) : null,
       cartItems: rawCart
         .filter((c: Record<string, unknown>) => typeof c?.item_id === 'string')
