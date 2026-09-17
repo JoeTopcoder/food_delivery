@@ -58,6 +58,10 @@ class _AdvancedEarningsScreenState
       );
     }
 
+    // Keep the drivers-table realtime subscription alive so cash_float,
+    // earnings and payouts update live as each order is delivered.
+    ref.watch(driverEarningsRealtimeProvider(driver.id));
+
     final earningsAsync = ref.watch(
       earningsSummaryProvider((driverId: driver.id, period: _period)),
     );
