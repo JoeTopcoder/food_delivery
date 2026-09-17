@@ -741,7 +741,7 @@ class _OrderCard extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.delivery_dining, size: 15),
-                    label: const Text('Rate Driver'),
+                    label: const Text('Rate & Tip Driver'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF10B981),
                       side: const BorderSide(color: Color(0xFF10B981)),
