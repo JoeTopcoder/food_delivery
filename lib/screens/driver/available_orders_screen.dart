@@ -20,7 +20,9 @@ import '../../widgets/ai_fab.dart';
 import '../../widgets/app_map_tiles.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
-  const AvailableOrdersScreen({super.key});
+  /// When embedded inside the Orders tabs, this screen drops its own app bar.
+  final bool embedded;
+  const AvailableOrdersScreen({super.key, this.embedded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,7 +47,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
         if (!driver.isAvailable) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F1117),
-            appBar: AppBar(
+            appBar: embedded ? null : AppBar(
               backgroundColor: const Color(0xFF0F1117),
               foregroundColor: Colors.white,
               elevation: 0,
@@ -135,7 +137,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
         if (!activeServices.contains('food_delivery')) {
           return Scaffold(
             backgroundColor: const Color(0xFF0F1117),
-            appBar: AppBar(
+            appBar: embedded ? null : AppBar(
               backgroundColor: const Color(0xFF0F1117),
               foregroundColor: Colors.white,
               elevation: 0,
@@ -223,7 +225,7 @@ class AvailableOrdersScreen extends ConsumerWidget {
         );
         return Scaffold(
           backgroundColor: const Color(0xFF0F1117),
-          appBar: AppBar(
+          appBar: embedded ? null : AppBar(
             backgroundColor: const Color(0xFF0F1117),
             foregroundColor: Colors.white,
             elevation: 0,

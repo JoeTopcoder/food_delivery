@@ -26,7 +26,9 @@ import '../../widgets/app_map_tiles.dart';
 import 'student_delivery_confirm.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
-  const ActiveDeliveriesScreen({super.key});
+  /// When embedded inside the Orders tabs, this screen drops its own app bar.
+  final bool embedded;
+  const ActiveDeliveriesScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<ActiveDeliveriesScreen> createState() =>
@@ -116,8 +118,9 @@ class _ActiveDeliveriesScreenState
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              // ── App Bar ────────────────────────────────────────────
-              SliverAppBar(
+              // ── App Bar (hidden when embedded in the Orders tabs) ──
+              if (!widget.embedded)
+                SliverAppBar(
                 pinned: true,
                 backgroundColor: const Color(0xFF0F1117),
                 foregroundColor: Colors.white,
