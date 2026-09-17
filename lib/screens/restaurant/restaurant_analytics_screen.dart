@@ -86,7 +86,7 @@ class _RestaurantAnalyticsScreenState
     List<Order> orders,
     List<Order> allOrders,
   ) {
-    final totalRevenue = orders.fold<double>(0, (s, o) => s + o.totalAmount);
+    final totalRevenue = orders.fold<double>(0, (s, o) => s + o.subtotal);
     final delivered = orders.where((o) => o.status == 'delivered').toList();
     final cancelled = orders.where((o) => o.status == 'cancelled').toList();
     // Completion rate: % of finished orders (delivered + cancelled) that were
@@ -129,7 +129,7 @@ class _RestaurantAnalyticsScreenState
         for (final o in delivered) {
           final hour = (o.orderedAt.hour ~/ 3) * 3;
           final key = '${hour.toString().padLeft(2, '0')}:00';
-          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.week:
         chartKeyFmt = (d) => DateFormat('EEE').format(d);
@@ -140,7 +140,7 @@ class _RestaurantAnalyticsScreenState
         }
         for (final o in delivered) {
           final key = chartKeyFmt(o.orderedAt);
-          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.month:
         chartKeyFmt = (d) => DateFormat('d/M').format(d);
@@ -154,7 +154,7 @@ class _RestaurantAnalyticsScreenState
           final daysAgo = now.difference(o.orderedAt).inDays;
           final weekIdx = 4 - (daysAgo ~/ 7).clamp(0, 4);
           final key = 'Wk ${weekIdx + 1}';
-          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.all:
         chartKeyFmt = (d) => DateFormat('MMM yy').format(d);
@@ -162,7 +162,7 @@ class _RestaurantAnalyticsScreenState
         // Group by month
         for (final o in delivered) {
           final key = chartKeyFmt(o.orderedAt);
-          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.totalAmount;
+          dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
     }
 

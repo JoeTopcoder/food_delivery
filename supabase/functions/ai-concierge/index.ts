@@ -144,6 +144,9 @@ interface Ctx {
   userId: string;
   lat: number | null;
   lng: number | null;
+  /// The customer's latest raw message. Used to recover a deadline's DAY word
+  /// ("tomorrow") that the model tends to drop when it fills deadline_text.
+  userMessage?: string;
   /// How far a store may be and still be offered, from app_config
   /// browse_max_km. The concierge queries Postgres directly and never goes
   /// through RestaurantService, so it does not inherit the listing filter —
@@ -640,7 +643,9 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   }
   const { data: rows, error } = await admin
     .from('menus')
-    .select('id, name, price, is_available, restaurant_id')
+    .select(
+      'id, name, price, is_available, restaurant_id, category, track_inventory, stock_quantity, in_stock',
+    )
     .in('id', ids);
   if (error) throw error;
 
@@ -694,8 +699,17 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     }
   }
 
+  // Inventory + substitution. Stock is read from the DB at execution time, never
+  // trusted from the model or an earlier turn. Out-of-stock grocery items are
+  // swapped for an equivalent only when the customer authorized it; otherwise
+  // they are surfaced so the model can ask.
+  const allowSub = a.allow_substitutions === true;
+  const outOfStock: { name: string; suggestion: string | null }[] = [];
+  const substitutions: { from: string; to: string }[] = [];
+  const partial: { name: string; requested: number; available: number }[] = [];
+
   for (const r of requested) {
-    const row = byId.get(r.item_id as string);
+    let row = byId.get(r.item_id as string);
     const qty = Math.max(1, Math.min(Number(r.qty) || 1, 20));
     if (!row) {
       validationErrors.push(`Item ${r.item_id} not found`);
@@ -705,17 +719,58 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
       validationErrors.push(`${row.name} is unavailable`);
       continue;
     }
+    // Out of stock?
+    if (stockShortfall(row, qty).out) {
+      const sub = await findSubstitute(ctx, row);
+      if (allowSub && sub) {
+        substitutions.push({ from: row.name as string, to: sub.name as string });
+        row = sub;
+      } else {
+        outOfStock.push({
+          name: row.name as string,
+          suggestion: (sub?.name as string) ?? null,
+        });
+        continue;
+      }
+    }
+    // Partial stock: cap the quantity to what is actually available.
+    let finalQty = qty;
+    const sh = stockShortfall(row, qty);
+    if (sh.available !== null && sh.available >= 1 && sh.available < qty) {
+      finalQty = sh.available;
+      partial.push({
+        name: row.name as string,
+        requested: qty,
+        available: sh.available,
+      });
+    }
     lineItems.push({
       item_id: row.id,
       name: row.name,
-      qty,
+      qty: finalQty,
       unit_price_cents: toCents(row.price),
       modifiers: Array.isArray(r.modifiers) ? r.modifiers : [],
     });
   }
 
   if (!lineItems.length) {
-    return { cart_draft_id: null, line_items: [], validation_errors: validationErrors };
+    const parts: string[] = [];
+    if (outOfStock.length) {
+      parts.push(
+        'Out of stock: ' +
+          outOfStock
+            .map((o) => (o.suggestion ? `${o.name} (try ${o.suggestion})` : o.name))
+            .join(', ') +
+          '. Offer the suggested swaps and let the customer choose; do not add them silently.',
+      );
+    }
+    return {
+      cart_draft_id: null,
+      line_items: [],
+      validation_errors: validationErrors,
+      out_of_stock: outOfStock.length ? outOfStock : undefined,
+      instruction: parts.length ? parts.join(' ') : undefined,
+    };
   }
 
   // A stated budget is a constraint, not a hint. Storing it on the draft makes
@@ -748,6 +803,36 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   // model finds out it overspent while it can still fix it.
   const priced = await priceCart(ctx, { cart_draft_id: draft.id });
 
+  // Tell the model about any stock adjustments it must relay to the customer.
+  const stockNotes: string[] = [];
+  if (substitutions.length) {
+    stockNotes.push(
+      'Substituted (customer authorised): ' +
+        substitutions.map((s) => `${s.from} -> ${s.to}`).join(', ') +
+        '. Tell the customer what you swapped.',
+    );
+  }
+  if (outOfStock.length) {
+    stockNotes.push(
+      'Left out (out of stock): ' +
+        outOfStock
+          .map((o) => (o.suggestion ? `${o.name} (suggest ${o.suggestion})` : o.name))
+          .join(', ') +
+        '. Mention these and offer the suggestions; do not add them without asking.',
+    );
+  }
+  if (partial.length) {
+    stockNotes.push(
+      'Reduced to available stock: ' +
+        partial.map((p) => `${p.name} ${p.requested}->${p.available}`).join(', ') +
+        '. Tell the customer only this many were in stock.',
+    );
+  }
+
+  const budgetNote = priced.within_budget === false
+    ? 'OVER BUDGET. Rebuild with fewer or cheaper items before finalizing — finalize_cart will refuse this cart.'
+    : null;
+
   return {
     cart_draft_id: draft.id,
     line_items: lineItems,
@@ -755,9 +840,10 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     budget_cents: budgetCents,
     within_budget: priced.within_budget,
     over_budget_by_cents: priced.over_budget_by_cents,
-    instruction: priced.within_budget === false
-      ? 'OVER BUDGET. Rebuild with fewer or cheaper items before finalizing — finalize_cart will refuse this cart.'
-      : undefined,
+    substitutions: substitutions.length ? substitutions : undefined,
+    out_of_stock: outOfStock.length ? outOfStock : undefined,
+    reduced_to_stock: partial.length ? partial : undefined,
+    instruction: [budgetNote, ...stockNotes].filter(Boolean).join(' ') || undefined,
     validation_errors: validationErrors.length ? validationErrors : undefined,
   };
 }
@@ -774,6 +860,150 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
  * observed calling handoff_to_checkout before finalize_cart, finalizing twice,
  * and re-pricing a draft it had just built. None of that is possible now.
  */
+// ── Deterministic deadline resolution ──────────────────────────────────────
+// Time is computed by the backend, never by the model: gpt-4o-mini was observed
+// resolving "within the next 2 hours" and bare clock times to the wrong day and
+// even into the past. The model passes the customer's raw phrase; this turns it
+// into a real timestamp against the known clock. Jamaica is UTC-5 with no DST.
+const JA_OFFSET_H = 5;
+function jaYMD(nowMs: number): { y: number; mo: number; d: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Jamaica',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(nowMs));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return { y: get('year'), mo: get('month'), d: get('day') };
+}
+function jaLocalToUtcMs(y: number, mo: number, d: number, h: number, mi: number) {
+  return Date.UTC(y, mo - 1, d, h + JA_OFFSET_H, mi, 0);
+}
+function ymdPlusDays(y: number, mo: number, d: number, days: number) {
+  const t = new Date(Date.UTC(y, mo - 1, d + days));
+  return { y: t.getUTCFullYear(), mo: t.getUTCMonth() + 1, d: t.getUTCDate() };
+}
+/** Jamaica weekday index (0=Sun..6=Sat) for a given ms. */
+function jaWeekday(nowMs: number): number {
+  const wd = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Jamaica',
+    weekday: 'short',
+  }).format(new Date(nowMs));
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
+}
+/** Resolve a natural deadline phrase to a UTC ms timestamp, or null for none. */
+function resolveDeadline(text: string, nowMs: number): number | null {
+  const t = (text || '').toLowerCase().trim();
+  if (!t) return null;
+  if (/(asap|as soon as possible|right now|immediately|any\s?time|whenever|no rush)/.test(t)) {
+    return null; // no hard deadline
+  }
+  // Relative: "in 30 minutes", "within 2 hours", "within the hour", "half hour"
+  if (/\b(in|within)\b/.test(t) && !/\btomorrow\b/.test(t)) {
+    let mins = 0;
+    const h = t.match(/(\d+)\s*(hours?|hrs?|h)\b/);
+    if (h) mins += Number(h[1]) * 60;
+    const mm = t.match(/(\d+)\s*(minutes?|mins?)\b/);
+    if (mm) mins += Number(mm[1]);
+    if (!mins && /(within|in)\s+(the|an?)\s+hour/.test(t)) mins = 60;
+    if (!mins && /half\s+(an?\s+)?hour/.test(t)) mins = 30;
+    if (mins > 0) return nowMs + mins * 60_000;
+  }
+
+  // Which DAY: default today. Date words shift the base date and, crucially,
+  // stop us collapsing "tomorrow at 5pm" onto today.
+  const base = jaYMD(nowMs);
+  let dayOffset = 0;
+  let hasDateWord = false;
+  if (/\bday after tomorrow\b/.test(t)) { dayOffset = 2; hasDateWord = true; }
+  else if (/\btomorrow\b/.test(t)) { dayOffset = 1; hasDateWord = true; }
+  else if (/\b(today|tonight|this (evening|afternoon|morning))\b/.test(t)) { dayOffset = 0; hasDateWord = true; }
+  else {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const wi = days.findIndex((d) => t.includes(d));
+    if (wi >= 0) {
+      const today = jaWeekday(nowMs);
+      dayOffset = (wi - today + 7) % 7 || 7; // next occurrence (not today)
+      hasDateWord = true;
+    }
+  }
+  const day = ymdPlusDays(base.y, base.mo, base.d, dayOffset);
+
+  // Absolute clock time: "before 7", "by 6:30 pm", "7 o'clock"
+  const cm = t.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+  if (cm) {
+    const hh = Number(cm[1]);
+    const mi = cm[2] ? Number(cm[2]) : 0;
+    const am = cm[3]?.startsWith('a');
+    const pm = cm[3]?.startsWith('p');
+    if (hh >= 0 && hh <= 23 && mi >= 0 && mi <= 59) {
+      if (am || pm || hh > 12 || hh === 0) {
+        let H = hh;
+        if (pm && hh < 12) H = hh + 12;
+        if (am && hh === 12) H = 0;
+        return jaLocalToUtcMs(day.y, day.mo, day.d, H, mi);
+      }
+      // Bare 1-12.
+      if (hasDateWord) {
+        // On another day there is no "now" to anchor to; a bare meal-time hour
+        // (1-11) is almost always PM. 12 -> noon.
+        const H = hh === 12 ? 12 : hh + 12;
+        return jaLocalToUtcMs(day.y, day.mo, day.d, H, mi);
+      }
+      // Today with no am/pm: pick the clock instance nearest to now.
+      const cands = [
+        jaLocalToUtcMs(day.y, day.mo, day.d, hh % 12, mi),
+        jaLocalToUtcMs(day.y, day.mo, day.d, (hh % 12) + 12, mi),
+      ];
+      cands.sort((x, z) => Math.abs(x - nowMs) - Math.abs(z - nowMs));
+      return cands[0];
+    }
+  }
+  // A date word with no clock time (e.g. "tomorrow") is not a precise deadline.
+  return null;
+}
+
+/** True when a menu row cannot currently be fulfilled at the requested qty. */
+function stockShortfall(row: Record<string, unknown>, qty: number): {
+  out: boolean;
+  available: number | null;
+} {
+  const tracked = row.track_inventory === true;
+  const stock = tracked ? Number(row.stock_quantity) || 0 : null;
+  const out = row.in_stock === false || (stock !== null && stock < 1);
+  const available = stock;
+  return { out: out || (stock !== null && stock < qty && stock < 1), available };
+}
+
+/** Find an in-stock equivalent for an out-of-stock GROCERY item (same store +
+ *  category, nearest price). Food items are not substituted. */
+async function findSubstitute(
+  ctx: Ctx,
+  row: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  if (ctx.storeType !== 'grocery') return null;
+  const { data: alts } = await admin
+    .from('menus')
+    .select('id, name, price, is_available, track_inventory, stock_quantity, in_stock, restaurant_id')
+    .eq('restaurant_id', row.restaurant_id as string)
+    .eq('category', (row.category as string) ?? '')
+    .eq('is_available', true)
+    .neq('id', row.id as string)
+    .limit(30);
+  const inStock = (alts ?? []).filter(
+    (a) =>
+      a.in_stock !== false &&
+      !(a.track_inventory === true && (Number(a.stock_quantity) || 0) < 1),
+  );
+  if (!inStock.length) return null;
+  const target = toCents(row.price as number);
+  inStock.sort(
+    (x, z) =>
+      Math.abs(toCents(x.price) - target) - Math.abs(toCents(z.price) - target),
+  );
+  return inStock[0];
+}
+
 async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   // Already done in this request — hand back the same order rather than
   // building a second one the customer never asked for.
@@ -789,6 +1019,129 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   const built = await buildCartDraft(ctx, a);
   const draftId = built.cart_draft_id;
   if (!draftId) return built; // nothing valid to place; errors already explained
+
+  // ── Deadline feasibility (deterministic, server-side) ────────────────────
+  // The model resolves the customer's stated time to an ISO timestamp (it is
+  // given the current local time); the SERVER does the arithmetic so a weak
+  // model cannot talk itself into ordering something that can never arrive in
+  // time — including a deadline that has already passed.
+  // Final reality check on the chosen store, immediately before execution:
+  // its open status and ETA come from the DB, never from the model.
+  let etaMin = 40;
+  let storeOpen = true;
+  let storeName = 'that store';
+  try {
+    const { data: d } = await admin
+      .from('concierge_cart_drafts')
+      .select('restaurant_id')
+      .eq('id', draftId)
+      .single();
+    if (d?.restaurant_id) {
+      const { data: r } = await admin
+        .from('restaurants')
+        .select('estimated_delivery_time, is_open, name')
+        .eq('id', d.restaurant_id)
+        .single();
+      if (r) {
+        if (r.estimated_delivery_time) etaMin = Number(r.estimated_delivery_time) || 40;
+        storeOpen = r.is_open !== false;
+        if (r.name) storeName = String(r.name);
+      }
+    }
+  } catch { /* fall back to open, 40 min */ }
+
+  // Never submit to a closed store.
+  if (!storeOpen) {
+    ctx.rejections = (ctx.rejections ?? 0) + 1;
+    return {
+      placed: false,
+      reason: 'store_closed',
+      instruction:
+        `${storeName} is currently CLOSED, so this order cannot be placed. Do ` +
+        `NOT place it. Tell the customer it is closed right now and offer to ` +
+        `find an open place instead. Search again for open options before ` +
+        `trying place_in_cart with a different restaurant.`,
+    };
+  }
+
+  let deadlineText = typeof a.deadline_text === 'string' ? a.deadline_text : '';
+  // The model reliably fills the clock time but frequently drops the DAY word.
+  // If the customer's actual message names a day the deadline_text doesn't,
+  // fold it back in so "tomorrow at 5pm" isn't collapsed onto today.
+  const dayWord = /\b(day after tomorrow|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
+  if (deadlineText && !dayWord.test(deadlineText.toLowerCase())) {
+    const m = (ctx.userMessage ?? '').toLowerCase().match(dayWord);
+    if (m) deadlineText = `${m[1]} ${deadlineText}`;
+  }
+  const deliverByResolved = resolveDeadline(deadlineText, Date.now());
+  const deliverBy = deliverByResolved ?? NaN;
+  let scheduledForMs: number | null = null; // set when this becomes a scheduled order
+  if (!Number.isNaN(deliverBy)) {
+    const bufferMin = 8; // confirm + pay + hand-off slack
+    const arrivalMs = Date.now() + (etaMin + bufferMin) * 60_000;
+    const fmtTime = (ms: number) =>
+      new Date(ms).toLocaleString('en-US', {
+        timeZone: 'America/Jamaica',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+    const dl = jaYMD(deliverBy);
+    const td = jaYMD(Date.now());
+    const futureDay =
+      dl.y * 10000 + dl.mo * 100 + dl.d > td.y * 10000 + td.mo * 100 + td.d;
+    // "before/by/within" is an upper-bound deadline; anything else naming a time
+    // ("at 5", "for 7", "tomorrow") is a target time to schedule for.
+    const isDeadline = /\b(before|by|under|within|no later than|latest|til|till|until)\b/.test(
+      deadlineText.toLowerCase(),
+    );
+
+    if (deliverBy <= Date.now()) {
+      // Already passed — cannot deliver to the past.
+      ctx.rejections = (ctx.rejections ?? 0) + 1;
+      return {
+        placed: false,
+        reason: 'deadline_unmet',
+        earliest_arrival: fmtTime(arrivalMs),
+        instruction:
+          `That time has already passed. Do NOT place the order. Tell the ` +
+          `customer the time is gone and offer as soon as possible (about ` +
+          `${fmtTime(arrivalMs)}). Do not retry unless they change the time.`,
+      };
+    }
+
+    if (!futureDay && isDeadline && arrivalMs <= deliverBy) {
+      // Same-day upper bound that ASAP already satisfies → just deliver now.
+    } else if (!futureDay && isDeadline && arrivalMs > deliverBy) {
+      // Same-day deadline ASAP cannot meet → refuse (too fast), don't schedule.
+      ctx.rejections = (ctx.rejections ?? 0) + 1;
+      return {
+        placed: false,
+        reason: 'deadline_unmet',
+        deliver_by: fmtTime(deliverBy),
+        earliest_arrival: fmtTime(arrivalMs),
+        instruction:
+          `This order cannot arrive by ${fmtTime(deliverBy)} — the earliest is ` +
+          `about ${fmtTime(arrivalMs)}. Do NOT place it. Tell the customer it ` +
+          `can't make that time and offer the earliest (${fmtTime(arrivalMs)}). ` +
+          `Do not retry unless they change the time.`,
+      };
+    } else if (futureDay || deliverBy > arrivalMs + 20 * 60_000) {
+      // A future day, or a same-day time comfortably later than the soonest we
+      // could arrive → SCHEDULE the order for that time.
+      scheduledForMs = deliverBy;
+    }
+    // else: a target time within the next ~20 min → just deliver ASAP.
+  }
+
+  // Persist the schedule on the draft so it flows through to the order.
+  if (scheduledForMs != null) {
+    await admin
+      .from('concierge_cart_drafts')
+      .update({ scheduled_for: new Date(scheduledForMs).toISOString() })
+      .eq('id', draftId);
+  }
 
   // Coupons are OFFERED, not spent. A coupon is single-use, so applying one
   // unasked burns a customer's entitlement on an order that may not have needed
@@ -877,6 +1230,41 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     .eq('id', draftRow?.restaurant_id ?? asUuid(a.restaurant_id) ?? '')
     .maybeSingle();
 
+  // Stock/substitution notes the model MUST relay so nothing changes silently.
+  const stockNote = [
+    built.substitutions
+      ? `Swapped (they authorised it): ${(built.substitutions as { from: string; to: string }[]).map((s) => `${s.from}->${s.to}`).join(', ')}.`
+      : '',
+    built.out_of_stock
+      ? `Could not add (out of stock): ${(built.out_of_stock as { name: string; suggestion: string | null }[]).map((o) => (o.suggestion ? `${o.name} (suggest ${o.suggestion})` : o.name)).join(', ')} — mention this and offer the suggestions.`
+      : '',
+    built.reduced_to_stock
+      ? `Only partial stock, reduced quantity: ${(built.reduced_to_stock as { name: string; requested: number; available: number }[]).map((p) => `${p.name} to ${p.available}`).join(', ')}.`
+      : '',
+  ].filter(Boolean).join(' ');
+
+  // A scheduled order must be described by its SLOT, never "in 40 minutes".
+  const scheduledLabel = scheduledForMs != null
+    ? new Date(scheduledForMs).toLocaleString('en-US', {
+        timeZone: 'America/Jamaica',
+        weekday: 'long',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : null;
+  const timingClause = scheduledLabel
+    ? `SCHEDULED for ${scheduledLabel} (do NOT say it arrives in ~40 minutes — it is scheduled for that time)`
+    : 'the ETA';
+
+  const promoClause = appliedPromo
+    ? ` Their coupon was applied and saved the stated amount.`
+    : availablePromo
+      ? ` Then mention in ONE short sentence they have a coupon worth the stated saving and can say the word to use it — do NOT apply it yourself.`
+      : '';
+  const baseInstruction =
+    `Done. Tell the customer what you ordered, the total, and ${timingClause}.${promoClause}`;
+
   const result = {
     cart_draft_id: draftId,
     cart_id: draftId,
@@ -884,16 +1272,17 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     line_items: built.line_items,
     restaurant_name: rest?.name,
     eta_minutes: rest?.estimated_delivery_time ?? 40,
+    scheduled_for: scheduledForMs != null ? new Date(scheduledForMs).toISOString() : null,
+    scheduled_label: scheduledLabel,
     applied_promotion: appliedPromo,
     // Not applied — offered. The model mentions it; the customer decides.
     available_promotion: appliedPromo ? null : availablePromo,
+    substitutions: built.substitutions,
+    out_of_stock: built.out_of_stock,
+    reduced_to_stock: built.reduced_to_stock,
     pricing: priced,
     checkout_url: '/cart',
-    instruction: appliedPromo
-      ? 'Done. Tell the customer what you ordered, the total and the ETA, and that their coupon was applied and what it saved. Do not call any more tools.'
-      : availablePromo
-        ? 'Done. Tell the customer what you ordered, the total and the ETA, then mention in ONE short sentence that they have a coupon worth the stated saving and can say the word to use it. Do NOT apply it yourself. Do not call any more tools.'
-        : 'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
+    instruction: `${baseInstruction}${stockNote ? ' ' + stockNote : ''} Do not call any more tools.`,
   };
   ctx.placed = result;
   return result;
@@ -1519,6 +1908,16 @@ const TOOLS = [
             description:
               "Set true when the customer is ADDING to the order already in their cart ('also add a drink', 'add fries to that'). Pass ONLY the new items; what is already in the cart is folded in for you and the total covers everything. Set false (or omit) when they want a fresh order instead.",
           },
+          allow_substitutions: {
+            type: 'boolean',
+            description:
+              "Set true ONLY when the customer has authorised swaps for out-of-stock items ('substitute if needed', 'swap anything unavailable', 'get the closest thing'). When true, an out-of-stock grocery item is auto-replaced with the nearest in-stock equivalent and you tell them what changed. When false or omitted, an out-of-stock item is left out and reported so you can offer the suggestion and let them decide — never swap silently.",
+          },
+          deadline_text: {
+            type: 'string',
+            description:
+              "The customer's delivery-time phrase, VERBATIM and unmodified — e.g. 'before 7', 'by 6:30 pm', 'in 30 minutes', 'within the hour', 'asap', 'tonight'. Do NOT convert it to a timestamp or reason about whether it is feasible: the SERVER resolves the time against the real clock and the real ETA and refuses the order (reason:'deadline_unmet') if it cannot arrive in time or the time has passed. Pass it WHENEVER the customer names any time. When the server returns deadline_unmet, tell the customer using the server's earliest_arrival value, and do NOT call place_in_cart again unless they change or drop the deadline. Omit only when no time was mentioned.",
+          },
         },
         required: ['restaurant_id', 'items'],
       },
@@ -1763,6 +2162,7 @@ HARD RULES
 - If a tool reports unsupported_exclusions, tell the customer plainly that you could not honour that constraint. Never let it pass silently.
 - If an item's dietary_source is "ai", the dietary flags were inferred from the menu description, not confirmed by the restaurant. When the customer's request was dietary (pork, shellfish, allergens), say so in one short sentence so they can check.
 - You never place an order or take payment. handoff_to_checkout is as far as you go; the customer confirms and pays there.
+- DEADLINES ARE HARD. If the customer names a time to have it by, check it against the current local time (given to you) plus the ETA before you build anything. If it cannot arrive in time — or the time has already passed — do not build the cart; say so plainly and offer the fastest option or to get it there as soon as possible. Never quietly order something that will miss a stated deadline.
 
 BUDGET — ENFORCED, NOT ADVISORY
 Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have 50"). Vague phrasing — "nothing too expensive", "something cheap", "reasonable" — is NOT a budget: pass no budget_cents and simply choose modestly priced items. Inventing a limit they never gave gets your cart refused and wastes their time.
@@ -1866,6 +2266,7 @@ Deno.serve(async (req) => {
       lat: profile?.latitude ?? null,
       lng: profile?.longitude ?? null,
       maxKm,
+      userMessage: String(body.message ?? ''),
       walletCents: wallet?.balance != null ? toCents(wallet.balance) : null,
       cartItems: rawCart
         .filter((c: Record<string, unknown>) => typeof c?.item_id === 'string')
@@ -1922,6 +2323,32 @@ Deno.serve(async (req) => {
       `and never "$". Jamaican prices are large numbers; a main course costing ` +
       `${cfgForPrompt.currencySymbol}2,000 is normal, so do not assume a figure ` +
       'is wrong because it looks big.';
+
+    // Current local time so the model can reason about deadlines ("before 7",
+    // "by 6:30", "in 30 minutes"). Without this it cannot tell that 7 o'clock
+    // has already passed and will keep trying to order the impossible.
+    const nowMs = Date.now();
+    const jaNow = new Date(nowMs).toLocaleString('en-US', {
+      timeZone: 'America/Jamaica',
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const timeLine =
+      `RIGHT NOW it is ${jaNow} local time in Jamaica (for your conversational ` +
+      `phrasing only). You do NOT do time arithmetic yourself — you were seen ` +
+      `getting it wrong. Whenever the customer names ANY delivery time — ` +
+      `absolute ("before 7", "by 6:30 pm") or relative ("in 30 minutes", ` +
+      `"within the hour", "asap") — pass their phrase VERBATIM to place_in_cart ` +
+      `as deadline_text and let the server decide. The server resolves the ` +
+      `clock and checks it against the real ETA; if it cannot arrive in time or ` +
+      `the time has passed it returns deadline_unmet with an earliest_arrival. ` +
+      `When that happens, tell the customer plainly it cannot make that time and ` +
+      `offer the earliest_arrival instead — do not order, and do not retry ` +
+      `unless they change or drop the deadline.`;
 
     const walletLine = ctx.walletCents != null
       ? `The customer's QuickDash wallet balance is ${cfgForPrompt.currencySymbol}${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
@@ -2004,6 +2431,7 @@ For a big basket, summarise in the reply — how many items, which sections, the
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'system', content: currencyLine },
+      { role: 'system', content: timeLine },
       ...(groceryLine ? [{ role: 'system', content: groceryLine }] : []),
       { role: 'system', content: walletLine },
       { role: 'system', content: cartLine },

@@ -338,7 +338,7 @@ class _ProductCard extends ConsumerWidget {
         children: [
           // Image – fixed height for uniform sizing. Tap to view full-screen.
           SizedBox(
-            height: 130,
+            height: 104,
             width: double.infinity,
             child: GestureDetector(
               onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
@@ -426,7 +426,7 @@ class _ProductCard extends ConsumerWidget {
           // Info
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.max,

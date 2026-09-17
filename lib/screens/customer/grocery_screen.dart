@@ -452,7 +452,6 @@ class _SearchProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final inStock = product.inStock;
     final storeAsync = ref.watch(restaurantByIdProvider(product.restaurantId));
-    final storeName = storeAsync.valueOrNull?.name;
     final store = storeAsync.valueOrNull;
 
     return GestureDetector(
@@ -578,17 +577,6 @@ class _SearchProductCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (storeName != null)
-                      Text(
-                        storeName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.primaryColor.withValues(alpha: 0.8),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     if (product.brand != null)
                       Text(
                         product.brand!,

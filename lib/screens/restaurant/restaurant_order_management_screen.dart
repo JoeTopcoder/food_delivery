@@ -665,8 +665,11 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             Row(
               children: [
                 Expanded(
+                  // The store is paid the ITEMS subtotal (what the driver hands
+                  // over in cash) — not the customer's total, which also carries
+                  // the platform's delivery and service fees.
                   child: Text(
-                    'Total: \$${order.totalAmount.toStringAsFixed(2)}',
+                    'You receive: ${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: Responsive.headingSmall(context),

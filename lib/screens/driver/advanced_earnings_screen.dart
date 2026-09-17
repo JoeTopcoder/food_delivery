@@ -8,6 +8,7 @@ import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_theme.dart';
+import 'driver_float_history_screen.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 
@@ -56,6 +57,10 @@ class _AdvancedEarningsScreenState
         ),
       );
     }
+
+    // Keep the drivers-table realtime subscription alive so cash_float,
+    // earnings and payouts update live as each order is delivered.
+    ref.watch(driverEarningsRealtimeProvider(driver.id));
 
     final earningsAsync = ref.watch(
       earningsSummaryProvider((driverId: driver.id, period: _period)),
@@ -130,7 +135,7 @@ class _AdvancedEarningsScreenState
                   const SizedBox(height: 14),
 
                   // ── Cash Float ────────────────────────────────────────
-                  _CashFloatCard(cashFloat: cashFloat),
+                  _CashFloatCard(cashFloat: cashFloat, driverId: driver.id),
                   const SizedBox(height: 16),
 
                   // ── Payout Actions ────────────────────────────────────
@@ -460,81 +465,105 @@ class _HourlyCard extends StatelessWidget {
 
 class _CashFloatCard extends StatelessWidget {
   final double cashFloat;
-  const _CashFloatCard({required this.cashFloat});
+  final String driverId;
+  const _CashFloatCard({required this.cashFloat, required this.driverId});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2030),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cashFloat > 0
-              ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-              : const Color(0xFF22C55E).withValues(alpha: 0.3),
+    final owesPlatform = cashFloat > 0.005;
+    final owedToDriver = cashFloat < -0.005;
+    final color = owesPlatform
+        ? const Color(0xFFEF4444)
+        : owedToDriver
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFF22C55E);
+    final subtitle = owesPlatform
+        ? 'Cash collected — hand over to admin'
+        : owedToDriver
+        ? 'QuickDash owes you — restaurant costs you fronted'
+        : 'Float settled — all square';
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DriverFloatHistoryScreen(
+            driverId: driverId,
+            currentFloat: cashFloat,
+          ),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color:
-                  (cashFloat > 0
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF22C55E))
-                      .withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2030),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                owesPlatform
+                    ? Icons.account_balance_wallet_rounded
+                    : owedToDriver
+                    ? Icons.savings_rounded
+                    : Icons.check_circle_rounded,
+                color: color,
+                size: 22,
+              ),
             ),
-            child: Icon(
-              cashFloat > 0
-                  ? Icons.account_balance_wallet_rounded
-                  : Icons.check_circle_rounded,
-              color: cashFloat > 0
-                  ? const Color(0xFFEF4444)
-                  : const Color(0xFF22C55E),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cash Float',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: cashFloat > 0
-                        ? const Color(0xFFEF4444)
-                        : const Color(0xFF22C55E),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    owedToDriver ? 'QuickDash Owes You' : 'Cash Float',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  cashFloat > 0
-                      ? 'Cash collected — hand over to admin'
-                      : 'No outstanding cash float',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        'View history',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, size: 14, color: color),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            '${AppConstants.currencySymbol}${cashFloat.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: cashFloat > 0
-                  ? const Color(0xFFEF4444)
-                  : const Color(0xFF22C55E),
+            Text(
+              '${AppConstants.currencySymbol}${cashFloat.abs().toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../models/driver_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'driver_float_history_screen.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
@@ -105,6 +106,22 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
     );
     final avgRating = driver.rating ?? 0.0;
     final cashFloat = driver.cashFloat ?? 0.0;
+    // Float sign: >0 driver holds platform cash (owe admin); <0 platform owes
+    // the driver (food cost they fronted at non-partner restaurants).
+    final owesPlatform = cashFloat > 0.005;
+    final owedToDriver = cashFloat < -0.005;
+    final floatColor = owesPlatform
+        ? const Color(0xFFEF4444)
+        : owedToDriver
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFF22C55E);
+    final floatSubtitle = owesPlatform
+        ? 'Cash collected — hand over to admin'
+        : owedToDriver
+        ? 'QuickDash owes you — restaurant costs you fronted'
+        : 'Float settled — all square';
+    final floatAmountText =
+        '${AppConstants.currencySymbol}${cashFloat.abs().toStringAsFixed(2)}';
     final totalPaidOut = driver.totalPaidOut ?? 0.0;
     final completedCount = driver.completedDeliveries ?? deliveries.length;
     final availableBalance = (totalEarnings - totalPaidOut).clamp(
@@ -266,17 +283,24 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Cash Float card
-                  Container(
+                  // Cash Float card — tap for full float history
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DriverFloatHistoryScreen(
+                          driverId: driver.id,
+                          currentFloat: cashFloat,
+                        ),
+                      ),
+                    ),
+                    child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E2030),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: cashFloat > 0
-                            ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-                            : const Color(0xFF22C55E).withValues(alpha: 0.3),
+                        color: floatColor.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -285,20 +309,16 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color:
-                                (cashFloat > 0
-                                        ? const Color(0xFFEF4444)
-                                        : const Color(0xFF22C55E))
-                                    .withValues(alpha: 0.12),
+                            color: floatColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
-                            cashFloat > 0
+                            owesPlatform
                                 ? Icons.account_balance_wallet_rounded
+                                : owedToDriver
+                                ? Icons.savings_rounded
                                 : Icons.check_circle_rounded,
-                            color: cashFloat > 0
-                                ? const Color(0xFFEF4444)
-                                : const Color(0xFF22C55E),
+                            color: floatColor,
                             size: 22,
                           ),
                         ),
@@ -308,20 +328,16 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Cash Float',
+                                owedToDriver ? 'QuickDash Owes You' : 'Cash Float',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: cashFloat > 0
-                                      ? const Color(0xFFEF4444)
-                                      : const Color(0xFF22C55E),
+                                  color: floatColor,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                cashFloat > 0
-                                    ? 'Cash collected — hand over to admin'
-                                    : 'No outstanding cash float',
+                                floatSubtitle,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Theme.of(
@@ -333,17 +349,16 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                           ),
                         ),
                         Text(
-                          '${AppConstants.currencySymbol}${cashFloat.toStringAsFixed(2)}',
+                          floatAmountText,
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: cashFloat > 0
-                                ? const Color(0xFFEF4444)
-                                : const Color(0xFF22C55E),
+                            color: floatColor,
                           ),
                         ),
                       ],
                     ),
+                  ),
                   ),
                   const SizedBox(height: 16),
 
