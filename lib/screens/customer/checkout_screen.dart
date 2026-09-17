@@ -57,6 +57,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   bool _applyingPromo = false;
   bool _placingOrder = false;
   bool _paymentFieldsHydrated = false;
+  bool _scheduleHydrated = false;
   bool _contactlessDelivery = false;
   String? _promoError;
   DateTime? _scheduledAt;
@@ -81,6 +82,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     super.didChangeDependencies();
     final currentUser = ref.read(currentUserProvider);
     _hydratePaymentFields(currentUser);
+    // A concierge "for tomorrow at 5pm" order pre-fills the schedule once, then
+    // the hand-off value is cleared so it never leaks into a later manual order.
+    if (!_scheduleHydrated) {
+      _scheduleHydrated = true;
+      final handoff = ref.read(conciergeScheduledAtProvider);
+      if (handoff != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _scheduledAt = handoff);
+          ref.read(conciergeScheduledAtProvider.notifier).state = null;
+        });
+      }
+    }
     // Auto-confirm address on first load when:
     // - pickup is selected (no delivery address needed), OR
     // - the user already has a saved/default address pre-filled.
