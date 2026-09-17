@@ -640,7 +640,9 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   }
   const { data: rows, error } = await admin
     .from('menus')
-    .select('id, name, price, is_available, restaurant_id')
+    .select(
+      'id, name, price, is_available, restaurant_id, category, track_inventory, stock_quantity, in_stock',
+    )
     .in('id', ids);
   if (error) throw error;
 
@@ -694,8 +696,17 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     }
   }
 
+  // Inventory + substitution. Stock is read from the DB at execution time, never
+  // trusted from the model or an earlier turn. Out-of-stock grocery items are
+  // swapped for an equivalent only when the customer authorized it; otherwise
+  // they are surfaced so the model can ask.
+  const allowSub = a.allow_substitutions === true;
+  const outOfStock: { name: string; suggestion: string | null }[] = [];
+  const substitutions: { from: string; to: string }[] = [];
+  const partial: { name: string; requested: number; available: number }[] = [];
+
   for (const r of requested) {
-    const row = byId.get(r.item_id as string);
+    let row = byId.get(r.item_id as string);
     const qty = Math.max(1, Math.min(Number(r.qty) || 1, 20));
     if (!row) {
       validationErrors.push(`Item ${r.item_id} not found`);
@@ -705,17 +716,58 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
       validationErrors.push(`${row.name} is unavailable`);
       continue;
     }
+    // Out of stock?
+    if (stockShortfall(row, qty).out) {
+      const sub = await findSubstitute(ctx, row);
+      if (allowSub && sub) {
+        substitutions.push({ from: row.name as string, to: sub.name as string });
+        row = sub;
+      } else {
+        outOfStock.push({
+          name: row.name as string,
+          suggestion: (sub?.name as string) ?? null,
+        });
+        continue;
+      }
+    }
+    // Partial stock: cap the quantity to what is actually available.
+    let finalQty = qty;
+    const sh = stockShortfall(row, qty);
+    if (sh.available !== null && sh.available >= 1 && sh.available < qty) {
+      finalQty = sh.available;
+      partial.push({
+        name: row.name as string,
+        requested: qty,
+        available: sh.available,
+      });
+    }
     lineItems.push({
       item_id: row.id,
       name: row.name,
-      qty,
+      qty: finalQty,
       unit_price_cents: toCents(row.price),
       modifiers: Array.isArray(r.modifiers) ? r.modifiers : [],
     });
   }
 
   if (!lineItems.length) {
-    return { cart_draft_id: null, line_items: [], validation_errors: validationErrors };
+    const parts: string[] = [];
+    if (outOfStock.length) {
+      parts.push(
+        'Out of stock: ' +
+          outOfStock
+            .map((o) => (o.suggestion ? `${o.name} (try ${o.suggestion})` : o.name))
+            .join(', ') +
+          '. Offer the suggested swaps and let the customer choose; do not add them silently.',
+      );
+    }
+    return {
+      cart_draft_id: null,
+      line_items: [],
+      validation_errors: validationErrors,
+      out_of_stock: outOfStock.length ? outOfStock : undefined,
+      instruction: parts.length ? parts.join(' ') : undefined,
+    };
   }
 
   // A stated budget is a constraint, not a hint. Storing it on the draft makes
@@ -748,6 +800,36 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
   // model finds out it overspent while it can still fix it.
   const priced = await priceCart(ctx, { cart_draft_id: draft.id });
 
+  // Tell the model about any stock adjustments it must relay to the customer.
+  const stockNotes: string[] = [];
+  if (substitutions.length) {
+    stockNotes.push(
+      'Substituted (customer authorised): ' +
+        substitutions.map((s) => `${s.from} -> ${s.to}`).join(', ') +
+        '. Tell the customer what you swapped.',
+    );
+  }
+  if (outOfStock.length) {
+    stockNotes.push(
+      'Left out (out of stock): ' +
+        outOfStock
+          .map((o) => (o.suggestion ? `${o.name} (suggest ${o.suggestion})` : o.name))
+          .join(', ') +
+        '. Mention these and offer the suggestions; do not add them without asking.',
+    );
+  }
+  if (partial.length) {
+    stockNotes.push(
+      'Reduced to available stock: ' +
+        partial.map((p) => `${p.name} ${p.requested}->${p.available}`).join(', ') +
+        '. Tell the customer only this many were in stock.',
+    );
+  }
+
+  const budgetNote = priced.within_budget === false
+    ? 'OVER BUDGET. Rebuild with fewer or cheaper items before finalizing — finalize_cart will refuse this cart.'
+    : null;
+
   return {
     cart_draft_id: draft.id,
     line_items: lineItems,
@@ -755,9 +837,10 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
     budget_cents: budgetCents,
     within_budget: priced.within_budget,
     over_budget_by_cents: priced.over_budget_by_cents,
-    instruction: priced.within_budget === false
-      ? 'OVER BUDGET. Rebuild with fewer or cheaper items before finalizing — finalize_cart will refuse this cart.'
-      : undefined,
+    substitutions: substitutions.length ? substitutions : undefined,
+    out_of_stock: outOfStock.length ? outOfStock : undefined,
+    reduced_to_stock: partial.length ? partial : undefined,
+    instruction: [budgetNote, ...stockNotes].filter(Boolean).join(' ') || undefined,
     validation_errors: validationErrors.length ? validationErrors : undefined,
   };
 }
@@ -837,6 +920,47 @@ function resolveDeadline(text: string, nowMs: number): number | null {
     }
   }
   return null; // unparseable → treat as no hard deadline
+}
+
+/** True when a menu row cannot currently be fulfilled at the requested qty. */
+function stockShortfall(row: Record<string, unknown>, qty: number): {
+  out: boolean;
+  available: number | null;
+} {
+  const tracked = row.track_inventory === true;
+  const stock = tracked ? Number(row.stock_quantity) || 0 : null;
+  const out = row.in_stock === false || (stock !== null && stock < 1);
+  const available = stock;
+  return { out: out || (stock !== null && stock < qty && stock < 1), available };
+}
+
+/** Find an in-stock equivalent for an out-of-stock GROCERY item (same store +
+ *  category, nearest price). Food items are not substituted. */
+async function findSubstitute(
+  ctx: Ctx,
+  row: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  if (ctx.storeType !== 'grocery') return null;
+  const { data: alts } = await admin
+    .from('menus')
+    .select('id, name, price, is_available, track_inventory, stock_quantity, in_stock, restaurant_id')
+    .eq('restaurant_id', row.restaurant_id as string)
+    .eq('category', (row.category as string) ?? '')
+    .eq('is_available', true)
+    .neq('id', row.id as string)
+    .limit(30);
+  const inStock = (alts ?? []).filter(
+    (a) =>
+      a.in_stock !== false &&
+      !(a.track_inventory === true && (Number(a.stock_quantity) || 0) < 1),
+  );
+  if (!inStock.length) return null;
+  const target = toCents(row.price as number);
+  inStock.sort(
+    (x, z) =>
+      Math.abs(toCents(x.price) - target) - Math.abs(toCents(z.price) - target),
+  );
+  return inStock[0];
 }
 
 async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
@@ -1024,6 +1148,25 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     .eq('id', draftRow?.restaurant_id ?? asUuid(a.restaurant_id) ?? '')
     .maybeSingle();
 
+  // Stock/substitution notes the model MUST relay so nothing changes silently.
+  const stockNote = [
+    built.substitutions
+      ? `Swapped (they authorised it): ${(built.substitutions as { from: string; to: string }[]).map((s) => `${s.from}->${s.to}`).join(', ')}.`
+      : '',
+    built.out_of_stock
+      ? `Could not add (out of stock): ${(built.out_of_stock as { name: string; suggestion: string | null }[]).map((o) => (o.suggestion ? `${o.name} (suggest ${o.suggestion})` : o.name)).join(', ')} — mention this and offer the suggestions.`
+      : '',
+    built.reduced_to_stock
+      ? `Only partial stock, reduced quantity: ${(built.reduced_to_stock as { name: string; requested: number; available: number }[]).map((p) => `${p.name} to ${p.available}`).join(', ')}.`
+      : '',
+  ].filter(Boolean).join(' ');
+
+  const baseInstruction = appliedPromo
+    ? 'Done. Tell the customer what you ordered, the total and the ETA, and that their coupon was applied and what it saved.'
+    : availablePromo
+      ? 'Done. Tell the customer what you ordered, the total and the ETA, then mention in ONE short sentence that they have a coupon worth the stated saving and can say the word to use it. Do NOT apply it yourself.'
+      : 'Done. Tell the customer what you ordered, the total, and the ETA.';
+
   const result = {
     cart_draft_id: draftId,
     cart_id: draftId,
@@ -1034,13 +1177,12 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     applied_promotion: appliedPromo,
     // Not applied — offered. The model mentions it; the customer decides.
     available_promotion: appliedPromo ? null : availablePromo,
+    substitutions: built.substitutions,
+    out_of_stock: built.out_of_stock,
+    reduced_to_stock: built.reduced_to_stock,
     pricing: priced,
     checkout_url: '/cart',
-    instruction: appliedPromo
-      ? 'Done. Tell the customer what you ordered, the total and the ETA, and that their coupon was applied and what it saved. Do not call any more tools.'
-      : availablePromo
-        ? 'Done. Tell the customer what you ordered, the total and the ETA, then mention in ONE short sentence that they have a coupon worth the stated saving and can say the word to use it. Do NOT apply it yourself. Do not call any more tools.'
-        : 'Done. Tell the customer what you ordered, the total, and the ETA. Do not call any more tools.',
+    instruction: `${baseInstruction}${stockNote ? ' ' + stockNote : ''} Do not call any more tools.`,
   };
   ctx.placed = result;
   return result;
@@ -1665,6 +1807,11 @@ const TOOLS = [
             type: 'boolean',
             description:
               "Set true when the customer is ADDING to the order already in their cart ('also add a drink', 'add fries to that'). Pass ONLY the new items; what is already in the cart is folded in for you and the total covers everything. Set false (or omit) when they want a fresh order instead.",
+          },
+          allow_substitutions: {
+            type: 'boolean',
+            description:
+              "Set true ONLY when the customer has authorised swaps for out-of-stock items ('substitute if needed', 'swap anything unavailable', 'get the closest thing'). When true, an out-of-stock grocery item is auto-replaced with the nearest in-stock equivalent and you tell them what changed. When false or omitted, an out-of-stock item is left out and reported so you can offer the suggestion and let them decide — never swap silently.",
           },
           deadline_text: {
             type: 'string',
