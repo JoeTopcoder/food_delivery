@@ -394,7 +394,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               children: [
                 Expanded(
                   child: Text(
-                    'Total: ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                    'Total: ${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1E293B)),
                   ),
                 ),
