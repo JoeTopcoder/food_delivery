@@ -191,7 +191,7 @@ class _CategoryProductCard extends ConsumerWidget {
         children: [
           // Image – scales with card width via aspect ratio. Tap = full screen.
           AspectRatio(
-            aspectRatio: 1.2,
+            aspectRatio: 1.5,
             child: GestureDetector(
               onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                   ? () => FullScreenImage.show(
@@ -285,7 +285,7 @@ class _CategoryProductCard extends ConsumerWidget {
           // Info
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
