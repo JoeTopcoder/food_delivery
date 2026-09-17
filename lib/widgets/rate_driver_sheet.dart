@@ -279,6 +279,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
           amount: _tipAmount,
           customerEmail: email,
           customerName: name,
+          type: 'tip',
         );
 
         if (result != null) {
