@@ -6,6 +6,7 @@ import '../../models/driver_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'driver_float_history_screen.dart';
 import '../shared/bank_info_screen.dart';
 import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
@@ -282,8 +283,17 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Cash Float card
-                  Container(
+                  // Cash Float card — tap for full float history
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DriverFloatHistoryScreen(
+                          driverId: driver.id,
+                          currentFloat: cashFloat,
+                        ),
+                      ),
+                    ),
+                    child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -348,6 +358,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                   const SizedBox(height: 16),
 
