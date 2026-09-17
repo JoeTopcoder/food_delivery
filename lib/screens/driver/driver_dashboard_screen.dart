@@ -4,6 +4,7 @@ import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/location_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/notification_service.dart';
@@ -614,6 +615,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                           driver.id,
                                           !isOnline,
                                         );
+                                    // Broadcast location while online so the
+                                    // "new order nearby" push can find drivers
+                                    // within range; stop when going offline.
+                                    final ls = ref.read(locationServiceProvider);
+                                    if (!isOnline) {
+                                      await ls.startTracking(driverId: driver.id);
+                                    } else {
+                                      await ls.stopTracking();
+                                    }
                                     ref.invalidate(
                                       driverProfileProvider(currentUserId),
                                     );
