@@ -84,12 +84,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     _hydratePaymentFields(currentUser);
     // A concierge "for tomorrow at 5pm" order pre-fills the schedule once, then
     // the hand-off value is cleared so it never leaks into a later manual order.
+    // Set synchronously (before build) so the "restaurant closed -> earliest
+    // slot" auto-schedule sees a non-null time and does NOT override it.
     if (!_scheduleHydrated) {
       _scheduleHydrated = true;
       final handoff = ref.read(conciergeScheduledAtProvider);
       if (handoff != null) {
+        _scheduledAt = handoff;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _scheduledAt = handoff);
           ref.read(conciergeScheduledAtProvider.notifier).state = null;
         });
       }
