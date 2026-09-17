@@ -568,7 +568,8 @@ class NotificationService {
         // Trigger in-app refresh callback
         onNewOrderReceived?.call();
         if (navigate) {
-          navigatorKey?.currentState?.pushNamed('/available-orders');
+          // Open the Orders hub on the Get Orders tab.
+          navigatorKey?.currentState?.pushNamed('/driver-orders');
         }
         break;
       case 'new_restaurant_order':
