@@ -774,6 +774,71 @@ async function buildCartDraft(ctx: Ctx, a: Record<string, unknown>) {
  * observed calling handoff_to_checkout before finalize_cart, finalizing twice,
  * and re-pricing a draft it had just built. None of that is possible now.
  */
+// ── Deterministic deadline resolution ──────────────────────────────────────
+// Time is computed by the backend, never by the model: gpt-4o-mini was observed
+// resolving "within the next 2 hours" and bare clock times to the wrong day and
+// even into the past. The model passes the customer's raw phrase; this turns it
+// into a real timestamp against the known clock. Jamaica is UTC-5 with no DST.
+const JA_OFFSET_H = 5;
+function jaYMD(nowMs: number): { y: number; mo: number; d: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Jamaica',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(nowMs));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return { y: get('year'), mo: get('month'), d: get('day') };
+}
+function jaLocalToUtcMs(y: number, mo: number, d: number, h: number, mi: number) {
+  return Date.UTC(y, mo - 1, d, h + JA_OFFSET_H, mi, 0);
+}
+/** Resolve a natural deadline phrase to a UTC ms timestamp, or null for none. */
+function resolveDeadline(text: string, nowMs: number): number | null {
+  const t = (text || '').toLowerCase().trim();
+  if (!t) return null;
+  if (/(asap|as soon as possible|right now|immediately|any\s?time|whenever|no rush)/.test(t)) {
+    return null; // no hard deadline
+  }
+  // Relative: "in 30 minutes", "within 2 hours", "within the hour", "half hour"
+  if (/(in|within|next)\b/.test(t)) {
+    let mins = 0;
+    const h = t.match(/(\d+)\s*(hours?|hrs?|h)\b/);
+    if (h) mins += Number(h[1]) * 60;
+    const mm = t.match(/(\d+)\s*(minutes?|mins?)\b/);
+    if (mm) mins += Number(mm[1]);
+    if (!mins && /(within|in)\s+(the|an?)\s+hour/.test(t)) mins = 60;
+    if (!mins && /half\s+(an?\s+)?hour/.test(t)) mins = 30;
+    if (mins > 0) return nowMs + mins * 60_000;
+  }
+  // Absolute clock time: "before 7", "by 6:30 pm", "7 o'clock"
+  const cm = t.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+  if (cm) {
+    const hh = Number(cm[1]);
+    const mi = cm[2] ? Number(cm[2]) : 0;
+    const am = cm[3]?.startsWith('a');
+    const pm = cm[3]?.startsWith('p');
+    if (hh >= 0 && hh <= 23 && mi >= 0 && mi <= 59) {
+      const { y, mo, d } = jaYMD(nowMs);
+      const cands: number[] = [];
+      if (am || pm || hh > 12 || hh === 0) {
+        let H = hh;
+        if (pm && hh < 12) H = hh + 12;
+        if (am && hh === 12) H = 0;
+        cands.push(jaLocalToUtcMs(y, mo, d, H, mi));
+      } else {
+        // Bare 1-12: consider both AM and PM today, pick the clock instance
+        // nearest to now (that is what a person means by a bare hour).
+        cands.push(jaLocalToUtcMs(y, mo, d, hh % 12, mi));
+        cands.push(jaLocalToUtcMs(y, mo, d, (hh % 12) + 12, mi));
+      }
+      cands.sort((x, z) => Math.abs(x - nowMs) - Math.abs(z - nowMs));
+      return cands[0];
+    }
+  }
+  return null; // unparseable → treat as no hard deadline
+}
+
 async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   // Already done in this request — hand back the same order rather than
   // building a second one the customer never asked for.
@@ -789,6 +854,88 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   const built = await buildCartDraft(ctx, a);
   const draftId = built.cart_draft_id;
   if (!draftId) return built; // nothing valid to place; errors already explained
+
+  // ── Deadline feasibility (deterministic, server-side) ────────────────────
+  // The model resolves the customer's stated time to an ISO timestamp (it is
+  // given the current local time); the SERVER does the arithmetic so a weak
+  // model cannot talk itself into ordering something that can never arrive in
+  // time — including a deadline that has already passed.
+  // Final reality check on the chosen store, immediately before execution:
+  // its open status and ETA come from the DB, never from the model.
+  let etaMin = 40;
+  let storeOpen = true;
+  let storeName = 'that store';
+  try {
+    const { data: d } = await admin
+      .from('concierge_cart_drafts')
+      .select('restaurant_id')
+      .eq('id', draftId)
+      .single();
+    if (d?.restaurant_id) {
+      const { data: r } = await admin
+        .from('restaurants')
+        .select('estimated_delivery_time, is_open, name')
+        .eq('id', d.restaurant_id)
+        .single();
+      if (r) {
+        if (r.estimated_delivery_time) etaMin = Number(r.estimated_delivery_time) || 40;
+        storeOpen = r.is_open !== false;
+        if (r.name) storeName = String(r.name);
+      }
+    }
+  } catch { /* fall back to open, 40 min */ }
+
+  // Never submit to a closed store.
+  if (!storeOpen) {
+    ctx.rejections = (ctx.rejections ?? 0) + 1;
+    return {
+      placed: false,
+      reason: 'store_closed',
+      instruction:
+        `${storeName} is currently CLOSED, so this order cannot be placed. Do ` +
+        `NOT place it. Tell the customer it is closed right now and offer to ` +
+        `find an open place instead. Search again for open options before ` +
+        `trying place_in_cart with a different restaurant.`,
+    };
+  }
+
+  const deadlineText = typeof a.deadline_text === 'string' ? a.deadline_text : '';
+  const deliverByResolved = resolveDeadline(deadlineText, Date.now());
+  const deliverBy = deliverByResolved ?? NaN;
+  if (!Number.isNaN(deliverBy)) {
+    const bufferMin = 8; // confirm + pay + hand-off slack
+    const arrivalMs = Date.now() + (etaMin + bufferMin) * 60_000;
+    if (arrivalMs > deliverBy) {
+      ctx.rejections = (ctx.rejections ?? 0) + 1;
+      const fmt = (ms: number) =>
+        new Date(ms).toLocaleString('en-US', {
+          timeZone: 'America/Jamaica',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+      const byStr = fmt(deliverBy);
+      const arrStr = fmt(arrivalMs);
+      const passed = deliverBy <= Date.now();
+      return {
+        placed: false,
+        reason: 'deadline_unmet',
+        deliver_by: byStr,
+        earliest_arrival: arrStr,
+        instruction: passed
+          ? `That time (${byStr}) has already passed, so this cannot be ` +
+            `delivered by then. Do NOT place the order. Tell the customer the ` +
+            `time is already gone and ask if they want it as soon as possible ` +
+            `instead (about ${arrStr}). Do not call place_in_cart again unless ` +
+            `they drop or change the deadline.`
+          : `This order CANNOT arrive by ${byStr} — the earliest it can get ` +
+            `there is about ${arrStr}. Do NOT place it. Tell the customer ` +
+            `plainly it cannot make that time, and ask whether they want it as ` +
+            `soon as possible (about ${arrStr}) instead. Do not call ` +
+            `place_in_cart again unless they change or drop the deadline.`,
+      };
+    }
+  }
 
   // Coupons are OFFERED, not spent. A coupon is single-use, so applying one
   // unasked burns a customer's entitlement on an order that may not have needed
@@ -1519,6 +1666,11 @@ const TOOLS = [
             description:
               "Set true when the customer is ADDING to the order already in their cart ('also add a drink', 'add fries to that'). Pass ONLY the new items; what is already in the cart is folded in for you and the total covers everything. Set false (or omit) when they want a fresh order instead.",
           },
+          deadline_text: {
+            type: 'string',
+            description:
+              "The customer's delivery-time phrase, VERBATIM and unmodified — e.g. 'before 7', 'by 6:30 pm', 'in 30 minutes', 'within the hour', 'asap', 'tonight'. Do NOT convert it to a timestamp or reason about whether it is feasible: the SERVER resolves the time against the real clock and the real ETA and refuses the order (reason:'deadline_unmet') if it cannot arrive in time or the time has passed. Pass it WHENEVER the customer names any time. When the server returns deadline_unmet, tell the customer using the server's earliest_arrival value, and do NOT call place_in_cart again unless they change or drop the deadline. Omit only when no time was mentioned.",
+          },
         },
         required: ['restaurant_id', 'items'],
       },
@@ -1763,6 +1915,7 @@ HARD RULES
 - If a tool reports unsupported_exclusions, tell the customer plainly that you could not honour that constraint. Never let it pass silently.
 - If an item's dietary_source is "ai", the dietary flags were inferred from the menu description, not confirmed by the restaurant. When the customer's request was dietary (pork, shellfish, allergens), say so in one short sentence so they can check.
 - You never place an order or take payment. handoff_to_checkout is as far as you go; the customer confirms and pays there.
+- DEADLINES ARE HARD. If the customer names a time to have it by, check it against the current local time (given to you) plus the ETA before you build anything. If it cannot arrive in time — or the time has already passed — do not build the cart; say so plainly and offer the fastest option or to get it there as soon as possible. Never quietly order something that will miss a stated deadline.
 
 BUDGET — ENFORCED, NOT ADVISORY
 Pass budget_cents ONLY when the customer stated an actual number ("$40", "I have 50"). Vague phrasing — "nothing too expensive", "something cheap", "reasonable" — is NOT a budget: pass no budget_cents and simply choose modestly priced items. Inventing a limit they never gave gets your cart refused and wastes their time.
@@ -1923,6 +2076,32 @@ Deno.serve(async (req) => {
       `${cfgForPrompt.currencySymbol}2,000 is normal, so do not assume a figure ` +
       'is wrong because it looks big.';
 
+    // Current local time so the model can reason about deadlines ("before 7",
+    // "by 6:30", "in 30 minutes"). Without this it cannot tell that 7 o'clock
+    // has already passed and will keep trying to order the impossible.
+    const nowMs = Date.now();
+    const jaNow = new Date(nowMs).toLocaleString('en-US', {
+      timeZone: 'America/Jamaica',
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const timeLine =
+      `RIGHT NOW it is ${jaNow} local time in Jamaica (for your conversational ` +
+      `phrasing only). You do NOT do time arithmetic yourself — you were seen ` +
+      `getting it wrong. Whenever the customer names ANY delivery time — ` +
+      `absolute ("before 7", "by 6:30 pm") or relative ("in 30 minutes", ` +
+      `"within the hour", "asap") — pass their phrase VERBATIM to place_in_cart ` +
+      `as deadline_text and let the server decide. The server resolves the ` +
+      `clock and checks it against the real ETA; if it cannot arrive in time or ` +
+      `the time has passed it returns deadline_unmet with an earliest_arrival. ` +
+      `When that happens, tell the customer plainly it cannot make that time and ` +
+      `offer the earliest_arrival instead — do not order, and do not retry ` +
+      `unless they change or drop the deadline.`;
+
     const walletLine = ctx.walletCents != null
       ? `The customer's QuickDash wallet balance is ${cfgForPrompt.currencySymbol}${(ctx.walletCents / 100).toFixed(2)} (${ctx.walletCents} cents). This is CONTEXT ONLY — it is NOT a spending limit unless they bring it up. Do not pass it as budget_cents just because you know it.`
       : 'The customer has no wallet balance recorded.';
@@ -2004,6 +2183,7 @@ For a big basket, summarise in the reply — how many items, which sections, the
     const messages: Record<string, unknown>[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'system', content: currencyLine },
+      { role: 'system', content: timeLine },
       ...(groceryLine ? [{ role: 'system', content: groceryLine }] : []),
       { role: 'system', content: walletLine },
       { role: 'system', content: cartLine },
