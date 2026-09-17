@@ -40,6 +40,14 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
   final List<double> _presetTips = [50, 100, 200, 500];
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill an existing rating so a customer coming back only to tip
+    // doesn't have to re-rate.
+    _rating = widget.order.driverRating ?? 0;
+  }
+
+  @override
   void dispose() {
     _customTipController.dispose();
     super.dispose();
@@ -199,7 +207,9 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _rating == 0 || _isSubmitting ? null : _submit,
+              onPressed: (_rating == 0 && _tipAmount == 0) || _isSubmitting
+                  ? null
+                  : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
@@ -259,8 +269,10 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
     try {
       final orderService = ref.read(orderServiceProvider);
 
-      // 1. Save driver rating
-      await orderService.rateDriver(orderId: widget.order.id, rating: _rating);
+      // 1. Save driver rating (only if a rating was given/selected)
+      if (_rating > 0) {
+        await orderService.rateDriver(orderId: widget.order.id, rating: _rating);
+      }
 
       // 2. If tip amount > 0, process via Stripe
       if (_tipAmount > 0) {
@@ -279,6 +291,7 @@ class _RateAndTipDriverSheetState extends ConsumerState<RateAndTipDriverSheet> {
           amount: _tipAmount,
           customerEmail: email,
           customerName: name,
+          type: 'tip',
         );
 
         if (result != null) {

@@ -73,7 +73,7 @@ Deno.serve(async (request) => {
       })
       .eq("id", orderId)
       .neq("status", "delivered") // Prevent double-completion
-      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km")
+      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, subtotal, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km")
       .single();
 
     if (updateErr || !order) {
@@ -250,6 +250,30 @@ Deno.serve(async (request) => {
           }
         }
       }
+
+      // ── 4b. Restaurant payment for non-partner food orders ──────────────
+      // Restaurants aren't fully partnered yet, so the driver pays the food
+      // cost in cash at the counter. That comes out of their float; if the
+      // float goes negative, the platform owes the driver that reimbursement.
+      // Grocery (white-label partner) orders are settled directly, not fronted.
+      try {
+        const { data: rest } = await admin
+          .from("restaurants")
+          .select("store_type")
+          .eq("id", order.restaurant_id)
+          .maybeSingle();
+        const isGrocery = (rest?.store_type ?? "food") === "grocery";
+        const foodCost = Number(order.subtotal) || 0;
+        if (!isGrocery && foodCost > 0) {
+          await admin.rpc("apply_driver_float_change", {
+            p_driver_id: driverId,
+            p_amount: -foodCost,
+            p_type: "restaurant_payment",
+            p_order_id: orderId,
+            p_note: "Cash paid to restaurant for order items",
+          });
+        }
+      } catch (_e) { /* non-fatal: float ledger best-effort */ }
 
       driverStats = {
         completed_deliveries: completedCount,

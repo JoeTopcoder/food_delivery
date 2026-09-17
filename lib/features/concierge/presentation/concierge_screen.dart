@@ -314,6 +314,11 @@ class _ConciergeScreenState extends ConsumerState<ConciergeScreen> {
         }
       });
 
+      // Carry any scheduled time the concierge set ("for tomorrow at 5pm") into
+      // checkout, which reads it once to pre-fill its own schedule.
+      final scheduledAt = await service.draftScheduledFor(draftId);
+      ref.read(conciergeScheduledAtProvider.notifier).state = scheduledAt;
+
       if (!mounted) return;
       // The cart is authoritative from here; stop treating the draft as the
       // order in progress or it would be merged in a second time.

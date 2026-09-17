@@ -171,7 +171,7 @@ class _WebDashboardPageState extends ConsumerState<WebDashboardPage> {
               final total = orders.length;
               final pending = orders.where((o) => o.status == 'pending' || o.status == 'confirmed' || o.status == 'preparing').length;
               final delivered = orders.where((o) => o.status == 'delivered').length;
-              final revenue = orders.fold<double>(0, (s, o) => s + o.totalAmount);
+              final revenue = orders.fold<double>(0, (s, o) => s + o.subtotal);
               return Row(
                 children: [
                   Expanded(child: _KpiCard(label: 'Total Orders', value: '$total', icon: Icons.receipt_long_rounded, color: const Color(0xFF6366F1))),
@@ -364,7 +364,7 @@ class _OrdersTable extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Text(
-                      '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+                      '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                     ),
                   ),

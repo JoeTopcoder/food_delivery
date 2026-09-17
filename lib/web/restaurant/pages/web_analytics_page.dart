@@ -56,7 +56,7 @@ class _WebAnalyticsPageState extends ConsumerState<WebAnalyticsPage> {
   }
 
   Widget _buildContent(String restaurantName, List<Order> orders, List<Order> allOrders) {
-    final revenue = orders.fold<double>(0, (s, o) => s + o.totalAmount);
+    final revenue = orders.fold<double>(0, (s, o) => s + o.subtotal);
     final delivered = orders.where((o) => o.status == 'delivered').length;
     final cancelled = orders.where((o) => o.status == 'cancelled').length;
     final avgOrder = orders.isEmpty ? 0.0 : revenue / orders.length;
@@ -394,7 +394,7 @@ class _OrderMiniTable extends StatelessWidget {
               ),
               Expanded(
                 flex: 2,
-                child: Text('${AppConstants.currencySymbol}${o.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                child: Text('${AppConstants.currencySymbol}${o.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
               Expanded(
                 flex: 2,

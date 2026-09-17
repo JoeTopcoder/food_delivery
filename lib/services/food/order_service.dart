@@ -702,10 +702,21 @@ class OrderService {
   }) async {
     try {
       AppLogger.info('Tipping driver for order: $orderId amount: \$$tipAmount');
+      // Add to any existing tip (e.g. a tip added at checkout) rather than
+      // overwriting it, and record the post-delivery portion separately.
+      final existing = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('driver_tip, post_delivery_tip')
+          .eq('id', orderId)
+          .single();
+      final currentTip = (existing['driver_tip'] as num?)?.toDouble() ?? 0.0;
+      final currentPost =
+          (existing['post_delivery_tip'] as num?)?.toDouble() ?? 0.0;
       await _supabaseClient
           .from(AppConstants.tableOrders)
           .update({
-            'driver_tip': tipAmount,
+            'driver_tip': currentTip + tipAmount,
+            'post_delivery_tip': currentPost + tipAmount,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', orderId);

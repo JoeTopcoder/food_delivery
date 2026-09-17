@@ -23,6 +23,11 @@ import 'auth_provider.dart';
 // behaviour (e.g. popup banners) on which tab is visible.
 final currentTabIndexProvider = StateProvider<int>((ref) => 0);
 
+/// A scheduled delivery time handed from the concierge to the checkout screen.
+/// Set when a "for tomorrow at 5pm" order is applied to the cart; checkout reads
+/// it once to pre-fill its schedule, then clears it.
+final conciergeScheduledAtProvider = StateProvider<DateTime?>((ref) => null);
+
 // Service Providers
 // Watches the customer's location so listings can hide stores too far away to
 // order from. Watching rather than reading means changing your delivery address

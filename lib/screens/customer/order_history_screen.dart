@@ -723,10 +723,10 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                // Rate & Tip driver (delivered orders with a driver, not yet driver-rated)
-                if (isDelivered &&
-                    order.driverId != null &&
-                    order.driverRating == null)
+                // Rate & Tip driver — available for any delivered order with a
+                // driver. Stays available after rating so the customer can still
+                // add (or top up) a tip.
+                if (isDelivered && order.driverId != null)
                   OutlinedButton.icon(
                     onPressed: () async {
                       final result = await RateAndTipDriverSheet.show(
@@ -741,7 +741,11 @@ class _OrderCard extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.delivery_dining, size: 15),
-                    label: const Text('Rate Driver'),
+                    label: Text(
+                      order.driverRating == null
+                          ? 'Rate & Tip Driver'
+                          : 'Tip Driver',
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF10B981),
                       side: const BorderSide(color: Color(0xFF10B981)),

@@ -199,7 +199,7 @@ export async function handle(request: Request): Promise<Response> {
       );
     }
 
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge" || txnType === "tip";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     // Multi-restaurant pre-order PI: no order exists yet — skip order lookup.
@@ -713,7 +713,7 @@ export async function handle(request: Request): Promise<Response> {
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
     const currency = String(body.currency ?? "jmd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge" || txnType === "tip";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {
@@ -802,7 +802,7 @@ export async function handle(request: Request): Promise<Response> {
     const paymentMethodId = String(body.paymentMethodId ?? "").trim();
     const currency = String(body.currency ?? "jmd").trim().toLowerCase();
     const txnType = String(body.type ?? "order").trim();
-    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge";
+    const isNonOrder = txnType === "wallet_topup" || txnType === "ride" || txnType === "car_service" || txnType === "food_pre_charge" || txnType === "tip";
     const isMultiRestaurant = txnType === "multi_restaurant_order";
 
     if (!orderId || amount <= 0 || !paymentMethodId) {

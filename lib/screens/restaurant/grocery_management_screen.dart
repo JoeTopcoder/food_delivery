@@ -1793,9 +1793,22 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.all(16),
-      child: SizedBox(
+      child: Theme(
+        // Force dark text/icons so typed input is visible on the light fields
+        // (the fields use a near-white fill; without this the input text
+        // inherits the dark theme's white and is invisible while typing).
+        data: Theme.of(context).copyWith(
+          textTheme: Theme.of(context).textTheme.apply(
+                bodyColor: const Color(0xFF111827),
+                displayColor: const Color(0xFF111827),
+              ),
+          iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        ),
+        child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.9,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -2103,6 +2116,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
