@@ -1075,10 +1075,11 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   }
   const deliverByResolved = resolveDeadline(deadlineText, Date.now());
   const deliverBy = deliverByResolved ?? NaN;
+  let scheduledForMs: number | null = null; // set when this becomes a scheduled order
   if (!Number.isNaN(deliverBy)) {
     const bufferMin = 8; // confirm + pay + hand-off slack
     const arrivalMs = Date.now() + (etaMin + bufferMin) * 60_000;
-    const fmtDT = (ms: number) =>
+    const fmtTime = (ms: number) =>
       new Date(ms).toLocaleString('en-US', {
         timeZone: 'America/Jamaica',
         hour: 'numeric',
@@ -1086,61 +1087,60 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
         hour12: true,
       });
 
-    // Scheduling is NOT supported — the platform delivers ASAP only. A deadline
-    // on a FUTURE calendar day can't be honoured by ordering now (that would
-    // arrive today), so we decline rather than mislabel an immediate order.
     const dl = jaYMD(deliverBy);
     const td = jaYMD(Date.now());
-    const dlKey = dl.y * 10000 + dl.mo * 100 + dl.d;
-    const tdKey = td.y * 10000 + td.mo * 100 + td.d;
-    if (dlKey > tdKey) {
-      ctx.rejections = (ctx.rejections ?? 0) + 1;
-      const dayName = new Date(deliverBy).toLocaleDateString('en-US', {
-        timeZone: 'America/Jamaica',
-        weekday: 'long',
-      });
-      return {
-        placed: false,
-        reason: 'scheduling_unsupported',
-        instruction:
-          `QuickDash delivers as soon as possible and CANNOT schedule a future ` +
-          `day or time. Do NOT place this order. Tell the customer you can't set ` +
-          `it for ${dayName} — the app only delivers now (about ${fmtDT(arrivalMs)} ` +
-          `today) — and ask if they'd like it now instead. Do not call ` +
-          `place_in_cart again for a future day.`,
-      };
-    }
+    const futureDay =
+      dl.y * 10000 + dl.mo * 100 + dl.d > td.y * 10000 + td.mo * 100 + td.d;
+    // "before/by/within" is an upper-bound deadline; anything else naming a time
+    // ("at 5", "for 7", "tomorrow") is a target time to schedule for.
+    const isDeadline = /\b(before|by|under|within|no later than|latest|til|till|until)\b/.test(
+      deadlineText.toLowerCase(),
+    );
 
-    if (arrivalMs > deliverBy) {
+    if (deliverBy <= Date.now()) {
+      // Already passed — cannot deliver to the past.
       ctx.rejections = (ctx.rejections ?? 0) + 1;
-      const fmt = (ms: number) =>
-        new Date(ms).toLocaleString('en-US', {
-          timeZone: 'America/Jamaica',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-      const byStr = fmt(deliverBy);
-      const arrStr = fmt(arrivalMs);
-      const passed = deliverBy <= Date.now();
       return {
         placed: false,
         reason: 'deadline_unmet',
-        deliver_by: byStr,
-        earliest_arrival: arrStr,
-        instruction: passed
-          ? `That time (${byStr}) has already passed, so this cannot be ` +
-            `delivered by then. Do NOT place the order. Tell the customer the ` +
-            `time is already gone and ask if they want it as soon as possible ` +
-            `instead (about ${arrStr}). Do not call place_in_cart again unless ` +
-            `they drop or change the deadline.`
-          : `This order CANNOT arrive by ${byStr} — the earliest it can get ` +
-            `there is about ${arrStr}. Do NOT place it. Tell the customer ` +
-            `plainly it cannot make that time, and ask whether they want it as ` +
-            `soon as possible (about ${arrStr}) instead. Do not call ` +
-            `place_in_cart again unless they change or drop the deadline.`,
+        earliest_arrival: fmtTime(arrivalMs),
+        instruction:
+          `That time has already passed. Do NOT place the order. Tell the ` +
+          `customer the time is gone and offer as soon as possible (about ` +
+          `${fmtTime(arrivalMs)}). Do not retry unless they change the time.`,
       };
     }
+
+    if (!futureDay && isDeadline && arrivalMs <= deliverBy) {
+      // Same-day upper bound that ASAP already satisfies → just deliver now.
+    } else if (!futureDay && isDeadline && arrivalMs > deliverBy) {
+      // Same-day deadline ASAP cannot meet → refuse (too fast), don't schedule.
+      ctx.rejections = (ctx.rejections ?? 0) + 1;
+      return {
+        placed: false,
+        reason: 'deadline_unmet',
+        deliver_by: fmtTime(deliverBy),
+        earliest_arrival: fmtTime(arrivalMs),
+        instruction:
+          `This order cannot arrive by ${fmtTime(deliverBy)} — the earliest is ` +
+          `about ${fmtTime(arrivalMs)}. Do NOT place it. Tell the customer it ` +
+          `can't make that time and offer the earliest (${fmtTime(arrivalMs)}). ` +
+          `Do not retry unless they change the time.`,
+      };
+    } else if (futureDay || deliverBy > arrivalMs + 20 * 60_000) {
+      // A future day, or a same-day time comfortably later than the soonest we
+      // could arrive → SCHEDULE the order for that time.
+      scheduledForMs = deliverBy;
+    }
+    // else: a target time within the next ~20 min → just deliver ASAP.
+  }
+
+  // Persist the schedule on the draft so it flows through to the order.
+  if (scheduledForMs != null) {
+    await admin
+      .from('concierge_cart_drafts')
+      .update({ scheduled_for: new Date(scheduledForMs).toISOString() })
+      .eq('id', draftId);
   }
 
   // Coupons are OFFERED, not spent. A coupon is single-use, so applying one
@@ -1243,11 +1243,27 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
       : '',
   ].filter(Boolean).join(' ');
 
-  const baseInstruction = appliedPromo
-    ? 'Done. Tell the customer what you ordered, the total and the ETA, and that their coupon was applied and what it saved.'
+  // A scheduled order must be described by its SLOT, never "in 40 minutes".
+  const scheduledLabel = scheduledForMs != null
+    ? new Date(scheduledForMs).toLocaleString('en-US', {
+        timeZone: 'America/Jamaica',
+        weekday: 'long',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : null;
+  const timingClause = scheduledLabel
+    ? `SCHEDULED for ${scheduledLabel} (do NOT say it arrives in ~40 minutes — it is scheduled for that time)`
+    : 'the ETA';
+
+  const promoClause = appliedPromo
+    ? ` Their coupon was applied and saved the stated amount.`
     : availablePromo
-      ? 'Done. Tell the customer what you ordered, the total and the ETA, then mention in ONE short sentence that they have a coupon worth the stated saving and can say the word to use it. Do NOT apply it yourself.'
-      : 'Done. Tell the customer what you ordered, the total, and the ETA.';
+      ? ` Then mention in ONE short sentence they have a coupon worth the stated saving and can say the word to use it — do NOT apply it yourself.`
+      : '';
+  const baseInstruction =
+    `Done. Tell the customer what you ordered, the total, and ${timingClause}.${promoClause}`;
 
   const result = {
     cart_draft_id: draftId,
@@ -1256,6 +1272,8 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
     line_items: built.line_items,
     restaurant_name: rest?.name,
     eta_minutes: rest?.estimated_delivery_time ?? 40,
+    scheduled_for: scheduledForMs != null ? new Date(scheduledForMs).toISOString() : null,
+    scheduled_label: scheduledLabel,
     applied_promotion: appliedPromo,
     // Not applied — offered. The model mentions it; the customer decides.
     available_promotion: appliedPromo ? null : availablePromo,

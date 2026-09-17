@@ -178,6 +178,18 @@ class ConciergeService {
     }
   }
 
+  /// The scheduled delivery time the concierge set on this draft, if any, so
+  /// checkout can pre-fill its schedule from a "for tomorrow at 5pm" request.
+  Future<DateTime?> draftScheduledFor(String draftId) async {
+    final row = await _client
+        .from('concierge_cart_drafts')
+        .select('scheduled_for')
+        .eq('id', draftId)
+        .maybeSingle();
+    final v = row?['scheduled_for'];
+    return v == null ? null : DateTime.tryParse(v.toString());
+  }
+
   /// The draft's restaurant, needed to detect a cart conflict before applying.
   Future<String?> draftRestaurantId(String draftId) async {
     final row = await _client
