@@ -1078,6 +1078,39 @@ async function placeInCart(ctx: Ctx, a: Record<string, unknown>) {
   if (!Number.isNaN(deliverBy)) {
     const bufferMin = 8; // confirm + pay + hand-off slack
     const arrivalMs = Date.now() + (etaMin + bufferMin) * 60_000;
+    const fmtDT = (ms: number) =>
+      new Date(ms).toLocaleString('en-US', {
+        timeZone: 'America/Jamaica',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+    // Scheduling is NOT supported — the platform delivers ASAP only. A deadline
+    // on a FUTURE calendar day can't be honoured by ordering now (that would
+    // arrive today), so we decline rather than mislabel an immediate order.
+    const dl = jaYMD(deliverBy);
+    const td = jaYMD(Date.now());
+    const dlKey = dl.y * 10000 + dl.mo * 100 + dl.d;
+    const tdKey = td.y * 10000 + td.mo * 100 + td.d;
+    if (dlKey > tdKey) {
+      ctx.rejections = (ctx.rejections ?? 0) + 1;
+      const dayName = new Date(deliverBy).toLocaleDateString('en-US', {
+        timeZone: 'America/Jamaica',
+        weekday: 'long',
+      });
+      return {
+        placed: false,
+        reason: 'scheduling_unsupported',
+        instruction:
+          `QuickDash delivers as soon as possible and CANNOT schedule a future ` +
+          `day or time. Do NOT place this order. Tell the customer you can't set ` +
+          `it for ${dayName} — the app only delivers now (about ${fmtDT(arrivalMs)} ` +
+          `today) — and ask if they'd like it now instead. Do not call ` +
+          `place_in_cart again for a future day.`,
+      };
+    }
+
     if (arrivalMs > deliverBy) {
       ctx.rejections = (ctx.rejections ?? 0) + 1;
       const fmt = (ms: number) =>
