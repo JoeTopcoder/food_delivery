@@ -175,11 +175,11 @@ class Responsive {
   /// Product/menu item card aspect ratio
   static double productCardAspectRatio(BuildContext context) {
     final w = width(context);
-    if (w < 360) return 0.52;
-    if (w < 480) return 0.58;
-    if (w < 600) return 0.62;
-    if (w < 900) return 0.70;
-    return 0.78;
+    if (w < 360) return 0.80;
+    if (w < 480) return 0.84;
+    if (w < 600) return 0.88;
+    if (w < 900) return 0.95;
+    return 1.02;
   }
 
   /// Order card aspect ratio (horizontal)
