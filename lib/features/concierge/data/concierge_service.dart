@@ -187,7 +187,10 @@ class ConciergeService {
         .eq('id', draftId)
         .maybeSingle();
     final v = row?['scheduled_for'];
-    return v == null ? null : DateTime.tryParse(v.toString());
+    if (v == null) return null;
+    // Stored as a UTC instant (e.g. 22:00Z = 5 PM Jamaica). Convert to local so
+    // checkout displays and submits it the same way its manual picker does.
+    return DateTime.tryParse(v.toString())?.toLocal();
   }
 
   /// The draft's restaurant, needed to detect a cart conflict before applying.
