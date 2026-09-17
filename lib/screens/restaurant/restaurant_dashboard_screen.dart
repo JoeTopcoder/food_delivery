@@ -510,7 +510,7 @@ class _RestaurantDashboardScreenState
                               .length;
                           orders.fold<double>(
                             0,
-                            (sum, order) => sum + order.totalAmount,
+                            (sum, order) => sum + order.subtotal,
                           );
 
                           return Row(
@@ -559,7 +559,7 @@ class _RestaurantDashboardScreenState
                       data: (orders) {
                         final totalRevenue = orders.fold<double>(
                           0,
-                          (sum, order) => sum + order.totalAmount,
+                          (sum, order) => sum + order.subtotal,
                         );
                         return Container(
                           width: double.infinity,
@@ -1617,7 +1617,7 @@ class _RecentOrderTile extends StatelessWidget {
             ),
           ),
           Text(
-            '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
+            '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
