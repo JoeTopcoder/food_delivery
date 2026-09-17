@@ -926,6 +926,67 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         ),
 
+        // ── ORDERS (same size as the driver-score card) ──────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: GestureDetector(
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/driver-orders'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFF6C63FF).withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt_long_rounded,
+                      color: Color(0xFF6C63FF),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Orders',
+                            style: TextStyle(
+                              color: Color(0xFF6C63FF),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'Get Orders  ·  Active Orders',
+                            style: TextStyle(
+                              color: Color(0xFF6B7280),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF6C63FF),
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
         // ── QUICK ACTIONS ────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
