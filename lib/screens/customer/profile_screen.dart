@@ -195,10 +195,18 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               Navigator.of(context).pushNamed('/notifications'),
                         ),
                         _MenuItem(
+                          icon: Icons.palette_rounded,
+                          color: const Color(0xFF8B5CF6),
+                          title: 'Themes',
+                          sub: 'Light, dark or system appearance',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/theme'),
+                        ),
+                        _MenuItem(
                           icon: Icons.language_rounded,
                           color: const Color(0xFF64748B),
                           title: context.l10n.languageRegion,
-                          sub: 'Language, theme & display',
+                          sub: 'Language & display',
                           onTap: () =>
                               Navigator.of(context).pushNamed('/settings'),
                         ),
