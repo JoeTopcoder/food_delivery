@@ -149,6 +149,7 @@ import 'screens/admin/admin_shipping_companies_screen.dart';
 import 'screens/admin/admin_package_deliveries_screen.dart';
 import 'modules/rides/screens/admin/admin_rides_screen.dart';
 import 'screens/shared/app_settings_screen.dart';
+import 'screens/shared/theme_screen.dart';
 import 'screens/main_navigation_screen.dart';
 // Car Services module
 import 'modules/car_services/screens/customer/car_services_home_screen.dart';
@@ -1635,6 +1636,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             case '/settings':
               return MaterialPageRoute(
                 builder: (context) => const AppSettingsScreen(),
+              );
+
+            case '/theme':
+              return MaterialPageRoute(
+                builder: (context) => const ThemeScreen(),
               );
 
             // ── Rides – Customer ──────────────────────────────────────────
