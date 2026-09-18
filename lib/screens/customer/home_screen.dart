@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/material.dart';
+import '../../widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
@@ -1565,14 +1566,11 @@ class _CompactRestaurantCard extends StatelessWidget {
                   child:
                       restaurant.imageUrl != null &&
                           restaurant.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          restaurant.imageUrl!,
+                      ? AppCachedImage(
+                          url: restaurant.imageUrl,
                           height: 110,
                           width: cardW,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholder(),
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _placeholder(),
+                          decodeWidth: 360,
                         )
                       : _placeholder(),
                 ),
@@ -2244,13 +2242,7 @@ class _AdPopupDialog extends StatelessWidget {
   Widget _buildAdImage() {
     final url = ad.restaurantImageUrl ?? ad.imageUrl;
     if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _defaultAdBg(),
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : _defaultAdBg(),
-      );
+      return AppCachedImage(url: url, width: double.infinity, decodeWidth: 700);
     }
     return _defaultAdBg();
   }
