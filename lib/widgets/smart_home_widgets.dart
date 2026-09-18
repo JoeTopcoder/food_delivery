@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_cached_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/recommendation_model.dart';
@@ -515,13 +516,11 @@ class _SmartRestaurantCard extends StatelessWidget {
                 top: Radius.circular(12),
               ),
               child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      rec.imageUrl!,
+                  ? AppCachedImage(
+                      url: rec.imageUrl,
                       height: cardWidth * 0.61,
                       width: cardWidth,
-                      fit: BoxFit.cover,
-                      cacheWidth: 360,
-                      errorBuilder: (_, _, _) => _imagePlaceholder(),
+                      decodeWidth: 360,
                     )
                   : _imagePlaceholder(),
             ),
