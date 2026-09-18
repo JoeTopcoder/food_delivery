@@ -849,24 +849,25 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ),
 
-          // Food / Restaurants search toggle (directly below the search bar)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                Responsive.horizontalPadding(context),
-                10,
-                Responsive.horizontalPadding(context),
-                0,
-              ),
-              child: _SearchTypeToggle(
-                selected: _searchType,
-                onChanged: (t) {
-                  if (t == _searchType) return;
-                  setState(() => _searchType = t); // clears the other list
-                },
+          // Food / Restaurants search toggle — only once the customer starts typing
+          if (isSearching)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  Responsive.horizontalPadding(context),
+                  10,
+                  Responsive.horizontalPadding(context),
+                  0,
+                ),
+                child: _SearchTypeToggle(
+                  selected: _searchType,
+                  onChanged: (t) {
+                    if (t == _searchType) return;
+                    setState(() => _searchType = t); // clears the other list
+                  },
+                ),
               ),
             ),
-          ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
