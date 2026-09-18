@@ -272,15 +272,63 @@ Deno.serve(async (request) => {
   const orderId: string = crypto.randomUUID();
 
   try {
-    // ── 1. Fetch restaurant commission rate ─────────────────────────────
+    // ── 1. Fetch restaurant + revalidate it is orderable ────────────────
     const { data: restaurant, error: restErr } = await admin
       .from("restaurants")
-      .select("id, name, commission_rate, latitude, longitude")
+      .select("id, name, commission_rate, latitude, longitude, is_open, is_verified")
       .eq("id", restaurantId)
       .single();
 
     if (restErr || !restaurant) {
       return json({ error: "Restaurant not found" }, 404);
+    }
+
+    // Server-authoritative availability: an unverified store is never orderable;
+    // a closed store is only orderable for a SCHEDULED order (it may be open by
+    // the slot). This is re-checked at order time so a store disabled while the
+    // customer was browsing cannot receive an order.
+    const scheduledForBody = body.scheduled_for as string | undefined;
+    const restaurantOrderable = restaurant.is_verified === true &&
+      (restaurant.is_open === true || (!!scheduledForBody));
+    if (!restaurantOrderable) {
+      return json({
+        error: `${restaurant.name ?? "This store"} isn't accepting orders right now.`,
+        code: "restaurant_unavailable",
+      }, 409);
+    }
+
+    // ── 1b. Revalidate every item belongs to this restaurant & is available ─
+    // The client-sent prices/ids are not trusted for availability: an item
+    // disabled after the cart was built, or an id from another restaurant, is
+    // rejected here so no order is created for something non-orderable.
+    {
+      const itemIds = (items as Record<string, unknown>[])
+        .map((i) => i.menu_item_id as string)
+        .filter((id) => typeof id === "string" && id.length > 0);
+      if (itemIds.length > 0) {
+        const { data: menuRows } = await admin
+          .from("menus")
+          .select("id, is_available, restaurant_id")
+          .in("id", itemIds);
+        const byId = new Map(
+          (menuRows ?? []).map((m: Record<string, unknown>) => [m.id, m]),
+        );
+        const bad: string[] = [];
+        for (const i of items as Record<string, unknown>[]) {
+          const m = byId.get(i.menu_item_id as string);
+          if (!m || m.restaurant_id !== restaurantId || m.is_available !== true) {
+            bad.push((i.item_name as string) ?? String(i.menu_item_id));
+          }
+        }
+        if (bad.length > 0) {
+          return json({
+            error:
+              `These items are no longer available: ${bad.join(", ")}. ` +
+              `Please review your cart.`,
+            code: "items_unavailable",
+          }, 409);
+        }
+      }
     }
 
     const defaultCommission = await getConfig("default_commission_rate", 0.15);
