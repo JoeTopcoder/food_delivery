@@ -66,10 +66,11 @@ class RestaurantCard extends StatelessWidget {
                         )
                       : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
-                // Rating badge
+                // Rating badge (moved to bottom-left so the favorite button
+                // can sit at the top-right)
                 Positioned(
-                  top: spacing * 0.75,
-                  right: spacing * 0.75,
+                  bottom: spacing * 0.75,
+                  left: spacing * 0.75,
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: spacing * 0.5,
@@ -132,9 +133,9 @@ class RestaurantCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Favorite (save) button
+                // Favorite (save) button — top-right
                 Positioned(
-                  bottom: spacing * 0.75,
+                  top: spacing * 0.75,
                   right: spacing * 0.75,
                   child: FavoriteHeartButton(restaurantId: restaurant.id),
                 ),
