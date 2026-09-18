@@ -29,7 +29,7 @@ import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
-import 'meals_by_category_screen.dart';
+import 'restaurants_by_category_screen.dart';
 import 'grocery_screen.dart';
 import '../../core/utils/responsive.dart';
 import '../../features/coverage/coverage_provider.dart';
@@ -952,7 +952,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => MealsByCategoryScreen(
+                                  builder: (_) => RestaurantsByCategoryScreen(
                                     categoryName: cat['name']!,
                                     categoryEmoji: cat['emoji'],
                                   ),

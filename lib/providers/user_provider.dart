@@ -65,6 +65,15 @@ final mealsByCategoryProvider = FutureProvider.family
       return service.getMealsByCategory(category);
     });
 
+// Restaurants that serve a given menu category — powers the browse-by-category
+// restaurant list (a tap shows matching restaurants, not individual meals).
+final restaurantsByCategoryProvider = FutureProvider.family
+    .autoDispose<List<Restaurant>, String>((ref, category) async {
+      ref.keepAlive();
+      final restaurantService = ref.watch(restaurantServiceProvider);
+      return restaurantService.getRestaurantsByCategory(category);
+    });
+
 final orderServiceProvider = Provider<OrderService>((ref) {
   return OrderService(SupabaseConfig.client);
 });
