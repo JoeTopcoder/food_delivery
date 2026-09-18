@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   // The order + store, incl. details the driver's pop-up card shows.
   const { data: order } = await admin
     .from("orders")
-    .select("id, restaurant_id, total_amount, delivery_address")
+    .select("id, restaurant_id, total_amount, delivery_fee, driver_tip, delivery_address")
     .eq("id", orderId)
     .maybeSingle();
   if (!order?.restaurant_id) return json({ error: "order/store not found" }, 404);
@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
             store_name: String(store?.name ?? "Store"),
             address: String(order.delivery_address ?? ""),
             total: String(order.total_amount ?? ""),
+            delivery_fee: String(order.delivery_fee ?? "0"),
+            tip: String(order.driver_tip ?? "0"),
             eta: String(store?.estimated_delivery_time ?? "40"),
             distance_km: d.km.toFixed(1),
           },

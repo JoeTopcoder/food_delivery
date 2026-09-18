@@ -29,7 +29,8 @@ class DriverOrderAlert {
         orderId: orderId,
         storeName: (data['store_name'] ?? title).toString(),
         address: (data['address'] ?? '').toString(),
-        total: double.tryParse((data['total'] ?? '').toString()),
+        deliveryFee: double.tryParse((data['delivery_fee'] ?? '').toString()) ?? 0,
+        tip: double.tryParse((data['tip'] ?? '').toString()) ?? 0,
         etaMin: int.tryParse((data['eta'] ?? '').toString()),
         distanceKm: double.tryParse((data['distance_km'] ?? '').toString()),
         onClose: _remove,
@@ -49,7 +50,8 @@ class _OrderAlertCard extends ConsumerStatefulWidget {
   final String orderId;
   final String storeName;
   final String address;
-  final double? total;
+  final double deliveryFee;
+  final double tip;
   final int? etaMin;
   final double? distanceKm;
   final VoidCallback onClose;
@@ -57,7 +59,8 @@ class _OrderAlertCard extends ConsumerStatefulWidget {
     required this.orderId,
     required this.storeName,
     required this.address,
-    required this.total,
+    required this.deliveryFee,
+    required this.tip,
     required this.etaMin,
     required this.distanceKm,
     required this.onClose,
@@ -121,6 +124,10 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
     super.dispose();
   }
 
+  /// Driver take-home: 80% of the delivery fee plus 100% of tips.
+  double get _earning =>
+      widget.deliveryFee * AppConstants.driverPayPercent + widget.tip;
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -171,25 +178,36 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
                             color: Color(0xFF22C55E), size: 22),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'New Order Available',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'New Order Available',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              'Your earning (80% of delivery + tips)',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 10.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (widget.total != null)
-                        Text(
-                          '$sym${widget.total!.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: Color(0xFF22C55E),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                          ),
+                      Text(
+                        '$sym${_earning.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Color(0xFF22C55E),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 20,
                         ),
+                      ),
                     ],
                   ),
                 ),
