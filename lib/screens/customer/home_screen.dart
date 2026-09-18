@@ -1579,7 +1579,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                           : _placeholder(),
                     ),
                     Positioned(
-                      bottom: 6,
+                      top: 6,
                       right: 6,
                       child: FavoriteHeartButton(
                         restaurantId: restaurant.id,

@@ -527,7 +527,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                       : _imagePlaceholder(),
                 ),
                 Positioned(
-                  bottom: 8,
+                  top: 8,
                   right: 8,
                   child: FavoriteHeartButton(
                     restaurantId: rec.restaurantId,
