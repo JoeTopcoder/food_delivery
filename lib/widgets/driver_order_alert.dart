@@ -1,11 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/notification_service.dart';
+import '../providers/driver_provider.dart';
+import '../providers/auth_provider.dart';
+import '../config/app_constants.dart';
+import '../utils/friendly_error.dart';
+import '../utils/app_feedback_widgets.dart';
 
-/// Uber-Eats-style in-app alert shown to a driver when a new order becomes
-/// available — pops in over whatever screen they're on (dashboard included),
-/// stays ~8 seconds, then slides away. If missed, the order is still in the
-/// Orders screen (until another rider accepts it).
+/// Uber-Eats-style order card that pops in over whatever screen the driver is
+/// on (dashboard included) when a new order is available. Stays ~8 seconds with
+/// Accept / Decline; if missed, the order is still in the Orders screen until
+/// another rider accepts it.
 class DriverOrderAlert {
   static OverlayEntry? _entry;
 
@@ -13,24 +19,20 @@ class DriverOrderAlert {
     required String orderId,
     required String title,
     required String body,
+    Map<String, dynamic> data = const {},
   }) {
     final overlay = NotificationService.navigatorKey?.currentState?.overlay;
-    if (overlay == null) return;
-
-    // Only one alert at a time — replace any existing one.
+    if (overlay == null || orderId.isEmpty) return;
     _remove();
-
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (context) => _OrderAlertCard(
-        title: title,
-        body: body,
-        onView: () {
-          _remove();
-          NotificationService.navigatorKey?.currentState
-              ?.pushNamed('/driver-orders');
-        },
-        onDismiss: _remove,
+    final entry = OverlayEntry(
+      builder: (_) => _OrderAlertCard(
+        orderId: orderId,
+        storeName: (data['store_name'] ?? title).toString(),
+        address: (data['address'] ?? '').toString(),
+        total: double.tryParse((data['total'] ?? '').toString()),
+        etaMin: int.tryParse((data['eta'] ?? '').toString()),
+        distanceKm: double.tryParse((data['distance_km'] ?? '').toString()),
+        onClose: _remove,
       ),
     );
     _entry = entry;
@@ -43,26 +45,33 @@ class DriverOrderAlert {
   }
 }
 
-class _OrderAlertCard extends StatefulWidget {
-  final String title;
-  final String body;
-  final VoidCallback onView;
-  final VoidCallback onDismiss;
+class _OrderAlertCard extends ConsumerStatefulWidget {
+  final String orderId;
+  final String storeName;
+  final String address;
+  final double? total;
+  final int? etaMin;
+  final double? distanceKm;
+  final VoidCallback onClose;
   const _OrderAlertCard({
-    required this.title,
-    required this.body,
-    required this.onView,
-    required this.onDismiss,
+    required this.orderId,
+    required this.storeName,
+    required this.address,
+    required this.total,
+    required this.etaMin,
+    required this.distanceKm,
+    required this.onClose,
   });
 
   @override
-  State<_OrderAlertCard> createState() => _OrderAlertCardState();
+  ConsumerState<_OrderAlertCard> createState() => _OrderAlertCardState();
 }
 
-class _OrderAlertCardState extends State<_OrderAlertCard>
+class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   Timer? _timer;
+  bool _accepting = false;
 
   @override
   void initState() {
@@ -71,16 +80,38 @@ class _OrderAlertCardState extends State<_OrderAlertCard>
       vsync: this,
       duration: const Duration(milliseconds: 260),
     )..forward();
-    // Auto-dismiss after 8 seconds.
     _timer = Timer(const Duration(seconds: 8), _dismiss);
   }
 
   Future<void> _dismiss() async {
     _timer?.cancel();
-    if (mounted) {
-      await _c.reverse();
+    if (mounted) await _c.reverse();
+    widget.onClose();
+  }
+
+  Future<void> _accept() async {
+    if (_accepting) return;
+    setState(() => _accepting = true);
+    _timer?.cancel();
+    final nav = NotificationService.navigatorKey?.currentState;
+    try {
+      final uid = ref.read(currentUserIdProvider);
+      final driver = uid == null
+          ? null
+          : ref.read(driverProfileProvider(uid)).valueOrNull;
+      if (driver == null) throw Exception('Driver profile not loaded');
+      await ref.read(driverServiceProvider).acceptDelivery(widget.orderId, driver.id);
+      ref.invalidate(availableOrdersProvider);
+      ref.invalidate(activeDeliveriesProvider(driver.id));
+      widget.onClose();
+      // Jump to the Active Orders tab.
+      nav?.pushNamed('/driver-orders', arguments: 1);
+    } catch (e) {
+      if (mounted) setState(() => _accepting = false);
+      final ctx = nav?.context;
+      // ignore: use_build_context_synchronously
+      if (ctx != null) AppSnackbar.error(ctx, friendlyError(e));
     }
-    widget.onDismiss();
   }
 
   @override
@@ -93,6 +124,7 @@ class _OrderAlertCardState extends State<_OrderAlertCard>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final sym = AppConstants.currencySymbol;
     return Positioned(
       top: media.padding.top + 8,
       left: 12,
@@ -104,92 +136,178 @@ class _OrderAlertCardState extends State<_OrderAlertCard>
         ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack)),
         child: Material(
           color: Colors.transparent,
-          child: GestureDetector(
-            onTap: widget.onView,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E2030),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.5),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E2030),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.55),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.delivery_dining_rounded,
-                      color: Color(0xFF22C55E),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header: New order + price + eta/distance
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: const Icon(Icons.delivery_dining_rounded,
+                            color: Color(0xFF22C55E), size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'New Order Available',
                           style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
                           ),
                         ),
+                      ),
+                      if (widget.total != null)
+                        Text(
+                          '$sym${widget.total!.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFF22C55E),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Route: store -> address
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _row(Icons.store_rounded, const Color(0xFF22C55E),
+                          widget.storeName),
+                      if (widget.address.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _row(Icons.location_on_rounded,
+                            const Color(0xFFEF4444), widget.address),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: widget.onView,
-                    style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (widget.etaMin != null)
+                            _chip(Icons.schedule_rounded,
+                                '${widget.etaMin} min'),
+                          if (widget.distanceKm != null) ...[
+                            const SizedBox(width: 8),
+                            _chip(Icons.near_me_rounded,
+                                '${widget.distanceKm!.toStringAsFixed(1)} km away'),
+                          ],
+                        ],
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'View',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                // Actions
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _accepting ? null : _dismiss,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFEF4444),
+                            side: const BorderSide(color: Color(0xFF3A2030)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Decline',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: _accepting ? null : _accept,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF22C55E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _accepting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Accept',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w800, fontSize: 16)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _row(IconData icon, Color color, String text) => Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+        ],
+      );
+
+  Widget _chip(IconData icon, String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2D3E),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: Colors.grey[400]),
+            const SizedBox(width: 4),
+            Text(text,
+                style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+          ],
+        ),
+      );
 }
