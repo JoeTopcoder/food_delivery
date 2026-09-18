@@ -81,15 +81,20 @@ class MenuService {
     try {
       AppLogger.info('Searching menu items: $query');
 
+      // Inner-join restaurants so items from a closed/unverified restaurant are
+      // excluded at the DB layer — a customer must never see an item they can't
+      // actually order.
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
-          .select()
+          .select('*, restaurants!inner(is_open, is_verified)')
           .or(
             'name.ilike.%${_sanitizeQuery(query)}%,'
             'description.ilike.%${_sanitizeQuery(query)}%,'
             'category.ilike.%${_sanitizeQuery(query)}%',
           )
-          .eq('is_available', true);
+          .eq('is_available', true)
+          .eq('restaurants.is_open', true)
+          .eq('restaurants.is_verified', true);
 
       final items = (response as List)
           .map((item) => MenuItem.fromJson(item))
