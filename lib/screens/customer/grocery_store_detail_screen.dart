@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/app_cached_image.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
@@ -95,12 +97,10 @@ class _GroceryStoreDetailScreenState
             background:
                 widget.store.imageUrl != null &&
                     widget.store.imageUrl!.isNotEmpty
-                ? Image.network(
-                    widget.store.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _storePlaceholder(),
-                    loadingBuilder: (_, child, progress) =>
-                        progress == null ? child : _storePlaceholder(),
+                ? AppCachedImage(
+                    url: widget.store.imageUrl,
+                    width: double.infinity,
+                    decodeWidth: 800,
                   )
                 : _storePlaceholder(),
           ),
@@ -361,15 +361,15 @@ class _ProductCard extends ConsumerWidget {
                     product.imageUrl != null && product.imageUrl!.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.all(10),
-                            child: Image.network(
-                              product.imageUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: product.imageUrl!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  _productPlaceholder(),
-                              loadingBuilder: (_, child, progress) =>
-                                  progress == null
-                                  ? child
-                                  : _productPlaceholder(),
+                              memCacheWidth: (MediaQuery.of(context)
+                                          .devicePixelRatio *
+                                      220)
+                                  .round(),
+                              errorWidget: (_, __, ___) => _productPlaceholder(),
+                              placeholder: (_, __) => _productPlaceholder(),
                             ),
                           )
                         : _productPlaceholder(),
