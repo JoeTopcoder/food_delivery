@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../config/supabase_config.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
+import '../utils/driver_name_format.dart';
 
 // Driver Service Provider
 final driverServiceProvider = Provider<DriverService>((ref) {
@@ -34,6 +35,25 @@ final driverPublicInfoProvider = FutureProvider.autoDispose
         'name': user['name'] as String?,
         'profileImageUrl': user['profile_image_url'] as String?,
       };
+    });
+
+/// Abbreviated customer name for a driver-facing order (e.g. "J Scott").
+/// Calls the SECURITY DEFINER `get_order_customer_name` RPC, which only
+/// returns the name to a driver who can actually see that order and returns
+/// 'Customer' otherwise. The full name never appears in the driver UI — it is
+/// abbreviated on the client via [formatDriverCustomerName].
+final driverCustomerNameProvider = FutureProvider.autoDispose
+    .family<String, String>((ref, orderId) async {
+      try {
+        final name = await SupabaseConfig.client.rpc(
+          'get_order_customer_name',
+          params: {'p_order_id': orderId},
+        );
+        return formatDriverCustomerName(name as String?);
+      } catch (e) {
+        AppLogger.error('Error fetching driver customer name: $e');
+        return 'Customer';
+      }
     });
 
 // Available Orders Provider (takes driverId + driver location for 2km proximity filter)

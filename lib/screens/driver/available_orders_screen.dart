@@ -719,6 +719,12 @@ class _OrderCard extends ConsumerWidget {
                   icon: Icons.location_on_rounded,
                   iconColor: const Color(0xFFEF4444),
                   label: order.deliveryAddress ?? 'Drop-off',
+                  subtitle: ref
+                      .watch(driverCustomerNameProvider(order.id))
+                      .maybeWhen(
+                        data: (n) => 'For $n',
+                        orElse: () => null,
+                      ),
                   onNavigate: dropLat != null && dropLng != null
                       ? () => _openNavigation(dropLat, dropLng)
                       : null,
