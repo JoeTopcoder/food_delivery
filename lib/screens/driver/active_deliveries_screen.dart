@@ -1057,6 +1057,24 @@ class _DeliveryMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A FlutterMap laid out while this tab is offstage in the Orders TabBarView
+    // paints with null geometry and crashes the whole viewport. TabBarView mutes
+    // tickers for offstage tabs, so skip the live map until this tab is active
+    // and show a light placeholder in the meantime.
+    // ignore: deprecated_member_use
+    if (!TickerMode.of(context)) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        child: Container(
+          height: 180,
+          color: const Color(0xFF12141C),
+          child: const Center(
+            child: Icon(Icons.map_rounded, color: Color(0xFF2A2D3E), size: 40),
+          ),
+        ),
+      );
+    }
+
     final markers = <Marker>[];
     final allPoints = <LatLng>[];
 
