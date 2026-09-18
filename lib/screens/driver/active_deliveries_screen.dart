@@ -475,16 +475,65 @@ class _ActiveDeliveriesScreenState
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E2030),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Mark as Delivered?',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        title: Text(
+          delivery.paymentMethod == 'cash'
+              ? 'Cash collected?'
+              : 'Mark as Delivered?',
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700),
         ),
-        content: Text(
-          'Confirm delivery of Order #${delivery.id.substring(0, 8).toUpperCase()}?',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
+        content: delivery.paymentMethod == 'cash'
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This is a Cash on Delivery order. Did you collect the cash from the customer?',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Amount collected',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFF22C55E),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 26,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                'Confirm delivery of Order #${delivery.id.substring(0, 8).toUpperCase()}?',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -538,7 +587,11 @@ class _ActiveDeliveriesScreenState
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text('Yes, Delivered'),
+            child: Text(
+              delivery.paymentMethod == 'cash'
+                  ? 'Yes, collected ${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}'
+                  : 'Yes, Delivered',
+            ),
           ),
         ],
       ),
