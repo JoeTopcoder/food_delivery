@@ -814,71 +814,18 @@ class _DeliveryCard extends ConsumerWidget {
             ),
           ),
 
-          // ── Pay restaurant (non-partner food orders) ────────────
-          if ((restaurant?.storeType ?? 'food') != 'grocery' &&
-              delivery.subtotal > 0)
+          // ── Cash: pay store + collect COD, side by side ─────────
+          if (delivery.paymentMethod == 'cash' ||
+              ((restaurant?.storeType ?? 'food') != 'grocery' &&
+                  delivery.subtotal > 0))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.payments_rounded,
-                      color: Color(0xFFF59E0B),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Pay restaurant in cash',
-                            style: TextStyle(
-                              color: Color(0xFFF59E0B),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            'Comes out of your float',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${AppConstants.currencySymbol}${delivery.subtotal.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ],
-                ),
+              child: _DeliveryCashRow(
+                delivery: delivery,
+                showPayStore:
+                    (restaurant?.storeType ?? 'food') != 'grocery' &&
+                    delivery.subtotal > 0,
               ),
-            ),
-
-          // ── Collect from customer (Cash on Delivery) ────────────
-          if (delivery.paymentMethod == 'cash')
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: _CodCollectCallout(delivery: delivery),
             ),
 
           // ── Countdown timer ─────────────────────────────────────
@@ -1417,125 +1364,182 @@ class _PulsingDot extends StatelessWidget {
   }
 }
 
-/// COD cash-to-collect callout with a tappable breakdown of what makes up the
-/// total the driver takes at the door (items, tax, service fee, delivery, tip).
-class _CodCollectCallout extends StatefulWidget {
+/// Compact side-by-side cash cards for an active delivery: "Pay store" (items
+/// subtotal, from the driver's float) and "Collect (COD)" (order total to take
+/// at the door). The COD card is tappable to reveal a full-width breakdown.
+class _DeliveryCashRow extends StatefulWidget {
   final Order delivery;
-  const _CodCollectCallout({required this.delivery});
+  final bool showPayStore;
+  const _DeliveryCashRow({required this.delivery, required this.showPayStore});
 
   @override
-  State<_CodCollectCallout> createState() => _CodCollectCalloutState();
+  State<_DeliveryCashRow> createState() => _DeliveryCashRowState();
 }
 
-class _CodCollectCalloutState extends State<_CodCollectCallout> {
+class _DeliveryCashRowState extends State<_DeliveryCashRow> {
   bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
+    const amber = Color(0xFFF59E0B);
     const green = Color(0xFF22C55E);
     final sym = AppConstants.currencySymbol;
     final o = widget.delivery;
-    final items = o.subtotal;
-    final tax = o.taxAmount ?? 0;
-    final delivery = o.deliveryFee;
-    final tip = o.driverTip ?? 0;
-    final discount = o.discount ?? 0;
-    // Service/platform fee isn't stored on its own — it's the residual the
-    // customer paid on top of items, tax and delivery (net of any discount).
-    final serviceFee =
-        (o.totalAmount - items - tax - delivery - tip + discount);
-    final svc = serviceFee > 0.005 ? serviceFee : 0.0;
+    final cod = o.paymentMethod == 'cash';
 
-    return GestureDetector(
-      onTap: () => setState(() => _expanded = !_expanded),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: green.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: green.withValues(alpha: 0.5)),
-        ),
-        child: Column(
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.account_balance_wallet_rounded,
-                    color: green, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            if (widget.showPayStore)
+              Expanded(
+                child: _card(
+                  color: amber,
+                  icon: Icons.storefront_rounded,
+                  label: 'Pay',
+                  amount: o.subtotal,
+                  sym: sym,
+                ),
+              ),
+            if (widget.showPayStore && cod) const SizedBox(width: 10),
+            if (cod)
+              Expanded(
+                child: _card(
+                  color: green,
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'Collect',
+                  amount: o.totalAmount,
+                  sym: sym,
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  expanded: _expanded,
+                ),
+              ),
+          ],
+        ),
+        if (cod && _expanded) ...[
+          const SizedBox(height: 8),
+          _breakdown(sym, green),
+        ],
+      ],
+    );
+  }
+
+  Widget _card({
+    required Color color,
+    required IconData icon,
+    required String label,
+    required double amount,
+    required String sym,
+    VoidCallback? onTap,
+    bool expanded = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      const Text(
-                        'Collect from customer (COD)',
-                        style: TextStyle(
-                          color: green,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10.5,
+                          ),
                         ),
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            _expanded ? 'Tap to hide breakdown' : 'Tap for breakdown',
-                            style: TextStyle(color: Colors.grey[400], fontSize: 11),
-                          ),
-                          Icon(
-                            _expanded
-                                ? Icons.expand_less_rounded
-                                : Icons.expand_more_rounded,
-                            size: 16,
-                            color: Colors.grey[400],
-                          ),
-                        ],
-                      ),
+                      if (onTap != null)
+                        Icon(
+                          expanded
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 14,
+                          color: color,
+                        ),
                     ],
                   ),
-                ),
-                Text(
-                  '$sym${o.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: green,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
+                  Text(
+                    '$sym${amount.toStringAsFixed(2)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            if (_expanded) ...[
-              const SizedBox(height: 10),
-              Divider(color: green.withValues(alpha: 0.25), height: 1),
-              const SizedBox(height: 8),
-              _line('Meal (items)', items, sym),
-              if (tax > 0.005) _line('Tax (GCT)', tax, sym),
-              if (svc > 0) _line('Service fee', svc, sym),
-              _line('Delivery fee', delivery, sym),
-              if (tip > 0.005) _line('Tip', tip, sym),
-              if (discount > 0.005) _line('Discount', -discount, sym),
-              const SizedBox(height: 6),
-              Divider(color: green.withValues(alpha: 0.25), height: 1),
-              const SizedBox(height: 6),
-              _line('Total to collect', o.totalAmount, sym, bold: true),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _line(String label, double amount, String sym, {bool bold = false}) {
-    final style = TextStyle(
-      color: bold ? const Color(0xFF22C55E) : Colors.grey[300],
-      fontSize: bold ? 13 : 12.5,
-      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _breakdown(String sym, Color green) {
+    final o = widget.delivery;
+    final items = o.subtotal;
+    final tax = o.taxAmount ?? 0;
+    final delivery = o.deliveryFee;
+    final tip = o.driverTip ?? 0;
+    final discount = o.discount ?? 0;
+    final svcRaw = o.totalAmount - items - tax - delivery - tip + discount;
+    final svc = svcRaw > 0.005 ? svcRaw : 0.0;
+
+    Widget line(String l, double a, {bool bold = false}) {
+      final s = TextStyle(
+        color: bold ? green : Colors.grey[300],
+        fontSize: bold ? 12.5 : 12,
+        fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(l, style: s),
+            Text('$sym${a.toStringAsFixed(2)}', style: s),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: green.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: green.withValues(alpha: 0.35)),
+      ),
+      child: Column(
         children: [
-          Text(label, style: style),
-          Text('$sym${amount.toStringAsFixed(2)}', style: style),
+          line('Meal (items)', items),
+          if (tax > 0.005) line('Tax (GCT)', tax),
+          if (svc > 0) line('Service fee', svc),
+          line('Delivery fee', delivery),
+          if (tip > 0.005) line('Tip', tip),
+          if (discount > 0.005) line('Discount', -discount),
+          const SizedBox(height: 4),
+          Divider(color: green.withValues(alpha: 0.25), height: 8),
+          line('Total to collect', o.totalAmount, bold: true),
         ],
       ),
     );
