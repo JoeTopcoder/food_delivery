@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
 import 'app_cached_image.dart';
 import '../core/utils/responsive.dart';
-import 'package:food_driver/config/app_constants.dart';
+import '../providers/auth_provider.dart';
+import '../providers/premium_providers.dart';
+import '../utils/app_feedback_widgets.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
@@ -132,6 +135,12 @@ class RestaurantCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Favorite (save) button
+                Positioned(
+                  bottom: spacing * 0.75,
+                  right: spacing * 0.75,
+                  child: _FavoriteHeart(restaurantId: restaurant.id),
+                ),
               ],
             ),
             // Info section
@@ -207,30 +216,6 @@ class RestaurantCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: spacing * 0.75),
-                      Icon(
-                        Icons.delivery_dining_rounded,
-                        size: Responsive.isSmallPhone(context) ? 13 : 15,
-                        color: Colors.grey[700],
-                      ),
-                      SizedBox(width: spacing * 0.2),
-                      Flexible(
-                        child: Text(
-                          () {
-                            final fee = restaurant.deliveryFee;
-                            if (fee == null) return 'Delivery';
-                            if (fee <= 0) return 'Free delivery';
-                            return '${AppConstants.currencySymbol}${fee.toStringAsFixed(2)} delivery';
-                          }(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.smallText(context),
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                   if (distanceLabel != null) ...[
@@ -258,6 +243,82 @@ class RestaurantCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Heart button overlaid on the restaurant card image. Tapping toggles the
+/// restaurant in the customer's favourites with an optimistic update.
+class _FavoriteHeart extends ConsumerStatefulWidget {
+  final String restaurantId;
+  const _FavoriteHeart({required this.restaurantId});
+
+  @override
+  ConsumerState<_FavoriteHeart> createState() => _FavoriteHeartState();
+}
+
+class _FavoriteHeartState extends ConsumerState<_FavoriteHeart> {
+  bool? _override;
+  bool _busy = false;
+
+  Future<void> _toggle() async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null || _busy) return;
+    final isFavNow = _override ??
+        (ref.read(isFavoriteProvider((userId, widget.restaurantId))).valueOrNull ??
+            false);
+    setState(() {
+      _override = !isFavNow;
+      _busy = true;
+    });
+    try {
+      await ref
+          .read(favoritesServiceProvider)
+          .toggleFavorite(userId, widget.restaurantId);
+      ref.invalidate(isFavoriteProvider((userId, widget.restaurantId)));
+      ref.invalidate(favoriteRestaurantsProvider(userId));
+    } catch (_) {
+      if (mounted) setState(() => _override = isFavNow);
+      if (mounted) {
+        AppSnackbar.error(context, 'Could not update favourite. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = ref.watch(currentUserIdProvider);
+    final isFav = _override ??
+        (userId == null
+            ? false
+            : ref
+                    .watch(isFavoriteProvider((userId, widget.restaurantId)))
+                    .valueOrNull ??
+                false);
+    return GestureDetector(
+      onTap: _toggle,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          size: 19,
+          color: isFav ? AppTheme.accentColor : Colors.grey[700],
         ),
       ),
     );
