@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../widgets/app_cached_image.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
@@ -575,32 +576,10 @@ class _RestaurantSearchCard extends StatelessWidget {
                 topLeft: Radius.circular(14),
                 bottomLeft: Radius.circular(14),
               ),
-              child: SizedBox(
+              child: AppCachedImage(
+                url: restaurant.imageUrl,
                 width: 110,
                 height: 100,
-                child:
-                    restaurant.imageUrl != null &&
-                        restaurant.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        restaurant.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          child: Icon(
-                            Icons.restaurant_rounded,
-                            size: 32,
-                            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        child: Icon(
-                          Icons.restaurant_rounded,
-                          size: 32,
-                          color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                        ),
-                      ),
               ),
             ),
             // Info
@@ -872,17 +851,9 @@ class _MenuItemCard extends StatelessWidget {
               topLeft: Radius.circular(14),
               bottomLeft: Radius.circular(14),
             ),
-            child: SizedBox(
-              width: 100,
-              height: 90,
-              child: imageUrl != null && imageUrl!.isNotEmpty
-                  ? Image.network(
-                      imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _placeholder(),
-                    )
-                  : _placeholder(),
-            ),
+            child: imageUrl != null && imageUrl!.isNotEmpty
+                ? AppCachedImage(url: imageUrl, width: 100, height: 90)
+                : SizedBox(width: 100, height: 90, child: _placeholder()),
           ),
           Expanded(
             child: Padding(

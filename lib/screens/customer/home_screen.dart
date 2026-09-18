@@ -2768,6 +2768,9 @@ class _FoodSearchResultCard extends ConsumerWidget {
                         ? CachedNetworkImage(
                             imageUrl: item.imageUrl!,
                             fit: BoxFit.cover,
+                            memCacheWidth:
+                                (MediaQuery.of(context).devicePixelRatio * 68)
+                                    .round(),
                             errorWidget: (_, __, ___) => _imgFallback(),
                             placeholder: (_, __) => _imgFallback(),
                           )

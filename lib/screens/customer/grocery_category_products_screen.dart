@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/menu_model.dart';
@@ -212,12 +213,14 @@ class _CategoryProductCard extends ConsumerWidget {
                     product.imageUrl != null && product.imageUrl!.isNotEmpty
                         ? Padding(
                             padding: const EdgeInsets.all(10),
-                            child: Image.network(
-                              product.imageUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: product.imageUrl!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => _placeholder(),
-                              loadingBuilder: (_, child, progress) =>
-                                  progress == null ? child : _placeholder(),
+                              memCacheWidth:
+                                  (MediaQuery.of(context).devicePixelRatio * 220)
+                                      .round(),
+                              errorWidget: (_, __, ___) => _placeholder(),
+                              placeholder: (_, __) => _placeholder(),
                             ),
                           )
                         : _placeholder(),

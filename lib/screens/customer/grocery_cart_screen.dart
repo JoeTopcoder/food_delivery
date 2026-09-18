@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
 import '../../models/menu_model.dart';
@@ -655,13 +656,7 @@ class _GroceryCartItemWidget extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: imageUrl != null && imageUrl!.isNotEmpty
-                ? Image.network(
-                    imageUrl!,
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _imgPlaceholder(),
-                  )
+                ? AppCachedImage(url: imageUrl, width: 64, height: 64)
                 : _imgPlaceholder(),
           ),
           const SizedBox(width: 12),
@@ -916,11 +911,7 @@ class _SuggestionCard extends ConsumerWidget {
                     top: Radius.circular(11),
                   ),
                   child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          item.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _placeholder(),
-                        )
+                      ? AppCachedImage(url: item.imageUrl, decodeWidth: 200)
                       : _placeholder(),
                 ),
                 if (item.weight != null)
