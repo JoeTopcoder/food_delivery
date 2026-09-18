@@ -85,7 +85,9 @@ class MenuService {
           .from(AppConstants.tableMenus)
           .select()
           .or(
-            'name.ilike.%${_sanitizeQuery(query)}%,description.ilike.%${_sanitizeQuery(query)}%',
+            'name.ilike.%${_sanitizeQuery(query)}%,'
+            'description.ilike.%${_sanitizeQuery(query)}%,'
+            'category.ilike.%${_sanitizeQuery(query)}%',
           )
           .eq('is_available', true);
 

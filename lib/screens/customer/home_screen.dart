@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
+import '../../models/menu_model.dart';
 import '../../models/restaurant_ad_model.dart';
 import '../../models/user_event_model.dart';
 import '../../providers/user_provider.dart';
@@ -21,6 +22,7 @@ import '../../providers/feature_providers.dart';
 import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
+import '../../widgets/menu_item_actions.dart';
 import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
@@ -83,8 +85,12 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
+/// What the Home search bar looks through: individual food items, or restaurants.
+enum HomeSearchType { food, restaurants }
+
 class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   String _searchQuery = '';
+  HomeSearchType _searchType = HomeSearchType.food; // Food is the default
   bool _trackedOpen = false;
   bool _couponPopupShown = false;
   bool _adPopupShown = false;
@@ -533,8 +539,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         'Tap to set delivery address';
 
     final isSearching = _searchQuery.isNotEmpty;
-    final searchAsync = isSearching
+    // Only the active search type hits the database — switching the toggle
+    // swaps which provider is watched, so the other result list is dropped.
+    final restaurantSearchAsync =
+        (isSearching && _searchType == HomeSearchType.restaurants)
         ? ref.watch(restaurantSearchProvider(_searchQuery))
+        : null;
+    final foodSearchAsync =
+        (isSearching && _searchType == HomeSearchType.food)
+        ? ref.watch(menuSearchProvider(_searchQuery))
         : null;
 
     // Birthday banner replaces the regular promo banners in that slot —
@@ -819,7 +832,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 horizontal: Responsive.horizontalPadding(context),
               ),
               child: search_bar.CustomSearchBar(
-                hintText: 'Search for restaurant or food',
+                hintText: _searchType == HomeSearchType.food
+                    ? 'Search for food'
+                    : 'Search for a restaurant',
                 onChanged: (q) {
                   setState(() => _searchQuery = q);
                   if (q.length >= 3) {
@@ -833,10 +848,33 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ),
 
+          // Food / Restaurants search toggle (directly below the search bar)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                10,
+                Responsive.horizontalPadding(context),
+                0,
+              ),
+              child: _SearchTypeToggle(
+                selected: _searchType,
+                onChanged: (t) {
+                  if (t == _searchType) return;
+                  setState(() => _searchType = t); // clears the other list
+                },
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-          if (isSearching && searchAsync != null)
-            ..._buildSearchResults(searchAsync),
+          if (isSearching && _searchType == HomeSearchType.restaurants &&
+              restaurantSearchAsync != null)
+            ..._buildSearchResults(restaurantSearchAsync),
+          if (isSearching && _searchType == HomeSearchType.food &&
+              foodSearchAsync != null)
+            ..._buildFoodResults(foodSearchAsync),
 
           if (!isSearching) ...[
             // Regular promo banners — only when the birthday banner isn't
@@ -1232,6 +1270,56 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 );
               }, childCount: restaurants.length),
+            ),
+          );
+        },
+        loading: () => SliverToBoxAdapter(child: _loadingIndicator()),
+        error: (err, _) =>
+            SliverToBoxAdapter(child: _emptyPlaceholder(friendlyError(err))),
+      ),
+    ];
+  }
+
+  /// Food-item search results (menu items). Each card shows the food image,
+  /// item name, restaurant name, price and availability; tapping opens the
+  /// existing item detail sheet (with the same add-to-cart flow).
+  List<Widget> _buildFoodResults(AsyncValue<List<MenuItem>> asyncValue) {
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.horizontalPadding(context),
+            vertical: 8,
+          ),
+          child: Text(
+            'Search Results',
+            style: TextStyle(
+              fontSize: Responsive.headingMedium(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+      asyncValue.when(
+        data: (items) {
+          if (items.isEmpty) {
+            return SliverToBoxAdapter(
+              child: _emptyPlaceholder('No food items found'),
+            );
+          }
+          return SliverPadding(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+            ),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final item = items[index];
+                return _FoodSearchResultCard(
+                  item: item,
+                  onTap: () =>
+                      presentMenuItemAndAddToCart(context, ref, item),
+                );
+              }, childCount: items.length),
             ),
           );
         },
@@ -2572,4 +2660,196 @@ class _ConciergeIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Segmented Food / Restaurants toggle shown under the Home search bar.
+class _SearchTypeToggle extends StatelessWidget {
+  final HomeSearchType selected;
+  final ValueChanged<HomeSearchType> onChanged;
+  const _SearchTypeToggle({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _segment(context, 'Food', Icons.restaurant_menu_rounded,
+              HomeSearchType.food),
+          _segment(context, 'Restaurants', Icons.storefront_rounded,
+              HomeSearchType.restaurants),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(
+    BuildContext context,
+    String label,
+    IconData icon,
+    HomeSearchType type,
+  ) {
+    final isSel = selected == type;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(type),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isSel ? AppTheme.primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSel
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isSel
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A single food-item search result row (image, name, restaurant, price).
+class _FoodSearchResultCard extends ConsumerWidget {
+  final MenuItem item;
+  final VoidCallback onTap;
+  const _FoodSearchResultCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restaurant =
+        ref.watch(restaurantByIdProvider(item.restaurantId)).valueOrNull;
+    final available = item.isAvailable && item.inStock;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: available ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 68,
+                    height: 68,
+                    child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                        ? CachedNetworkImage(
+                            imageUrl: item.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _imgFallback(),
+                            placeholder: (_, __) => _imgFallback(),
+                          )
+                        : _imgFallback(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        restaurant?.name ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (!available)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Unavailable',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (available)
+                  Icon(
+                    Icons.add_circle_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 26,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _imgFallback() => Container(
+        color: const Color(0xFFEDEDED),
+        child: const Icon(Icons.fastfood_rounded, color: Colors.grey),
+      );
 }
