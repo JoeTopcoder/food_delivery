@@ -181,7 +181,7 @@ class _MealCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (meal.restaurantRating != null) ...[
+                        if ((meal.restaurantRating ?? 0) > 0) ...[
                           const SizedBox(width: 6),
                           const Icon(
                             Icons.star_rounded,

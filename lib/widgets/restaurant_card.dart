@@ -4,6 +4,7 @@ import '../utils/app_theme.dart';
 import 'app_cached_image.dart';
 import 'favorite_heart_button.dart';
 import '../core/utils/responsive.dart';
+import '../utils/rating_format.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
@@ -97,7 +98,7 @@ class RestaurantCard extends StatelessWidget {
                         ),
                         SizedBox(width: spacing * 0.2),
                         Text(
-                          '${restaurant.rating ?? '-'}',
+                          formatRating(restaurant.rating),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: Responsive.smallText(context),

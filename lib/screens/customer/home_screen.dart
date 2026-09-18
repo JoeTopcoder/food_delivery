@@ -32,6 +32,7 @@ import '../../config/app_constants.dart';
 import 'restaurants_by_category_screen.dart';
 import 'grocery_screen.dart';
 import '../../core/utils/responsive.dart';
+import '../../utils/rating_format.dart';
 import '../../features/coverage/coverage_provider.dart';
 import '../../features/coverage/out_of_area_notice.dart';
 
@@ -1637,7 +1638,7 @@ class _CompactRestaurantCard extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
-                                  '${restaurant.rating ?? '-'}',
+                                  formatRating(restaurant.rating),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
