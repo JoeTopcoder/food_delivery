@@ -42,10 +42,18 @@ Deno.serve(async (req) => {
     if (cfg?.value) radiusKm = Number(cfg.value) || 3;
   } catch { /* default */ }
 
-  // The store location for this order.
-  const { data: order } = await admin.from("orders").select("id, restaurant_id").eq("id", orderId).maybeSingle();
+  // The order + store, incl. details the driver's pop-up card shows.
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, restaurant_id, total_amount, delivery_address")
+    .eq("id", orderId)
+    .maybeSingle();
   if (!order?.restaurant_id) return json({ error: "order/store not found" }, 404);
-  const { data: store } = await admin.from("restaurants").select("latitude, longitude, name").eq("id", order.restaurant_id).maybeSingle();
+  const { data: store } = await admin
+    .from("restaurants")
+    .select("latitude, longitude, name, estimated_delivery_time")
+    .eq("id", order.restaurant_id)
+    .maybeSingle();
   const sLat = Number(store?.latitude), sLng = Number(store?.longitude);
   if (!Number.isFinite(sLat) || !Number.isFinite(sLng)) return json({ error: "store has no coordinates" }, 400);
 
@@ -84,7 +92,15 @@ Deno.serve(async (req) => {
           topic: `driver_${d.userId}`,
           title: "New Order Nearby",
           body: `An order at ${store?.name ?? "a store"} is ready — open Orders to accept it.`,
-          data: { type: "new_order", order_id: orderId },
+          data: {
+            type: "new_order",
+            order_id: orderId,
+            store_name: String(store?.name ?? "Store"),
+            address: String(order.delivery_address ?? ""),
+            total: String(order.total_amount ?? ""),
+            eta: String(store?.estimated_delivery_time ?? "40"),
+            distance_km: d.km.toFixed(1),
+          },
         },
       });
       sent++;

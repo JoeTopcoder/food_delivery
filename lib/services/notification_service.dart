@@ -404,6 +404,7 @@ class NotificationService {
         orderId: (message.data['order_id'] ?? '').toString(),
         title: title,
         body: body,
+        data: message.data,
       );
     }
     if (title.isNotEmpty || body.isNotEmpty) {
