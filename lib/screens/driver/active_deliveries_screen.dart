@@ -874,6 +874,65 @@ class _DeliveryCard extends ConsumerWidget {
               ),
             ),
 
+          // ── Collect from customer (Cash on Delivery) ────────────
+          if (delivery.paymentMethod == 'cash')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF22C55E).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Color(0xFF22C55E),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Collect from customer (COD)',
+                            style: TextStyle(
+                              color: Color(0xFF22C55E),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            'Cash to collect on delivery',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Color(0xFF22C55E),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // ── Countdown timer ─────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
