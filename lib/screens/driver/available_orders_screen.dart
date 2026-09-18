@@ -719,16 +719,11 @@ class _OrderCard extends ConsumerWidget {
                   icon: Icons.location_on_rounded,
                   iconColor: const Color(0xFFEF4444),
                   label: order.deliveryAddress ?? 'Drop-off',
-                  subtitle: ref
-                      .watch(driverCustomerNameProvider(order.id))
-                      .maybeWhen(
-                        data: (n) => 'For $n',
-                        orElse: () => null,
-                      ),
                   onNavigate: dropLat != null && dropLng != null
                       ? () => _openNavigation(dropLat, dropLng)
                       : null,
                 ),
+                _CustomerNameRow(orderId: order.id),
               ],
             ),
           ),
@@ -962,6 +957,51 @@ class _OrderCard extends ConsumerWidget {
             child: const Text(
               'Accept',
               style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Customer name row (prominent) ──────────────────────────────────────────
+
+class _CustomerNameRow extends ConsumerWidget {
+  final String orderId;
+  const _CustomerNameRow({required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(driverCustomerNameProvider(orderId)).maybeWhen(
+          data: (n) => n,
+          orElse: () => 'Customer',
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFF60A5FA).withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_rounded,
+                size: 16, color: Color(0xFF60A5FA)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
