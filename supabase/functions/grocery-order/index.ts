@@ -187,7 +187,11 @@ Deno.serve(async (request) => {
       return json({ error: "Store not found" }, 404);
     }
 
-    if (!store.is_open) {
+    // An unverified store is never orderable; a closed store only if scheduled.
+    if (store.is_verified !== true) {
+      return json({ error: `${store.name ?? "This store"} isn't available right now.` }, 409);
+    }
+    if (!store.is_open && !(body.scheduled_for as string | undefined)) {
       return json({ error: "Store is currently closed" }, 400);
     }
 

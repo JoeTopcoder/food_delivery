@@ -308,16 +308,30 @@ Deno.serve(async (request) => {
       if (itemIds.length > 0) {
         const { data: menuRows } = await admin
           .from("menus")
-          .select("id, is_available, restaurant_id")
+          .select("id, is_available, restaurant_id, price, discount")
           .in("id", itemIds);
         const byId = new Map(
           (menuRows ?? []).map((m: Record<string, unknown>) => [m.id, m]),
         );
         const bad: string[] = [];
+        const underpriced: string[] = [];
         for (const i of items as Record<string, unknown>[]) {
           const m = byId.get(i.menu_item_id as string);
           if (!m || m.restaurant_id !== restaurantId || m.is_available !== true) {
             bad.push((i.item_name as string) ?? String(i.menu_item_id));
+            continue;
+          }
+          // Price integrity: reject only UNDERPAYMENT (a client price below the
+          // item's real discounted price) — this catches a manipulated/stale
+          // cheaper price without rejecting legitimate orders (a client that
+          // sends the base price, or an equal price, always passes). Promo codes
+          // discount the TOTAL, not the item, so per-item price must hold.
+          const basePrice = Number(m.price) || 0;
+          const disc = Number(m.discount) || 0;
+          const dbUnit = disc > 0 ? basePrice * (1 - disc / 100) : basePrice;
+          const clientUnit = Number(i.price) || 0;
+          if (clientUnit < dbUnit - 1) {
+            underpriced.push((i.item_name as string) ?? String(i.menu_item_id));
           }
         }
         if (bad.length > 0) {
@@ -326,6 +340,14 @@ Deno.serve(async (request) => {
               `These items are no longer available: ${bad.join(", ")}. ` +
               `Please review your cart.`,
             code: "items_unavailable",
+          }, 409);
+        }
+        if (underpriced.length > 0) {
+          return json({
+            error:
+              `Prices have changed for: ${underpriced.join(", ")}. ` +
+              `Please refresh your cart and try again.`,
+            code: "price_changed",
           }, 409);
         }
       }
