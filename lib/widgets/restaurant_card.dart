@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
+import 'app_cached_image.dart';
 import '../core/utils/responsive.dart';
 import 'package:food_driver/config/app_constants.dart';
 
@@ -56,16 +57,12 @@ class RestaurantCard extends StatelessWidget {
                   ),
                   child: restaurant.imageUrl != null &&
                       restaurant.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          restaurant.imageUrl!,
+                      ? AppCachedImage(
+                          url: restaurant.imageUrl,
                           height: imageHeight.toDouble(),
                           width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _PlaceholderImage(height: imageHeight.toDouble()),
-                          loadingBuilder: (_, child, progress) => progress == null
-                              ? child
-                              : _PlaceholderImage(height: imageHeight.toDouble()),
+                          // Card spans ~full width; decode at a sensible cap.
+                          decodeWidth: 600,
                         )
                       : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
