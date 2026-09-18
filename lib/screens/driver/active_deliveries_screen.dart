@@ -878,59 +878,7 @@ class _DeliveryCard extends ConsumerWidget {
           if (delivery.paymentMethod == 'cash')
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: Color(0xFF22C55E),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Collect from customer (COD)',
-                            style: TextStyle(
-                              color: Color(0xFF22C55E),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            'Cash to collect on delivery',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Color(0xFF22C55E),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _CodCollectCallout(delivery: delivery),
             ),
 
           // ── Countdown timer ─────────────────────────────────────
@@ -1464,6 +1412,131 @@ class _PulsingDot extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Color(0xFF22C55E),
         shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+/// COD cash-to-collect callout with a tappable breakdown of what makes up the
+/// total the driver takes at the door (items, tax, service fee, delivery, tip).
+class _CodCollectCallout extends StatefulWidget {
+  final Order delivery;
+  const _CodCollectCallout({required this.delivery});
+
+  @override
+  State<_CodCollectCallout> createState() => _CodCollectCalloutState();
+}
+
+class _CodCollectCalloutState extends State<_CodCollectCallout> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const green = Color(0xFF22C55E);
+    final sym = AppConstants.currencySymbol;
+    final o = widget.delivery;
+    final items = o.subtotal;
+    final tax = o.taxAmount ?? 0;
+    final delivery = o.deliveryFee;
+    final tip = o.driverTip ?? 0;
+    final discount = o.discount ?? 0;
+    // Service/platform fee isn't stored on its own — it's the residual the
+    // customer paid on top of items, tax and delivery (net of any discount).
+    final serviceFee =
+        (o.totalAmount - items - tax - delivery - tip + discount);
+    final svc = serviceFee > 0.005 ? serviceFee : 0.0;
+
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: green.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: green.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_rounded,
+                    color: green, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Collect from customer (COD)',
+                        style: TextStyle(
+                          color: green,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            _expanded ? 'Tap to hide breakdown' : 'Tap for breakdown',
+                            style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                          ),
+                          Icon(
+                            _expanded
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                            size: 16,
+                            color: Colors.grey[400],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '$sym${o.totalAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: green,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
+                ),
+              ],
+            ),
+            if (_expanded) ...[
+              const SizedBox(height: 10),
+              Divider(color: green.withValues(alpha: 0.25), height: 1),
+              const SizedBox(height: 8),
+              _line('Meal (items)', items, sym),
+              if (tax > 0.005) _line('Tax (GCT)', tax, sym),
+              if (svc > 0) _line('Service fee', svc, sym),
+              _line('Delivery fee', delivery, sym),
+              if (tip > 0.005) _line('Tip', tip, sym),
+              if (discount > 0.005) _line('Discount', -discount, sym),
+              const SizedBox(height: 6),
+              Divider(color: green.withValues(alpha: 0.25), height: 1),
+              const SizedBox(height: 6),
+              _line('Total to collect', o.totalAmount, sym, bold: true),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _line(String label, double amount, String sym, {bool bold = false}) {
+    final style = TextStyle(
+      color: bold ? const Color(0xFF22C55E) : Colors.grey[300],
+      fontSize: bold ? 13 : 12.5,
+      fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Text('$sym${amount.toStringAsFixed(2)}', style: style),
+        ],
       ),
     );
   }
