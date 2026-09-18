@@ -384,11 +384,14 @@
   static bool maintenanceMode = false;
 
   // ── Service Toggles (controlled by admin via app_config) ─────────────────
+  // Optional verticals fail CLOSED: hidden unless app_config explicitly enables
+  // them, so a customer never sees an inactive service if config hasn't loaded
+  // or the key is missing. Food & grocery are the core services (default on).
   static bool serviceFoodEnabled = true;
   static bool serviceGroceryEnabled = true;
-  static bool serviceRidesEnabled = true;
-  static bool serviceLaundryEnabled = true;
-  static bool serviceCarServiceEnabled = true;
+  static bool serviceRidesEnabled = false;
+  static bool serviceLaundryEnabled = false;
+  static bool serviceCarServiceEnabled = false;
 
   // ── Grocery white-label storefront ───────────────────────────────────────
   // Partner grocery stores are anonymised to customers: they never see the real
@@ -401,7 +404,7 @@
   static bool screenHomeEnabled = true;
   static bool screenGroceryEnabled = true;
   static bool screenOrdersEnabled = true;
-  static bool screenCarServicesEnabled = true;
+  static bool screenCarServicesEnabled = false;
   static bool screenProfileEnabled = true;
 
   /// Canonical food categories surfaced on the customer home screen.

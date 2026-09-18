@@ -495,11 +495,13 @@ class AppConfigService {
     AppConstants.supportWhatsApp = _str(c, 'support_whatsapp', AppConstants.supportWhatsApp);
 
     // Service toggles — admin can flip these to show "Coming Soon" to customers
+    // Optional verticals default false (fail closed) so an inactive service is
+    // never shown when its config key is absent. Food & grocery are core.
     AppConstants.serviceFoodEnabled        = _bool(c, 'service_food_enabled',        true);
     AppConstants.serviceGroceryEnabled     = _bool(c, 'service_grocery_enabled',     true);
-    AppConstants.serviceRidesEnabled       = _bool(c, 'service_rides_enabled',       true);
-    AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     true);
-    AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', true);
+    AppConstants.serviceRidesEnabled       = _bool(c, 'service_rides_enabled',       false);
+    AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     false);
+    AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', false);
 
     // Grocery white-label brand shown to customers instead of real store names.
     AppConstants.groceryPublicBrand = _str(c, 'grocery_public_brand', AppConstants.groceryPublicBrand);
@@ -507,7 +509,7 @@ class AppConfigService {
     AppConstants.screenHomeEnabled         = _bool(c, 'screen_home_enabled',         true);
     AppConstants.screenGroceryEnabled      = _bool(c, 'screen_grocery_enabled',      true);
     AppConstants.screenOrdersEnabled       = _bool(c, 'screen_orders_enabled',       true);
-    AppConstants.screenCarServicesEnabled  = _bool(c, 'screen_car_services_enabled', true);
+    AppConstants.screenCarServicesEnabled  = _bool(c, 'screen_car_services_enabled', false);
     AppConstants.screenProfileEnabled      = _bool(c, 'screen_profile_enabled',      true);
 
     // System / maintenance
