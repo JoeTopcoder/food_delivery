@@ -23,6 +23,7 @@ import '../../providers/feature_providers.dart';
 import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
+import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/menu_item_actions.dart';
 import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
@@ -1560,20 +1561,32 @@ class _CompactRestaurantCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(_kRadiusLg),
-                  ),
-                  child:
-                      restaurant.imageUrl != null &&
-                          restaurant.imageUrl!.isNotEmpty
-                      ? AppCachedImage(
-                          url: restaurant.imageUrl,
-                          height: 110,
-                          width: cardW,
-                          decodeWidth: 360,
-                        )
-                      : _placeholder(),
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(_kRadiusLg),
+                      ),
+                      child:
+                          restaurant.imageUrl != null &&
+                              restaurant.imageUrl!.isNotEmpty
+                          ? AppCachedImage(
+                              url: restaurant.imageUrl,
+                              height: 110,
+                              width: cardW,
+                              decodeWidth: 360,
+                            )
+                          : _placeholder(),
+                    ),
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: FavoriteHeartButton(
+                        restaurantId: restaurant.id,
+                        size: 30,
+                      ),
+                    ),
+                  ],
                 ),
                 Padding(
                   padding: EdgeInsets.all(Responsive.cardPadding(context)),
