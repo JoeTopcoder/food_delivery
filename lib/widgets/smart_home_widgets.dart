@@ -8,7 +8,7 @@ import '../../providers/recommendation_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
-import 'package:food_driver/config/app_constants.dart';
+import 'favorite_heart_button.dart';
 
 // ════════════════════════════════════════════════════════════════
 // Smart Offer Banner — shows AI-generated coupon at top of screen
@@ -511,18 +511,30 @@ class _SmartRestaurantCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
-                  ? AppCachedImage(
-                      url: rec.imageUrl,
-                      height: cardWidth * 0.61,
-                      width: cardWidth,
-                      decodeWidth: 360,
-                    )
-                  : _imagePlaceholder(),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
+                  child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
+                      ? AppCachedImage(
+                          url: rec.imageUrl,
+                          height: cardWidth * 0.61,
+                          width: cardWidth,
+                          decodeWidth: 360,
+                        )
+                      : _imagePlaceholder(),
+                ),
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: FavoriteHeartButton(
+                    restaurantId: rec.restaurantId,
+                    size: 30,
+                  ),
+                ),
+              ],
             ),
             // Info
             Padding(
@@ -608,10 +620,10 @@ class _SmartRestaurantCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (rec.estimatedDeliveryTime != null) ...[
+                  if (rec.estimatedDeliveryTime != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
                         Icon(
                           Icons.schedule_rounded,
                           size: 12,
@@ -625,17 +637,9 @@ class _SmartRestaurantCard extends StatelessWidget {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(width: 8),
                       ],
-                      Text(
-                        '${AppConstants.currencySymbol}${rec.deliveryFee.toStringAsFixed(0)} delivery',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
             ),
