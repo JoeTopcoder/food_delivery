@@ -338,7 +338,14 @@ class _ActiveDeliveriesScreenState
                               '/chat',
                               arguments: {
                                 'orderId': delivery.id,
-                                'otherPartyName': 'Customer',
+                                'otherPartyName': ref
+                                    .read(
+                                      driverCustomerNameProvider(delivery.id),
+                                    )
+                                    .maybeWhen(
+                                      data: (n) => n,
+                                      orElse: () => 'Customer',
+                                    ),
                                 'receiverId': delivery.userId,
                               },
                             );
@@ -859,6 +866,12 @@ class _DeliveryCard extends ConsumerWidget {
                   icon: Icons.location_on_rounded,
                   iconColor: const Color(0xFFEF4444),
                   label: delivery.deliveryAddress ?? 'Drop-off',
+                  subtitle: ref
+                      .watch(driverCustomerNameProvider(delivery.id))
+                      .maybeWhen(
+                        data: (n) => 'For $n',
+                        orElse: () => null,
+                      ),
                   onNavigate: dropLat != null && dropLng != null
                       ? () => _openNav(dropLat, dropLng)
                       : null,

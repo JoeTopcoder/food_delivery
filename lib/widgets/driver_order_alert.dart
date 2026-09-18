@@ -224,6 +224,17 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
                         _row(Icons.location_on_rounded,
                             const Color(0xFFEF4444), widget.address),
                       ],
+                      const SizedBox(height: 6),
+                      _row(
+                        Icons.person_rounded,
+                        const Color(0xFF60A5FA),
+                        ref
+                            .watch(driverCustomerNameProvider(widget.orderId))
+                            .maybeWhen(
+                              data: (n) => n,
+                              orElse: () => 'Customer',
+                            ),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [

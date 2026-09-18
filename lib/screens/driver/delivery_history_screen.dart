@@ -141,6 +141,26 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                           ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
+                                      Text(
+                                        ref
+                                            .watch(
+                                              driverCustomerNameProvider(
+                                                delivery.id,
+                                              ),
+                                            )
+                                            .maybeWhen(
+                                              data: (n) => n,
+                                              orElse: () => 'Customer',
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
                                       if (delivery.userRating != null)
                                         Padding(
                                           padding: const EdgeInsets.only(
