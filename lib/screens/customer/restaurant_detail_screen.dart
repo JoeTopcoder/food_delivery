@@ -42,36 +42,23 @@ class _RestaurantDetailScreenState
   String? _selectedCategory;
   bool _startingGroupOrder = false;
   bool _savingToGroup = false;
-  bool? _isFavOverride;
-  bool _isFavLoading = false;
 
   Future<void> _toggleFav() async {
     final userId = ref.read(currentUserIdProvider);
-    if (userId == null || _isFavLoading) return;
-    final isFavNow =
-        _isFavOverride ??
-        (ref
-                .read(isFavoriteProvider((userId, widget.restaurant.id)))
-                .valueOrNull ??
-            false);
-    setState(() {
-      _isFavOverride = !isFavNow;
-      _isFavLoading = true;
-    });
+    if (userId == null) return;
     try {
-      final svc = ref.read(favoritesServiceProvider);
-      await svc.toggleFavorite(userId, widget.restaurant.id);
-      ref.invalidate(isFavoriteProvider((userId, widget.restaurant.id)));
-      ref.invalidate(favoriteRestaurantsProvider(userId));
+      // Uses the same shared favourites store as every heart button, so the
+      // detail screen and all cards stay in sync.
+      await ref
+          .read(favoriteRestaurantIdsProvider.notifier)
+          .toggle(widget.restaurant.id);
     } catch (_) {
-      if (mounted) setState(() => _isFavOverride = isFavNow);
-      if (mounted)
+      if (mounted) {
         AppSnackbar.error(
           context,
           'Could not update favourite. Please try again.',
         );
-    } finally {
-      if (mounted) setState(() => _isFavLoading = false);
+      }
     }
   }
 
@@ -298,10 +285,8 @@ class _RestaurantDetailScreenState
       restaurantMenuProvider(widget.restaurant.id),
     );
     final currentUserId = ref.watch(currentUserIdProvider);
-    final isFavAsync = currentUserId != null
-        ? ref.watch(isFavoriteProvider((currentUserId, widget.restaurant.id)))
-        : const AsyncValue<bool>.data(false);
-    final isFav = _isFavOverride ?? isFavAsync.valueOrNull ?? false;
+    final isFav = currentUserId != null &&
+        ref.watch(favoriteRestaurantIdsProvider).contains(widget.restaurant.id);
 
     return Scaffold(
       appBar: _showAppBar

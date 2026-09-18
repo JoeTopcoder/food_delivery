@@ -115,10 +115,11 @@ class _RestaurantFavourites extends ConsumerWidget {
                 ),
               ),
               onUnfavourite: () async {
+                // Goes through the shared favourites store so every heart in
+                // the app updates in sync (the store invalidates this list).
                 await ref
-                    .read(favoritesServiceProvider)
-                    .toggleFavorite(userId, restaurant.id);
-                ref.invalidate(favoriteRestaurantsProvider(userId));
+                    .read(favoriteRestaurantIdsProvider.notifier)
+                    .toggle(restaurant.id);
               },
             );
           },
