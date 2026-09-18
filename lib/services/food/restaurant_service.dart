@@ -176,6 +176,38 @@ class RestaurantService {
     }, label: 'getAllRestaurants');
   }
 
+  /// Restaurants that serve a given menu [category] — used by browse-by-
+  /// category so a tap shows matching *restaurants*, not individual meals.
+  /// Inner-joins `menus` so only restaurants with at least one available item
+  /// in the category come back, and applies the same orderable gating
+  /// (is_open + is_verified, no grocery stores) and browse-radius/chain
+  /// collapsing as every other customer listing.
+  Future<List<Restaurant>> getRestaurantsByCategory(String category) async {
+    return withRetry(() async {
+      AppLogger.info('Fetching restaurants for category=$category');
+
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select('$_kRestaurantListCols, menus!inner(id)')
+          .ilike('menus.category', category)
+          .eq('menus.is_available', true)
+          .eq('is_open', true)
+          .eq('is_verified', true)
+          .neq('store_type', 'grocery')
+          .order('rating', ascending: false);
+
+      // Strip the embedded menus array before parsing Restaurant rows.
+      final rows = (response as List)
+          .map((r) => Map<String, dynamic>.from(r as Map)..remove('menus'))
+          .toList();
+      final restaurants = _process(rows);
+      AppLogger.info(
+        'Found ${restaurants.length} restaurants for category=$category',
+      );
+      return restaurants;
+    }, label: 'getRestaurantsByCategory');
+  }
+
   // Search restaurants — narrowed columns + retry
   Future<List<Restaurant>> searchRestaurants(String query) async {
     final safe = _sanitizeQuery(query);
