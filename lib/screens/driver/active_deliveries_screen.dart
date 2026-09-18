@@ -1408,7 +1408,7 @@ class _DeliveryCashRowState extends State<_DeliveryCashRow> {
     return Column(
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.showPayStore)
               Expanded(
