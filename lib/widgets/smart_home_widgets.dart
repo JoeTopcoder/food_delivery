@@ -9,6 +9,7 @@ import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
 import 'favorite_heart_button.dart';
+import '../utils/rating_format.dart';
 
 // ════════════════════════════════════════════════════════════════
 // Smart Offer Banner — shows AI-generated coupon at top of screen
@@ -562,7 +563,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        rec.rating.toStringAsFixed(1),
+                        formatRating(rec.rating),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
