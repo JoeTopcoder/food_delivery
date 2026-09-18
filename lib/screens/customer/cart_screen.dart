@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/responsive.dart';
 import '../../config/app_constants.dart';
@@ -983,18 +984,9 @@ class _CartItemWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(
                 Responsive.cardRadius(context) - 2,
               ),
-              child: Image.network(
-                imageUrl?.isNotEmpty == true
-                    ? imageUrl!
-                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.fastfood_rounded,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
+              child: AppCachedImage(
+                url: imageUrl?.isNotEmpty == true ? imageUrl : null,
+                decodeWidth: 160,
               ),
             ),
           ),
@@ -1206,13 +1198,7 @@ class _RecommendationCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      rec.imageUrl!,
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _PlaceholderThumb(),
-                    )
+                  ? AppCachedImage(url: rec.imageUrl, width: 52, height: 52)
                   : _PlaceholderThumb(),
             ),
             const SizedBox(width: 12),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
@@ -280,14 +281,7 @@ class _FavCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: imageUrl != null
-                    ? Image.network(
-                        imageUrl!,
-                        width: 72,
-                        height: 72,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _placeholder(placeholderIcon),
-                      )
+                    ? AppCachedImage(url: imageUrl, width: 72, height: 72)
                     : _placeholder(placeholderIcon),
               ),
               const SizedBox(width: 12),
