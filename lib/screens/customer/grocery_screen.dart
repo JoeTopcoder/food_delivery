@@ -500,12 +500,15 @@ class _SearchProductCard extends ConsumerWidget {
                       product.imageUrl != null && product.imageUrl!.isNotEmpty
                           ? Padding(
                               padding: const EdgeInsets.all(10),
-                              child: Image.network(
-                                product.imageUrl!,
+                              child: CachedNetworkImage(
+                                imageUrl: product.imageUrl!,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => _placeholder(),
-                                loadingBuilder: (_, child, progress) =>
-                                    progress == null ? child : _placeholder(),
+                                memCacheWidth: (MediaQuery.of(context)
+                                            .devicePixelRatio *
+                                        220)
+                                    .round(),
+                                errorWidget: (_, __, ___) => _placeholder(),
+                                placeholder: (_, __) => _placeholder(),
                               ),
                             )
                           : _placeholder(),

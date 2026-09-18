@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/menu_model.dart';
 import '../utils/app_theme.dart';
+import 'app_cached_image.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class MenuItemCard extends StatelessWidget {
@@ -33,30 +34,12 @@ class MenuItemCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Square item image
-            ClipRRect(
+            // Square item image (cached + decoded at thumbnail size)
+            AppCachedImage(
+              url: item.imageUrl?.isNotEmpty == true ? item.imageUrl : null,
+              width: 80,
+              height: 80,
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                item.imageUrl?.isNotEmpty == true
-                    ? item.imageUrl!
-                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500',
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.fastfood_rounded,
-                    size: 32,
-                    color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                  ),
-                ),
-              ),
             ),
             const SizedBox(width: 14),
             // Name, description, price
