@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import '../widgets/driver_order_alert.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -395,6 +396,17 @@ class NotificationService {
     // message has no notification block (data-only messages from edge functions).
     final title = notification?.title ?? message.data['title'] as String? ?? 'QuickDash';
     final body  = notification?.body  ?? message.data['body']  as String? ?? '';
+
+    // New order for a driver → show the in-app Uber-style banner (8s) over
+    // whatever screen they're on, so they can accept without leaving it.
+    if (type == 'new_order') {
+      DriverOrderAlert.show(
+        orderId: (message.data['order_id'] ?? '').toString(),
+        title: title,
+        body: body,
+        data: message.data,
+      );
+    }
     if (title.isNotEmpty || body.isNotEmpty) {
       showNotification(title: title, body: body, data: message.data);
     }
@@ -568,7 +580,8 @@ class NotificationService {
         // Trigger in-app refresh callback
         onNewOrderReceived?.call();
         if (navigate) {
-          navigatorKey?.currentState?.pushNamed('/available-orders');
+          // Open the Orders hub on the Get Orders tab.
+          navigatorKey?.currentState?.pushNamed('/driver-orders');
         }
         break;
       case 'new_restaurant_order':

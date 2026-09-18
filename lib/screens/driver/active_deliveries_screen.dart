@@ -26,7 +26,9 @@ import '../../widgets/app_map_tiles.dart';
 import 'student_delivery_confirm.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {
-  const ActiveDeliveriesScreen({super.key});
+  /// When embedded inside the Orders tabs, this screen drops its own app bar.
+  final bool embedded;
+  const ActiveDeliveriesScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<ActiveDeliveriesScreen> createState() =>
@@ -116,8 +118,9 @@ class _ActiveDeliveriesScreenState
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              // ── App Bar ────────────────────────────────────────────
-              SliverAppBar(
+              // ── App Bar (hidden when embedded in the Orders tabs) ──
+              if (!widget.embedded)
+                SliverAppBar(
                 pinned: true,
                 backgroundColor: const Color(0xFF0F1117),
                 foregroundColor: Colors.white,
@@ -472,16 +475,65 @@ class _ActiveDeliveriesScreenState
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E2030),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Mark as Delivered?',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        title: Text(
+          delivery.paymentMethod == 'cash'
+              ? 'Cash collected?'
+              : 'Mark as Delivered?',
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700),
         ),
-        content: Text(
-          'Confirm delivery of Order #${delivery.id.substring(0, 8).toUpperCase()}?',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
+        content: delivery.paymentMethod == 'cash'
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This is a Cash on Delivery order. Did you collect the cash from the customer?',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Amount collected',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFF22C55E),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 26,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                'Confirm delivery of Order #${delivery.id.substring(0, 8).toUpperCase()}?',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -535,7 +587,11 @@ class _ActiveDeliveriesScreenState
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text('Yes, Delivered'),
+            child: Text(
+              delivery.paymentMethod == 'cash'
+                  ? 'Yes, collected ${AppConstants.currencySymbol}${delivery.totalAmount.toStringAsFixed(0)}'
+                  : 'Yes, Delivered',
+            ),
           ),
         ],
       ),
@@ -811,63 +867,17 @@ class _DeliveryCard extends ConsumerWidget {
             ),
           ),
 
-          // ── Pay restaurant (non-partner food orders) ────────────
-          if ((restaurant?.storeType ?? 'food') != 'grocery' &&
-              delivery.subtotal > 0)
+          // ── Cash: pay store + collect COD, side by side ─────────
+          if (delivery.paymentMethod == 'cash' ||
+              ((restaurant?.storeType ?? 'food') != 'grocery' &&
+                  delivery.subtotal > 0))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.payments_rounded,
-                      color: Color(0xFFF59E0B),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Pay restaurant in cash',
-                            style: TextStyle(
-                              color: Color(0xFFF59E0B),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            'Comes out of your float',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${AppConstants.currencySymbol}${delivery.subtotal.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ],
-                ),
+              child: _DeliveryCashRow(
+                delivery: delivery,
+                showPayStore:
+                    (restaurant?.storeType ?? 'food') != 'grocery' &&
+                    delivery.subtotal > 0,
               ),
             ),
 
@@ -1100,6 +1110,24 @@ class _DeliveryMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A FlutterMap laid out while this tab is offstage in the Orders TabBarView
+    // paints with null geometry and crashes the whole viewport. TabBarView mutes
+    // tickers for offstage tabs, so skip the live map until this tab is active
+    // and show a light placeholder in the meantime.
+    // ignore: deprecated_member_use
+    if (!TickerMode.of(context)) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        child: Container(
+          height: 180,
+          color: const Color(0xFF12141C),
+          child: const Center(
+            child: Icon(Icons.map_rounded, color: Color(0xFF2A2D3E), size: 40),
+          ),
+        ),
+      );
+    }
+
     final markers = <Marker>[];
     final allPoints = <LatLng>[];
 
@@ -1402,6 +1430,188 @@ class _PulsingDot extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Color(0xFF22C55E),
         shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+/// Compact side-by-side cash cards for an active delivery: "Pay store" (items
+/// subtotal, from the driver's float) and "Collect (COD)" (order total to take
+/// at the door). The COD card is tappable to reveal a full-width breakdown.
+class _DeliveryCashRow extends StatefulWidget {
+  final Order delivery;
+  final bool showPayStore;
+  const _DeliveryCashRow({required this.delivery, required this.showPayStore});
+
+  @override
+  State<_DeliveryCashRow> createState() => _DeliveryCashRowState();
+}
+
+class _DeliveryCashRowState extends State<_DeliveryCashRow> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const amber = Color(0xFFF59E0B);
+    const green = Color(0xFF22C55E);
+    final sym = AppConstants.currencySymbol;
+    final o = widget.delivery;
+    final cod = o.paymentMethod == 'cash';
+
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.showPayStore)
+              Expanded(
+                child: _card(
+                  color: amber,
+                  icon: Icons.storefront_rounded,
+                  label: 'Pay',
+                  amount: o.subtotal,
+                  sym: sym,
+                ),
+              ),
+            if (widget.showPayStore && cod) const SizedBox(width: 10),
+            if (cod)
+              Expanded(
+                child: _card(
+                  color: green,
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'Collect',
+                  amount: o.totalAmount,
+                  sym: sym,
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  expanded: _expanded,
+                ),
+              ),
+          ],
+        ),
+        if (cod && _expanded) ...[
+          const SizedBox(height: 8),
+          _breakdown(sym, green),
+        ],
+      ],
+    );
+  }
+
+  Widget _card({
+    required Color color,
+    required IconData icon,
+    required String label,
+    required double amount,
+    required String sym,
+    VoidCallback? onTap,
+    bool expanded = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ),
+                      if (onTap != null)
+                        Icon(
+                          expanded
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 14,
+                          color: color,
+                        ),
+                    ],
+                  ),
+                  Text(
+                    '$sym${amount.toStringAsFixed(2)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _breakdown(String sym, Color green) {
+    final o = widget.delivery;
+    final items = o.subtotal;
+    final tax = o.taxAmount ?? 0;
+    final delivery = o.deliveryFee;
+    final tip = o.driverTip ?? 0;
+    final discount = o.discount ?? 0;
+    final svcRaw = o.totalAmount - items - tax - delivery - tip + discount;
+    final svc = svcRaw > 0.005 ? svcRaw : 0.0;
+
+    Widget line(String l, double a, {bool bold = false}) {
+      final s = TextStyle(
+        color: bold ? green : Colors.grey[300],
+        fontSize: bold ? 12.5 : 12,
+        fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(l, style: s),
+            Text('$sym${a.toStringAsFixed(2)}', style: s),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: green.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: green.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        children: [
+          line('Meal (items)', items),
+          if (tax > 0.005) line('Tax (GCT)', tax),
+          if (svc > 0) line('Service fee', svc),
+          line('Delivery fee', delivery),
+          if (tip > 0.005) line('Tip', tip),
+          if (discount > 0.005) line('Discount', -discount),
+          const SizedBox(height: 4),
+          Divider(color: green.withValues(alpha: 0.25), height: 8),
+          line('Total to collect', o.totalAmount, bold: true),
+        ],
       ),
     );
   }

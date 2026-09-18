@@ -31,6 +31,7 @@ import 'features/restaurant/screens/restaurant_onboarding_screen.dart';
 import 'features/car_services/screens/service_provider_onboarding_screen.dart';
 import 'screens/driver/driver_dashboard_screen.dart';
 import 'screens/driver/available_orders_screen.dart';
+import 'screens/driver/driver_orders_screen.dart';
 import 'screens/driver/active_deliveries_screen.dart';
 import 'screens/driver/delivery_history_screen.dart';
 import 'screens/driver/driver_profile_screen.dart';
@@ -683,6 +684,16 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['driver'],
                   child: DriverApplicationStatusScreen(),
+                ),
+              );
+            case '/driver-orders':
+              final tab = settings.arguments is int
+                  ? settings.arguments as int
+                  : 0;
+              return MaterialPageRoute(
+                builder: (context) => RoleGuard(
+                  allowedRoles: const ['driver'],
+                  child: DriverOrdersScreen(initialTab: tab),
                 ),
               );
             case '/available-orders':
