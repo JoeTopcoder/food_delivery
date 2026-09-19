@@ -139,6 +139,18 @@ final restaurantByIdProvider = FutureProvider.family
       return restaurantService.getRestaurantById(restaurantId);
     });
 
+/// Public reviews for a restaurant, shown on the restaurant detail page.
+/// Backed by the SECURITY DEFINER `get_restaurant_reviews` RPC so reviewer
+/// names are attached without exposing the users table.
+final restaurantReviewsProvider = FutureProvider.family
+    .autoDispose<List<Map<String, dynamic>>, String>((ref, restaurantId) async {
+      final rows = await SupabaseConfig.client.rpc(
+        'get_restaurant_reviews',
+        params: {'p_restaurant_id': restaurantId, 'p_limit': 50},
+      );
+      return (rows as List).map((r) => Map<String, dynamic>.from(r)).toList();
+    });
+
 final restaurantsByCuisineProvider = FutureProvider.family
     .autoDispose<List<Restaurant>, String>((ref, cuisineType) async {
       final restaurantService = ref.watch(restaurantServiceProvider);

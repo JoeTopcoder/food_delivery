@@ -15,6 +15,7 @@ import '../../widgets/menu_item_actions.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'group_order_detail_screen.dart';
+import 'restaurant_public_reviews_screen.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
@@ -42,6 +43,36 @@ class _RestaurantDetailScreenState
   String? _selectedCategory;
   bool _startingGroupOrder = false;
   bool _savingToGroup = false;
+
+  void _openReviews() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            RestaurantPublicReviewsScreen(restaurant: widget.restaurant),
+      ),
+    );
+  }
+
+  Future<void> _openMenuSearch() async {
+    final items =
+        ref.read(restaurantMenuProvider(widget.restaurant.id)).valueOrNull ??
+        const <MenuItem>[];
+    if (items.isEmpty) {
+      AppSnackbar.info(context, 'Menu is still loading — try again in a moment.');
+      return;
+    }
+    final selected = await showSearch<MenuItem?>(
+      context: context,
+      delegate: _MenuSearchDelegate(
+        restaurantName: widget.restaurant.name,
+        items: items,
+      ),
+    );
+    if (selected != null && mounted) {
+      _showMenuItemDetail(context, selected);
+    }
+  }
 
   Future<void> _toggleFav() async {
     final userId = ref.read(currentUserIdProvider);
@@ -351,6 +382,13 @@ class _RestaurantDetailScreenState
                 ),
                 IconButton(
                   icon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  onPressed: _openMenuSearch,
+                ),
+                IconButton(
+                  icon: Icon(
                     isFav ? Icons.favorite : Icons.favorite_outline,
                     color: isFav
                         ? AppTheme.accentColor
@@ -551,6 +589,32 @@ class _RestaurantDetailScreenState
                         );
                       },
                     ),
+                    // Menu search — search this restaurant's menu from here.
+                    Positioned(
+                      top: 40,
+                      right: 64,
+                      child: GestureDetector(
+                        onTap: _openMenuSearch,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(
+                            Icons.search_rounded,
+                            size: 24,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
                     Positioned(
                       top: 40,
                       right: 16,
@@ -741,6 +805,41 @@ class _RestaurantDetailScreenState
                                   ),
                                 ],
                               ],
+                            ),
+                          ),
+                          // Small button that jumps to the reviews section.
+                          GestureDetector(
+                            onTap: _openReviews,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.10,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.rate_review_outlined,
+                                    size: 14,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Reviews',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           Container(
@@ -1254,4 +1353,76 @@ class _RestaurantDetailScreenState
 
   Future<void> _showMenuItemDetail(BuildContext context, MenuItem item) =>
       presentMenuItemAndAddToCart(context, ref, item);
+}
+
+/// Full-screen search over one restaurant's menu — a familiar, friendly search
+/// UX (system search bar, live results, tap to open the item). Returns the
+/// chosen [MenuItem] so the caller can present it.
+class _MenuSearchDelegate extends SearchDelegate<MenuItem?> {
+  final String restaurantName;
+  final List<MenuItem> items;
+
+  _MenuSearchDelegate({required this.restaurantName, required this.items})
+      : super(searchFieldLabel: 'Search the menu');
+
+  List<MenuItem> _matches() {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return items;
+    return items
+        .where(
+          (m) =>
+              m.name.toLowerCase().contains(q) ||
+              (m.description ?? '').toLowerCase().contains(q) ||
+              m.category.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            onPressed: () => query = '',
+          ),
+      ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () => close(context, null),
+      );
+
+  @override
+  Widget buildResults(BuildContext context) => _buildList(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildList(context);
+
+  Widget _buildList(BuildContext context) {
+    final results = _matches();
+    if (results.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'No menu items match "$query"',
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, i) {
+        final item = results[i];
+        return MenuItemCard(
+          item: item,
+          onTap: () => close(context, item),
+          onAddTap: () => close(context, item),
+        );
+      },
+    );
+  }
 }
