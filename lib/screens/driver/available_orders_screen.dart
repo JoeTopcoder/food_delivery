@@ -835,6 +835,7 @@ class _OrderCard extends ConsumerWidget {
                           final driverService = ref.read(driverServiceProvider);
                           await driverService.declineOrder(order.id, driverId);
                           ref.invalidate(availableOrdersProvider);
+                          ref.invalidate(driverStatsProvider(driverId));
                           if (context.mounted) {
                             AppSnackbar.info(context, 'Order declined');
                           }
