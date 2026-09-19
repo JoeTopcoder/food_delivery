@@ -139,8 +139,11 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
 
     <!-- Header -->
-    <div style="background:#FF6B35;background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:36px 24px 30px;text-align:center;">
-      <div style="font-size:28px;line-height:34px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">QuickDash</div>
+    <div style="background:#FF6B35;background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:32px 24px 28px;text-align:center;">
+      <img src="https://yharweliruemjexmuuxn.supabase.co/storage/v1/object/public/banners/quickdash-logo.png"
+           width="64" height="64" alt="QuickDash"
+           style="display:block;margin:0 auto 12px;width:64px;height:64px;border-radius:16px;background:#ffffff;" />
+      <div style="font-size:26px;line-height:32px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">QuickDash</div>
       <div style="color:rgba(255,255,255,0.9);font-size:14px;line-height:20px;margin-top:6px;">Order Receipt</div>
     </div>
 
