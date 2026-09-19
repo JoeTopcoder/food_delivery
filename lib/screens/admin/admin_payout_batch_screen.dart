@@ -157,6 +157,50 @@ class _AdminPayoutBatchScreenState
     }
   }
 
+  Future<void> _undoLast() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Undo last payout run?'),
+        content: const Text(
+          'This reverses the most recent payout run — restoring every payee\'s '
+          'balance and float to before the run and deleting its records. '
+          'Only do this if you did NOT actually send the bank payments.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white),
+            child: const Text('Undo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _running = true);
+    try {
+      final res = await SupabaseConfig.client.rpc('reverse_payout_batch');
+      final n = (res is Map ? res['reversed'] : null) ?? 0;
+      if (mounted) {
+        if ((n as num) > 0) {
+          AppSnackbar.success(context, 'Last run reversed ($n payee(s)).');
+        } else {
+          AppSnackbar.info(context, 'No payout run to undo.');
+        }
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     double amt(Map<String, dynamic> r) => (r['amount'] as num?)?.toDouble() ?? 0;
@@ -173,6 +217,11 @@ class _AdminPayoutBatchScreenState
       appBar: AppBar(
         title: const Text('Payout Run'),
         actions: [
+          IconButton(
+            tooltip: 'Undo last run',
+            onPressed: _running ? null : _undoLast,
+            icon: const Icon(Icons.undo_rounded),
+          ),
           IconButton(
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
