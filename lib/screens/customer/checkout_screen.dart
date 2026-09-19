@@ -177,12 +177,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? ref.watch(restaurantByIdProvider(restaurantId))
         : const AsyncValue<Restaurant?>.data(null);
 
-    // Show loading spinner while critical data loads
-    if (restaurantAsync.isLoading) {
+    final restaurant = restaurantAsync.valueOrNull;
+
+    // Show the full-screen loader ONLY on the very first load (no data yet).
+    // restaurantByIdProvider invalidates itself on any restaurant row change
+    // (realtime), and blanking the whole screen on every background refetch made
+    // checkout flash blank one or more times. Keep the content during refreshes.
+    if (restaurantAsync.isLoading && restaurant == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final restaurant = restaurantAsync.valueOrNull;
 
     final appliedPromo = ref.watch(appliedPromoProvider);
     final redeemPoints = currentUserId != null
