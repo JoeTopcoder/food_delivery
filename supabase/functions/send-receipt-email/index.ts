@@ -54,7 +54,7 @@ function formatTime(dateStr: string): string {
 /// admin and this email receipt — so the same order reads identically in every
 /// place: "#AA311238" (first 8 of the order UUID, upper-cased).
 function orderDisplayId(orderId: string): string {
-  return `#${orderId.substring(0, 8).toUpperCase()}`;
+  return orderId.substring(0, 8).toUpperCase();
 }
 
 function escapeHtml(str: string): string {
