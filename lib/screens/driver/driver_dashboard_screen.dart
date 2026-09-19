@@ -13,6 +13,9 @@ import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
 import '../shared/ai_voice_screen.dart';
 import '../../widgets/peak_time_banner.dart';
+import '../../widgets/driver_order_alert.dart';
+import '../../providers/user_provider.dart' show restaurantServiceProvider;
+import '../../services/driver/delivery_fee_service.dart';
 import '../../modules/packages/screens/driver/driver_packages_screen.dart';
 import 'driver_verification_screen.dart';
 
@@ -33,6 +36,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   Driver? _lastDriver;
   final Set<String> _togglingServices = {};
   bool _serviceTopicsInitialized = false;
+  // Ready orders already shown to this driver, so a nearby order isn't
+  // re-popped on every refresh. Cleared when the driver goes offline.
+  final Set<String> _poppedReadyIds = {};
+  bool _readyScanScheduled = false;
 
   static const Map<String, String> _serviceTopics = {
     'food_delivery': 'food_delivery_orders',
@@ -62,6 +69,71 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     NotificationService.onNewPackageReceived = null;
     NotificationService.onNewRideReceived = null;
     super.dispose();
+  }
+
+  /// Pops the Uber-style order card for orders that are ALREADY ready and
+  /// nearby — so a driver who logs in (or comes online) after an order became
+  /// ready still sees it, not only orders that turn ready while already online.
+  /// Shows one card at a time (the newest un-shown ready order).
+  Future<void> _scanNearbyReadyOrders(Driver driver) async {
+    if (!driver.isAvailable || !mounted) return;
+    final lat = driver.currentLatitude;
+    final lng = driver.currentLongitude;
+    try {
+      final orders = await ref.read(driverServiceProvider).getAvailableOrders(
+            driverId: driver.id,
+            driverLat: lat,
+            driverLng: lng,
+          );
+      // Only orders currently in the "ready" tab, newest first.
+      final ready = orders
+          .where((o) => o.status == AppConstants.orderReady)
+          .toList();
+      for (final o in ready) {
+        if (_poppedReadyIds.contains(o.id)) continue;
+        _poppedReadyIds.add(o.id);
+
+        String storeName = 'New Order';
+        double? distanceKm;
+        try {
+          final rest = await ref
+              .read(restaurantServiceProvider)
+              .getRestaurantById(o.restaurantId);
+          if (rest != null) {
+            storeName = rest.name;
+            if (lat != null &&
+                lng != null &&
+                rest.latitude != null &&
+                rest.longitude != null) {
+              distanceKm = DeliveryFeeService.haversineKm(
+                lat,
+                lng,
+                rest.latitude!,
+                rest.longitude!,
+              );
+            }
+          }
+        } catch (_) {}
+
+        if (!mounted) return;
+        DriverOrderAlert.show(
+          orderId: o.id,
+          title: storeName,
+          body: 'Order ready for pickup nearby',
+          data: {
+            'store_name': storeName,
+            'address': o.deliveryAddress ?? '',
+            'delivery_fee': o.deliveryFee.toString(),
+            'tip': (o.driverTip ?? 0).toString(),
+            if (distanceKm != null)
+              'distance_km': distanceKm.toStringAsFixed(2),
+          },
+        );
+        break; // one card at a time; the rest stay in the Orders list
+      }
+    } catch (e) {
+      // Non-fatal: the orders are still visible in the Orders screen.
+    }
   }
 
   Future<void> _syncFcmTopics(List<String> activeServices) async {
@@ -627,7 +699,26 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                                     // within range; stop when going offline.
                                     final ls = ref.read(locationServiceProvider);
                                     if (!isOnline) {
+                                      // Going online: allow a fresh ready-order
+                                      // scan for this session.
+                                      _readyScanScheduled = false;
+                                      _poppedReadyIds.clear();
                                       await ls.startTracking(driverId: driver.id);
+                                      // Give location a moment to post, then
+                                      // refresh the profile so the scan sees
+                                      // the driver's position.
+                                      Future.delayed(
+                                        const Duration(seconds: 3),
+                                        () {
+                                          if (mounted) {
+                                            ref.invalidate(
+                                              driverProfileProvider(
+                                                currentUserId,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      );
                                     } else {
                                       await ls.stopTracking();
                                     }
@@ -771,6 +862,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final activeServices = driver.activeServices ?? ['food_delivery'];
     final balance = ((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0))
         .clamp(0.0, double.infinity);
+
+    // When the driver is online and we know where they are, scan once for
+    // orders that are ALREADY ready nearby and pop them — covers a driver who
+    // logs in after an order became ready. Reset when they go offline.
+    if (isOnline && driver.currentLatitude != null) {
+      if (!_readyScanScheduled) {
+        _readyScanScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scanNearbyReadyOrders(driver);
+        });
+      }
+    } else if (!isOnline) {
+      _readyScanScheduled = false;
+      _poppedReadyIds.clear();
+    }
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(
