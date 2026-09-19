@@ -158,6 +158,13 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
     <!-- Body -->
     <div style="background:#fff;padding:28px 24px;border-radius:0 0 16px 16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
+      <!-- Celebratory banner -->
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-size:34px;line-height:38px;">🎉🛵💨</div>
+        <div style="font-size:19px;font-weight:800;color:#1a1a2e;margin-top:6px;">Woohoo! Your order is confirmed 🙌</div>
+        <div style="font-size:13px;color:#666;margin-top:4px;">Sit back and relax${isPickup ? "" : " — a rider is on the way"}. Good food is coming your way! 😋</div>
+      </div>
+
       <!-- Receipt info (table for email-client reliability) -->
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <tr>
@@ -236,8 +243,9 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
 
     <!-- Footer -->
     <div style="text-align:center;padding:24px 0;color:#999;font-size:12px;">
-      <div>Thank you for ordering with QuickDash!</div>
-      <div style="margin-top:4px;">If you have questions, contact support@quickdash.app</div>
+      <div style="font-size:15px;color:#FF6B35;font-weight:700;">Thanks for choosing QuickDash! 🧡</div>
+      <div style="margin-top:6px;">Made with love in Jamaica 🇯🇲 — eat good, feel good. 🍽️✨</div>
+      <div style="margin-top:8px;">Questions? We've got you: support@quickdash.app</div>
     </div>
   </div>
 </body>
