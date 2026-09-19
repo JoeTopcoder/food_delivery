@@ -11,6 +11,8 @@ import '../../models/address_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/peak_time_provider.dart';
+import '../../widgets/peak_time_banner.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/promo_provider.dart';
 import '../../providers/loyalty_provider.dart';
@@ -288,14 +290,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
           taxAmount: tax,
         ) ??
         0.0;
+    // ── Dynamic Peak Time surcharge (authoritative; from backend) ────
+    // Applies only to delivery orders while Peak Time is ON and the fee is
+    // admin-enabled. The backend re-validates this at order creation, so the
+    // amount shown here is exactly what will be charged.
+    final peak = ref.watch(peakTimeStateProvider);
+    final peakFee = isPickup ? 0.0 : peak.applicableFee;
+
     final orderTotal =
         (subtotal -
                 promoDiscount -
                 loyaltyDiscount +
                 activeFee +
+                peakFee +
                 platformServiceFee +
                 tax)
-            .clamp(activeFee, double.infinity);
+            .clamp(activeFee + peakFee, double.infinity);
     final total = orderTotal + _driverTip;
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
@@ -348,6 +358,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Peak Time notice (only renders while Peak Time is ON).
+                const PeakTimeBanner(showFee: true, margin: EdgeInsets.only(bottom: 8)),
                 // ── Delivery Address / Pickup Location ────────────────
                 if (isPickup)
                   _Section(
@@ -1287,6 +1299,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               ? const Color(0xFF528BFF)
                               : null,
                         ),
+                      if (peakFee > 0)
+                        _SummaryRow(
+                          'Peak Time Fee',
+                          '${AppConstants.currencySymbol}${peakFee.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFFB45309),
+                        ),
                       _SummaryRow(
                         'Service Fee',
                         '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
@@ -1400,6 +1418,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   userId: currentUserId,
                                   subtotal: subtotal,
                                   deliveryFee: activeFee,
+                                  peakFee: peakFee,
                                   tax: tax,
                                   total: total,
                                   deliveryAddress: deliveryAddress,
@@ -1521,6 +1540,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required String userId,
     required double subtotal,
     required double deliveryFee,
+    double peakFee = 0,
     required double tax,
     required double total,
     required String deliveryAddress,
@@ -1637,9 +1657,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       // Use the server's grand total directly — it already includes the platform
       // service fee. Adding it again would double-charge the customer.
       final serverTotal = breakdown?.grandTotal ?? total;
-      final verifiedTotal = serverDeliveryFee == verifiedDeliveryFee
-          ? serverTotal
-          : serverTotal - serverDeliveryFee + verifiedDeliveryFee;
+      // The order-calc breakdown does not know about Peak Time, so add the
+      // client-shown peak fee here. place-order re-derives the authoritative
+      // peak fee from get_peak_time_state and corrects the total if it differs,
+      // so the charge is always the backend's number.
+      final verifiedTotal = (serverDeliveryFee == verifiedDeliveryFee
+              ? serverTotal
+              : serverTotal - serverDeliveryFee + verifiedDeliveryFee) +
+          peakFee;
 
       final orderItems = cart
           .map(
@@ -1716,6 +1741,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         scheduledFor: _scheduledAt,
         isPickup: isPickup,
         pickupFee: pickupFee,
+        peakFee: peakFee,
         fromAd: isFromAd,
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,

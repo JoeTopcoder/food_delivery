@@ -24,6 +24,7 @@ import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/favorite_heart_button.dart';
+import '../../widgets/peak_time_banner.dart';
 import '../../widgets/menu_item_actions.dart';
 import '../../widgets/smart_home_widgets.dart';
 import '../../widgets/search_bar.dart' as search_bar;
@@ -721,6 +722,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           // Up here it is one square button next to the address — the two
           // things a customer settles before anything else is where the food
           // goes and how they are going to find it.
+          const SliverToBoxAdapter(child: PeakTimeBanner()),
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.symmetric(

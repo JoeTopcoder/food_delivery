@@ -353,6 +353,32 @@ Deno.serve(async (request) => {
       }
     }
 
+    // ── Dynamic Peak Time surcharge (server-authoritative) ──────────────
+    // The client sends the peak fee it displayed. We re-derive the real peak
+    // fee from get_peak_time_state and, if they differ, correct the total so
+    // the customer is charged exactly the backend's amount — never a stale or
+    // tampered client value. Pickup orders carry no delivery surcharge.
+    const clientPeakFee = Math.max(0, Number(body.peak_fee) || 0);
+    let peakFee = 0;
+    if (!isPickup) {
+      try {
+        const { data: peakState } = await admin.rpc("get_peak_time_state");
+        const serverPeakFee = Math.max(0, Number(peakState?.fee) || 0);
+        peakFee = round2(serverPeakFee);
+      } catch (e) {
+        console.error(`[place-order] peak state lookup failed, peak fee=0: ${e}`);
+        peakFee = 0;
+      }
+    }
+    if (peakFee !== round2(clientPeakFee)) {
+      // Reconcile the total to the authoritative peak fee before charging.
+      totalAmount = round2(totalAmount - clientPeakFee + peakFee);
+      console.log(
+        `[place-order] peak fee corrected ${clientPeakFee} -> ${peakFee}, ` +
+          `total now ${totalAmount}, requestId=${requestId}`,
+      );
+    }
+
     const defaultCommission = await getConfig("default_commission_rate", 0.15);
     let commissionRate = restaurant.commission_rate ?? defaultCommission;
 
@@ -501,6 +527,7 @@ Deno.serve(async (request) => {
       commission_amount: commissionAmount,
       stripe_fee_amount: processorFee,
       is_pickup: isPickup,
+      peak_fee: peakFee,
     };
 
     // Who the order is for. The school is snapshotted onto the order rather
