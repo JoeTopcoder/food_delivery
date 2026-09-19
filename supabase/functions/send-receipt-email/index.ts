@@ -131,25 +131,27 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
 
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:32px 24px;text-align:center;">
-      <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">QuickDash</div>
-      <div style="color:rgba(255,255,255,0.85);font-size:14px;margin-top:4px;">Order Receipt</div>
+    <div style="background:#FF6B35;background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:36px 24px 30px;text-align:center;">
+      <div style="font-size:28px;line-height:34px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">QuickDash</div>
+      <div style="color:rgba(255,255,255,0.9);font-size:14px;line-height:20px;margin-top:6px;">Order Receipt</div>
     </div>
 
     <!-- Body -->
     <div style="background:#fff;padding:28px 24px;border-radius:0 0 16px 16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-      <!-- Receipt info -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Receipt</div>
-          <div style="font-weight:700;color:#1a1a2e;font-size:15px;">${escapeHtml(receiptNumber)}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
-          <div style="color:#1a1a2e;font-size:13px;">${orderDate}</div>
-        </div>
-      </div>
+      <!-- Receipt info (table for email-client reliability) -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr>
+          <td style="vertical-align:top;padding:0;">
+            <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Receipt</div>
+            <div style="font-weight:700;color:#1a1a2e;font-size:15px;margin-top:2px;">${escapeHtml(receiptNumber)}</div>
+          </td>
+          <td style="vertical-align:top;padding:0;text-align:right;">
+            <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
+            <div style="color:#1a1a2e;font-size:13px;margin-top:2px;">${orderDate}</div>
+          </td>
+        </tr>
+      </table>
 
       <!-- Restaurant -->
       <div style="background:#f8f9fa;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
