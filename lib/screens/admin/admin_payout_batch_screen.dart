@@ -103,8 +103,11 @@ class _AdminPayoutBatchScreenState
     }
   }
 
+  bool _isPayable(Map<String, dynamic> r) =>
+      r['has_bank'] == true && ((r['amount'] as num?)?.toDouble() ?? 0) > 0.005;
+
   Future<void> _runBatch() async {
-    final payable = _preview.where((r) => r['has_bank'] == true).toList();
+    final payable = _preview.where(_isPayable).toList();
     if (payable.isEmpty) {
       AppSnackbar.info(context, 'No payees with bank details to bill.');
       return;
@@ -156,8 +159,13 @@ class _AdminPayoutBatchScreenState
 
   @override
   Widget build(BuildContext context) {
-    final payable = _preview.where((r) => r['has_bank'] == true).toList();
-    final missing = _preview.where((r) => r['has_bank'] != true).toList();
+    double amt(Map<String, dynamic> r) => (r['amount'] as num?)?.toDouble() ?? 0;
+    final payable = _preview.where(_isPayable).toList();
+    final missing = _preview
+        .where((r) => amt(r) > 0.005 && r['has_bank'] != true)
+        .toList();
+    // Net-negative drivers: their balance is applied to their float; not paid.
+    final owes = _preview.where((r) => amt(r) <= 0.005).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -188,6 +196,11 @@ class _AdminPayoutBatchScreenState
                     ...missing.map((r) => _row(r, payable: false)),
                     const SizedBox(height: 16),
                   ],
+                  if (owes.isNotEmpty) ...[
+                    _sectionTitle('Owe the company after float (${owes.length})'),
+                    ...owes.map((r) => _row(r, payable: false, owes: true)),
+                    const SizedBox(height: 16),
+                  ],
                   if (_preview.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(32),
@@ -205,9 +218,9 @@ class _AdminPayoutBatchScreenState
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _preview.isEmpty
+                        onPressed: payable.isEmpty
                             ? null
-                            : () => _share(_preview, 'quickdash-payouts-preview'),
+                            : () => _share(payable, 'quickdash-payouts-preview'),
                         icon: const Icon(Icons.download_rounded),
                         label: const Text('Export CSV'),
                       ),
@@ -276,7 +289,7 @@ class _AdminPayoutBatchScreenState
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
       );
 
-  Widget _row(Map<String, dynamic> r, {required bool payable}) {
+  Widget _row(Map<String, dynamic> r, {required bool payable, bool owes = false}) {
     final scheme = Theme.of(context).colorScheme;
     final isDriver = r['entity_type'] == 'driver';
     final amount = (r['amount'] as num?)?.toDouble() ?? 0;
@@ -304,23 +317,30 @@ class _AdminPayoutBatchScreenState
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(
-                  payable
-                      ? '${r['bank_name'] ?? ''} · ${r['bank_account_number'] ?? ''}'
-                      : 'No bank account on file',
+                  owes
+                      ? 'Balance applied to float — still owes $_sym${amount.abs().toStringAsFixed(2)}'
+                      : payable
+                          ? '${r['bank_name'] ?? ''} · ${r['bank_account_number'] ?? ''}'
+                          : 'No bank account on file',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
-                    color: payable
-                        ? scheme.onSurfaceVariant
-                        : const Color(0xFFEF4444),
+                    color: payable ? scheme.onSurfaceVariant : const Color(0xFFEF4444),
                   ),
                 ),
               ],
             ),
           ),
-          Text('$_sym${amount.toStringAsFixed(2)}',
-              style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text(
+            owes
+                ? '−$_sym${amount.abs().toStringAsFixed(2)}'
+                : '$_sym${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: owes ? const Color(0xFFEF4444) : null,
+            ),
+          ),
         ],
       ),
     );
