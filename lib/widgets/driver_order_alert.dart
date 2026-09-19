@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/notification_service.dart';
 import '../providers/driver_provider.dart';
+import '../providers/driver_intelligence_provider.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_constants.dart';
 import '../utils/friendly_error.dart';
@@ -213,6 +214,9 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
         await ref
             .read(driverServiceProvider)
             .declineOrder(widget.orderId, driver.id);
+        // declineOrder has already recomputed the stats — refresh any open
+        // performance view so the decline rate reflects it immediately.
+        ref.invalidate(driverStatsProvider(driver.id));
       }
     } catch (_) {
       // Recording the decline is best-effort; still dismiss the card.

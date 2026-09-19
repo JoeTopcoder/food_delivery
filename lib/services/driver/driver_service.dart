@@ -259,18 +259,18 @@ class DriverService {
       AppLogger.info('Driver $driverId declined order $orderId');
       // Recompute the driver's acceptance/decline stats so the decline rate
       // reflects this decline immediately. Uses a lightweight SQL RPC (the
-      // heavier driver-intelligence edge function is unreliable). Fire-and-
-      // forget: a failed recompute must not fail the decline itself.
-      unawaited(() async {
-        try {
-          await _supabaseClient.rpc(
-            'recompute_driver_acceptance',
-            params: {'p_driver_id': driverId},
-          );
-        } catch (e) {
-          AppLogger.error('decline stats recompute failed: $e');
-        }
-      }());
+      // heavier driver-intelligence edge function is unreliable). Awaited so
+      // that by the time this returns, driver_stats is current and the caller
+      // can safely refresh the stats view. A failed recompute must not fail
+      // the decline itself — the row is already recorded.
+      try {
+        await _supabaseClient.rpc(
+          'recompute_driver_acceptance',
+          params: {'p_driver_id': driverId},
+        );
+      } catch (e) {
+        AppLogger.error('decline stats recompute failed: $e');
+      }
     } catch (e) {
       AppLogger.error('Error declining order: $e');
       rethrow;
