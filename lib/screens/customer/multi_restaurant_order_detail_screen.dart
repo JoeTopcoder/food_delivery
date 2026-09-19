@@ -254,7 +254,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '#${order.masterOrderNumber ?? order.id.substring(0, 8).toUpperCase()}',
+                    '#${order.id.substring(0, 8).toUpperCase()}',
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -643,7 +643,7 @@ class _RestaurantOrderCardState extends ConsumerState<_RestaurantOrderCard> {
                         maxLines: 1,
                       ),
                       Text(
-                        '#${ro.restaurantOrderNumber ?? ro.id.substring(0, 8).toUpperCase()}',
+                        '#${ro.id.substring(0, 8).toUpperCase()}',
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

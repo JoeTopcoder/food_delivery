@@ -274,7 +274,7 @@ class _MasterOrderCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '#${masterOrder.masterOrderNumber ?? masterOrder.id.substring(0, 8).toUpperCase()}',
+                  '#${masterOrder.id.substring(0, 8).toUpperCase()}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
