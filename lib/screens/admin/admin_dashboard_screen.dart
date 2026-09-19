@@ -642,6 +642,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-peak-time'),
                           ),
+                          _GridAction(
+                            icon: Icons.account_balance_rounded,
+                            label: 'Payout Run',
+                            color: const Color(0xFF0EA5E9),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-payout-batch'),
+                          ),
                         ],
                       ),
 
