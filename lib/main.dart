@@ -135,6 +135,7 @@ import 'screens/restaurant/restaurant_settings_screen.dart';
 import 'screens/restaurant/menu_management_screen.dart';
 import 'screens/restaurant/grocery_management_screen.dart';
 import 'screens/admin/admin_grocery_stores_screen.dart';
+import 'screens/admin/admin_peak_time_screen.dart';
 import 'screens/admin/student_verification_admin_screen.dart';
 import 'screens/customer/student_verification_screen.dart';
 import 'screens/restaurant/restaurant_loyalty_screen.dart';
@@ -840,6 +841,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminGroceryStoresScreen(),
+                ),
+              );
+            case '/admin-peak-time':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPeakTimeScreen(),
                 ),
               );
             case '/admin-student-verification':

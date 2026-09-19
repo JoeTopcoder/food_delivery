@@ -12,6 +12,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
 import '../shared/ai_voice_screen.dart';
+import '../../widgets/peak_time_banner.dart';
 import '../../modules/packages/screens/driver/driver_packages_screen.dart';
 import 'driver_verification_screen.dart';
 
@@ -531,6 +532,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   ),
                 ],
               ),
+            ),
+
+            // Peak Time indicator (renders nothing unless Peak Time is ON).
+            const PeakTimeBanner(
+              driver: true,
+              margin: EdgeInsets.fromLTRB(16, 12, 16, 0),
             ),
 
             const SizedBox(height: 20),

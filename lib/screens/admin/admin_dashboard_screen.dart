@@ -634,6 +634,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               context,
                             ).pushNamed('/admin-student-verification'),
                           ),
+                          _GridAction(
+                            icon: Icons.local_fire_department_rounded,
+                            label: 'Peak Time',
+                            color: const Color(0xFFF59E0B),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-peak-time'),
+                          ),
                         ],
                       ),
 

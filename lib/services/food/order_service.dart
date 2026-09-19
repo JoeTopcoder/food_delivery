@@ -74,6 +74,7 @@ class OrderService {
     DateTime? scheduledFor,
     bool isPickup = false,
     double? pickupFee,
+    double peakFee = 0,
     bool fromAd = false,
     String? adId,
     String? promoCode,
@@ -144,6 +145,7 @@ class OrderService {
         body['scheduled_for'] = scheduledFor.toIso8601String();
       }
       if (isPickup && pickupFee != null) body['pickup_fee'] = pickupFee;
+      if (peakFee > 0) body['peak_fee'] = peakFee;
       if (fromAd) body['from_ad'] = true;
       if (adId != null) body['ad_id'] = adId;
       if (promoCode != null && promoCode.trim().isNotEmpty) {

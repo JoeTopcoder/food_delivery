@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/banner_model.dart' as app;
+import '../../widgets/peak_time_banner.dart';
 import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/banner_provider.dart';
@@ -59,6 +60,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
           ),
           scrollCacheExtent: const ScrollCacheExtent.pixels(500),
           slivers: [
+            const SliverToBoxAdapter(child: PeakTimeBanner()),
             // ── Header ──────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
