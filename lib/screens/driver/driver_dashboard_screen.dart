@@ -97,14 +97,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             driverLat: lat,
             driverLng: lng,
           );
-      // Only orders currently in the "ready" tab, newest first.
+      // Only orders currently in the "ready" tab, newest first. The list is
+      // already capped by getAvailableOrders to the driver's remaining slots
+      // (3 - active), so a driver with 1 active order sees up to 2 here.
       final ready = orders
           .where((o) => o.status == AppConstants.orderReady)
+          .where((o) => !_poppedReadyIds.contains(o.id))
           .toList();
-      for (final o in ready) {
-        if (_poppedReadyIds.contains(o.id)) continue;
-        _poppedReadyIds.add(o.id);
+      if (ready.isEmpty) return;
 
+      final cards = <Map<String, dynamic>>[];
+      for (final o in ready) {
+        _poppedReadyIds.add(o.id);
         String storeName = 'New Order';
         double? distanceKm;
         try {
@@ -126,23 +130,19 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             }
           }
         } catch (_) {}
-
-        if (!mounted) return;
-        DriverOrderAlert.show(
-          orderId: o.id,
-          title: storeName,
-          body: 'Order ready for pickup nearby',
-          data: {
-            'store_name': storeName,
-            'address': o.deliveryAddress ?? '',
-            'delivery_fee': o.deliveryFee.toString(),
-            'tip': (o.driverTip ?? 0).toString(),
-            if (distanceKm != null)
-              'distance_km': distanceKm.toStringAsFixed(2),
-          },
-        );
-        break; // one card at a time; the rest stay in the Orders list
+        cards.add({
+          'order_id': o.id,
+          'store_name': storeName,
+          'address': o.deliveryAddress ?? '',
+          'delivery_fee': o.deliveryFee.toString(),
+          'tip': (o.driverTip ?? 0).toString(),
+          if (distanceKm != null) 'distance_km': distanceKm.toStringAsFixed(2),
+        });
       }
+
+      if (!mounted || cards.isEmpty) return;
+      // Show every order the driver can still take, together in one popup.
+      DriverOrderAlert.showOrders(cards);
     } catch (e) {
       // Non-fatal: the orders are still visible in the Orders screen.
     }
