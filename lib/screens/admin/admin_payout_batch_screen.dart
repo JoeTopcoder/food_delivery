@@ -145,9 +145,21 @@ class _AdminPayoutBatchScreenState
       final billed =
           (res as List).map((e) => Map<String, dynamic>.from(e)).toList();
       await _share(billed, 'quickdash-payouts');
+      // Email anyone still owed but missing bank details so they add it.
+      int reminders = 0;
+      try {
+        final r = await SupabaseConfig.client.functions
+            .invoke('send-payout-reminders');
+        reminders = (r.data is Map ? r.data['sent'] : null) as int? ?? 0;
+      } catch (_) {
+        // Non-fatal: the payout run itself succeeded.
+      }
       if (mounted) {
-        AppSnackbar.success(context,
-            'Billed ${billed.length} payee(s). Balances reset for next run.');
+        AppSnackbar.success(
+          context,
+          'Billed ${billed.length} payee(s). Balances reset for next run.'
+          '${reminders > 0 ? ' Sent $reminders bank-info reminder(s).' : ''}',
+        );
       }
       await _load();
     } catch (e) {
