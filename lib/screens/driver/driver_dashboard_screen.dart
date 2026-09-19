@@ -77,8 +77,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   /// Shows one card at a time (the newest un-shown ready order).
   Future<void> _scanNearbyReadyOrders(Driver driver) async {
     if (!driver.isAvailable || !mounted) return;
-    final lat = driver.currentLatitude;
-    final lng = driver.currentLongitude;
+    double? lat = driver.currentLatitude;
+    double? lng = driver.currentLongitude;
+    // Fall back to a live GPS fix if the profile has no location yet, so the
+    // popup still fires right after going online. If we still have no location
+    // we scan without a proximity filter (same as the Get Orders tab).
+    if (lat == null || lng == null) {
+      try {
+        final pos = await ref.read(locationServiceProvider).getCurrentPosition();
+        if (pos != null) {
+          lat = pos.latitude;
+          lng = pos.longitude;
+        }
+      } catch (_) {}
+    }
     try {
       final orders = await ref.read(driverServiceProvider).getAvailableOrders(
             driverId: driver.id,
@@ -863,17 +875,17 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final balance = ((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0))
         .clamp(0.0, double.infinity);
 
-    // When the driver is online and we know where they are, scan once for
-    // orders that are ALREADY ready nearby and pop them — covers a driver who
-    // logs in after an order became ready. Reset when they go offline.
-    if (isOnline && driver.currentLatitude != null) {
+    // When the driver comes online, scan once for orders that are ALREADY
+    // ready and pop them — covers a driver who logs in / comes back online
+    // after an order became ready. Reset when they go offline.
+    if (isOnline) {
       if (!_readyScanScheduled) {
         _readyScanScheduled = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _scanNearbyReadyOrders(driver);
         });
       }
-    } else if (!isOnline) {
+    } else {
       _readyScanScheduled = false;
       _poppedReadyIds.clear();
     }
