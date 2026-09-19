@@ -20,9 +20,27 @@ class DriverOrderAlert {
     required String title,
     required String body,
     Map<String, dynamic> data = const {},
+    int retriesLeft = 20,
   }) {
+    if (orderId.isEmpty) return;
     final overlay = NotificationService.navigatorKey?.currentState?.overlay;
-    if (overlay == null || orderId.isEmpty) return;
+    // The overlay can be momentarily unavailable while the app is still on the
+    // splash/route transition (e.g. an order-ready scan fired right at launch).
+    // Retry briefly rather than dropping the alert.
+    if (overlay == null) {
+      if (retriesLeft > 0) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          show(
+            orderId: orderId,
+            title: title,
+            body: body,
+            data: data,
+            retriesLeft: retriesLeft - 1,
+          );
+        });
+      }
+      return;
+    }
     _remove();
     final entry = OverlayEntry(
       builder: (_) => _OrderAlertCard(
