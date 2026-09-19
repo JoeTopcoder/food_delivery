@@ -169,12 +169,10 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <tr>
           <td style="vertical-align:top;padding:0;">
-            <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Receipt</div>
-            <div style="font-weight:700;color:#1a1a2e;font-size:15px;margin-top:2px;">${escapeHtml(receiptNumber)}</div>
+            <div style="font-weight:700;color:#1a1a2e;font-size:15px;">${escapeHtml(receiptNumber)}</div>
           </td>
           <td style="vertical-align:top;padding:0;text-align:right;">
-            <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
-            <div style="color:#1a1a2e;font-size:13px;margin-top:2px;">${orderDate}</div>
+            <div style="color:#1a1a2e;font-size:13px;">${orderDate}</div>
             <div style="color:#999;font-size:12px;margin-top:2px;">${orderTime}</div>
           </td>
         </tr>
