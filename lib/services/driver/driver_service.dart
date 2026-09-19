@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -256,6 +257,20 @@ class DriverService {
         'declined_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'driver_id,order_id');
       AppLogger.info('Driver $driverId declined order $orderId');
+      // Recompute the driver's acceptance/decline stats so the decline rate
+      // reflects this decline immediately. Uses a lightweight SQL RPC (the
+      // heavier driver-intelligence edge function is unreliable). Fire-and-
+      // forget: a failed recompute must not fail the decline itself.
+      unawaited(() async {
+        try {
+          await _supabaseClient.rpc(
+            'recompute_driver_acceptance',
+            params: {'p_driver_id': driverId},
+          );
+        } catch (e) {
+          AppLogger.error('decline stats recompute failed: $e');
+        }
+      }());
     } catch (e) {
       AppLogger.error('Error declining order: $e');
       rethrow;

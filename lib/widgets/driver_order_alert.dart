@@ -193,8 +193,30 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
     _timer = Timer(const Duration(seconds: 8), _dismiss);
   }
 
+  /// Auto-dismiss (8s timeout). Not a decline — ignoring an offer must not
+  /// count against the driver's decline rate.
   Future<void> _dismiss() async {
     _timer?.cancel();
+    if (mounted) await _c.reverse();
+    widget.onDismiss();
+  }
+
+  /// Explicit Decline tap — record it so it counts toward the decline rate.
+  Future<void> _decline() async {
+    _timer?.cancel();
+    try {
+      final uid = ref.read(currentUserIdProvider);
+      final driver = uid == null
+          ? null
+          : ref.read(driverProfileProvider(uid)).valueOrNull;
+      if (driver != null) {
+        await ref
+            .read(driverServiceProvider)
+            .declineOrder(widget.orderId, driver.id);
+      }
+    } catch (_) {
+      // Recording the decline is best-effort; still dismiss the card.
+    }
     if (mounted) await _c.reverse();
     widget.onDismiss();
   }
@@ -360,7 +382,7 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _accepting ? null : _dismiss,
+                      onPressed: _accepting ? null : _decline,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFEF4444),
                         side: const BorderSide(color: Color(0xFF3A2030)),
