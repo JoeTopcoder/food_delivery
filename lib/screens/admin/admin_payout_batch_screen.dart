@@ -164,8 +164,10 @@ class _AdminPayoutBatchScreenState
     final missing = _preview
         .where((r) => amt(r) > 0.005 && r['has_bank'] != true)
         .toList();
-    // Net-negative drivers: their balance is applied to their float; not paid.
-    final owes = _preview.where((r) => amt(r) <= 0.005).toList();
+    final drivers =
+        _preview.where((r) => r['entity_type'] == 'driver').toList();
+    final restaurants =
+        _preview.where((r) => r['entity_type'] == 'restaurant').toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -186,19 +188,14 @@ class _AdminPayoutBatchScreenState
                 children: [
                   _summary(payable, missing),
                   const SizedBox(height: 16),
-                  if (payable.isNotEmpty) ...[
-                    _sectionTitle('To be paid (${payable.length})'),
-                    ...payable.map((r) => _row(r, payable: true)),
+                  if (drivers.isNotEmpty) ...[
+                    _sectionTitle('Drivers (${drivers.length})'),
+                    ...drivers.map(_autoRow),
                     const SizedBox(height: 16),
                   ],
-                  if (missing.isNotEmpty) ...[
-                    _sectionTitle('Owed but missing bank info (${missing.length})'),
-                    ...missing.map((r) => _row(r, payable: false)),
-                    const SizedBox(height: 16),
-                  ],
-                  if (owes.isNotEmpty) ...[
-                    _sectionTitle('Owe the company after float (${owes.length})'),
-                    ...owes.map((r) => _row(r, payable: false, owes: true)),
+                  if (restaurants.isNotEmpty) ...[
+                    _sectionTitle('Restaurants (${restaurants.length})'),
+                    ...restaurants.map(_autoRow),
                     const SizedBox(height: 16),
                   ],
                   if (_preview.isEmpty)
@@ -288,6 +285,13 @@ class _AdminPayoutBatchScreenState
         child: Text(t,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
       );
+
+  /// Picks the row style from the entity's amount + bank status.
+  Widget _autoRow(Map<String, dynamic> r) {
+    final amount = (r['amount'] as num?)?.toDouble() ?? 0;
+    if (amount <= 0.005) return _row(r, payable: false, owes: true);
+    return _row(r, payable: r['has_bank'] == true);
+  }
 
   Widget _row(Map<String, dynamic> r, {required bool payable, bool owes = false}) {
     final scheme = Theme.of(context).colorScheme;
