@@ -491,7 +491,7 @@ class _OrderCard extends ConsumerWidget {
                   ),
                 const Spacer(),
                 Text(
-                  '#${AppConstants.displayOrderNumber(order.receiptNumber, fallback: order.id.substring(0, 8).toUpperCase())}',
+                  '#${order.id.substring(0, 8).toUpperCase()}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1148,7 +1148,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 4),
             Center(
               child: Text(
-                'Receipt #${AppConstants.displayOrderNumber(order.receiptNumber, fallback: order.id.substring(0, 8))}',
+                'Order #${order.id.substring(0, 8).toUpperCase()}',
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

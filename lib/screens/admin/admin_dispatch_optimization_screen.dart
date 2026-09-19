@@ -90,7 +90,7 @@ class _AdminDispatchOptimizationScreenState extends State<AdminDispatchOptimizat
                           side: BorderSide(color: _selectedOrderId == o['id'] ? AppTheme.primaryColor : Colors.grey.shade200, width: _selectedOrderId == o['id'] ? 1.5 : 1),
                         ),
                         child: ListTile(
-                          title: Text(o['receipt_number'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          title: Text('#${(o['id'] ?? '').toString().length >= 8 ? (o['id'] as String).substring(0, 8).toUpperCase() : (o['id'] ?? '').toString().toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                           subtitle: Text(o['restaurant'] ?? '', style: const TextStyle(fontSize: 12)),
                           trailing: _ranking && _selectedOrderId == o['id']
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))

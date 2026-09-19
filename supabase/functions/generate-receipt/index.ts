@@ -67,7 +67,8 @@ serve(async (req) => {
 
     // Build receipt
     const receipt = {
-      receipt_number: order.receipt_number || `RCP-${order_id.substring(0, 8).toUpperCase()}`,
+      // Canonical order id — matches the app order history, driver and admin.
+      receipt_number: `#${order_id.substring(0, 8).toUpperCase()}`,
       order_id: order.id,
       order_date: order.ordered_at,
       customer_id: order.user_id,

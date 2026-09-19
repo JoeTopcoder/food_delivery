@@ -85,7 +85,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Order #${widget.receiptNumber ?? widget.orderId.substring(0, 8).toUpperCase()}',
+                      'Order #${widget.orderId.substring(0, 8).toUpperCase()}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

@@ -158,7 +158,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Order #${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
+          'Order #${order.id.substring(0, 8).toUpperCase()}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,

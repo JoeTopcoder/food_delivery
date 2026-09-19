@@ -111,7 +111,7 @@ class _OrderRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text('#${order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
+              Text('#${order.id.substring(0, 8).toUpperCase()}',
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
               const SizedBox(height: 2),
               Text(summary.isEmpty ? '—' : summary,
@@ -197,7 +197,7 @@ class _OrderDetailDialog extends StatelessWidget {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  _row('Order #', order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()),
+                  _row('Order #', order.id.substring(0, 8).toUpperCase()),
                   _row('Date', _formatDate(order.orderedAt)),
                   _row('Delivery Address', order.deliveryAddress ?? 'N/A'),
                   _row('Payment', order.paymentMethod ?? 'N/A'),

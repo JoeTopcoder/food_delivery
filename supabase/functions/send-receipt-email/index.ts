@@ -43,10 +43,11 @@ function formatDate(dateStr: string): string {
   });
 }
 
-/// Customer-facing order number without the daily sequence suffix
-/// (e.g. "GRO-20260916-0002" -> "GRO-20260916").
-function displayReceipt(receipt: string): string {
-  return receipt.replace(/-\d+$/, "");
+/// Canonical order id shown to everyone — app order history, driver screens,
+/// admin and this email receipt — so the same order reads identically in every
+/// place: "#AA311238" (first 8 of the order UUID, upper-cased).
+function orderDisplayId(orderId: string): string {
+  return `#${orderId.substring(0, 8).toUpperCase()}`;
 }
 
 function escapeHtml(str: string): string {
@@ -66,8 +67,7 @@ interface OrderItem {
 }
 
 function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], restaurant: Record<string, unknown>, customerName: string): string {
-  const rawReceipt = order.receipt_number as string || `FD-${(order.id as string).substring(0, 8).toUpperCase()}`;
-  const receiptNumber = displayReceipt(rawReceipt);
+  const receiptNumber = orderDisplayId(order.id as string);
   const orderDate = formatDate(order.ordered_at as string);
   // White-label: grocery partner stores are anonymised to customers — show the
   // public brand / alias and hide the store address. Food stores show the real
@@ -283,10 +283,8 @@ Deno.serve(async (request) => {
     const items = (order.order_items || []) as OrderItem[];
     const html = buildReceiptHtml(order, items, restaurant || {}, customerName);
 
-    // Customer-facing order number without the daily sequence suffix.
-    const receiptNumber = displayReceipt(
-      (order.receipt_number as string) || `FD-${orderId.substring(0, 8).toUpperCase()}`,
-    );
+    // Canonical order id, matching the app order history, driver and admin.
+    const receiptNumber = orderDisplayId(orderId);
     // White-label grocery stores in the subject line too.
     const st = restaurant?.store_type as string || "";
     const isGroceryStore = st === "grocery" || st === "both";
