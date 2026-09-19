@@ -291,6 +291,28 @@ class DriverService {
             .toSet();
       }
 
+      // Proper dispatching: a driver may hold at most 3 orders at once. Only
+      // offer enough ready orders to top them up to 3 — fewer when they already
+      // have active deliveries (1 active -> offer 2, 2 active -> offer 1,
+      // 3 active -> offer none).
+      const maxConcurrent = 3;
+      int activeCount = 0;
+      if (driverId != null) {
+        final activeRows = await _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('id')
+            .eq('driver_id', driverId)
+            .not('status', 'in', '(delivered,cancelled)');
+        activeCount = (activeRows as List).length;
+      }
+      final maxSlots = (maxConcurrent - activeCount).clamp(0, maxConcurrent);
+      if (maxSlots <= 0) {
+        AppLogger.info(
+          'Driver has $activeCount active orders (max $maxConcurrent) — offering no new orders',
+        );
+        return <Order>[];
+      }
+
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
           .select('*, restaurants(latitude, longitude)')
@@ -322,8 +344,8 @@ class DriverService {
           }
         }
 
-        // Cap at 5 orders per driver
-        if (orders.length >= 5) break;
+        // Cap so active + offered never exceeds the 3-order max.
+        if (orders.length >= maxSlots) break;
 
         final itemsResponse = await _supabaseClient
             .from(AppConstants.tableOrderItems)
