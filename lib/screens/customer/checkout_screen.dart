@@ -359,7 +359,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Peak Time notice (only renders while Peak Time is ON).
-                const PeakTimeBanner(showFee: true, margin: EdgeInsets.only(bottom: 8)),
+                const PeakTimeBanner(margin: EdgeInsets.only(bottom: 8)),
                 // ── Delivery Address / Pickup Location ────────────────
                 if (isPickup)
                   _Section(
@@ -1299,15 +1299,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               ? const Color(0xFF528BFF)
                               : null,
                         ),
-                      if (peakFee > 0)
-                        _SummaryRow(
-                          'Peak Time Fee',
-                          '${AppConstants.currencySymbol}${peakFee.toStringAsFixed(2)}',
-                          valueColor: const Color(0xFFB45309),
-                        ),
+                      // Peak Time surcharge is folded into the Service Fee line
+                      // (not shown separately) per current business rule.
                       _SummaryRow(
                         'Service Fee',
-                        '${AppConstants.currencySymbol}${platformServiceFee.toStringAsFixed(2)}',
+                        '${AppConstants.currencySymbol}${(platformServiceFee + peakFee).toStringAsFixed(2)}',
                       ),
                       if (tax > 0)
                         _SummaryRow(
