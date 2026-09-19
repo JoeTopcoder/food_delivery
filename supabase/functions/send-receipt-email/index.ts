@@ -37,6 +37,13 @@ function formatDate(dateStr: string): string {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "America/Jamaica",
+  });
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Jamaica",
@@ -69,6 +76,7 @@ interface OrderItem {
 function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], restaurant: Record<string, unknown>, customerName: string): string {
   const receiptNumber = orderDisplayId(order.id as string);
   const orderDate = formatDate(order.ordered_at as string);
+  const orderTime = formatTime(order.ordered_at as string);
   // White-label: grocery partner stores are anonymised to customers — show the
   // public brand / alias and hide the store address. Food stores show the real
   // name and address.
@@ -149,6 +157,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
           <td style="vertical-align:top;padding:0;text-align:right;">
             <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
             <div style="color:#1a1a2e;font-size:13px;margin-top:2px;">${orderDate}</div>
+            <div style="color:#999;font-size:12px;margin-top:2px;">${orderTime}</div>
           </td>
         </tr>
       </table>
