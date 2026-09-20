@@ -180,6 +180,8 @@ flutter:
     - assets/adi-registration.properties
     # App logo, shown on order receipts.
     - assets/images/app_icon.png
+    # Role selection ("Choose your path") imagery.
+    - assets/images/roles/
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
