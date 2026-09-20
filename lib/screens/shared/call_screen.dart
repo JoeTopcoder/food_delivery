@@ -15,11 +15,16 @@ class CallScreen extends ConsumerStatefulWidget {
   final bool isCaller;
   final String? otherPartyName;
 
+  /// Role of the caller ('driver' | 'admin' | 'restaurant' | 'user'). Used to
+  /// show the receiver who's calling (e.g. "Driver", "QuickDash").
+  final String? callerRole;
+
   const CallScreen({
     super.key,
     required this.call,
     required this.isCaller,
     this.otherPartyName,
+    this.callerRole,
   });
 
   @override
@@ -450,7 +455,35 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Color get _accent =>
       widget.isCaller ? AppTheme.primaryColor : const Color(0xFF22C55E);
 
-  String get _displayName => widget.otherPartyName ?? 'Order Participant';
+  /// What the receiver sees as the caller. Admin → "QuickDash", driver →
+  /// "Driver", restaurant → the store/name, otherwise the caller's name.
+  String get _displayName {
+    if (!widget.isCaller) {
+      switch (widget.callerRole) {
+        case 'admin':
+          return 'QuickDash';
+        case 'driver':
+          return 'Driver';
+        case 'restaurant':
+          return widget.otherPartyName ?? 'Restaurant';
+      }
+    }
+    return widget.otherPartyName ?? 'Order Participant';
+  }
+
+  /// Avatar icon for role-based callers (initials look odd for "QuickDash").
+  IconData? get _callerIcon {
+    if (widget.isCaller) return null;
+    switch (widget.callerRole) {
+      case 'admin':
+        return Icons.support_agent_rounded;
+      case 'driver':
+        return Icons.delivery_dining_rounded;
+      case 'restaurant':
+        return Icons.storefront_rounded;
+    }
+    return null;
+  }
 
   String get _initials {
     final parts = _displayName.trim().split(RegExp(r'\s+'));
@@ -598,14 +631,16 @@ class _CallScreenState extends ConsumerState<CallScreen>
         ],
       ),
       alignment: Alignment.center,
-      child: Text(
-        _initials,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 42,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: _callerIcon != null
+          ? Icon(_callerIcon, color: Colors.white, size: 52)
+          : Text(
+              _initials,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 42,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
     );
 
     if (!ringing) return core;
@@ -732,7 +767,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 ],
               )
             : const Text(
-                'Incoming call',
+                'is calling…',
                 style: TextStyle(color: Color(0xFF22C55E), fontSize: 15),
               );
       case CallStatus.accepted:

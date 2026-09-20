@@ -1371,11 +1371,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               if (call == null) return null;
               final isCaller = args?['isCaller'] as bool? ?? true;
               final otherPartyName = args?['otherPartyName'] as String?;
+              final callerRole = args?['callerRole'] as String?;
               return MaterialPageRoute(
                 builder: (context) => CallScreen(
                   call: call,
                   isCaller: isCaller,
                   otherPartyName: otherPartyName,
+                  callerRole: callerRole,
                 ),
               );
             case '/referrals':

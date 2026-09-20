@@ -667,6 +667,7 @@ class NotificationService {
                 ),
                 'isCaller': false,
                 'otherPartyName': callerName,
+                'callerRole': data['caller_role'] as String?,
               },
             );
           }

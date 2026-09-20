@@ -151,6 +151,15 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Recipient has no FCM token" }, 404);
     }
 
+    // Look up the caller's role so the receiver's call screen can show who's
+    // calling ("Driver", "QuickDash", etc.).
+    let callerRole = "";
+    if (callerId) {
+      const { data: callerRow } = await admin
+        .from("users").select("role").eq("id", callerId).maybeSingle();
+      callerRole = (callerRow?.role as string) ?? "";
+    }
+
     // 2. Build and send a data-only FCM message (high priority)
     //    Data-only ensures the background handler fires on Android even when killed
     const sa = getServiceAccount();
@@ -171,6 +180,7 @@ Deno.serve(async (req: Request) => {
           call_id: callId,
           caller_id: callerId ?? "",
           caller_name: callerName,
+          caller_role: callerRole,
           order_id: orderId ?? "",
           channel_name: channelName,
           user_id: recipientUserId,
