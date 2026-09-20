@@ -10,7 +10,6 @@ import '../shared/payout_request_screen.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
-import '../../features/auth/services/delayed_stripe_connect_service.dart';
 import 'restaurant_offer_screen.dart';
 import 'restaurant_onboarding_screen.dart';
 import '../../models/restaurant_model.dart';
@@ -155,23 +154,6 @@ class _RestaurantDashboardScreenState
     }
   }
 
-  Future<void> _startRestaurantStripeSetup() async {
-    try {
-      final launched = await DelayedStripeConnectService()
-          .ensureConnectedForDriverPayout();
-      if (!launched && mounted) {
-        AppSnackbar.error(
-          context,
-          'Could not open Stripe setup. Please try again.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -241,662 +223,1183 @@ class _RestaurantDashboardScreenState
           ref.watch(ownerOrderRealtimeProvider(currentUserId));
         }
 
-        return Scaffold(
-          body: RefreshIndicator(
-            onRefresh: _refresh,
-            color: AppTheme.primaryColor,
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-              slivers: [
-                // ── Hero Header ──────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1E293B), Color(0xFF334155)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: restaurant.imageUrl != null &&
-                                          restaurant.imageUrl!.isNotEmpty
-                                      ? Image.network(
-                                          restaurant.imageUrl!,
-                                          width: 48,
-                                          height: 48,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              Container(
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      AppTheme.primaryColor,
-                                                      Color(0xFFFF8C5A),
-                                                    ],
-                                                  ),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.storefront_rounded,
-                                                  color: Colors.white,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                        )
-                                      : Container(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                AppTheme.primaryColor,
-                                                Color(0xFFFF8C5A),
-                                              ],
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.storefront_rounded,
-                                            color: Colors.white,
-                                            size: 24,
-                                          ),
-                                        ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Welcome, ${authState.user!.name?.split(' ').first ?? 'User'}',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: Responsive.headingMedium(context),
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.3,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        restaurant.name,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.6,
-                                          ),
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Material(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: _signOut,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(10),
-                                      child: Icon(
-                                        Icons.logout_rounded,
-                                        color: Colors.white70,
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            // ── Status toggle banner ──
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: Responsive.horizontalPadding(context),
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: restaurant.isOpen
-                                    ? const Color(
-                                        0xFF10B981,
-                                      ).withValues(alpha: 0.15)
-                                    : Colors.red.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: restaurant.isOpen
-                                      ? const Color(
-                                          0xFF10B981,
-                                        ).withValues(alpha: 0.3)
-                                      : Colors.red.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: restaurant.isOpen
-                                          ? const Color(0xFF10B981)
-                                          : Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      restaurant.isOpen
-                                          ? 'Your restaurant is OPEN'
-                                          : 'Your restaurant is CLOSED',
-                                      style: TextStyle(
-                                        color: restaurant.isOpen
-                                            ? const Color(0xFF10B981)
-                                            : Colors.red.shade300,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  _togglingAvailability
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white70,
-                                          ),
-                                        )
-                                      : Switch(
-                                          value: restaurant.isOpen,
-                                          activeThumbColor: const Color(
-                                            0xFF10B981,
-                                          ),
-                                          onChanged: (_) => _toggleAvailability(
-                                            restaurant.id,
-                                            restaurant.isOpen,
-                                          ),
-                                        ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ordersAsync.when(
-                              loading: () => const SizedBox.shrink(),
-                              error: (_, __) => const SizedBox.shrink(),
-                              data: (orders) {
-                                final needsStripeSetup =
-                                    orders.isNotEmpty &&
-                                    (restaurant.stripeAccountId == null ||
-                                        restaurant.stripeAccountId!.isEmpty);
-                                if (!needsStripeSetup) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFEDD5),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFFB923C),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.account_balance_wallet_rounded,
-                                        color: Color(0xFFC2410C),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      const Expanded(
-                                        child: Text(
-                                          'You received your first order. Complete payout setup to receive funds.',
-                                          style: TextStyle(
-                                            color: Color(0xFF9A3412),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: _startRestaurantStripeSetup,
-                                        child: const Text('Set up'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+        return _buildApprovedDashboard(
+          restaurant,
+          authState,
+          currentUserId,
+          ordersAsync,
+        );
+      },
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Approved dashboard — mockup layout (HotBite Restaurant Partner)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static const _bg = Color(0xFF0B1120);
+  static const _card = Color(0xFF131B2E);
+  static const _cardBorder = Color(0xFF23304A);
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  Widget _buildApprovedDashboard(
+    Restaurant restaurant,
+    dynamic authState,
+    String currentUserId,
+    AsyncValue<List<Order>> ordersAsync,
+  ) {
+    final orders = ordersAsync.valueOrNull ?? const <Order>[];
+
+    // ── Metrics ──────────────────────────────────────────────────────────────
+    int cNew = 0, cPrep = 0, cOfd = 0, cDelivered = 0, cCancelled = 0;
+    double totalSales = 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (final o in orders) {
+      switch (o.status) {
+        case 'pending':
+        case 'confirmed':
+          cNew++;
+          break;
+        case 'preparing':
+          cPrep++;
+          break;
+        case 'ready':
+        case 'picked_up':
+        case 'out_for_delivery':
+          cOfd++;
+          break;
+        case 'delivered':
+          cDelivered++;
+          break;
+        case 'cancelled':
+          cCancelled++;
+          break;
+      }
+      if (o.status != 'cancelled') totalSales += o.subtotal;
+    }
+    final totalOrders = orders.length;
+
+    // Avg prep/turnaround for delivered orders with timestamps.
+    final durations = <int>[];
+    for (final o in orders) {
+      if (o.completedAt != null) {
+        final start = o.confirmedAt ?? o.orderedAt;
+        final mins = o.completedAt!.difference(start).inMinutes;
+        if (mins > 0 && mins < 600) durations.add(mins);
+      }
+    }
+    final avgPrep = durations.isEmpty
+        ? null
+        : (durations.reduce((a, b) => a + b) / durations.length).round();
+
+    // Last 7 days sales for the bar chart.
+    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+    final daySales = List<double>.filled(7, 0);
+    for (final o in orders) {
+      if (o.status == 'cancelled') continue;
+      final d = DateTime(o.orderedAt.year, o.orderedAt.month, o.orderedAt.day);
+      final idx = days.indexWhere((x) => x == d);
+      if (idx >= 0) daySales[idx] += o.subtotal;
+    }
+
+    final isOpen = restaurant.isOpen;
+
+    return Scaffold(
+      backgroundColor: _bg,
+      bottomNavigationBar: _bottomNav(),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        color: AppTheme.primaryColor,
+        backgroundColor: _card,
+        child: ListView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.zero,
+          children: [
+            _dashHeader(restaurant, authState),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _dashHero(restaurant, authState, isOpen),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _kpiRow(
+                totalOrders,
+                totalSales,
+                avgPrep,
+                restaurant.rating,
+                restaurant.reviewCount ?? 0,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _salesCard(daySales, days),
+            ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _orderStatusCard(
+                cNew,
+                cPrep,
+                cOfd,
+                cDelivered,
+                cCancelled,
+                totalOrders,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _recentOrders(orders, ordersAsync, currentUserId),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _quickActionsCard(),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _growBanner(),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _dashHeader(Restaurant restaurant, dynamic authState) {
+    return Container(
+      color: const Color(0xFF0A0F1C),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/images/app_icon.png',
+                width: 34,
+                height: 34,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.restaurant_rounded,
+                  color: Color(0xFFF97316),
+                  size: 28,
                 ),
-
-                // ── KPI Cards ────────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Transform.translate(
-                    offset: const Offset(0, -16),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                      child: ordersAsync.when(
-                        loading: () => const SizedBox(height: 100),
-                        error: (_, _) => const SizedBox(height: 100),
-                        data: (orders) {
-                          final totalOrders = orders.length;
-                          final pendingOrders = orders
-                              .where(
-                                (o) =>
-                                    o.status == 'pending' ||
-                                    o.status == 'confirmed' ||
-                                    o.status == 'preparing',
-                              )
-                              .length;
-                          final deliveredOrders = orders
-                              .where((o) => o.status == 'delivered')
-                              .length;
-                          orders.fold<double>(
-                            0,
-                            (sum, order) => sum + order.subtotal,
-                          );
-
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _KpiCard(
-                                  label: 'Orders',
-                                  value: '$totalOrders',
-                                  icon: Icons.receipt_long_rounded,
-                                  color: const Color(0xFF6366F1),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _KpiCard(
-                                  label: 'Pending',
-                                  value: '$pendingOrders',
-                                  icon: Icons.pending_actions_rounded,
-                                  color: const Color(0xFFF59E0B),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _KpiCard(
-                                  label: 'Delivered',
-                                  value: '$deliveredOrders',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  color: const Color(0xFF10B981),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Revenue banner ───────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: ordersAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const SizedBox.shrink(),
-                      data: (orders) {
-                        final totalRevenue = orders.fold<double>(
-                          0,
-                          (sum, order) => sum + order.subtotal,
-                        );
-                        return Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF818CF8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.attach_money_rounded,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Revenue',
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${AppConstants.currencySymbol}${totalRevenue.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () => Navigator.of(
-                                  context,
-                                ).pushNamed('/restaurant-analytics'),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Details',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      SizedBox(width: 4),
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        color: Colors.white,
-                                        size: 12,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                // ── Quick Actions ────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: Text(
-                      'Quick Actions',
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'HotBite',
                       style: TextStyle(
-                        fontSize: Responsive.headingSmall(context),
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final w = constraints.maxWidth;
-                        final crossAxisCount = w >= 1100
-                            ? 6
-                            : w >= 800
-                            ? 5
-                            : w >= 560
-                            ? 4
-                            : 3;
-                        return GridView.count(
-                          crossAxisCount: crossAxisCount,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 1.05,
-                          children: [
-                            _QuickAction(
-                              icon: Icons.receipt_long_rounded,
-                              label: 'Orders',
-                              color: const Color(0xFF6366F1),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-orders'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.restaurant_menu_rounded,
-                              label: 'Menu',
-                              color: const Color(0xFFEC4899),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/menu-management'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.local_grocery_store_rounded,
-                              label: 'Grocery',
-                              color: const Color(0xFF14B8A6),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/grocery-management'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.analytics_rounded,
-                              label: 'Analytics',
-                              color: const Color(0xFF10B981),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-analytics'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.settings_rounded,
-                              label: 'Settings',
-                              color: const Color(0xFF528BFF),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-settings'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.account_balance_rounded,
-                              label: 'Bank Info',
-                              color: const Color(0xFF0EA5E9),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const BankInfoScreen(role: 'restaurant'),
-                                ),
-                              ),
-                            ),
-                            _QuickAction(
-                              icon: Icons.payments_rounded,
-                              label: 'Payout',
-                              color: const Color(0xFFF59E0B),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const PayoutRequestScreen(
-                                    role: 'restaurant',
-                                  ),
-                                ),
-                              ),
-                            ),
-                            _QuickAction(
-                              icon: Icons.loyalty_rounded,
-                              label: 'Loyalty',
-                              color: const Color(0xFF155EEF),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-loyalty'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.local_fire_department_rounded,
-                              label: 'Our Offer',
-                              color: const Color(0xFFEF4444),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-offer'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.description_rounded,
-                              label: 'Contract',
-                              color: const Color(0xFF0891B2),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-contract'),
-                            ),
-                            _QuickAction(
-                              icon: Icons.card_giftcard_rounded,
-                              label: 'Refer & Earn',
-                              color: const Color(0xFF10B981),
-                              onTap: () => Navigator.of(
-                                context,
-                              ).pushNamed('/restaurant-referral'),
-                            ),
-                          ],
-                        );
-                      },
+                    Text(
+                      'Restaurant Partner',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                // ── Recent Orders ────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Recent Orders',
-                          style: TextStyle(
-                            fontSize: Responsive.headingSmall(context),
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pushNamed('/restaurant-orders'),
-                          child: Text(
-                            'See all',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+              ),
+              // Store chip
+              Container(
+                constraints: const BoxConstraints(maxWidth: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _cardBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: (restaurant.imageUrl != null &&
+                              restaurant.imageUrl!.isNotEmpty)
+                          ? Image.network(restaurant.imageUrl!,
+                              width: 26, height: 26, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _storeIcon())
+                          : _storeIcon(),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            restaurant.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
+                          Text(
+                            restaurant.isOpen ? 'Open' : 'Closed',
+                            style: TextStyle(
+                              color: restaurant.isOpen
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFF94A3B8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _headerIcon(Icons.notifications_none_rounded,
+                  () => Navigator.of(context).pushNamed('/notifications')),
+              const SizedBox(width: 6),
+              _headerIcon(Icons.person_rounded, _signOut),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _storeIcon() => Container(
+        width: 26,
+        height: 26,
+        color: const Color(0xFF23304A),
+        child: const Icon(Icons.storefront_rounded,
+            color: Color(0xFF94A3B8), size: 15),
+      );
+
+  Widget _headerIcon(IconData icon, VoidCallback onTap) {
+    return Material(
+      color: _card,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: const Color(0xFFCBD5E1), size: 20),
+        ),
+      ),
+    );
+  }
+
+  // ── Hero greeting + open toggle ────────────────────────────────────────────
+  Widget _dashHero(Restaurant restaurant, dynamic authState, bool isOpen) {
+    final name = (authState.user?.name as String?)?.split(' ').first ?? 'Chef';
+    final hours = (restaurant.openingTime != null &&
+            restaurant.closingTime != null)
+        ? 'Today: ${restaurant.openingTime} – ${restaurant.closingTime}'
+        : 'Set your opening hours';
+    return Container(
+      height: 150,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (restaurant.imageUrl != null && restaurant.imageUrl!.isNotEmpty)
+            Image.network(restaurant.imageUrl!, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: _card))
+          else
+            Image.asset('assets/images/roles/food.jpg', fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: _card)),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Colors.black.withValues(alpha: 0.85),
+                  Colors.black.withValues(alpha: 0.35),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_greeting()},',
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13),
+                          ),
+                          Text(
+                            'Chef $name!',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _openToggle(restaurant, isOpen),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  "Here's your restaurant overview for today.",
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12.5),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hours,
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _openToggle(Restaurant restaurant, bool isOpen) {
+    return GestureDetector(
+      onTap: _togglingAvailability
+          ? null
+          : () => _toggleAvailability(restaurant.id, isOpen),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isOpen
+              ? const Color(0xFF22C55E).withValues(alpha: 0.2)
+              : Colors.black.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isOpen ? const Color(0xFF22C55E) : const Color(0xFF64748B),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_togglingAvailability)
+              const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            else
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: isOpen
+                      ? const Color(0xFF22C55E)
+                      : const Color(0xFF94A3B8),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            const SizedBox(width: 7),
+            Text(
+              isOpen ? 'Open' : 'Closed',
+              style: TextStyle(
+                color: isOpen ? const Color(0xFF22C55E) : Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── KPI row (2×2) ──────────────────────────────────────────────────────────
+  Widget _kpiRow(int totalOrders, double totalSales, int? avgPrep,
+      double? rating, int reviewCount) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                Icons.shopping_bag_rounded,
+                const Color(0xFF22C55E),
+                'Total Orders',
+                '$totalOrders',
+                null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _statCard(
+                Icons.attach_money_rounded,
+                const Color(0xFFF59E0B),
+                'Total Sales',
+                '${AppConstants.currencySymbol}${totalSales.toStringAsFixed(0)}',
+                null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _statCard(
+                Icons.timer_rounded,
+                const Color(0xFF8B5CF6),
+                'Avg Prep Time',
+                avgPrep == null ? '—' : '$avgPrep min',
+                null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _statCard(
+                Icons.star_rounded,
+                const Color(0xFF3B82F6),
+                'Customer Rating',
+                (rating != null && rating > 0)
+                    ? rating.toStringAsFixed(1)
+                    : 'New',
+                reviewCount > 0 ? '($reviewCount reviews)' : null,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _statCard(IconData icon, Color color, String label, String value,
+      String? sub) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(label,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          if (sub != null)
+            Text(sub,
+                style: const TextStyle(color: Color(0xFF64748B), fontSize: 10.5)),
+        ],
+      ),
+    );
+  }
+
+  // ── Sales overview (bar chart) ─────────────────────────────────────────────
+  Widget _salesCard(List<double> daySales, List<DateTime> days) {
+    final total = daySales.fold<double>(0, (a, b) => a + b);
+    const dowNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final wLabels = days.map((d) => dowNames[d.weekday - 1]).toList();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Sales Overview',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F1C),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _cardBorder),
+                ),
+                child: const Text('Last 7 days',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${AppConstants.currencySymbol}${total.toStringAsFixed(0)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 140,
+            child: CustomPaint(
+              size: const Size(double.infinity, 140),
+              painter: _BarChartPainter(
+                values: daySales,
+                labels: wLabels,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Order status (donut) ───────────────────────────────────────────────────
+  Widget _orderStatusCard(int cNew, int cPrep, int cOfd, int cDelivered,
+      int cCancelled, int total) {
+    final segs = <_DonutSeg>[
+      _DonutSeg('New', cNew, const Color(0xFF22C55E)),
+      _DonutSeg('Preparing', cPrep, const Color(0xFFF59E0B)),
+      _DonutSeg('Out for Delivery', cOfd, const Color(0xFF3B82F6)),
+      _DonutSeg('Delivered', cDelivered, const Color(0xFF8B5CF6)),
+      _DonutSeg('Cancelled', cCancelled, const Color(0xFFEF4444)),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Order Status',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              SizedBox(
+                width: 120,
+                height: 120,
+                child: CustomPaint(
+                  painter: _DonutPainter(segs),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('$total',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800)),
+                        const Text('Total',
+                            style: TextStyle(
+                                color: Color(0xFF94A3B8), fontSize: 11)),
                       ],
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalPadding(context)),
-                    child: ordersAsync.when(
-                      loading: () => const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      error: (error, _) => Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: AppErrorState(
-                          message: 'Failed to load orders',
-                          onRetry: () => ref.invalidate(
-                            ownerAllOrdersProvider(currentUserId),
-                          ),
-                        ),
-                      ),
-                      data: (orders) {
-                        if (orders.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Column(
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  children: segs
+                      .map((s) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
                               children: [
-                                Icon(
-                                  Icons.receipt_long_rounded,
-                                  size: 48,
-                                  color: Color(0xFFD1D5DB),
+                                Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                      color: s.color, shape: BoxShape.circle),
                                 ),
-                                SizedBox(height: 12),
-                                Text(
-                                  'No orders yet',
-                                  style: TextStyle(
-                                    color: Color(0xFF9CA3AF),
-                                    fontSize: 14,
-                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(s.label,
+                                      style: const TextStyle(
+                                          color: Color(0xFFCBD5E1),
+                                          fontSize: 12.5)),
                                 ),
+                                Text('${s.value}',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700)),
                               ],
                             ),
-                          );
-                        }
-                        final recent = orders.take(5).toList();
-                        return Column(
-                          children: recent
-                              .map((order) => _RecentOrderTile(order: order))
-                              .toList(),
-                        );
-                      },
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Recent orders ──────────────────────────────────────────────────────────
+  Widget _recentOrders(List<Order> orders, AsyncValue<List<Order>> ordersAsync,
+      String currentUserId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Text('Recent Orders',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () =>
+                    Navigator.of(context).pushNamed('/restaurant-orders'),
+                child: const Text('View All →',
+                    style: TextStyle(
+                        color: Color(0xFF60A5FA),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ordersAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(28),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => _emptyCard('Failed to load orders'),
+            data: (list) {
+              if (list.isEmpty) return _emptyCard('No orders yet');
+              return Container(
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _cardBorder),
+                ),
+                child: Column(
+                  children: [
+                    for (int i = 0; i < list.take(5).length; i++) ...[
+                      if (i > 0)
+                        const Divider(
+                            height: 1, color: _cardBorder, indent: 14, endIndent: 14),
+                      _recentTile(list[i]),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _emptyCard(String msg) => Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _cardBorder),
+        ),
+        child: Center(
+          child: Text(msg,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+        ),
+      );
+
+  Widget _recentTile(Order order) {
+    final first = order.items.isNotEmpty ? order.items.first : null;
+    final itemLabel = first == null
+        ? 'Order'
+        : '${first.itemName} x ${first.quantity}';
+    final id = order.id.substring(0, 6).toUpperCase();
+    final time = _fmtTime(order.orderedAt);
+    final color = _statusColor(order.status);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => Navigator.of(context).pushNamed('/restaurant-orders'),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F1C),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.restaurant_rounded,
+                    color: Color(0xFF64748B), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('#$id',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700)),
+                    Text(itemLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Color(0xFF94A3B8), fontSize: 12)),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _statusLabel(order.status),
+                  style: TextStyle(
+                      color: color, fontSize: 10.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(time,
+                      style: const TextStyle(
+                          color: Color(0xFF94A3B8), fontSize: 11)),
+                  Text(
+                    '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmtTime(DateTime t) {
+    final l = t.toLocal();
+    final h = l.hour % 12 == 0 ? 12 : l.hour % 12;
+    final m = l.minute.toString().padLeft(2, '0');
+    return '$h:$m ${l.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  Color _statusColor(String s) {
+    switch (s) {
+      case 'delivered':
+        return const Color(0xFF8B5CF6);
+      case 'out_for_delivery':
+      case 'picked_up':
+      case 'ready':
+        return const Color(0xFF3B82F6);
+      case 'preparing':
+      case 'confirmed':
+        return const Color(0xFFF59E0B);
+      case 'cancelled':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF22C55E);
+    }
+  }
+
+  String _statusLabel(String s) {
+    switch (s) {
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'picked_up':
+        return 'Picked Up';
+      case 'pending':
+        return 'New';
+      default:
+        return s.isEmpty ? '' : s[0].toUpperCase() + s.substring(1);
+    }
+  }
+
+  // ── Quick actions ──────────────────────────────────────────────────────────
+  Widget _quickActionsCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 10),
+          child: Text('Quick Actions',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: _card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _cardBorder),
+          ),
+          child: Column(
+            children: [
+              _qaRow(Icons.restaurant_menu_rounded, const Color(0xFFF59E0B),
+                  'Manage Menu', 'Add / Edit menu items',
+                  () => Navigator.of(context).pushNamed('/menu-management'),
+                  divider: true),
+              _qaRow(Icons.inventory_2_rounded, const Color(0xFF22C55E),
+                  'Update Inventory', 'Track stock levels',
+                  () => Navigator.of(context).pushNamed('/grocery-management'),
+                  divider: true),
+              _qaRow(Icons.receipt_long_rounded, const Color(0xFF3B82F6),
+                  'View Orders', 'See all incoming orders',
+                  () => Navigator.of(context).pushNamed('/restaurant-orders'),
+                  divider: true),
+              _qaRow(Icons.campaign_rounded, const Color(0xFF8B5CF6),
+                  'Marketing Tools', 'Promote your restaurant',
+                  () => Navigator.of(context).pushNamed('/restaurant-offer'),
+                  divider: true),
+              _qaRow(Icons.payments_rounded, const Color(0xFF06B6D4),
+                  'Payouts', 'View earnings & transactions',
+                  () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const PayoutRequestScreen(role: 'restaurant'),
+                        ),
+                      ),
+                  divider: false),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _qaRow(IconData icon, Color color, String title, String subtitle,
+      VoidCallback onTap,
+      {required bool divider}) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700)),
+                        Text(subtitle,
+                            style: const TextStyle(
+                                color: Color(0xFF94A3B8), fontSize: 12)),
+                      ],
                     ),
                   ),
-                ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Color(0xFF64748B), size: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (divider)
+          const Divider(
+              height: 1, color: _cardBorder, indent: 70, endIndent: 14),
+      ],
+    );
+  }
 
-                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+  // ── Grow banner ────────────────────────────────────────────────────────────
+  Widget _growBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+        ),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF97316).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.campaign_rounded,
+                color: Color(0xFFF97316), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Grow Your Business',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                SizedBox(height: 2),
+                Text('Enable promotions, update your menu, reach more customers.',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Material(
+            color: const Color(0xFFF97316),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/restaurant-offer'),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Icon(Icons.arrow_forward_rounded,
+                    color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom nav ─────────────────────────────────────────────────────────────
+  Widget _bottomNav() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF0A0F1C),
+        border: Border(top: BorderSide(color: _cardBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(Icons.home_rounded, 'Dashboard',
+                  active: true, onTap: () {}),
+              _navItem(Icons.receipt_long_rounded, 'Orders',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/restaurant-orders')),
+              _navItem(Icons.restaurant_menu_rounded, 'Menu',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/menu-management')),
+              _navItem(Icons.inventory_2_rounded, 'Inventory',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/grocery-management')),
+              _navItem(Icons.menu_rounded, 'More', onTap: _showMoreSheet),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label,
+      {bool active = false, required VoidCallback onTap}) {
+    final color =
+        active ? const Color(0xFFF97316) : const Color(0xFF64748B);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 23),
+              const SizedBox(height: 3),
+              Text(label,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 10.5,
+                      fontWeight:
+                          active ? FontWeight.w700 : FontWeight.w500)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // "More" holds every remaining function so nothing is lost.
+  void _showMoreSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) {
+        Widget row(IconData i, Color c, String t, VoidCallback tap) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: c.withValues(alpha: 0.15),
+                child: Icon(i, color: c, size: 20),
+              ),
+              title: Text(t,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  color: Color(0xFF64748B)),
+              onTap: () {
+                Navigator.pop(ctx);
+                tap();
+              },
+            );
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF334155),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                row(Icons.analytics_rounded, const Color(0xFF10B981),
+                    'Analytics',
+                    () => Navigator.of(context)
+                        .pushNamed('/restaurant-analytics')),
+                row(Icons.local_grocery_store_rounded,
+                    const Color(0xFF14B8A6), 'Grocery Management',
+                    () => Navigator.of(context)
+                        .pushNamed('/grocery-management')),
+                row(Icons.account_balance_rounded, const Color(0xFF0EA5E9),
+                    'Bank Info',
+                    () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const BankInfoScreen(role: 'restaurant'),
+                          ),
+                        )),
+                row(Icons.loyalty_rounded, const Color(0xFF155EEF), 'Loyalty',
+                    () => Navigator.of(context)
+                        .pushNamed('/restaurant-loyalty')),
+                row(Icons.local_fire_department_rounded,
+                    const Color(0xFFEF4444), 'Our Offer',
+                    () => Navigator.of(context).pushNamed('/restaurant-offer')),
+                row(Icons.description_rounded, const Color(0xFF0891B2),
+                    'Contract',
+                    () => Navigator.of(context)
+                        .pushNamed('/restaurant-contract')),
+                row(Icons.card_giftcard_rounded, const Color(0xFF10B981),
+                    'Refer & Earn',
+                    () => Navigator.of(context)
+                        .pushNamed('/restaurant-referral')),
+                row(Icons.settings_rounded, const Color(0xFF528BFF),
+                    'Settings',
+                    () => Navigator.of(context)
+                        .pushNamed('/restaurant-settings')),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -1349,64 +1852,6 @@ class _RestaurantDashboardScreenState
   }
 }
 
-// ─── KPI Card ──────────────────────────────────────────────────────────────────
-
-class _KpiCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _KpiCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Quick Action ──────────────────────────────────────────────────────────────
 
 class _QuickAction extends StatefulWidget {
@@ -1534,102 +1979,6 @@ class _QuickActionState extends State<_QuickAction> {
   }
 }
 
-// ─── Recent Order Tile ─────────────────────────────────────────────────────────
-
-class _RecentOrderTile extends StatelessWidget {
-  final dynamic order;
-  const _RecentOrderTile({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = order.status as String;
-    Color statusColor;
-    IconData statusIcon;
-    switch (status) {
-      case 'pending':
-        statusColor = const Color(0xFFF59E0B);
-        statusIcon = Icons.hourglass_top_rounded;
-        break;
-      case 'confirmed':
-      case 'preparing':
-        statusColor = const Color(0xFF6366F1);
-        statusIcon = Icons.local_fire_department_rounded;
-        break;
-      case 'ready':
-        statusColor = const Color(0xFF0EA5E9);
-        statusIcon = Icons.check_circle_rounded;
-        break;
-      case 'delivered':
-        statusColor = const Color(0xFF10B981);
-        statusIcon = Icons.done_all_rounded;
-        break;
-      case 'cancelled':
-        statusColor = Colors.red;
-        statusIcon = Icons.cancel_rounded;
-        break;
-      default:
-        statusColor = Colors.grey;
-        statusIcon = Icons.info_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(statusIcon, color: statusColor, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Order #${order.id.toString().substring(0, 8)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: Responsive.bodyText(context),
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  status[0].toUpperCase() + status.substring(1),
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${AppConstants.currencySymbol}${order.subtotal.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ReviewItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1744,4 +2093,122 @@ class _TimelineStep extends StatelessWidget {
       ),
     );
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Charts (drawn — no chart dependency)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _DonutSeg {
+  final String label;
+  final int value;
+  final Color color;
+  const _DonutSeg(this.label, this.value, this.color);
+}
+
+class _DonutPainter extends CustomPainter {
+  final List<_DonutSeg> segs;
+  _DonutPainter(this.segs);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = segs.fold<int>(0, (a, s) => a + s.value);
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2;
+    const stroke = 16.0;
+    final rect = Rect.fromCircle(center: center, radius: radius - stroke / 2);
+
+    if (total == 0) {
+      canvas.drawArc(
+        rect,
+        0,
+        6.28318,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = const Color(0xFF23304A),
+      );
+      return;
+    }
+
+    double start = -1.5708; // top
+    const gap = 0.04;
+    for (final s in segs) {
+      if (s.value == 0) continue;
+      final sweep = (s.value / total) * 6.28318 - gap;
+      canvas.drawArc(
+        rect,
+        start + gap / 2,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round
+          ..color = s.color,
+      );
+      start += (s.value / total) * 6.28318;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutPainter old) => old.segs != segs;
+}
+
+class _BarChartPainter extends CustomPainter {
+  final List<double> values;
+  final List<String> labels;
+  _BarChartPainter({required this.values, required this.labels});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const labelH = 20.0;
+    final chartH = size.height - labelH;
+    final maxV = values.fold<double>(0, (a, b) => b > a ? b : a);
+    final n = values.length;
+    if (n == 0) return;
+    final slot = size.width / n;
+    final barW = slot * 0.5;
+
+    // Baseline
+    final axis = Paint()..color = const Color(0xFF23304A)..strokeWidth = 1;
+    canvas.drawLine(Offset(0, chartH), Offset(size.width, chartH), axis);
+
+    for (int i = 0; i < n; i++) {
+      final v = values[i];
+      final h = maxV <= 0 ? 0.0 : (v / maxV) * (chartH - 8);
+      final left = slot * i + (slot - barW) / 2;
+      final top = chartH - h;
+      final rrect = RRect.fromRectAndCorners(
+        Rect.fromLTWH(left, top, barW, h),
+        topLeft: const Radius.circular(5),
+        topRight: const Radius.circular(5),
+      );
+      final paint = Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF34D399), Color(0xFF10B981)],
+        ).createShader(Rect.fromLTWH(left, top, barW, h <= 0 ? 1 : h));
+      canvas.drawRRect(rrect, paint);
+
+      // Label
+      final tp = TextPainter(
+        text: TextSpan(
+          text: labels.length > i ? labels[i] : '',
+          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(minWidth: 0, maxWidth: slot);
+      tp.paint(
+        canvas,
+        Offset(slot * i + (slot - tp.width) / 2, chartH + 5),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BarChartPainter old) =>
+      old.values != values;
 }

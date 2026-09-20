@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/driver_provider.dart';
 import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
 import '../../config/app_constants.dart';
@@ -48,6 +49,7 @@ class _RestaurantOrderManagementScreenState
     AppConstants.orderPending,
     AppConstants.orderPreparing,
     AppConstants.orderReady,
+    AppConstants.orderPickedUp,
     AppConstants.orderDelivered,
   ];
 
@@ -195,10 +197,27 @@ class _StatusTabSection extends StatelessWidget {
     AppConstants.orderPending,
     AppConstants.orderPreparing,
     AppConstants.orderReady,
+    AppConstants.orderPickedUp,
     AppConstants.orderDelivered,
   ];
 
-  static const _statusLabels = ['Pending', 'Preparing', 'Ready', 'Delivered'];
+  static const _statusLabels = [
+    'Pending',
+    'Preparing',
+    'Ready',
+    'Picked Up',
+    'Delivered',
+  ];
+
+  /// The "Picked Up" tab covers the whole in-transit phase, so it also shows
+  /// orders the driver has already marked out for delivery.
+  static bool _statusInTab(String orderStatus, String tabStatus) {
+    if (tabStatus == AppConstants.orderPickedUp) {
+      return orderStatus == AppConstants.orderPickedUp ||
+          orderStatus == AppConstants.orderOnTheWay;
+    }
+    return orderStatus == tabStatus;
+  }
 
   const _StatusTabSection({
     required this.tabController,
@@ -220,7 +239,10 @@ class _StatusTabSection extends StatelessWidget {
           tabs: _statusLabels.map((label) {
             final count = allOrders
                 .where(
-                  (o) => o.status == _statusTabs[_statusLabels.indexOf(label)],
+                  (o) => _statusInTab(
+                    o.status,
+                    _statusTabs[_statusLabels.indexOf(label)],
+                  ),
                 )
                 .length;
             return Tab(
@@ -261,7 +283,7 @@ class _StatusTabSection extends StatelessWidget {
             controller: tabController,
             children: _statusTabs.map((status) {
               final filtered =
-                  allOrders.where((o) => o.status == status).toList()
+                  allOrders.where((o) => _statusInTab(o.status, status)).toList()
                     ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
               return _OrderListView(
                 orders: filtered,
@@ -704,6 +726,70 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     ),
                   ),
                 ],
+              ),
+            ],
+
+            // Assigned driver (shown once a driver has been assigned).
+            if (order.driverId != null && order.driverId!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Consumer(
+                builder: (context, ref, _) {
+                  final info =
+                      ref.watch(orderDriverInfoProvider(order.id)).valueOrNull;
+                  final name = (info?['name'] as String?) ?? 'Driver assigned';
+                  final img = info?['profile_image_url'] as String?;
+                  final vehicle = info?['vehicle_type'] as String?;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor:
+                              const Color(0xFF22C55E).withValues(alpha: 0.15),
+                          backgroundImage: (img != null && img.isNotEmpty)
+                              ? NetworkImage(img)
+                              : null,
+                          child: (img == null || img.isEmpty)
+                              ? const Icon(Icons.delivery_dining_rounded,
+                                  size: 16, color: Color(0xFF16A34A))
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Assigned Driver',
+                                style: TextStyle(
+                                    fontSize: 11, color: Color(0xFF6B7280)),
+                              ),
+                              Text(
+                                vehicle != null && vehicle.isNotEmpty
+                                    ? '$name  ·  $vehicle'
+                                    : name,
+                                style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.check_circle_rounded,
+                            size: 18, color: const Color(0xFF16A34A)),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
 

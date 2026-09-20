@@ -116,7 +116,14 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
           // Fetch saved country code asynchronously
           _loadSavedCountryCode('drivers', driver.id).then((code) {
             if (mounted && _selectedCountryCode == null) {
-              setState(() => _selectedCountryCode = code ?? 'KY');
+              // Default to Jamaica; also coerce a stale 'KY' (no banks seeded)
+              // so the bank dropdown is never empty on first open.
+              setState(
+                () => _selectedCountryCode =
+                    (code == null || code.isEmpty || code == 'KY')
+                        ? 'JM'
+                        : code,
+              );
             }
           });
         }
@@ -162,7 +169,14 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
           _initialized = true;
           _loadSavedCountryCode('restaurants', restaurant.id).then((code) {
             if (mounted && _selectedCountryCode == null) {
-              setState(() => _selectedCountryCode = code ?? 'KY');
+              // Default to Jamaica; also coerce a stale 'KY' (no banks seeded)
+              // so the bank dropdown is never empty on first open.
+              setState(
+                () => _selectedCountryCode =
+                    (code == null || code.isEmpty || code == 'KY')
+                        ? 'JM'
+                        : code,
+              );
             }
           });
         }
@@ -359,7 +373,7 @@ class _BankInfoScreenState extends ConsumerState<BankInfoScreen> {
               child: ElevatedButton(
                 onPressed: _saving
                     ? null
-                    : () => _save(() => onSave(_selectedCountryCode ?? 'KY')),
+                    : () => _save(() => onSave(_selectedCountryCode ?? 'JM')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: widget.role == 'driver'
                       ? AppTheme.primaryColor
