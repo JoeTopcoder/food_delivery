@@ -18,9 +18,10 @@ import '../../widgets/peak_time_banner.dart';
 import '../../widgets/driver_order_alert.dart';
 import '../../widgets/app_map_tiles.dart';
 import '../../providers/user_provider.dart'
-    show restaurantServiceProvider, restaurantByIdProvider;
+    show restaurantServiceProvider, restaurantByIdProvider, orderServiceProvider;
 import '../../services/driver/delivery_fee_service.dart';
 import 'driver_verification_screen.dart';
+import 'student_delivery_confirm.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -42,6 +43,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   // re-popped on every refresh. Cleared when the driver goes offline.
   final Set<String> _poppedReadyIds = {};
   bool _readyScanScheduled = false;
+  String? _advancingOrderId;
 
   static const Map<String, String> _serviceTopics = {
     'food_delivery': 'food_delivery_orders',
@@ -1247,20 +1249,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final earnings = order.deliveryFee + (order.driverTip ?? 0);
     final displayId = order.id.substring(0, 8).toUpperCase();
 
-    // Progress step: 0 heading to pickup, 1 on the way, 2 delivering, 3 done.
-    final int step;
+    // Stage: 0 at pickup, 1 picked up, 2 on the way, 3 delivered.
+    final int stage;
     switch (order.status) {
       case 'delivered':
-        step = 3;
+        stage = 3;
         break;
       case 'out_for_delivery':
-        step = 1;
+        stage = 2;
         break;
-      case 'ready':
-        step = 0;
+      case 'picked_up':
+        stage = 1;
         break;
       default:
-        step = 0;
+        stage = 0;
     }
 
     String fmtTime(DateTime? t) {
@@ -1385,53 +1387,210 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             ],
           ),
           const SizedBox(height: 12),
+          _statusActionButton(order, stage),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 44,
-            child: ElevatedButton(
+            child: OutlinedButton.icon(
               onPressed: () =>
                   Navigator.of(context).pushNamed('/active-deliveries'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF22C55E),
+              style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                elevation: 0,
+                side: const BorderSide(color: Color(0xFF2A2D3E)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('View Details',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, size: 18),
-                ],
-              ),
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: const Text('View Details',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFF1E1F2A)),
           const SizedBox(height: 14),
           Row(
             children: [
-              _progressStep('Picked Up', fmtTime(order.confirmedAt),
-                  Icons.check_rounded, step >= 0, step >= 1),
-              _progressLine(step >= 1),
+              _progressStep('Picked Up', stage >= 1 ? fmtTime(order.confirmedAt) : '',
+                  Icons.check_rounded, stage >= 1, stage == 1),
+              _progressLine(stage >= 2),
               _progressStep('On the Way',
-                  step == 1 ? 'ETA soon' : '', Icons.two_wheeler_rounded,
-                  step >= 1, step >= 2),
-              _progressLine(step >= 2),
+                  stage == 2 ? 'ETA soon' : '', Icons.two_wheeler_rounded,
+                  stage >= 2, stage == 2),
+              _progressLine(stage >= 3),
               _progressStep('Deliver', fmtTime(order.estimatedDeliveryAt),
-                  Icons.home_rounded, step >= 2, step >= 3),
-              _progressLine(step >= 3),
+                  Icons.home_rounded, stage >= 3, false),
+              _progressLine(stage >= 3),
               _progressStep('Completed', fmtTime(order.completedAt),
-                  Icons.check_circle_rounded, step >= 3, false),
+                  Icons.check_circle_rounded, stage >= 3, false),
             ],
           ),
         ],
       ),
     );
+  }
+
+  /// Primary action that advances the delivery status. The final "delivered"
+  /// step routes to Active Deliveries, which handles PIN / cash-on-delivery /
+  /// float via the audited completeDelivery flow — we never mark delivered here.
+  Widget _statusActionButton(Order order, int stage) {
+    final busy = _advancingOrderId == order.id;
+    late final String label;
+    late final IconData icon;
+    late final VoidCallback onPressed;
+
+    switch (order.status) {
+      case 'ready':
+        label = 'Confirm Pickup';
+        icon = Icons.shopping_bag_rounded;
+        onPressed = () => _advanceOrderStatus(order, AppConstants.orderPickedUp);
+        break;
+      case 'picked_up':
+        label = 'Start Delivery — On the Way';
+        icon = Icons.two_wheeler_rounded;
+        onPressed =
+            () => _advanceOrderStatus(order, AppConstants.orderOnTheWay);
+        break;
+      case 'out_for_delivery':
+        label = 'Complete Delivery';
+        icon = Icons.check_circle_rounded;
+        onPressed = () => _completeDelivery(order);
+        break;
+      default:
+        label = 'View Details';
+        icon = Icons.chevron_right_rounded;
+        onPressed = () => Navigator.of(context).pushNamed('/active-deliveries');
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: ElevatedButton.icon(
+        onPressed: busy ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF22C55E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : Icon(icon, size: 18),
+        label: Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Future<void> _advanceOrderStatus(Order order, String toStatus) async {
+    if (_advancingOrderId != null) return;
+    setState(() => _advancingOrderId = order.id);
+    try {
+      await ref.read(orderServiceProvider).updateOrderStatus(order.id, toStatus);
+      final driverId = _lastDriver?.id;
+      if (driverId != null) {
+        ref.invalidate(activeDeliveriesProvider(driverId));
+      }
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          toStatus == AppConstants.orderPickedUp
+              ? 'Marked as picked up'
+              : 'On the way to the customer',
+        );
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _advancingOrderId = null);
+    }
+  }
+
+  /// Completes a delivery from the dashboard using the same audited flow as
+  /// Active Deliveries (COD confirmation, student-delivery check, float via
+  /// completeDelivery). Contactless orders still require PIN verification,
+  /// which lives on the Active Deliveries screen, so those are routed there.
+  Future<void> _completeDelivery(Order order) async {
+    if (order.contactlessDelivery && order.deliveryOtpVerified != true) {
+      AppSnackbar.info(
+        context,
+        'Contactless order — verify the customer\'s PIN in Order Details first.',
+      );
+      Navigator.of(context).pushNamed('/active-deliveries');
+      return;
+    }
+
+    final isCash = order.paymentMethod == 'cash';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E2030),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isCash ? 'Cash collected?' : 'Mark as Delivered?',
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          isCash
+              ? 'This is a Cash on Delivery order. Confirm you collected ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)} from the customer.'
+              : 'Confirm delivery of Order #${order.id.substring(0, 8).toUpperCase()}?',
+          style: const TextStyle(color: Color(0xFF9CA3AF)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF9CA3AF))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF22C55E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(isCash
+                ? 'Yes, collected ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}'
+                : 'Yes, Delivered'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _advancingOrderId = order.id);
+    try {
+      final proceed =
+          await ensureStudentDeliveryConfirmed(context, ref, order.id);
+      if (!proceed) return;
+
+      await ref.read(driverServiceProvider).completeDelivery(order.id);
+
+      final driverId = _lastDriver?.id;
+      if (driverId != null) {
+        ref.invalidate(activeDeliveriesProvider(driverId));
+        ref.invalidate(deliveryHistoryProvider(driverId));
+        ref.invalidate(driverStatsProvider(driverId));
+      }
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) ref.invalidate(driverProfileProvider(userId));
+      if (mounted) AppSnackbar.success(context, 'Delivery completed!');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _advancingOrderId = null);
+    }
   }
 
   Widget _restThumbFallback() {
