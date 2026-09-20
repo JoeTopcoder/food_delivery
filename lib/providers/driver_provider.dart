@@ -37,6 +37,19 @@ final driverPublicInfoProvider = FutureProvider.autoDispose
       };
     });
 
+/// Assigned-driver info for an order, for the restaurant/customer/admin who
+/// can see that order. Backed by the SECURITY DEFINER `get_order_driver_info`
+/// RPC (the drivers table itself is RLS-locked to admin/self). Null if no
+/// driver is assigned or the caller isn't authorised.
+final orderDriverInfoProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, orderId) async {
+      final res = await SupabaseConfig.client
+          .rpc('get_order_driver_info', params: {'p_order_id': orderId});
+      final list = (res as List?) ?? [];
+      if (list.isEmpty) return null;
+      return Map<String, dynamic>.from(list.first as Map);
+    });
+
 /// Abbreviated customer name for a driver-facing order (e.g. "J Scott").
 /// Calls the SECURITY DEFINER `get_order_customer_name` RPC, which only
 /// returns the name to a driver who can actually see that order and returns
