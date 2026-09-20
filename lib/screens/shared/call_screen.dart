@@ -20,7 +20,7 @@ class CallScreen extends ConsumerStatefulWidget {
   final String? otherPartyName;
 
   /// Role of the caller ('driver' | 'admin' | 'restaurant' | 'user'). Used to
-  /// show the receiver who's calling (e.g. "Driver", "QuickDash").
+  /// show the receiver who's calling (e.g. "Driver", "HotBite").
   final String? callerRole;
 
   const CallScreen({
@@ -485,13 +485,13 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Color get _accent =>
       widget.isCaller ? AppTheme.primaryColor : const Color(0xFF22C55E);
 
-  /// What the receiver sees as the caller. Admin → "QuickDash", driver →
+  /// What the receiver sees as the caller. Admin → "HotBite", driver →
   /// "Driver", restaurant → the store/name, otherwise the caller's name.
   String get _displayName {
     if (!widget.isCaller) {
       switch (widget.callerRole) {
         case 'admin':
-          return 'QuickDash';
+          return 'HotBite';
         case 'driver':
           return 'Driver';
         case 'restaurant':
@@ -508,7 +508,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     // receiver, and infer "delivery driver" for the common customer↔driver case.
     switch (widget.callerRole) {
       case 'admin':
-        return 'QuickDash Support';
+        return 'HotBite Support';
       case 'driver':
         return 'Your delivery driver';
       case 'restaurant':
@@ -518,7 +518,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     return widget.isCaller ? 'On your order' : null;
   }
 
-  /// Avatar icon for role-based callers (initials look odd for "QuickDash").
+  /// Avatar icon for role-based callers (initials look odd for "HotBite").
   IconData? get _callerIcon {
     if (widget.isCaller) return null;
     switch (widget.callerRole) {
@@ -637,7 +637,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
         Icon(Icons.phone_in_talk_rounded, size: 15, color: _accent),
         const SizedBox(width: 6),
         Text(
-          'QuickDash Call',
+          'HotBite Call',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.55),
             fontSize: 12.5,

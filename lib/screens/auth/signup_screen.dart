@@ -152,7 +152,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           ],
                         ),
                         child: const Center(
-                          child: QuickDashMark(size: 84),
+                          child: HotBiteMark(size: 84),
                         ),
                       ),
                       const SizedBox(height: 12),

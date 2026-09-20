@@ -38,7 +38,7 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL =
   Deno.env.get("BROADCAST_FROM_EMAIL") ??
   Deno.env.get("RECEIPT_FROM_EMAIL") ??
-  "QuickDash <onboarding@resend.dev>";
+  "HotBite <onboarding@resend.dev>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

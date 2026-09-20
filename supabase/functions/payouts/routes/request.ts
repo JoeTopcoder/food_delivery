@@ -38,7 +38,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: 'QuickDash',
+          app: 'HotBite',
         },
       },
       { idempotencyKey: `transfer_${pr.id}` },
@@ -64,7 +64,7 @@ async function processPayout(payoutRequestId: string): Promise<void> {
           user_id: pr.user_id,
           role: pr.role,
           payout_method: pr.payout_method,
-          app: 'QuickDash',
+          app: 'HotBite',
         },
       }
       if (isInstant) payoutParams.method = 'instant'
@@ -205,7 +205,7 @@ export async function handle(req: Request): Promise<Response> {
         instant_fee_cents: instantFeeCents,
         requested_by: user.id,
         idempotency_key: idempotencyKey,
-        metadata: { source: 'user_request', payout_method, app: 'QuickDash' },
+        metadata: { source: 'user_request', payout_method, app: 'HotBite' },
       })
       .select('*')
       .single()

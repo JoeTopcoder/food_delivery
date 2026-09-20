@@ -519,7 +519,7 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
       ..writeln('👕 ${p.businessName}');
     if (rating.isNotEmpty)  msg.writeln(rating);
     if (address.isNotEmpty) msg.writeln('📍 $address');
-    msg.write('\nBook laundry pickup on QuickDash 👉 https://quickdash.app');
+    msg.write('\nBook laundry pickup on HotBite 👉 https://quickdash.app');
     SharePlus.instance.share(ShareParams(text: msg.toString(), subject: p.businessName));
   }
 

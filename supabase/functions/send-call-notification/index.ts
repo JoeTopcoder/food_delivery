@@ -152,7 +152,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Look up the caller's role so the receiver's call screen can show who's
-    // calling ("Driver", "QuickDash", etc.).
+    // calling ("Driver", "HotBite", etc.).
     let callerRole = "";
     if (callerId) {
       const { data: callerRow } = await admin

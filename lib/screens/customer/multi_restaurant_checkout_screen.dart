@@ -1122,7 +1122,7 @@ class _MultiRestaurantCheckoutScreenState
                         ),
                         Expanded(
                           child: Text(
-                            'I agree to the QuickDash terms and conditions',
+                            'I agree to the HotBite terms and conditions',
                             style: TextStyle(
                               fontSize: Responsive.smallText(context),
                               color: Theme.of(

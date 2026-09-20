@@ -227,7 +227,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ],
                       ),
                       child: const Center(
-                        child: QuickDashMark(size: 84),
+                        child: HotBiteMark(size: 84),
                       ),
                     ),
                     const SizedBox(height: 16),

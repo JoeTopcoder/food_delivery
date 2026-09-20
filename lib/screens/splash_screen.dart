@@ -240,7 +240,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: const QuickDashMark(size: 168),
+                            child: const HotBiteMark(size: 168),
                           ),
                         ),
                       ),
@@ -260,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'QuickDash',
+                            'HotBite',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -785,7 +785,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                             ),
                           ],
                         ),
-                        child: const QuickDashMark(size: 168),
+                        child: const HotBiteMark(size: 168),
                       ),
                     ),
                   ),
@@ -803,7 +803,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            'QuickDash',
+                            'HotBite',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,

@@ -93,8 +93,8 @@ class _AdminPayoutBatchScreenState
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'QuickDash Payout Run',
-          text: 'QuickDash payout run — ${rows.length} payees, '
+          subject: 'HotBite Payout Run',
+          text: 'HotBite payout run — ${rows.length} payees, '
               'total $_sym${_sum(rows).toStringAsFixed(2)}',
         ),
       );

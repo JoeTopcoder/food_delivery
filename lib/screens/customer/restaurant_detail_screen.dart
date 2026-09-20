@@ -413,10 +413,10 @@ class _RestaurantDetailScreenState
                       ShareParams(
                         text:
                             '🍽️ $name$rating\n'
-                            '$cuisine • Order on QuickDash\n\n'
+                            '$cuisine • Order on HotBite\n\n'
                             'Use code NEWUSER for 30% off your first order!\n'
                             'https://quickdash.app/restaurant/$id',
-                        subject: 'Check out $name on QuickDash!',
+                        subject: 'Check out $name on HotBite!',
                       ),
                     );
                   },

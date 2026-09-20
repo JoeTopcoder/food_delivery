@@ -40,7 +40,7 @@ export async function handle(req: Request): Promise<Response> {
             payout_request_id: pr.id,
             user_id: pr.user_id,
             role: pr.role,
-            app: 'QuickDash',
+            app: 'HotBite',
           },
         },
         { idempotencyKey: `transfer_${pr.id}` },
@@ -69,7 +69,7 @@ export async function handle(req: Request): Promise<Response> {
         user_id: pr.user_id,
         role: pr.role,
         payout_method: pr.payout_method ?? 'standard',
-        app: 'QuickDash',
+        app: 'HotBite',
         retry: 'true',
       },
     }

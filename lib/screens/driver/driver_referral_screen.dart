@@ -211,7 +211,7 @@ class DriverReferralScreen extends ConsumerWidget {
                         onPressed: () => SharePlus.instance.share(
                           ShareParams(
                             text:
-                                'Join QuickDash as a delivery driver! Use my referral code $code when you sign up and get a bonus on your first delivery. Download the app now.',
+                                'Join HotBite as a delivery driver! Use my referral code $code when you sign up and get a bonus on your first delivery. Download the app now.',
                           ),
                         ),
                         icon: const Icon(Icons.share_rounded),

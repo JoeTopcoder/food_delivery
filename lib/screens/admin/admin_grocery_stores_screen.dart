@@ -76,7 +76,7 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
 
   /// Admin edits the customer-facing storefront name/logo for a partner store.
   /// The real store name (e.g. "Loshusan Supermarket") is never shown to
-  /// customers — only this public alias, or the global "Quickdash Groceries"
+  /// customers — only this public alias, or the global "HotBite Groceries"
   /// brand when left blank.
   Future<void> _editStorefront(
     BuildContext context,
@@ -140,7 +140,7 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   labelText: 'Public name shown to customers',
-                  hintText: 'Quickdash Groceries',
+                  hintText: 'HotBite Groceries',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -156,7 +156,7 @@ class AdminGroceryStoresScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Leave the public fields blank to use the default "Quickdash '
+                'Leave the public fields blank to use the default "HotBite '
                 'Groceries" brand. Customers never see the store name/address.',
                 style: TextStyle(
                   fontSize: 11,

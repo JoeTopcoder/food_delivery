@@ -649,7 +649,7 @@ class _EarningsTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 _EarningsCard(
-                  label: 'QuickDash Commission',
+                  label: 'HotBite Commission',
                   value: '$c${v('total_commission').toStringAsFixed(2)}',
                   icon: Icons.percent_rounded,
                   color: Colors.purple,

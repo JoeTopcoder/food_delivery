@@ -169,10 +169,10 @@ class _GroupOrderDetailScreenState
     SharePlus.instance.share(
       ShareParams(
         text:
-            '🍽️ Join my group order "${group.name}" on QuickDash!\n\n'
+            '🍽️ Join my group order "${group.name}" on HotBite!\n\n'
             'Tap the link to join instantly:\n$link\n\n'
-            'Or open QuickDash → Group Orders → Join → enter code: ${group.inviteCode}',
-        subject: 'Join my QuickDash group order!',
+            'Or open HotBite → Group Orders → Join → enter code: ${group.inviteCode}',
+        subject: 'Join my HotBite group order!',
       ),
     );
   }

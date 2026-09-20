@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>QuickDash</string>
+	<string>HotBite</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>QuickDash</string>
+	<string>HotBite</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -54,17 +54,17 @@
 		</dict>
 	</array>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>QuickDash uses analytics to improve app performance and your experience. Your data is never sold or shared with advertisers.</string>
+	<string>HotBite uses analytics to improve app performance and your experience. Your data is never sold or shared with advertisers.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>QuickDash needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
+	<string>HotBite needs camera access to take photos of menu items, profile pictures, and delivery proof.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>QuickDash needs your location to provide delivery tracking even when the app is in the background.</string>
+	<string>HotBite needs your location to provide delivery tracking even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>QuickDash needs your location to show nearby restaurants and track deliveries.</string>
+	<string>HotBite needs your location to show nearby restaurants and track deliveries.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>QuickDash needs microphone access for voice calls between customers, drivers, and restaurants.</string>
+	<string>HotBite needs microphone access for voice calls between customers, drivers, and restaurants.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>QuickDash needs photo library access to upload menu item images and profile pictures.</string>
+	<string>HotBite needs photo library access to upload menu item images and profile pictures.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

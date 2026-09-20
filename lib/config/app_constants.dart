@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'QuickDash';
+  static const String appName = 'HotBite';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -40,8 +40,8 @@
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
-  static const String appDisplayName = 'QuickDash';
-  static const String businessLegalName = 'QuickDash Technologies Limited';
+  static const String appDisplayName = 'HotBite';
+  static const String businessLegalName = 'HotBite Delivery Limited';
   static const String supportEmailAddress = 'support@quickdash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
   static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
@@ -358,7 +358,7 @@
   // customer rather than by us.
   static List<double> presetTips = [200, 300, 500, 1000];
 
-  // Subscription (QuickDash+) — overridden from app_config table
+  // Subscription (HotBite+) — overridden from app_config table
   static double subscriptionBasicPrice = 12.0;
   static int subscriptionBasicDeliveries = 9;
   static double subscriptionProPrice = 24.0;
@@ -397,7 +397,7 @@
   // Partner grocery stores are anonymised to customers: they never see the real
   // store name (e.g. "Loshusan Supermarket"), only this brand or a per-store
   // public alias. Admin / store owner / driver still see the real name.
-  static String groceryPublicBrand = 'Quickdash Groceries';
+  static String groceryPublicBrand = 'HotBite Groceries';
 
   // Customer bottom-nav tab visibility (admin-controlled via app_config).
   // false = tab hidden from customers entirely.

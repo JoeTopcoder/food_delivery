@@ -3,10 +3,10 @@
     <!-- Midnight Navy background -->
     <item android:drawable="@color/brand_bg" />
 
-    <!-- QuickDash mark, centred at its intrinsic 210x130dp. Referenced
+    <!-- HotBite mark, centred at its intrinsic 210x130dp. Referenced
          directly rather than wrapped in <bitmap>, which only takes raster
          resources and silently fails on a vector. -->
     <item
-        android:drawable="@drawable/quickdash_mark"
+        android:drawable="@drawable/hotbite_mark"
         android:gravity="center" />
 </layer-list>

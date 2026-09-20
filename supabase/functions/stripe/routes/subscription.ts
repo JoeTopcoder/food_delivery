@@ -3,7 +3,7 @@
 // serve() wrapper turned into an exported handle() and import depth fixed.
 // Business/webhook logic is unchanged. Regenerate via scratchpad/build_stripe.py.
 
-// create-subscription — Creates a Stripe subscription for QuickDash Basic/Pro plans
+// create-subscription — Creates a Stripe subscription for HotBite Basic/Pro plans
 // Deploy: supabase functions deploy create-subscription --no-verify-jwt
 
 // deno-lint-ignore-file

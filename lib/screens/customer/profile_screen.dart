@@ -247,7 +247,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           icon: Icons.headset_mic_rounded,
                           color: const Color(0xFF0EA5E9),
                           title: 'Contact Support',
-                          sub: 'Get help from the QuickDash team',
+                          sub: 'Get help from the HotBite team',
                           onTap: () => Navigator.of(
                             context,
                           ).pushNamed('/contact-support'),

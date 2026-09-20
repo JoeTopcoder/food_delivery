@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       capabilities: { transfers: { requested: true } },
       business_type: role === 'restaurant' ? 'company' : 'individual',
       tos_acceptance: { service_agreement: 'recipient' },
-      metadata: { user_id: user.id, role, app: 'QuickDash' },
+      metadata: { user_id: user.id, role, app: 'HotBite' },
     })
 
     const { data: inserted, error } = await serviceClient
