@@ -1770,10 +1770,15 @@ class _DynamicBannerCarouselState
           });
         }
 
+        // Responsive height: scales with screen width but never shrinks below
+        // what the banner's title + subtitle + button need, so it can't
+        // overflow on small phones (the old fixed 16/5 aspect ratio did).
+        final bannerHeight =
+            (MediaQuery.of(context).size.width * 0.34).clamp(140.0, 200.0);
         return Column(
           children: [
-            AspectRatio(
-              aspectRatio: 16 / 5,
+            SizedBox(
+              height: bannerHeight,
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: banners.length,
@@ -1955,28 +1960,34 @@ class _DynamicBannerCarouselState
                     const SizedBox(height: 2),
                     Text(
                       banner.subtitle!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 12,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(_kRadiusPill),
-                    ),
-                    child: Text(
-                      'Visit ${banner.restaurantName ?? 'Restaurant'}',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(_kRadiusPill),
+                      ),
+                      child: Text(
+                        'Visit ${banner.restaurantName ?? 'Restaurant'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
