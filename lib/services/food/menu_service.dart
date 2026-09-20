@@ -83,10 +83,12 @@ class MenuService {
 
       // Inner-join restaurants so items from a closed/unverified restaurant are
       // excluded at the DB layer — a customer must never see an item they can't
-      // actually order.
+      // actually order. Grocery stores and grocery-typed products are also
+      // excluded: this is food/restaurant search, and grocery has its own
+      // browse surface (matches search_menu_items / get_recommendations RPCs).
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
-          .select('*, restaurants!inner(is_open, is_verified)')
+          .select('*, restaurants!inner(is_open, is_verified, store_type)')
           .or(
             'name.ilike.%${_sanitizeQuery(query)}%,'
             'description.ilike.%${_sanitizeQuery(query)}%,'
@@ -94,7 +96,9 @@ class MenuService {
           )
           .eq('is_available', true)
           .eq('restaurants.is_open', true)
-          .eq('restaurants.is_verified', true);
+          .eq('restaurants.is_verified', true)
+          .neq('restaurants.store_type', 'grocery')
+          .or('product_type.is.null,product_type.neq.grocery');
 
       final items = (response as List)
           .map((item) => MenuItem.fromJson(item))
