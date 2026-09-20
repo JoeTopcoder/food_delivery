@@ -336,10 +336,9 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – fixed height for uniform sizing. Tap to view full-screen.
-          SizedBox(
-            height: 104,
-            width: double.infinity,
+          // Image – scales with card width via aspect ratio. Tap = full screen.
+          AspectRatio(
+            aspectRatio: 1.5,
             child: GestureDetector(
               onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                   ? () => FullScreenImage.show(
