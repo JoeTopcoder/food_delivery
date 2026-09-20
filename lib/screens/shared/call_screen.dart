@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat_model.dart';
+import '../../models/order_model.dart';
+import '../../models/restaurant_model.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../services/social/agora_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
+import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
@@ -86,10 +90,25 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
     _listenForCallUpdates();
     _initCall();
+
+    // If the other party cancels/ends, a call_cancelled push arrives — close
+    // this screen immediately rather than waiting on the realtime row update.
+    NotificationService.onCallCancelled = (callId) {
+      if (!mounted) return;
+      if (callId != null && callId != widget.call.id) return;
+      if (_callStatus == CallStatus.ended) return;
+      _stopRinging();
+      _durationTimer?.cancel();
+      if (mounted) setState(() => _callStatus = CallStatus.ended);
+      _agora.leaveChannel().then((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+    };
   }
 
   @override
   void dispose() {
+    NotificationService.onCallCancelled = null;
     _durationTimer?.cancel();
     _ringTimer?.cancel();
     _remoteLeftTimer?.cancel();
@@ -482,6 +501,23 @@ class _CallScreenState extends ConsumerState<CallScreen>
     return widget.otherPartyName ?? 'Order Participant';
   }
 
+  /// Small line under the name describing who this is on the call.
+  String? get _subtitle {
+    // The party being shown. When we're the caller, that's the other party's
+    // role, which we don't always know — so key off callerRole when we're the
+    // receiver, and infer "delivery driver" for the common customer↔driver case.
+    switch (widget.callerRole) {
+      case 'admin':
+        return 'QuickDash Support';
+      case 'driver':
+        return 'Your delivery driver';
+      case 'restaurant':
+        return 'Restaurant';
+    }
+    // Caller side (e.g. driver calling the customer) — label the person we rang.
+    return widget.isCaller ? 'On your order' : null;
+  }
+
   /// Avatar icon for role-based callers (initials look odd for "QuickDash").
   IconData? get _callerIcon {
     if (widget.isCaller) return null;
@@ -551,6 +587,18 @@ class _CallScreenState extends ConsumerState<CallScreen>
                       letterSpacing: -0.3,
                     ),
                   ),
+                  if (_subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _subtitle!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _statusPill(),
                   if (_callStatus == CallStatus.accepted) ...[
@@ -570,7 +618,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   _buildConnectionStages(),
                   const Spacer(flex: 3),
                   _buildControls(),
-                  const SizedBox(height: 44),
+                  const SizedBox(height: 24),
+                  _buildOrderCard(),
+                  const SizedBox(height: 18),
                 ],
               ),
             ),
@@ -619,11 +669,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
         ? const Color(0xFF22C55E)
         : (ringing ? accent : const Color(0xFF6B7280));
 
+    const radius = 28.0;
     final core = Container(
-      width: 116,
-      height: 116,
+      width: 124,
+      height: 124,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(radius),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -642,16 +693,25 @@ class _CallScreenState extends ConsumerState<CallScreen>
         ],
       ),
       alignment: Alignment.center,
-      child: _callerIcon != null
-          ? Icon(_callerIcon, color: Colors.white, size: 52)
-          : Text(
-              _initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 42,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius - 3),
+        child: Image.asset(
+          'assets/images/app_icon.png',
+          width: 118,
+          height: 118,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _callerIcon != null
+              ? Icon(_callerIcon, color: Colors.white, size: 52)
+              : Text(
+                  _initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+        ),
+      ),
     );
 
     if (!ringing) return core;
@@ -673,7 +733,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   width: 150,
                   height: 150,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(34),
                     border: Border.all(
                       color: accent.withValues(alpha: 0.35 * (1 - t)),
                       width: 2,
@@ -687,7 +747,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                   width: 132,
                   height: 132,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(30),
                     border: Border.all(
                       color: accent.withValues(alpha: 0.5 * (1 - t)),
                       width: 2,
@@ -711,8 +771,12 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return const SizedBox.shrink();
     }
 
-    // Determine overall connection state
-    final bool isConnected = _channelReady && _audioReady;
+    // Determine overall connection state. Being in the Agora channel is
+    // authoritative — the flags can lag, and a transient onConnectionFailed
+    // must never surface once we're actually joined or the call is answered.
+    final bool isConnected = _agora.isInChannel ||
+        (_channelReady && _audioReady) ||
+        _callStatus == CallStatus.accepted;
     final bool hasFailed = _stageError != null;
 
     // Connected wins over a stale transient error — never show "Connection
@@ -814,6 +878,238 @@ class _CallScreenState extends ConsumerState<CallScreen>
           style: TextStyle(color: Color(0xFFEF4444), fontSize: 15),
         );
     }
+  }
+
+  // ── Bottom order card (real order + restaurant data) ───────────────────────
+  Widget _buildOrderCard() {
+    final orderId = widget.call.orderId;
+    if (orderId == null || orderId.isEmpty) return const SizedBox.shrink();
+
+    final orderAsync = ref.watch(orderByIdProvider(orderId));
+    return orderAsync.maybeWhen(
+      data: (order) {
+        if (order == null) return const SizedBox.shrink();
+        final restaurantAsync = ref.watch(
+          restaurantByIdProvider(order.restaurantId),
+        );
+        final restaurant = restaurantAsync.asData?.value;
+        return _orderCardShell(order, restaurant);
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _orderCardShell(Order order, Restaurant? restaurant) {
+    final itemName = _orderItemsLabel(order);
+    final restaurantName = restaurant?.name ?? 'your restaurant';
+    final imageUrl = restaurant?.imageUrl;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _thumbFallback(),
+                      )
+                    : _thumbFallback(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Order text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Your Order',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    itemName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'from $restaurantName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Status + ETA
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _statusChip(order.status),
+                if (_etaLabel(order) != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _etaLabel(order)!,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thumbFallback() {
+    return Container(
+      color: Colors.white.withValues(alpha: 0.08),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.restaurant_rounded,
+        color: Colors.white.withValues(alpha: 0.6),
+        size: 26,
+      ),
+    );
+  }
+
+  String _orderItemsLabel(Order order) {
+    if (order.items.isEmpty) {
+      return 'Order #${(order.receiptNumber ?? order.id).toString()}';
+    }
+    final first = order.items.first;
+    final name = first.quantity > 1
+        ? '${first.quantity}× ${first.itemName}'
+        : first.itemName;
+    final extra = order.items.length - 1;
+    return extra > 0 ? '$name  +$extra more' : name;
+  }
+
+  Widget _statusChip(String status) {
+    final label = _statusLabel(status);
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(status), size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'preparing':
+        return 'Preparing';
+      case 'ready':
+        return 'Ready';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status.isEmpty
+            ? 'Order'
+            : status[0].toUpperCase() + status.substring(1);
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'out_for_delivery':
+      case 'delivered':
+        return const Color(0xFF22C55E);
+      case 'preparing':
+      case 'ready':
+      case 'confirmed':
+        return const Color(0xFFF59E0B);
+      case 'cancelled':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF9CA3AF);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'out_for_delivery':
+        return Icons.delivery_dining_rounded;
+      case 'delivered':
+        return Icons.check_circle_rounded;
+      case 'preparing':
+      case 'ready':
+        return Icons.soup_kitchen_rounded;
+      case 'cancelled':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  /// "Arriving in N min" when we have a future ETA, else the order total.
+  String? _etaLabel(Order order) {
+    final eta = order.estimatedDeliveryAt;
+    if (eta != null) {
+      final mins = eta.difference(DateTime.now()).inMinutes;
+      if (mins > 0) return 'Arriving in $mins min';
+      if (mins > -5 && order.status == 'out_for_delivery') return 'Arriving soon';
+    }
+    return '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}';
   }
 
   Widget _buildControls() {

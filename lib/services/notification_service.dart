@@ -122,6 +122,11 @@ class NotificationService {
   static VoidCallback? onNewPackageReceived;
   static VoidCallback? onNewRideReceived;
 
+  /// Fired when the other party cancels/ends a call (via a call_cancelled push).
+  /// An open CallScreen subscribes so it closes even if the realtime row update
+  /// is delayed. Carries the cancelled call id (may be null).
+  static void Function(String? callId)? onCallCancelled;
+
   /// Callback fired for order lifecycle notifications (order placed, preparing,
   /// rider assigned, delivered, etc.) — used by the notifications screen to
   /// immediately add the notification to the in-memory list while in foreground.
@@ -176,6 +181,20 @@ class NotificationService {
         final status = await Permission.notification.status;
         if (!status.isGranted) {
           await Permission.notification.request();
+        }
+
+        // Aggressive OEMs (Samsung, Xiaomi…) freeze/kill the app process when
+        // it's swiped away, which stops the high-priority FCM that rings an
+        // incoming call from ever being delivered to the background handler.
+        // Ask the user once to exempt us from battery optimization so calls
+        // still arrive when the app is fully closed.
+        try {
+          final battery = await Permission.ignoreBatteryOptimizations.status;
+          if (!battery.isGranted) {
+            await Permission.ignoreBatteryOptimizations.request();
+          }
+        } catch (e) {
+          AppLogger.error('Battery optimization request failed: $e');
         }
       }
 
@@ -371,6 +390,8 @@ class NotificationService {
     // Caller cancelled — dismiss the ringing call UI immediately
     if (type == 'call_cancelled') {
       cancelCallNotification();
+      // Also tell any open in-app CallScreen to close (realtime can lag).
+      onCallCancelled?.call(message.data['call_id'] as String?);
       return;
     }
 
@@ -676,6 +697,7 @@ class NotificationService {
       case 'call_cancelled':
         AppLogger.info('Call cancelled remotely');
         cancelCallNotification();
+        onCallCancelled?.call(data['call_id'] as String?);
         break;
       case 'promo':
         AppLogger.info('Promo notification: $title');

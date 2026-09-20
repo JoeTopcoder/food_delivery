@@ -9,6 +9,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../services/driver/delivery_fee_service.dart';
 import '../../services/location_service.dart';
@@ -870,7 +871,10 @@ class _DeliveryCard extends ConsumerWidget {
                       ? () => _openNav(dropLat, dropLng)
                       : null,
                 ),
-                _CustomerNameRow(orderId: delivery.id),
+                _CustomerNameRow(
+                  orderId: delivery.id,
+                  customerUserId: delivery.userId,
+                ),
               ],
             ),
           ),
@@ -1034,16 +1038,59 @@ class _DeliveryCard extends ConsumerWidget {
 
 // ─── Customer name row (prominent) ──────────────────────────────────────────
 
-class _CustomerNameRow extends ConsumerWidget {
+class _CustomerNameRow extends ConsumerStatefulWidget {
   final String orderId;
-  const _CustomerNameRow({required this.orderId});
+  final String customerUserId;
+  const _CustomerNameRow({
+    required this.orderId,
+    required this.customerUserId,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final name = ref.watch(driverCustomerNameProvider(orderId)).maybeWhen(
+  ConsumerState<_CustomerNameRow> createState() => _CustomerNameRowState();
+}
+
+class _CustomerNameRowState extends ConsumerState<_CustomerNameRow> {
+  bool _calling = false;
+
+  Future<void> _callCustomer(String name) async {
+    if (_calling) return;
+    if (widget.customerUserId.isEmpty) {
+      AppSnackbar.warning(context, 'Cannot call — no customer found');
+      return;
+    }
+    setState(() => _calling = true);
+    try {
+      final call = await ref.read(chatServiceProvider).initiateCall(
+            orderId: widget.orderId,
+            receiverId: widget.customerUserId,
+          );
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/call',
+          arguments: {
+            'call': call,
+            'isCaller': true,
+            'otherPartyName': name,
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _calling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = ref.watch(driverCustomerNameProvider(widget.orderId)).maybeWhen(
           data: (n) => n,
           orElse: () => 'Customer',
         );
+    // Responsive call button — scales with screen width, never a fixed size.
+    final btnSize = (Responsive.width(context) * 0.115).clamp(40.0, 54.0);
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: Row(
@@ -1068,6 +1115,35 @@ class _CustomerNameRow extends ConsumerWidget {
                 color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: btnSize,
+            height: btnSize,
+            child: Material(
+              color: const Color(0xFF22C55E),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _calling ? null : () => _callCustomer(name),
+                child: Center(
+                  child: _calling
+                      ? SizedBox(
+                          width: btnSize * 0.4,
+                          height: btnSize * 0.4,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          Icons.call_rounded,
+                          color: Colors.white,
+                          size: btnSize * 0.44,
+                        ),
+                ),
               ),
             ),
           ),
