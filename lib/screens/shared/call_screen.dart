@@ -148,18 +148,29 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _audioReady = true; // local audio is live once we join
         _isJoining = false;
         _joinRetryCount = 0;
+        _stageError = null; // a successful join clears any earlier transient error
       });
       await _agora.ensureAudioActive();
       _agora.setVolumes();
     };
     _agora.onUserJoined = (_) {
-      if (mounted) setState(() => _audioReady = true);
+      if (mounted) {
+        setState(() {
+          _audioReady = true;
+          _stageError = null; // remote joined — we're connected
+        });
+      }
       // Remote user reconnected — cancel any pending end-call timer
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
     };
     _agora.onRemoteAudioActive = () {
-      if (mounted) setState(() => _audioReady = true);
+      if (mounted) {
+        setState(() {
+          _audioReady = true;
+          _stageError = null; // audio flowing — connected
+        });
+      }
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
     };
@@ -704,7 +715,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
     final bool isConnected = _channelReady && _audioReady;
     final bool hasFailed = _stageError != null;
 
-    if (!isConnected && !hasFailed) {
+    // Connected wins over a stale transient error — never show "Connection
+    // failed" once we're actually in the channel with audio.
+    if (isConnected) return const SizedBox.shrink();
+
+    if (!hasFailed) {
       // Still connecting — show a subtle spinner
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
