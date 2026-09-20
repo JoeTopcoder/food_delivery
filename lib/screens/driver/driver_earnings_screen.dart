@@ -118,7 +118,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
     final floatSubtitle = owesPlatform
         ? 'Cash collected — hand over to admin'
         : owedToDriver
-        ? 'QuickDash owes you — restaurant costs you fronted'
+        ? 'HotBite owes you — restaurant costs you fronted'
         : 'Float settled — all square';
     final floatAmountText =
         '${AppConstants.currencySymbol}${cashFloat.abs().toStringAsFixed(2)}';
@@ -328,7 +328,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                owedToDriver ? 'QuickDash Owes You' : 'Cash Float',
+                                owedToDriver ? 'HotBite Owes You' : 'Cash Float',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,

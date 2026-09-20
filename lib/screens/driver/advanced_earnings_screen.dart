@@ -480,7 +480,7 @@ class _CashFloatCard extends StatelessWidget {
     final subtitle = owesPlatform
         ? 'Cash collected — hand over to admin'
         : owedToDriver
-        ? 'QuickDash owes you — restaurant costs you fronted'
+        ? 'HotBite owes you — restaurant costs you fronted'
         : 'Float settled — all square';
 
     return GestureDetector(
@@ -525,7 +525,7 @@ class _CashFloatCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    owedToDriver ? 'QuickDash Owes You' : 'Cash Float',
+                    owedToDriver ? 'HotBite Owes You' : 'Cash Float',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

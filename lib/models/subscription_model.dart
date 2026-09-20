@@ -176,15 +176,15 @@ class UserSubscription {
   /// True when user cancelled but subscription is still active until period end.
   bool get isCancelling => isActive && !autoRenew;
 
-  /// True for QuickDash+ delivery subscriptions (vs meal plan subscriptions).
+  /// True for HotBite+ delivery subscriptions (vs meal plan subscriptions).
   bool get isDeliverySubscription => planType != null;
 
   String get planLabel {
     switch (planType) {
       case 'basic':
-        return 'QuickDash Basic';
+        return 'HotBite Basic';
       case 'pro':
-        return 'QuickDash Pro';
+        return 'HotBite Pro';
       default:
         return mealPlan?.name ?? 'Subscription';
     }

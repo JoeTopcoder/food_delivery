@@ -206,6 +206,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
+  remove_alpha_ios: true
   web:
     generate: true
   image_path: assets/images/app_icon.png

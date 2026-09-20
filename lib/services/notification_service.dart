@@ -41,7 +41,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final params = CallKitParams(
       id: callId,
       nameCaller: callerName,
-      appName: 'QuickDash',
+      appName: 'HotBite',
       type: 0, // 0 = audio call
       duration: 60000,
       textAccept: 'Answer',
@@ -415,7 +415,7 @@ class NotificationService {
 
     // Show a local notification — fall back to data fields when the FCM
     // message has no notification block (data-only messages from edge functions).
-    final title = notification?.title ?? message.data['title'] as String? ?? 'QuickDash';
+    final title = notification?.title ?? message.data['title'] as String? ?? 'HotBite';
     final body  = notification?.body  ?? message.data['body']  as String? ?? '';
 
     // New order for a driver → show the in-app Uber-style banner (8s) over
@@ -543,7 +543,7 @@ class NotificationService {
       final params = CallKitParams(
         id: callId,
         nameCaller: callerName,
-        appName: 'QuickDash',
+        appName: 'HotBite',
         type: 0,
         duration: 60000,
         textAccept: 'Answer',

@@ -85,7 +85,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   const publicName = (restaurant.public_name as string || "").trim();
   const restName = escapeHtml(
     isGrocery
-      ? (publicName || "Quickdash Groceries")
+      ? (publicName || "HotBite Groceries")
       : (restaurant.name as string || "Restaurant"),
   );
   const restAddress = isGrocery
@@ -144,11 +144,11 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
         <tr>
           <td style="vertical-align:middle;padding-right:12px;">
             <img src="https://yharweliruemjexmuuxn.supabase.co/storage/v1/object/public/banners/quickdash-logo.png"
-                 width="48" height="48" alt="QuickDash"
+                 width="48" height="48" alt="HotBite"
                  style="display:block;width:48px;height:48px;border-radius:12px;background:#ffffff;" />
           </td>
           <td style="vertical-align:middle;">
-            <div style="font-size:26px;line-height:30px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">QuickDash</div>
+            <div style="font-size:26px;line-height:30px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">HotBite</div>
           </td>
         </tr>
       </table>
@@ -241,7 +241,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
 
     <!-- Footer -->
     <div style="text-align:center;padding:24px 0;color:#999;font-size:12px;">
-      <div style="font-size:15px;color:#FF6B35;font-weight:700;">Thanks for choosing QuickDash! 🧡</div>
+      <div style="font-size:15px;color:#FF6B35;font-weight:700;">Thanks for choosing HotBite! 🧡</div>
       <div style="margin-top:6px;">Made with love in Jamaica 🇯🇲 — eat good, feel good. 🍽️✨</div>
       <div style="margin-top:8px;">Questions? We've got you: support@quickdash.app</div>
     </div>
@@ -317,13 +317,13 @@ Deno.serve(async (request) => {
     const st = restaurant?.store_type as string || "";
     const isGroceryStore = st === "grocery" || st === "both";
     const restName = isGroceryStore
-      ? ((restaurant?.public_name as string || "").trim() || "Quickdash Groceries")
-      : (restaurant?.name || "QuickDash");
+      ? ((restaurant?.public_name as string || "").trim() || "HotBite Groceries")
+      : (restaurant?.name || "HotBite");
 
     // ── 5. Send via Resend ───────────────────────────────────────────────
     const emailResult = await sendEmail({
       to: [customer.email],
-      subject: `Your QuickDash Receipt — ${receiptNumber} from ${restName}`,
+      subject: `Your HotBite Receipt — ${receiptNumber} from ${restName}`,
       html,
     });
 

@@ -26,14 +26,14 @@ function reminderHtml(name: string): string {
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a2e;">
     <h2 style="margin:0 0 12px;">Add your bank details to get paid</h2>
     <p>Hi ${who},</p>
-    <p>You have earnings waiting with QuickDash, but we couldn't pay you in the
+    <p>You have earnings waiting with HotBite, but we couldn't pay you in the
        latest payout run because there are <b>no bank account details on file</b>
        for your account.</p>
-    <p>Please open the QuickDash app and add your banking information under
+    <p>Please open the HotBite app and add your banking information under
        <b>Payments / Banking</b> so we can include you in the next payout.</p>
     <p style="color:#6b7280;font-size:13px;">Once your bank details are saved,
        your balance will be paid in the next run — no further action needed.</p>
-    <p style="margin-top:20px;">Thank you,<br/>The QuickDash Team</p>
+    <p style="margin-top:20px;">Thank you,<br/>The HotBite Team</p>
   </div>`
 }
 
@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
       const name = t.name || nameById.get(t.userId) || ''
       const res = await sendEmail({
         to: email,
-        subject: 'Add your bank details to get paid — QuickDash',
+        subject: 'Add your bank details to get paid — HotBite',
         html: reminderHtml(name),
       })
       if (res.ok) sent++

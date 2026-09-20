@@ -2,24 +2,24 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-/// QuickDash brand colours, taken from the logo lockup.
-class QuickDashBrand {
-  QuickDashBrand._();
+/// HotBite brand colours, taken from the logo lockup.
+class HotBiteBrand {
+  HotBiteBrand._();
   static const blueLight = Color(0xFF2E6BE6);
   static const blueDark = Color(0xFF0F3BBF);
   static const orange = Color(0xFFFF8A00);
   static const orangeDeep = Color(0xFFF5401A);
 }
 
-/// The QuickDash mark: the Q with a cloche in its counter, the arrow tail, and
+/// The HotBite mark: the Q with a cloche in its counter, the arrow tail, and
 /// the speed lines trailing off to the left.
 ///
 /// Drawn rather than shipped as a PNG. It stays sharp at every density and
 /// needs no asset to decode before the splash can appear. [monochrome] draws
 /// the same shape in a single colour — the brand blue disappears against
 /// Midnight Navy, so a dark background needs a white version of it.
-class QuickDashMark extends StatelessWidget {
-  const QuickDashMark({super.key, this.size = 120, this.monochrome});
+class HotBiteMark extends StatelessWidget {
+  const HotBiteMark({super.key, this.size = 120, this.monochrome});
 
   final double size;
   final Color? monochrome;
@@ -51,13 +51,13 @@ class _MarkPainter extends CustomPainter {
       : const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [QuickDashBrand.blueLight, QuickDashBrand.blueDark],
+          colors: [HotBiteBrand.blueLight, HotBiteBrand.blueDark],
         ).createShader(r);
 
   Shader? _hot(Rect r) => monochrome != null
       ? null
       : const LinearGradient(
-          colors: [QuickDashBrand.orange, QuickDashBrand.orangeDeep],
+          colors: [HotBiteBrand.orange, HotBiteBrand.orangeDeep],
         ).createShader(r);
 
   Paint _fill(Rect bounds, {required bool hot}) {
@@ -173,11 +173,11 @@ class _MarkPainter extends CustomPainter {
   bool shouldRepaint(_MarkPainter old) => old.monochrome != monochrome;
 }
 
-/// "QuickDash" — blue through "Quick", orange through "Dash", as on the
+/// "HotBite" — blue through "Quick", orange through "Dash", as on the
 /// lockup. One gradient with a hard stop rather than two text spans, so the
 /// colour break stays put whatever the font metrics do.
-class QuickDashWordmark extends StatelessWidget {
-  const QuickDashWordmark({super.key, this.fontSize = 40, this.monochrome});
+class HotBiteWordmark extends StatelessWidget {
+  const HotBiteWordmark({super.key, this.fontSize = 40, this.monochrome});
 
   final double fontSize;
   final Color? monochrome;
@@ -185,7 +185,7 @@ class QuickDashWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Text(
-      'QuickDash',
+      'HotBite',
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: FontWeight.w900,
@@ -200,10 +200,10 @@ class QuickDashWordmark extends StatelessWidget {
     return ShaderMask(
       shaderCallback: (rect) => const LinearGradient(
         colors: [
-          QuickDashBrand.blueLight,
-          QuickDashBrand.blueDark,
-          QuickDashBrand.orange,
-          QuickDashBrand.orangeDeep,
+          HotBiteBrand.blueLight,
+          HotBiteBrand.blueDark,
+          HotBiteBrand.orange,
+          HotBiteBrand.orangeDeep,
         ],
         stops: [0.0, 0.55, 0.57, 1.0],
       ).createShader(rect),
@@ -214,8 +214,8 @@ class QuickDashWordmark extends StatelessWidget {
 }
 
 /// The full lockup: mark over wordmark, optionally with the tagline.
-class QuickDashLogo extends StatelessWidget {
-  const QuickDashLogo({
+class HotBiteLogo extends StatelessWidget {
+  const HotBiteLogo({
     super.key,
     this.width = 240,
     this.showTagline = false,
@@ -232,9 +232,9 @@ class QuickDashLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        QuickDashMark(size: width * 0.86, monochrome: monochrome),
+        HotBiteMark(size: width * 0.86, monochrome: monochrome),
         SizedBox(height: width * 0.02),
-        QuickDashWordmark(fontSize: wordSize, monochrome: monochrome),
+        HotBiteWordmark(fontSize: wordSize, monochrome: monochrome),
         if (showTagline) ...[
           SizedBox(height: width * 0.03),
           SizedBox(
@@ -247,7 +247,7 @@ class QuickDashLogo extends StatelessWidget {
               fontWeight: FontWeight.w800,
               fontStyle: FontStyle.italic,
               letterSpacing: 0.2,
-              color: monochrome ?? QuickDashBrand.blueDark,
+              color: monochrome ?? HotBiteBrand.blueDark,
             ),
             ),
           ),

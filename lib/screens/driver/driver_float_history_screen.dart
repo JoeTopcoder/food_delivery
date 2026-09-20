@@ -66,7 +66,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
                 children: [
                   Text(
                     owedToDriver
-                        ? 'QuickDash Owes You'
+                        ? 'HotBite Owes You'
                         : owesPlatform
                         ? 'Cash to Hand Admin'
                         : 'Float Settled',

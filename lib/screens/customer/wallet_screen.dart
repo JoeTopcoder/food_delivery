@@ -696,7 +696,7 @@ class _WalletCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'QuickDash Wallet',
+                'HotBite Wallet',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -1808,7 +1808,7 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
         children: [
           // Wallet ID
           Text(
-            'Your QuickDash Wallet ID',
+            'Your HotBite Wallet ID',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -2036,8 +2036,8 @@ class _TopUpPageState extends ConsumerState<_TopUpPage> {
           const SizedBox(height: 16),
 
           Text(
-            '*This money can only be spent on QuickDash.\n'
-            '*You can send QuickDash wallet money to other QuickDash wallets.',
+            '*This money can only be spent on HotBite.\n'
+            '*You can send HotBite wallet money to other HotBite wallets.',
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.primaryColor,
@@ -2261,7 +2261,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
             // Wallet ID field
             Text(
-              'QuickDash Wallet ID',
+              'HotBite Wallet ID',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onSurface,
@@ -2279,7 +2279,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
                 controller: _recipientCtrl,
                 textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
-                  hintText: 'Enter QuickDash Wallet ID',
+                  hintText: 'Enter HotBite Wallet ID',
                   hintStyle: TextStyle(color: Colors.grey.shade400),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -2367,7 +2367,7 @@ class _SendMoneySheetState extends State<_SendMoneySheet> {
 
             const SizedBox(height: 12),
             Text(
-              '*This money can only be spent on QuickDash',
+              '*This money can only be spent on HotBite',
               style: TextStyle(fontSize: 12, color: AppTheme.primaryColor),
             ),
 
