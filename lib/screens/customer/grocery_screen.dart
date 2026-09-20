@@ -477,10 +477,9 @@ class _SearchProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image – fixed height. Tap = full screen.
-            SizedBox(
-              height: 130,
-              width: double.infinity,
+            // Image – scales with card width via aspect ratio. Tap = full screen.
+            AspectRatio(
+              aspectRatio: 1.5,
               child: GestureDetector(
                 onTap:
                     (product.imageUrl != null && product.imageUrl!.isNotEmpty)
