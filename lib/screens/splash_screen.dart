@@ -231,7 +231,7 @@ class _SplashScreenState extends State<SplashScreen>
                               vertical: 18,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Colors.transparent,
                               borderRadius: BorderRadius.circular(28),
                               boxShadow: [
                                 BoxShadow(
@@ -241,7 +241,17 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: const HotBiteMark(size: 168),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'assets/images/app_icon.png',
+                                width: 200,
+                                height: 140,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const HotBiteMark(size: 168),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -821,7 +831,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           vertical: 18,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(

@@ -108,6 +108,11 @@ class Order {
   @JsonKey(defaultValue: 0)
   final double outstandingDebtCharged;
 
+  /// 'CASH_PAYMENT' (driver pays the restaurant in cash from float) or
+  /// 'BANK_PAYMENT' (restaurant paid via the payout run). Snapshotted at order
+  /// creation and immutable thereafter.
+  final String? restaurantPaymentMethodSnapshot;
+
   Order({
     required this.id,
     required this.userId,
@@ -162,6 +167,7 @@ class Order {
     this.sequenceInGroup,
     this.restaurantOrderNumber,
     this.outstandingDebtCharged = 0,
+    this.restaurantPaymentMethodSnapshot,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -276,6 +282,7 @@ class Order {
       sequenceInGroup: sequenceInGroup ?? this.sequenceInGroup,
       restaurantOrderNumber: restaurantOrderNumber ?? this.restaurantOrderNumber,
       outstandingDebtCharged: outstandingDebtCharged ?? this.outstandingDebtCharged,
+      restaurantPaymentMethodSnapshot: restaurantPaymentMethodSnapshot,
     );
   }
 }
