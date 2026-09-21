@@ -226,17 +226,19 @@ Deno.serve(async (request) => {
       // earning is tracked in total_earnings and settled via payout — it is not
       // skimmed from the collected cash.
       if (order.payment_method === "cash") {
-        const totalAmount = Number(order.total_amount) || 0;
-        const floatAmount = totalAmount;
-
-        if (floatAmount > 0) {
-          // Try atomic increment via RPC, fall back to manual
-          try {
-            await admin.rpc("increment_cash_float", {
-              p_driver_id: driverId,
-              p_amount: floatAmount,
-            });
-          } catch {
+        // Credit the collected cash to the float via the audited RPC so it
+        // shows in the driver's float history (type 'cod_collection') and the
+        // ledger reconciles with the balance. Idempotent: never double-credits.
+        try {
+          await admin.rpc("collect_cod_to_float", {
+            p_driver_id: driverId,
+            p_order_id: orderId,
+          });
+        } catch {
+          // Fallback: direct increment (keeps the balance correct even if the
+          // RPC/ledger write fails).
+          const totalAmount = Number(order.total_amount) || 0;
+          if (totalAmount > 0) {
             const { data: driverRow } = await admin
               .from("drivers")
               .select("cash_float")
@@ -245,7 +247,7 @@ Deno.serve(async (request) => {
             const currentFloat = Number(driverRow?.cash_float) || 0;
             await admin
               .from("drivers")
-              .update({ cash_float: currentFloat + floatAmount, updated_at: now })
+              .update({ cash_float: currentFloat + totalAmount, updated_at: now })
               .eq("id", driverId);
           }
         }
