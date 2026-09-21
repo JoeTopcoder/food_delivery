@@ -115,13 +115,69 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
                     ),
                   );
                 }
-                return Column(
-                  children: rows.map(_row).toList(),
-                );
+                return Column(children: _buildGrouped(rows));
               },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Groups the (newest-first) ledger by calendar day, prefixing each day with
+  /// its starting balance (the float before that day's first transaction).
+  List<Widget> _buildGrouped(List<Map<String, dynamic>> rows) {
+    String dayKey(Map<String, dynamic> tx) {
+      final dt = DateTime.tryParse(tx['created_at']?.toString() ?? '')?.toLocal();
+      return dt != null ? DateFormat('yyyy-MM-dd').format(dt) : '';
+    }
+
+    final widgets = <Widget>[];
+    String? currentDay;
+    for (int i = 0; i < rows.length; i++) {
+      final tx = rows[i];
+      final key = dayKey(tx);
+      if (key != currentDay) {
+        currentDay = key;
+        // The day's oldest tx is the LAST row with this key (list is newest-first).
+        double startBal = 0;
+        DateTime? day;
+        for (int j = rows.length - 1; j >= 0; j--) {
+          if (dayKey(rows[j]) == key) {
+            final bal = (rows[j]['balance_after'] as num?)?.toDouble() ?? 0;
+            final amt = (rows[j]['amount'] as num?)?.toDouble() ?? 0;
+            startBal = bal - amt;
+            day = DateTime.tryParse(rows[j]['created_at']?.toString() ?? '')
+                ?.toLocal();
+            break;
+          }
+        }
+        widgets.add(_dayHeader(day, startBal));
+      }
+      widgets.add(_row(tx));
+    }
+    return widgets;
+  }
+
+  Widget _dayHeader(DateTime? day, double startBalance) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: Row(
+        children: [
+          Text(
+            day != null ? DateFormat('EEE, MMM d').format(day) : 'Earlier',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'Start: ${AppConstants.currencySymbol}${startBalance.toStringAsFixed(2)}',
+            style: TextStyle(color: Colors.grey[400], fontSize: 12),
+          ),
+        ],
       ),
     );
   }
@@ -131,6 +187,10 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
     final balanceAfter = (tx['balance_after'] as num?)?.toDouble() ?? 0.0;
     final type = (tx['type'] as String?) ?? '';
     final note = tx['note'] as String?;
+    final orderId = tx['order_id']?.toString();
+    final orderRef = (orderId != null && orderId.length >= 8)
+        ? 'Order #${orderId.substring(0, 8).toUpperCase()}'
+        : null;
     final createdAt = DateTime.tryParse(tx['created_at']?.toString() ?? '');
     final positive = amount >= 0;
     final amountColor = positive
@@ -171,9 +231,13 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  createdAt != null
-                      ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
-                      : (note ?? ''),
+                  [
+                    if (orderRef != null) orderRef,
+                    if (createdAt != null)
+                      DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
+                    else if (note != null)
+                      note,
+                  ].join('  ·  '),
                   style: TextStyle(color: Colors.grey[500], fontSize: 11),
                 ),
               ],

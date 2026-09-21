@@ -519,6 +519,15 @@ class _OrderCard extends ConsumerWidget {
                             ],
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Order #${order.id.substring(0, 8).toUpperCase()}',
+                          style: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           '${AppConstants.currencySymbol}${totalPay.toStringAsFixed(2)}',
