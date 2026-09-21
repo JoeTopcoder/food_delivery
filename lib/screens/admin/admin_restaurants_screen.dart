@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/admin_provider.dart';
@@ -477,6 +478,41 @@ class _RestaurantList extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF0EA5E9),
                             side: const BorderSide(color: Color(0xFF0EA5E9)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _showPaymentMethodDialog(context, restaurant),
+                          icon: Icon(
+                            restaurant.restaurantPaymentMethod == 'BANK_PAYMENT'
+                                ? Icons.account_balance_rounded
+                                : Icons.payments_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            restaurant.restaurantPaymentMethod == 'BANK_PAYMENT'
+                                ? 'Pays: Bank (payout run)'
+                                : 'Pays: Cash (driver float)',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                restaurant.restaurantPaymentMethod ==
+                                        'BANK_PAYMENT'
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFF59E0B),
+                            side: BorderSide(
+                              color: restaurant.restaurantPaymentMethod ==
+                                      'BANK_PAYMENT'
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFF59E0B),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -1043,6 +1079,142 @@ class _RestaurantList extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _payMethodOption({
+    required bool selected,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.10) : null,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color : const Color(0xFFCBD5E1),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? color : const Color(0xFF94A3B8),
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11.5, color: Color(0xFF64748B))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentMethodDialog(BuildContext context, Restaurant restaurant) {
+    String method = restaurant.restaurantPaymentMethod == 'BANK_PAYMENT'
+        ? 'BANK_PAYMENT'
+        : 'CASH_PAYMENT';
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Payment Method: ${restaurant.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _payMethodOption(
+                selected: method == 'CASH_PAYMENT',
+                color: const Color(0xFFF59E0B),
+                title: 'Cash (driver pays from float)',
+                subtitle:
+                    'Driver pays the restaurant in cash; excluded from payout run.',
+                onTap: () => setDialogState(() => method = 'CASH_PAYMENT'),
+              ),
+              const SizedBox(height: 8),
+              _payMethodOption(
+                selected: method == 'BANK_PAYMENT',
+                color: const Color(0xFF16A34A),
+                title: 'Bank (paid via payout run)',
+                subtitle:
+                    'Restaurant is paid through the payout run; driver float untouched.',
+                onTap: () => setDialogState(() => method = 'BANK_PAYMENT'),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Only affects future orders — past orders keep their recorded method.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await Supabase.instance.client.rpc(
+                    'admin_set_restaurant_payment_method',
+                    params: {
+                      'p_restaurant_id': restaurant.id,
+                      'p_method': method,
+                    },
+                  );
+                  ref.invalidate(allRestaurantsAdminProvider);
+                  if (context.mounted) {
+                    AppSnackbar.success(
+                      context,
+                      '"${restaurant.name}" set to ${method == 'BANK_PAYMENT' ? 'Bank (payout)' : 'Cash (driver float)'}',
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppSnackbar.error(context, friendlyError(e));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF528BFF),
+                foregroundColor: Colors.white,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Save'),
             ),

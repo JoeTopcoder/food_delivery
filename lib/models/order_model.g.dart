@@ -114,6 +114,8 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
       restaurantOrderNumber: json['restaurant_order_number'] as String?,
       outstandingDebtCharged:
           (json['outstanding_debt_charged'] as num?)?.toDouble() ?? 0,
+      restaurantPaymentMethodSnapshot:
+          json['restaurant_payment_method_snapshot'] as String?,
     );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -170,4 +172,6 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
       'sequence_in_group': instance.sequenceInGroup,
       'restaurant_order_number': instance.restaurantOrderNumber,
       'outstanding_debt_charged': instance.outstandingDebtCharged,
+      'restaurant_payment_method_snapshot':
+          instance.restaurantPaymentMethodSnapshot,
     };

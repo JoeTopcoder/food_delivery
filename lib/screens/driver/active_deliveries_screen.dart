@@ -880,16 +880,24 @@ class _DeliveryCard extends ConsumerWidget {
           ),
 
           // ── Cash: pay store + collect COD, side by side ─────────
+          // "Pay store" only shows for CASH_PAYMENT restaurants — the driver
+          // pays the food cost in cash from float. BANK_PAYMENT (and grocery)
+          // restaurants are settled via the payout run, so no cash to hand over.
           if (delivery.paymentMethod == 'cash' ||
               ((restaurant?.storeType ?? 'food') != 'grocery' &&
-                  delivery.subtotal > 0))
+                  delivery.subtotal > 0 &&
+                  (delivery.restaurantPaymentMethodSnapshot ?? 'CASH_PAYMENT') ==
+                      'CASH_PAYMENT'))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: _DeliveryCashRow(
                 delivery: delivery,
                 showPayStore:
                     (restaurant?.storeType ?? 'food') != 'grocery' &&
-                    delivery.subtotal > 0,
+                    delivery.subtotal > 0 &&
+                    (delivery.restaurantPaymentMethodSnapshot ??
+                            'CASH_PAYMENT') ==
+                        'CASH_PAYMENT',
               ),
             ),
 
