@@ -352,6 +352,11 @@ class _OrderAlertCardState extends ConsumerState<_OrderAlertCard>
                     _row(Icons.location_on_rounded, const Color(0xFFEF4444),
                         widget.address),
                   ],
+                  if (widget.orderId.length >= 8) ...[
+                    const SizedBox(height: 6),
+                    _row(Icons.receipt_long_rounded, const Color(0xFF9CA3AF),
+                        'Order #${widget.orderId.substring(0, 8).toUpperCase()}'),
+                  ],
                   const SizedBox(height: 6),
                   _row(
                     Icons.person_rounded,

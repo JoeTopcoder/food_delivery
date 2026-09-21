@@ -220,15 +220,30 @@ Deno.serve(async (request) => {
         .update(updateData)
         .eq("id", driverId);
 
-      // ── 4. Cash float for cash orders ───────────────────────────────
-      // On COD the driver collects the FULL order total from the customer in
-      // cash, so the float they hold equals the order total. Their delivery
-      // earning is tracked in total_earnings and settled via payout — it is not
-      // skimmed from the collected cash.
+      // ── 4. Float settlement (ORDER MATTERS) ──────────────────────────
+      // Do the restaurant payment FIRST (driver fronts the food cost → float
+      // dips), then the COD collection LAST (driver collects the customer's
+      // cash → float recovers plus the platform's margin). This makes the
+      // ledger's running balance tell the real story, e.g. for a J$2,500 food /
+      // J$3,000 COD order starting at J$3,500:
+      //   − 2,500  Paid restaurant     → 1,000
+      //   + 3,000  Collected cash (COD)→ 4,000
+
+      // 4a. Restaurant payment for CASH_PAYMENT orders (from driver float).
+      // pay_restaurant_from_float is payment-method-gated (CASH only) and
+      // idempotent in the DB: BANK_PAYMENT and grocery orders are a $0 no-op and
+      // are instead settled through the restaurant payout run.
+      try {
+        await admin.rpc("pay_restaurant_from_float", {
+          p_driver_id: driverId,
+          p_order_id: orderId,
+        });
+      } catch (_e) { /* non-fatal: float ledger best-effort */ }
+
+      // 4b. COD collection — the driver collected the FULL order total in cash.
+      // Recorded via the audited RPC so it shows in the float history
+      // ('cod_collection') and reconciles with the balance. Idempotent.
       if (order.payment_method === "cash") {
-        // Credit the collected cash to the float via the audited RPC so it
-        // shows in the driver's float history (type 'cod_collection') and the
-        // ledger reconciles with the balance. Idempotent: never double-credits.
         try {
           await admin.rpc("collect_cod_to_float", {
             p_driver_id: driverId,
@@ -252,20 +267,6 @@ Deno.serve(async (request) => {
           }
         }
       }
-
-      // ── 4b. Restaurant payment for CASH_PAYMENT orders (from driver float) ─
-      // The driver paid the restaurant in cash, so the items subtotal comes out
-      // of their float (negative float = the platform owes the driver back).
-      // pay_restaurant_from_float is payment-method-gated (CASH only) and
-      // idempotent in the DB: BANK_PAYMENT and grocery orders are a $0 no-op and
-      // are instead settled through the restaurant payout run. Never deducts
-      // twice for the same order.
-      try {
-        await admin.rpc("pay_restaurant_from_float", {
-          p_driver_id: driverId,
-          p_order_id: orderId,
-        });
-      } catch (_e) { /* non-fatal: float ledger best-effort */ }
 
       driverStats = {
         completed_deliveries: completedCount,
