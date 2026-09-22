@@ -29,6 +29,8 @@ class _RestaurantSettingsScreenState
   double _deliveryFee = 50.0;
   int _estimatedDeliveryTime = 30;
   bool _isOpen = true;
+  bool _hotBiteNowEnabled = false;
+  int _hotBiteNowPrepMinutes = 15;
   bool _isSaving = false;
   bool _hasInitialized = false;
   File? _pickedImage;
@@ -164,6 +166,8 @@ class _RestaurantSettingsScreenState
     _deliveryFee = restaurant.deliveryFee ?? 50.0;
     _estimatedDeliveryTime = restaurant.estimatedDeliveryTime ?? 30;
     _isOpen = restaurant.isOpen;
+    _hotBiteNowEnabled = restaurant.hotBiteNowEnabled;
+    _hotBiteNowPrepMinutes = restaurant.hotBiteNowPrepMinutes;
     _currentImageUrl = restaurant.imageUrl;
 
     // Load operating hours from restaurant
@@ -264,6 +268,8 @@ class _RestaurantSettingsScreenState
         isOpen: _isOpen,
         operatingHours: Map<String, dynamic>.from(_operatingHours),
         imageUrl: imageUrl,
+        hotBiteNowEnabled: _hotBiteNowEnabled,
+        hotBiteNowPrepMinutes: _hotBiteNowPrepMinutes,
       );
 
       final currentUserId = ref.read(currentUserIdProvider);
@@ -534,6 +540,85 @@ class _RestaurantSettingsScreenState
                       _isOpen = value;
                     });
                   },
+                ),
+                const SizedBox(height: 12),
+
+                // HotBite Now — premium fast-prep opt-in
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5A1F).withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFFF5A1F).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.bolt_rounded,
+                              color: Color(0xFFFF5A1F), size: 22),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'HotBite Now',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Switch(
+                            value: _hotBiteNowEnabled,
+                            activeThumbColor: const Color(0xFFFF5A1F),
+                            onChanged: (v) =>
+                                setState(() => _hotBiteNowEnabled = v),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        'Feature your store in the premium fast-prep section. '
+                        'Only enable this if you can consistently hit the prep '
+                        'time below — customers see it as a promise.',
+                        style: TextStyle(fontSize: 12.5, height: 1.35),
+                      ),
+                      if (_hotBiteNowEnabled) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Text(
+                              'Prep time',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: _hotBiteNowPrepMinutes > 5
+                                  ? () => setState(
+                                      () => _hotBiteNowPrepMinutes -= 5)
+                                  : null,
+                              icon: const Icon(Icons.remove_circle_outline),
+                            ),
+                            Text(
+                              '$_hotBiteNowPrepMinutes min',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _hotBiteNowPrepMinutes < 60
+                                  ? () => setState(
+                                      () => _hotBiteNowPrepMinutes += 5)
+                                  : null,
+                              icon: const Icon(Icons.add_circle_outline),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 

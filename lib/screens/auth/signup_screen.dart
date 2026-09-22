@@ -167,7 +167,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Join QUICKDASH today',
+                        'Join HotBite today',
                         style: TextStyle(
                           fontSize: Responsive.bodyText(context),
                           color: Colors.white.withValues(alpha: 0.85),

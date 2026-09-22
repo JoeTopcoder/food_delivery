@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -15,6 +16,7 @@ import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
 import '../../widgets/peak_time_banner.dart';
+import '../../widgets/driver_priority_card.dart';
 import '../../widgets/driver_order_alert.dart';
 import '../../widgets/app_map_tiles.dart';
 import '../../providers/user_provider.dart'
@@ -854,9 +856,50 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   ],
                 ),
               ),
-              _GlassIconButton(
-                icon: Icons.notifications_none_rounded,
-                onTap: () => Navigator.of(context).pushNamed('/notifications'),
+              Consumer(
+                builder: (context, ref, _) {
+                  final count = ref
+                          .watch(dbUnreadNotificationCountProvider)
+                          .valueOrNull ??
+                      0;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _GlassIconButton(
+                        icon: Icons.notifications_none_rounded,
+                        onTap: () => Navigator.of(context)
+                            .pushNamed('/notifications')
+                            .then((_) => ref.invalidate(
+                                dbUnreadNotificationCountProvider)),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          right: -3,
+                          top: -3,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            constraints: const BoxConstraints(minWidth: 18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                  color: const Color(0xFF0A0B10), width: 1.5),
+                            ),
+                            child: Text(
+                              count > 9 ? '9+' : '$count',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(width: 8),
               _GlassIconButton(
@@ -953,6 +996,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Compact HotBite Priority standing chip — taps to details.
+                  DriverStandingChip(driverId: driver.id),
+                  const SizedBox(height: 10),
                   Container(
                     width: 44,
                     height: 44,
@@ -1246,7 +1292,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   Widget _currentDeliveryCard(Order order) {
     final restaurant =
         ref.watch(restaurantByIdProvider(order.restaurantId)).valueOrNull;
-    final earnings = order.deliveryFee + (order.driverTip ?? 0);
+    // Driver earns their share (80%) of the delivery fee, plus any tip — same
+    // formula as the Active Deliveries card, so both screens agree.
+    final earnings =
+        order.deliveryFee * AppConstants.driverPayPercent + (order.driverTip ?? 0);
     final displayId = order.id.substring(0, 8).toUpperCase();
 
     // Stage: 0 at pickup, 1 picked up, 2 on the way, 3 delivered.
@@ -1273,15 +1322,42 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       return '$h:$m ${l.hour < 12 ? 'AM' : 'PM'}';
     }
 
+    final isPriority = order.isPriority;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF12131C),
+        color: isPriority ? const Color(0xFF2A1A0E) : const Color(0xFF12131C),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF1E1F2A)),
+        border: Border.all(
+          color: isPriority ? const Color(0xFFEA580C) : const Color(0xFF1E1F2A),
+          width: isPriority ? 2 : 1,
+        ),
       ),
       child: Column(
         children: [
+          if (isPriority)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEA580C),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.flash_on_rounded, size: 14, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text('⚡ PRIORITY DELIVERY',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3)),
+                ],
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

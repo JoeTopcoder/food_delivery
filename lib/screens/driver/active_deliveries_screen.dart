@@ -696,15 +696,20 @@ class _DeliveryCard extends ConsumerWidget {
     final tipAmount = delivery.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
 
+    // Customer Priority Delivery orders get a full orange-tinted card.
+    final isPriority = delivery.isPriority;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2030),
+        color: isPriority ? const Color(0xFF2A1A0E) : const Color(0xFF1E2030),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isTracking
-              ? const Color(0xFF22C55E).withValues(alpha: 0.4)
-              : const Color(0xFF2A2D3E),
+          color: isPriority
+              ? const Color(0xFFEA580C)
+              : isTracking
+                  ? const Color(0xFF22C55E).withValues(alpha: 0.4)
+                  : const Color(0xFF2A2D3E),
+          width: isPriority ? 2 : 1,
         ),
       ),
       child: Column(
@@ -725,9 +730,12 @@ class _DeliveryCard extends ConsumerWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF162016),
-              border: Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
+            decoration: BoxDecoration(
+              color: isPriority
+                  ? const Color(0xFF3A2410)
+                  : const Color(0xFF162016),
+              border: const Border(
+                  bottom: BorderSide(color: Color(0xFF2A2D3E))),
             ),
             child: Row(
               children: [
@@ -763,6 +771,30 @@ class _DeliveryCard extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        if (isPriority) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEA580C),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.flash_on_rounded,
+                                    size: 11, color: Colors.white),
+                                SizedBox(width: 2),
+                                Text('PRIORITY',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),

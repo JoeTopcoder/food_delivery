@@ -35,6 +35,18 @@ final zoneTaxProvider = FutureProvider.autoDispose
       .getTaxForLocation(lat, lng);
 });
 
+/// Whether a delivery lat/lng falls inside an active delivery zone — keyed as
+/// "lat|lng". Used to block checkout for addresses outside the served area.
+/// Returns true when no zones are configured (delivery is open everywhere).
+final addressInZoneProvider =
+    FutureProvider.autoDispose.family<bool, String>((ref, key) async {
+  final parts = key.split('|');
+  final lat = double.tryParse(parts[0]);
+  final lng = double.tryParse(parts.length > 1 ? parts[1] : '');
+  if (lat == null || lng == null) return false; // no coordinates → not serviceable
+  return ref.watch(deliveryRegionServiceProvider).isInsideActiveRegion(lat, lng);
+});
+
 /// Active regions only (used for the customer zone check) — also real time.
 final activeRegionsProvider = FutureProvider.autoDispose<List<DeliveryRegion>>((ref) {
   ref.keepAlive();

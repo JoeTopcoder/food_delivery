@@ -61,6 +61,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   bool _paymentFieldsHydrated = false;
   bool _scheduleHydrated = false;
   bool _contactlessDelivery = false;
+  bool _priorityDelivery = false; // Customer Priority Delivery (opt-in, default off)
   String? _promoError;
   DateTime? _scheduledAt;
   double _driverTip = 0;
@@ -229,6 +230,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? student.schoolLng
         : (selectedAddress?.longitude ?? currentUser?.longitude);
     final hasCoords = delLat != null && delLng != null && restaurantId != null;
+
+    // Delivery orders require a real address (with coordinates) that falls
+    // inside an active delivery zone. Pickup orders skip both checks.
+    final hasDeliveryAddress = delLat != null && delLng != null;
+    final inZoneAsync = (!isPickup && hasDeliveryAddress)
+        ? ref.watch(addressInZoneProvider('$delLat|$delLng'))
+        : null;
+    // STRICT: for delivery, checkout is allowed only once we have CONFIRMED the
+    // address is inside a delivery zone. Unknown/loading/error → not allowed, so
+    // an out-of-zone (or unverified) address can never reach payment.
+    final zoneChecking = inZoneAsync?.isLoading ?? false;
+    final confirmedInZone = isPickup ? true : (inZoneAsync?.valueOrNull ?? false);
+    final canDeliverHere = isPickup || (hasDeliveryAddress && confirmedInZone);
     final feeKey = hasCoords
         ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
@@ -297,12 +311,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final peak = ref.watch(peakTimeStateProvider);
     final peakFee = isPickup ? 0.0 : peak.applicableFee;
 
+    // Customer Priority Delivery: an optional paid upgrade. The fee is display-
+    // only here; the place-order edge function re-derives and charges the real
+    // amount. Never offered for pickup orders.
+    final priorityCfg =
+        ref.watch(priorityDeliveryConfigProvider).valueOrNull;
+    final priorityAvailable =
+        !isPickup && (priorityCfg?.available ?? false);
+    final priorityFee =
+        (_priorityDelivery && priorityAvailable) ? (priorityCfg?.fee ?? 0) : 0.0;
+
     final orderTotal =
         (subtotal -
                 promoDiscount -
                 loyaltyDiscount +
                 activeFee +
                 peakFee +
+                priorityFee +
                 platformServiceFee +
                 tax)
             .clamp(activeFee + peakFee, double.infinity);
@@ -1228,6 +1253,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 ),
                 const SizedBox(height: 6),
 
+                // ── Delivery Speed (Customer Priority Delivery) ────────
+                if (priorityAvailable) ...[
+                  _DeliverySpeedSelector(
+                    baseFee: deliveryFee,
+                    priorityFee: priorityCfg?.fee ?? 0,
+                    priority: _priorityDelivery,
+                    onChanged: (v) => setState(() => _priorityDelivery = v),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+
                 // ── Order Summary ──────────────────────────────────────
                 Container(
                   padding: EdgeInsets.all(Responsive.cardPadding(context)),
@@ -1299,6 +1335,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               ? const Color(0xFF528BFF)
                               : null,
                         ),
+                      // Priority Delivery fee — shown separately, never folded
+                      // into the delivery fee.
+                      if (priorityFee > 0)
+                        _SummaryRow(
+                          '⚡ Priority Fee',
+                          '${AppConstants.currencySymbol}${priorityFee.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFFFF5A1F),
+                        ),
                       // Peak Time surcharge is folded into the Service Fee line
                       // (not shown separately) per current business rule.
                       _SummaryRow(
@@ -1356,6 +1400,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Address / delivery-zone guard message.
+                    if (!isPickup && !canDeliverHere)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: const Color(0xFFDC2626)
+                                  .withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_off_rounded,
+                                size: 18, color: Color(0xFFDC2626)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                !hasDeliveryAddress
+                                    ? 'Add a delivery address to place your order.'
+                                    : zoneChecking
+                                        ? 'Checking whether we deliver to this address…'
+                                        : "This address is outside HotBite's delivery area. Choose an address within a delivery zone.",
+                                style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFDC2626)),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pushNamed(
+                                  context, '/address-book'),
+                              child: const Text('Set address'),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Terms
                     Row(
                       children: [
@@ -1407,6 +1491,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           onPressed:
                               _agreeToTerms &&
                                   (_addressConfirmed || isPickup) &&
+                                  canDeliverHere &&
                                   !_placingOrder &&
                                   cart.isNotEmpty &&
                                   currentUserId != null
@@ -1415,6 +1500,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   subtotal: subtotal,
                                   deliveryFee: activeFee,
                                   peakFee: peakFee,
+                                  isPriority: _priorityDelivery && priorityAvailable,
+                                  priorityFee: priorityFee,
                                   tax: tax,
                                   total: total,
                                   deliveryAddress: deliveryAddress,
@@ -1537,6 +1624,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required double subtotal,
     required double deliveryFee,
     double peakFee = 0,
+    bool isPriority = false,
+    double priorityFee = 0,
     required double tax,
     required double total,
     required String deliveryAddress,
@@ -1738,6 +1827,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         isPickup: isPickup,
         pickupFee: pickupFee,
         peakFee: peakFee,
+        isPriority: isPriority,
+        priorityFee: priorityFee,
         fromAd: isFromAd,
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,
@@ -2431,6 +2522,127 @@ class _CardBrandChip extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: color,
           letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+/// Delivery Speed chooser: Standard vs ⚡ Priority. HotBite-native selectable
+/// cards; Standard is always the default and Priority is never pre-selected.
+/// Shows the exact extra fee before checkout — no hidden charges.
+class _DeliverySpeedSelector extends StatelessWidget {
+  const _DeliverySpeedSelector({
+    required this.baseFee,
+    required this.priorityFee,
+    required this.priority,
+    required this.onChanged,
+  });
+
+  final double baseFee;
+  final double priorityFee;
+  final bool priority;
+  final ValueChanged<bool> onChanged;
+
+  static const _flame = Color(0xFFFF5A1F);
+
+  @override
+  Widget build(BuildContext context) {
+    final sym = AppConstants.currencySymbol;
+    return Container(
+      padding: EdgeInsets.all(Responsive.cardPadding(context)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(Responsive.cardRadius(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Delivery Speed',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          _option(
+            context,
+            selected: !priority,
+            onTap: () => onChanged(false),
+            title: 'Standard Delivery',
+            subtitle: 'Normal delivery service',
+            trailing: '$sym${baseFee.toStringAsFixed(0)}',
+            accent: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 8),
+          _option(
+            context,
+            selected: priority,
+            onTap: () => onChanged(true),
+            title: '⚡ Priority Delivery',
+            subtitle:
+                'Pay a little extra to have your order prioritised.',
+            trailing: '+$sym${priorityFee.toStringAsFixed(0)}',
+            accent: _flame,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _option(
+    BuildContext context, {
+    required bool selected,
+    required VoidCallback onTap,
+    required String title,
+    required String subtitle,
+    required String trailing,
+    required Color accent,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? accent.withValues(alpha: 0.08) : null,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? accent
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: selected ? accent : Colors.grey,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(trailing,
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, fontSize: 14, color: accent)),
+          ],
         ),
       ),
     );

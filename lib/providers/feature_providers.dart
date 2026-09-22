@@ -115,6 +115,44 @@ final serviceEnabledProvider = Provider.family<bool, String>((ref, key) {
   }
 });
 
+// ── Customer Priority Delivery config ──────────────────────
+/// The admin-configured Priority Delivery setting: whether it's offered and the
+/// additional fee. Read live from app_config (re-fetches when config changes).
+/// The fee shown here is display-only — the place-order edge function is the
+/// authority that actually charges the fee, so a stale client value can never
+/// over- or under-charge.
+class PriorityDeliveryConfig {
+  final bool enabled;
+  final double fee;
+  const PriorityDeliveryConfig({required this.enabled, required this.fee});
+  /// Priority is only truly offered when enabled AND the fee is positive.
+  bool get available => enabled && fee > 0;
+}
+
+final priorityDeliveryConfigProvider =
+    FutureProvider.autoDispose<PriorityDeliveryConfig>((ref) async {
+  ref.watch(configVersionProvider);
+  try {
+    final rows = await SupabaseConfig.client
+        .from('app_config')
+        .select('key, value')
+        .inFilter('key', ['priority_delivery_enabled', 'priority_delivery_fee']);
+    var enabled = false;
+    var fee = 0.0;
+    for (final r in (rows as List)) {
+      final v = r['value']?.toString() ?? '';
+      if (r['key'] == 'priority_delivery_enabled') {
+        enabled = v == 'true' || v == '1';
+      } else if (r['key'] == 'priority_delivery_fee') {
+        fee = double.tryParse(v) ?? 0.0;
+      }
+    }
+    return PriorityDeliveryConfig(enabled: enabled, fee: fee);
+  } catch (_) {
+    return const PriorityDeliveryConfig(enabled: false, fee: 0);
+  }
+});
+
 // ── Screen (bottom-nav tab) visibility provider ────────────
 /// Whether a customer bottom-nav tab is shown. Admin-controlled via app_config;
 /// re-evaluates on any config change. Keys: 'home','grocery','orders',

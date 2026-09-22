@@ -519,6 +519,39 @@ class _RestaurantList extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _toggleHotBiteNow(context, ref, restaurant),
+                          icon: const Icon(Icons.bolt_rounded, size: 16),
+                          label: Text(
+                            restaurant.hotBiteNowEnabled
+                                ? 'HotBite Now: ON (${restaurant.hotBiteNowPrepMinutes} min)'
+                                : 'HotBite Now: OFF',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: restaurant.hotBiteNowEnabled
+                                ? const Color(0xFFFF5A1F)
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.6),
+                            side: BorderSide(
+                              color: restaurant.hotBiteNowEnabled
+                                  ? const Color(0xFFFF5A1F)
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.3),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1137,6 +1170,72 @@ class _RestaurantList extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleHotBiteNow(
+      BuildContext context, WidgetRef ref, Restaurant restaurant) async {
+    final enable = !restaurant.hotBiteNowEnabled;
+    int prep = restaurant.hotBiteNowPrepMinutes;
+    if (enable) {
+      final chosen = await showDialog<int>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Enable HotBite Now'),
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: prep > 5
+                      ? () => setLocal(() => prep -= 5)
+                      : null,
+                  icon: const Icon(Icons.remove_circle_outline),
+                ),
+                Text('$prep min prep',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+                IconButton(
+                  onPressed: prep < 60
+                      ? () => setLocal(() => prep += 5)
+                      : null,
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(prep),
+                child: const Text('Enable'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (chosen == null) return;
+      prep = chosen;
+    }
+    try {
+      await Supabase.instance.client.rpc('admin_set_hotbite_now', params: {
+        'p_restaurant_id': restaurant.id,
+        'p_enabled': enable,
+        'p_prep_minutes': enable ? prep : null,
+      });
+      ref.invalidate(allRestaurantsAdminProvider);
+      if (context.mounted) {
+        AppSnackbar.success(
+          context,
+          enable
+              ? '"${restaurant.name}" added to HotBite Now ($prep min)'
+              : '"${restaurant.name}" removed from HotBite Now',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
   }
 
   void _showPaymentMethodDialog(BuildContext context, Restaurant restaurant) {

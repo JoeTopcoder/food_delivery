@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 /// HotBite brand colours, taken from the logo lockup.
@@ -26,151 +24,19 @@ class HotBiteMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The real HotBite Delivery logo (flame + scooter lockup). Transparent
+    // background, so it sits on any container. Replaces the old hand-drawn
+    // "Q" mark that looked like the previous brand.
     return SizedBox(
       width: size,
-      height: size * (_MarkPainter.designH / _MarkPainter.designW),
-      child: CustomPaint(painter: _MarkPainter(monochrome: monochrome)),
-    );
-  }
-}
-
-class _MarkPainter extends CustomPainter {
-  _MarkPainter({this.monochrome});
-
-  final Color? monochrome;
-
-  static const designW = 210.0;
-  static const designH = 130.0;
-
-  static const _c = Offset(140, 58); // centre of the Q
-  static const _rOuter = 44.0;
-  static const _rInner = 27.0;
-
-  Shader? _blue(Rect r) => monochrome != null
-      ? null
-      : const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [HotBiteBrand.blueLight, HotBiteBrand.blueDark],
-        ).createShader(r);
-
-  Shader? _hot(Rect r) => monochrome != null
-      ? null
-      : const LinearGradient(
-          colors: [HotBiteBrand.orange, HotBiteBrand.orangeDeep],
-        ).createShader(r);
-
-  Paint _fill(Rect bounds, {required bool hot}) {
-    final p = Paint()..color = monochrome ?? Colors.white;
-    final sh = hot ? _hot(bounds) : _blue(bounds);
-    if (sh != null) p.shader = sh;
-    return p;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / designW);
-
-    _speedLines(canvas);
-    _tail(canvas);
-    _ring(canvas);
-    _cloche(canvas);
-
-    canvas.restore();
-  }
-
-  /// Four trails, longest at the left, so the mark reads as moving.
-  void _speedLines(Canvas canvas) {
-    const rows = [
-      (x1: 74.0, x2: 112.0, y: 30.0),
-      (x1: 34.0, x2: 104.0, y: 46.0),
-      (x1: 12.0, x2: 92.0, y: 62.0),
-      (x1: 44.0, x2: 100.0, y: 78.0),
-    ];
-    for (final r in rows) {
-      final rect = Rect.fromLTRB(r.x1, r.y - 7, r.x2, r.y + 7);
-      final p = _fill(rect, hot: true)
-        ..strokeWidth = 13
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(Offset(r.x1, r.y), Offset(r.x2, r.y), p);
-    }
-  }
-
-  /// The Q's tail, and the arrowhead it throws forward.
-  void _tail(Canvas canvas) {
-    final bar = Path()
-      ..moveTo(150, 74)
-      ..lineTo(178, 74)
-      ..lineTo(196, 112)
-      ..lineTo(166, 112)
-      ..close();
-    canvas.drawPath(bar, _fill(bar.getBounds(), hot: false));
-
-    // Clear of the ring's right edge (x=184): overlapping it made the two
-    // shapes read as one blob rather than an arrow leaving the Q.
-    final head = Path()
-      ..moveTo(186, 69)
-      ..lineTo(209, 89)
-      ..lineTo(184, 105)
-      ..close();
-    canvas.drawPath(head, _fill(head.getBounds(), hot: true));
-  }
-
-  /// The ring, as one path with the hole punched out, so the tail passes behind
-  /// it without a seam.
-  void _ring(Canvas canvas) {
-    final ring = Path()
-      ..addOval(Rect.fromCircle(center: _c, radius: _rOuter))
-      ..addOval(Rect.fromCircle(center: _c, radius: _rInner))
-      ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(ring, _fill(ring.getBounds(), hot: false));
-  }
-
-  /// The cloche in the Q's counter: dome, tray, and the knob on top.
-  void _cloche(Canvas canvas) {
-    final bounds = Rect.fromCircle(center: _c, radius: _rInner);
-    final p = _fill(bounds, hot: false);
-
-    final dome = Path()
-      ..moveTo(_c.dx - 19, _c.dy + 7)
-      ..arcTo(
-        Rect.fromCircle(center: Offset(_c.dx, _c.dy + 7), radius: 19),
-        pi,
-        pi,
-        false,
-      )
-      ..close();
-    canvas.drawPath(dome, p);
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(_c.dx - 23, _c.dy + 8, 46, 6),
-        const Radius.circular(3),
+      height: size,
+      child: Image.asset(
+        'assets/images/hotbite_logo.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
       ),
-      p,
     );
-    canvas.drawCircle(Offset(_c.dx, _c.dy - 15), 3.6, p);
-
-    // The highlight arc inside the dome, as on the lockup. Skipped in the
-    // monochrome build, where there is no second colour to cut it with.
-    if (monochrome == null) {
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(_c.dx, _c.dy + 7), radius: 12),
-        pi * 1.15,
-        pi * 0.55,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4
-          ..strokeCap = StrokeCap.round
-          ..color = Colors.white.withValues(alpha: 0.9),
-      );
-    }
   }
-
-  @override
-  bool shouldRepaint(_MarkPainter old) => old.monochrome != monochrome;
 }
 
 /// "HotBite" — blue through "Quick", orange through "Dash", as on the

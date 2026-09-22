@@ -75,6 +75,8 @@ class OrderService {
     bool isPickup = false,
     double? pickupFee,
     double peakFee = 0,
+    bool isPriority = false,
+    double priorityFee = 0,
     bool fromAd = false,
     String? adId,
     String? promoCode,
@@ -146,6 +148,12 @@ class OrderService {
       }
       if (isPickup && pickupFee != null) body['pickup_fee'] = pickupFee;
       if (peakFee > 0) body['peak_fee'] = peakFee;
+      // Priority Delivery: the server re-validates and authoritatively sets the
+      // fee. We send the flag + the displayed fee only so the total reconciles.
+      if (isPriority) {
+        body['is_priority'] = true;
+        body['priority_fee'] = priorityFee;
+      }
       if (fromAd) body['from_ad'] = true;
       if (adId != null) body['ad_id'] = adId;
       if (promoCode != null && promoCode.trim().isNotEmpty) {
