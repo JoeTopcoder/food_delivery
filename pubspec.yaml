@@ -181,6 +181,8 @@ flutter:
     - assets/adi-registration.properties
     # App logo, shown on order receipts.
     - assets/images/app_icon.png
+    # HotBite brand logo (transparent) — splash / auth screens.
+    - assets/images/hotbite_logo.png
     # Role selection ("Choose your path") imagery.
     - assets/images/roles/
     # Cold-start splash background video.

@@ -23,6 +23,10 @@ import '../../providers/feature_providers.dart';
 import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
+import '../../widgets/hotbite_now_section.dart';
+import '../../widgets/order_again_section.dart';
+import '../../widgets/service_launcher_grid.dart';
+import '../../widgets/hotbite_picks_section.dart';
 import '../../widgets/favorite_heart_button.dart';
 import '../../widgets/peak_time_banner.dart';
 import '../../widgets/menu_item_actions.dart';
@@ -31,7 +35,8 @@ import '../../widgets/search_bar.dart' as search_bar;
 import '../../utils/friendly_error.dart';
 import '../../config/app_constants.dart';
 import 'restaurants_by_category_screen.dart';
-import 'grocery_screen.dart';
+import 'grocery_store_detail_screen.dart';
+import '../../providers/grocery_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../../utils/rating_format.dart';
 import '../../features/coverage/coverage_provider.dart';
@@ -55,7 +60,6 @@ const _fallbackCategories = AppConstants.homeFoodCategories;
 // Small, self-contained style palette so cards/pills/shadows read as one
 // consistent system across this screen without introducing a separate
 // design-system module.
-const double _kRadiusSm = 10;
 const double _kRadiusMd = 14;
 const double _kRadiusLg = 18;
 const double _kRadiusPill = 999;
@@ -580,90 +584,59 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             floating: true,
             elevation: 0,
             automaticallyImplyLeading: false,
-            title: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    gradient: _kBrandGradient(),
-                    borderRadius: BorderRadius.circular(_kRadiusSm),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    color: Colors.white,
-                    size: 20,
+            titleSpacing: Responsive.horizontalPadding(context),
+            // The customer's delivery address sits at the very top (the old
+            // "HotBite" logo/text header was removed).
+            title: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/address-book'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(_kRadiusMd),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    'HotBite',
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final isPeak =
-                        ref.watch(isPeakHourProvider).valueOrNull ??
-                        AppConstants.isPeakHour;
-                    if (!isPeak) return const SizedBox.shrink();
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF6B35), Color(0xFFFF3D00)],
-                            ),
-                            borderRadius: BorderRadius.circular(_kRadiusPill),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.local_fire_department,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              SizedBox(width: 3),
-                              Text(
-                                'PEAK',
-                                style: TextStyle(
-                                  color: Colors.white,
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on,
+                        color: AppTheme.primaryColor, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Deliver to',
+                              style: TextStyle(
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                          Text(
+                            userAddress,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).colorScheme.onSurface),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppTheme.primaryColor, size: 20),
+                  ],
                 ),
-              ],
+              ),
             ),
             actions: [
+              _ConciergeIconButton(
+                onTap: () => Navigator.of(context).pushNamed('/concierge'),
+              ),
               Stack(
                 children: [
                   IconButton(
@@ -716,100 +689,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ],
           ),
 
-          // Location picker, with the Food Concierge sitting beside it.
-          //
-          // The concierge used to be a full-width card lower down the page.
-          // Up here it is one square button next to the address — the two
-          // things a customer settles before anything else is where the food
-          // goes and how they are going to find it.
           const SliverToBoxAdapter(child: PeakTimeBanner()),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: Responsive.horizontalPadding(context),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () =>
-                          Navigator.pushNamed(context, '/address-book'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(_kRadiusMd),
-                          border: Border.all(
-                            color: AppTheme.primaryColor.withValues(
-                              alpha: 0.12,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.12,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.location_on,
-                                color: AppTheme.primaryColor,
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Deliver to',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  Text(
-                                    userAddress,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _ConciergeIconButton(
-                    onTap: () => Navigator.of(context).pushNamed('/concierge'),
-                  ),
-                ],
-              ),
-            ),
-          ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
@@ -883,6 +763,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ..._buildFoodResults(foodSearchAsync),
 
           if (!isSearching) ...[
+            // "What are you ordering today?" — unified HotBite service launcher.
+            // Self-hides when no service is enabled; each tile opens an existing
+            // experience (Food / Groceries / Drinks & Snacks / More).
+            const SliverToBoxAdapter(
+              child: RepaintBoundary(child: ServiceLauncherGrid()),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
             // Regular promo banners — only when the birthday banner isn't
             // occupying this slot (no birthday today, or it was dismissed).
             if (!showBirthdayBanner) ...[
@@ -999,102 +887,28 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-            // Quick Services row. A service the admin has turned off is
-            // hidden here entirely (its card is not built), rather than shown
-            // greyed as "Coming Soon". If every service is off, the whole
-            // section (header included) disappears. Wrapped in a Consumer so
-            // the ref.watch calls have a valid build scope and stay reactive.
-            SliverToBoxAdapter(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final defs = <(bool, Widget)>[
-                    (
-                      ref.watch(serviceEnabledProvider('rides')),
-                      _ServiceCard(
-                        icon: Icons.directions_car,
-                        label: 'Book a Ride',
-                        color: const Color(0xFF1E40AF),
-                        enabled: true,
-                        onTap: () => Navigator.pushNamed(context, '/ride-home'),
-                      ),
-                    ),
-                    (
-                      ref.watch(serviceEnabledProvider('grocery')),
-                      _ServiceCard(
-                        icon: Icons.local_grocery_store,
-                        label: 'Grocery',
-                        color: const Color(0xFF059669),
-                        enabled: true,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const GroceryScreen(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    (
-                      ref.watch(serviceEnabledProvider('car_service')),
-                      _ServiceCard(
-                        icon: Icons.local_car_wash,
-                        label: 'Car Services',
-                        color: const Color(0xFF0E9384),
-                        enabled: true,
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/car-services'),
-                      ),
-                    ),
-                    (
-                      ref.watch(serviceEnabledProvider('laundry')),
-                      _ServiceCard(
-                        icon: Icons.local_laundry_service_rounded,
-                        label: 'Laundry',
-                        color: const Color(0xFF0F4C81),
-                        enabled: true,
-                        onTap: () => Navigator.pushNamed(context, '/laundry'),
-                      ),
-                    ),
-                  ];
-                  final cards = <Widget>[];
-                  for (final (enabled, card) in defs) {
-                    if (!enabled) continue;
-                    if (cards.isNotEmpty) cards.add(const SizedBox(width: 12));
-                    cards.add(card);
-                  }
-                  if (cards.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: Responsive.horizontalPadding(context),
-                        ),
-                        child: Text(
-                          'More Services',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: EdgeInsets.fromLTRB(
-                          Responsive.horizontalPadding(context),
-                          0,
-                          Responsive.horizontalPadding(context) + 64,
-                          0,
-                        ),
-                        child: Row(children: cards),
-                      ),
-                    ],
-                  );
-                },
-              ),
+            // HotBite Now — premium fast-prep rail. Self-hides when no
+            // restaurant is eligible, so it never leaves an empty gap.
+            const SliverToBoxAdapter(
+              child: RepaintBoundary(child: HotBiteNowSection()),
             ),
+
+            // ⭐ Order Again — the customer's usual food/grocery orders, one tap
+            // away. Self-hides without meaningful order history.
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            const SliverToBoxAdapter(
+              child: RepaintBoundary(child: OrderAgainSection()),
+            ),
+
+            // 🔥 HotBite Picks — discovery hub (curated + real-data rails).
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            const SliverToBoxAdapter(
+              child: RepaintBoundary(child: HotBitePicksSection()),
+            ),
+
+            // (The old "More Services" row was removed — the "What are you
+            // ordering today?" launcher grid + its "More" sheet now cover
+            // Groceries, Rides, Laundry and Car Services.)
 
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
@@ -1298,7 +1112,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             vertical: 8,
           ),
           child: Text(
-            'Search Results',
+            '🍔 Food',
             style: TextStyle(
               fontSize: Responsive.headingMedium(context),
               fontWeight: FontWeight.w700,
@@ -1333,7 +1147,65 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         error: (err, _) =>
             SliverToBoxAdapter(child: _emptyPlaceholder(friendlyError(err))),
       ),
+      // Unified search: also surface matching grocery products under their own
+      // group. Reuses the existing grocery product search — no new catalogue.
+      ..._buildGrocerySearchGroup(),
     ];
+  }
+
+  /// The GROCERIES group of the unified search. Watches the existing
+  /// [groceryProductSearchProvider]; renders nothing while empty/loading so the
+  /// food results are never pushed down by a blank section. Tapping a product
+  /// opens its (masked) grocery store — the existing grocery browse/cart flow.
+  List<Widget> _buildGrocerySearchGroup() {
+    final groceryAsync = ref.watch(groceryProductSearchProvider(_searchQuery));
+    final products = groceryAsync.valueOrNull ?? const <MenuItem>[];
+    if (products.isEmpty) return const [];
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            16,
+            Responsive.horizontalPadding(context),
+            8,
+          ),
+          child: Text(
+            '🛒 Groceries',
+            style: TextStyle(
+              fontSize: Responsive.headingMedium(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: EdgeInsets.symmetric(
+          horizontal: Responsive.horizontalPadding(context),
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = products[index];
+            return _FoodSearchResultCard(
+              item: item,
+              onTap: () => _openGroceryProduct(item),
+            );
+          }, childCount: products.length),
+        ),
+      ),
+    ];
+  }
+
+  /// Resolve a grocery product's store, then open the existing grocery store
+  /// detail screen (masked partner brand + real grocery cart/checkout).
+  Future<void> _openGroceryProduct(MenuItem item) async {
+    final store = await ref.read(groceryStoreByIdProvider(item.restaurantId).future);
+    if (store != null && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => GroceryStoreDetailScreen(store: store)),
+      );
+    }
   }
 
   Widget _buildHorizontalSection({
@@ -2305,118 +2177,6 @@ void clearActiveAd(WidgetRef ref) {
   ref.read(_activeAdProvider.notifier).state = null;
 }
 
-class _ServiceCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  const _ServiceCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Wide enough for the longest real label. At the old 0.38/160 clamp a
-    // 384dp phone gave the text ~72dp after the icon and padding, and
-    // "Book a Ride" needs ~78 — so it ellipsised to "Book a Ri…" on the
-    // device rather than at some edge case.
-    final cardWidth = (MediaQuery.of(context).size.width * 0.45).clamp(
-      150.0,
-      195.0,
-    );
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── Card body ────────────────────────────────────────────────────
-          Opacity(
-            opacity: enabled ? 1.0 : 0.55,
-            child: Container(
-              width: cardWidth,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-              decoration: BoxDecoration(
-                color: enabled
-                    ? color.withValues(alpha: 0.08)
-                    : Colors.grey.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(_kRadiusMd),
-                border: Border.all(
-                  color: enabled
-                      ? color.withValues(alpha: 0.18)
-                      : Colors.grey.withValues(alpha: 0.2),
-                ),
-                boxShadow: enabled ? _kSoftShadow : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: enabled ? color : Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(_kRadiusSm),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: enabled ? color : Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── "Coming Soon" badge (only when disabled) ──────────────────
-          if (!enabled)
-            Positioned(
-              top: -6,
-              right: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade600,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.orange.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Text(
-                  'Coming Soon',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Circular category tile that shows a real food photo from the DB.
 /// Falls back to the emoji when the URL is empty or the image fails to load.

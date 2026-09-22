@@ -574,6 +574,46 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 ).pushNamed('/admin-services'),
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _QuickAction(
+                                icon: Icons.local_fire_department_rounded,
+                                label: 'HotBite Picks',
+                                color: const Color(0xFFFF5A1F),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/admin-hotbite-picks'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _QuickAction(
+                                icon: Icons.emoji_events_rounded,
+                                label: 'Driver Priority',
+                                color: const Color(0xFF7C3AED),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/admin-driver-priority'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _QuickAction(
+                                icon: Icons.flash_on_rounded,
+                                label: 'Priority Delivery',
+                                color: const Color(0xFFEA580C),
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed('/admin-priority-delivery'),
+                              ),
+                            ),
                           ],
                         ),
                       ),

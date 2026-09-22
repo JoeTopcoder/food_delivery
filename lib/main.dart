@@ -114,6 +114,9 @@ import 'screens/admin/admin_regions_screen.dart';
 import 'screens/admin/admin_ads_screen.dart';
 import 'screens/admin/admin_pricing_screen.dart';
 import 'screens/admin/admin_services_screen.dart';
+import 'screens/admin/admin_hotbite_picks_screen.dart';
+import 'screens/admin/admin_driver_priority_screen.dart';
+import 'screens/admin/admin_priority_delivery_screen.dart';
 import 'widgets/incoming_call_listener.dart';
 import 'screens/splash_screen.dart';
 import 'screens/maintenance_screen.dart';
@@ -844,6 +847,27 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminGroceryStoresScreen(),
                 ),
               );
+            case '/admin-hotbite-picks':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminHotBitePicksScreen(),
+                ),
+              );
+            case '/admin-driver-priority':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDriverPriorityScreen(),
+                ),
+              );
+            case '/admin-priority-delivery':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminPriorityDeliveryScreen(),
+                ),
+              );
             case '/admin-peak-time':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -955,9 +979,19 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 ),
               );
             case '/notifications':
+              // Notifications are per-user and available to every signed-in
+              // role (driver, restaurant, admin, etc.) — not just customers.
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
-                  allowedRoles: ['user'],
+                  allowedRoles: [
+                    'user',
+                    'customer',
+                    'driver',
+                    'restaurant',
+                    'admin',
+                    'service_provider',
+                    'laundry_provider',
+                  ],
                   child: NotificationsScreen(),
                 ),
               );

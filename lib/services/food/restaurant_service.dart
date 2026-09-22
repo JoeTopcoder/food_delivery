@@ -423,6 +423,8 @@ class RestaurantService {
     String? imageUrl,
     double? commissionRate,
     Map<String, dynamic>? operatingHours,
+    bool? hotBiteNowEnabled,
+    int? hotBiteNowPrepMinutes,
   }) async {
     try {
       AppLogger.info('Updating restaurant: $restaurantId');
@@ -449,6 +451,12 @@ class RestaurantService {
       }
       if (operatingHours != null) {
         updateData['operating_hours'] = operatingHours;
+      }
+      if (hotBiteNowEnabled != null) {
+        updateData['hotbite_now_enabled'] = hotBiteNowEnabled;
+      }
+      if (hotBiteNowPrepMinutes != null) {
+        updateData['hotbite_now_prep_minutes'] = hotBiteNowPrepMinutes;
       }
 
       final response = await _supabaseClient

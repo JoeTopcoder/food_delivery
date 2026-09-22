@@ -113,6 +113,15 @@ class Order {
   /// creation and immutable thereafter.
   final String? restaurantPaymentMethodSnapshot;
 
+  /// True when this order was placed from a HotBite Now (fast-prep) restaurant.
+  /// Snapshotted at order creation and immutable thereafter.
+  final bool isHotBiteNow;
+
+  /// Customer Priority Delivery: the customer paid an extra fee for prioritised
+  /// handling. [priorityFee] is that charge, kept separate from delivery_fee.
+  final bool isPriority;
+  final double priorityFee;
+
   Order({
     required this.id,
     required this.userId,
@@ -168,6 +177,9 @@ class Order {
     this.restaurantOrderNumber,
     this.outstandingDebtCharged = 0,
     this.restaurantPaymentMethodSnapshot,
+    this.isHotBiteNow = false,
+    this.isPriority = false,
+    this.priorityFee = 0,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -283,6 +295,9 @@ class Order {
       restaurantOrderNumber: restaurantOrderNumber ?? this.restaurantOrderNumber,
       outstandingDebtCharged: outstandingDebtCharged ?? this.outstandingDebtCharged,
       restaurantPaymentMethodSnapshot: restaurantPaymentMethodSnapshot,
+      isHotBiteNow: isHotBiteNow,
+      isPriority: isPriority,
+      priorityFee: priorityFee,
     );
   }
 }

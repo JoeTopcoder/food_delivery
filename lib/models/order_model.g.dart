@@ -116,6 +116,9 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
           (json['outstanding_debt_charged'] as num?)?.toDouble() ?? 0,
       restaurantPaymentMethodSnapshot:
           json['restaurant_payment_method_snapshot'] as String?,
+      isHotBiteNow: json['is_hotbite_now'] as bool? ?? false,
+      isPriority: json['is_priority'] as bool? ?? false,
+      priorityFee: (json['priority_fee'] as num?)?.toDouble() ?? 0,
     );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -174,4 +177,7 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
       'outstanding_debt_charged': instance.outstandingDebtCharged,
       'restaurant_payment_method_snapshot':
           instance.restaurantPaymentMethodSnapshot,
+      'is_hotbite_now': instance.isHotBiteNow,
+      'is_priority': instance.isPriority,
+      'priority_fee': instance.priorityFee,
     };
