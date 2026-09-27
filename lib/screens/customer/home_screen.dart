@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/material.dart';
 import '../../widgets/app_cached_image.dart';
+import '../../widgets/daily_verse.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
@@ -22,6 +23,7 @@ import '../../providers/recommendation_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../models/banner_model.dart' as app;
 import '../../utils/app_theme.dart';
+import '../../utils/restaurant_brand.dart';
 import '../../widgets/restaurant_card.dart';
 import '../../widgets/hotbite_now_section.dart';
 import '../../widgets/order_again_section.dart';
@@ -37,6 +39,7 @@ import '../../config/app_constants.dart';
 import 'restaurants_by_category_screen.dart';
 import 'grocery_store_detail_screen.dart';
 import '../../providers/grocery_provider.dart';
+import '../../providers/membership_provider.dart';
 import '../../core/utils/responsive.dart';
 import '../../utils/rating_format.dart';
 import '../../features/coverage/coverage_provider.dart';
@@ -103,6 +106,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   bool _couponPopupShown = false;
   bool _adPopupShown = false;
   bool _birthdayBannerDismissed = false;
+  late final DailyVerseScheduler _verseScheduler;
 
   @override
   void initState() {
@@ -112,6 +116,22 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) _fetchAndShowAd();
     });
+    // Verse of the Day: pops ~2.5 min into browsing, once per day, only while
+    // the home tab is visible. Per-user, varied verse (get_daily_verse RPC).
+    _verseScheduler = DailyVerseScheduler(ref);
+    _verseScheduler.start(
+      () => context,
+      canShow: () =>
+          mounted &&
+          ref.read(currentTabIndexProvider) == 0 &&
+          (ModalRoute.of(context)?.isCurrent ?? true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _verseScheduler.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchAndShowAd() async {
@@ -980,7 +1000,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
 
             allRestaurantsAsync.when(
-              data: (restaurants) {
+              data: (rawRestaurants) {
+                final restaurants = collapseRestaurantsByBrand(rawRestaurants);
                 final display = restaurants.take(15).toList();
                 return SliverPadding(
                   padding: EdgeInsets.symmetric(
@@ -1068,7 +1089,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         ),
       ),
       asyncValue.when(
-        data: (restaurants) {
+        data: (rawRestaurants) {
+          final restaurants = collapseRestaurantsByBrand(rawRestaurants);
           if (restaurants.isEmpty) {
             return SliverToBoxAdapter(
               child: _emptyPlaceholder('No restaurants found'),
@@ -1214,7 +1236,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   }) {
     return SliverToBoxAdapter(
       child: asyncValue.when(
-        data: (restaurants) {
+        data: (rawRestaurants) {
+          final restaurants = collapseRestaurantsByBrand(rawRestaurants);
           if (restaurants.isEmpty) return const SizedBox.shrink();
           return _HorizontalRestaurantRow(
             title: title,
@@ -1771,106 +1794,135 @@ class _DynamicBannerCarouselState
             ),
           ],
         ),
-        child: Stack(
-          fit: StackFit.expand,
+        // Swiggy-style split: bold copy + CTA on the left over the gradient,
+        // product image bleeding to the rounded right edge.
+        child: Row(
           children: [
-            if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              Image.network(
-                banner.imageUrl!,
-                fit: BoxFit.cover,
-                color: Colors.black.withValues(alpha: 0.35),
-                colorBlendMode: BlendMode.darken,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primaryColor,
-                        AppTheme.primaryColor.withValues(alpha: 0.75),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Icon(
-                      Icons.local_offer_rounded,
-                      size: 120,
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                  ),
-                ),
-              ),
-            if (banner.imageUrl == null || banner.imageUrl!.isEmpty)
-              Positioned(
-                right: -10,
-                bottom: -10,
-                child: Icon(
-                  Icons.local_offer_rounded,
-                  size: 120,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    banner.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  if (banner.subtitle != null) ...[
-                    const SizedBox(height: 2),
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 8, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     Text(
-                      banner.subtitle!,
+                      banner.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 12,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        height: 1.1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                    if (banner.subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        banner.subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 12.5,
+                          height: 1.2,
+                        ),
                       ),
+                    ],
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(_kRadiusPill),
                       ),
-                      child: Text(
-                        'Visit ${banner.restaurantName ?? 'Restaurant'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              banner.restaurantName != null
+                                  ? 'Visit ${banner.restaurantName}'
+                                  : 'ORDER NOW',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded,
+                              size: 14, color: AppTheme.primaryColor),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+            // Right: product image bleeding to the rounded edge.
+            if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
+              Expanded(
+                flex: 4,
+                child: Image.network(
+                  banner.imageUrl!,
+                  fit: BoxFit.cover,
+                  height: double.infinity,
+                  errorBuilder: (_, __, ___) => _bannerDecoIcon(),
+                ),
+              )
+            else
+              Expanded(flex: 4, child: _bannerDecoIcon()),
           ],
         ),
       ),
     );
   }
+
+  // Decorative fallback for the banner's right side when there's no image —
+  // a couple of soft overlapping circles + an offer icon so it reads as an
+  // intentional graphic instead of empty space.
+  Widget _bannerDecoIcon() => ClipRect(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              right: -30,
+              top: -20,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 10,
+              bottom: -30,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.local_offer_rounded,
+              size: 66,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ],
+        ),
+      );
 }
 
 // ─── Featured Ad Popup Dialog (auto-shows on home screen) ───────────────────
@@ -2585,9 +2637,12 @@ class _FoodSearchResultCard extends ConsumerWidget {
                       Row(
                         children: [
                           Text(
-                            '${AppConstants.currencySymbol}${item.discountedPrice.toStringAsFixed(2)}',
+                            '${AppConstants.currencySymbol}${item.priceForMember(ref.watch(isHotBitePlusMemberProvider)).toStringAsFixed(2)}',
                             style: TextStyle(
-                              color: AppTheme.primaryColor,
+                              color: (ref.watch(isHotBitePlusMemberProvider) &&
+                                      item.hasMemberPrice)
+                                  ? const Color(0xFFFF5A1F)
+                                  : AppTheme.primaryColor,
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
                             ),
