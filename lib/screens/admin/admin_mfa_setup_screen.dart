@@ -13,7 +13,20 @@ import '../../utils/app_theme.dart';
 /// and the factor becomes verified (the live session is upgraded to aal2).
 /// If already enabled, shows status and a Disable option.
 class AdminMfaSetupScreen extends ConsumerStatefulWidget {
-  const AdminMfaSetupScreen({super.key});
+  const AdminMfaSetupScreen({
+    super.key,
+    this.forceEnroll = false,
+    this.onCompleted,
+  });
+
+  /// Skip the "already enabled" screen and go straight to enrolling a new
+  /// authenticator — used by the email-recovery flow, where the old device is
+  /// lost and the admin must set up a fresh one to regain aal2 (data) access.
+  final bool forceEnroll;
+
+  /// Called after enrollment succeeds. When set (recovery flow), the "done"
+  /// screen offers "Continue to Admin Console" and stale factors are removed.
+  final VoidCallback? onCompleted;
 
   @override
   ConsumerState<AdminMfaSetupScreen> createState() =>
@@ -54,6 +67,11 @@ class _AdminMfaSetupScreenState extends ConsumerState<AdminMfaSetupScreen> {
       _error = null;
     });
     try {
+      // Recovery flow: always enroll a fresh factor, even if a (lost) one exists.
+      if (widget.forceEnroll) {
+        await _beginEnroll();
+        return;
+      }
       final hasIt = await _svc.hasVerifiedTotp();
       if (!mounted) return;
       setState(() => _view = hasIt ? _View.enabled : _View.loading);
@@ -99,6 +117,12 @@ class _AdminMfaSetupScreenState extends ConsumerState<AdminMfaSetupScreen> {
     });
     try {
       await _svc.verify(factorId: _factorId!, code: code);
+      // Recovery re-enroll: now aal2, so drop the old lost authenticator(s).
+      if (widget.forceEnroll) {
+        try {
+          await _svc.removeOtherFactors(_factorId!);
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -367,12 +391,20 @@ class _AdminMfaSetupScreenState extends ConsumerState<AdminMfaSetupScreen> {
         ),
         const SizedBox(height: 28),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (widget.onCompleted != null) {
+              widget.onCompleted!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
           style: FilledButton.styleFrom(
             backgroundColor: AppTheme.primaryColor,
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          child: const Text('Done'),
+          child: Text(widget.onCompleted != null
+              ? 'Continue to Admin Console'
+              : 'Done'),
         ),
       ],
     );

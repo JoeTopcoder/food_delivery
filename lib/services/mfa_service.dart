@@ -143,6 +143,20 @@ class MfaService {
     return null;
   }
 
+  /// After a successful re-enrollment (e.g. via email recovery on a new device),
+  /// remove every OTHER factor — the old, lost authenticator(s) — keeping only
+  /// [keepFactorId]. Safe to call once the session is aal2 (post-verify).
+  Future<void> removeOtherFactors(String keepFactorId) async {
+    final res = await _mfa.listFactors();
+    for (final f in res.all) {
+      if (f.id != keepFactorId) {
+        try {
+          await _mfa.unenroll(f.id);
+        } catch (_) {}
+      }
+    }
+  }
+
   /// Turn off two-step verification: unenroll every factor on the account.
   Future<void> disableAll() async {
     final res = await _mfa.listFactors();
