@@ -134,7 +134,7 @@ Future<void> showDailyVerseSheet(
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '"${verse.text}"',
+                    verse.text,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,

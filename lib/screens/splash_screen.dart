@@ -12,10 +12,9 @@ import '../screens/driver/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';
 import '../screens/restaurant/restaurant_dashboard_screen.dart';
-import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_gate.dart';
 import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
-import '../web/admin/admin_web_app.dart';
 import '../web/customer/customer_web_app.dart';
 import '../widgets/quickdash_logo.dart';
 import '../widgets/riding_courier.dart';
@@ -703,15 +702,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
             // Admin visiting the restaurant portal — sign out, show landing page
             await ref.read(authNotifierProvider.notifier).signOut();
             destination = const RestaurantLandingPage();
-          } else if (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) {
-            destination = const RoleGuard(
-              allowedRoles: ['admin'],
-              child: AdminWebApp(),
-            );
           } else {
+            // Two-step verification gate before the console loads (AdminGate
+            // renders the web or mobile console once MFA is satisfied).
             destination = const RoleGuard(
               allowedRoles: ['admin'],
-              child: AdminDashboardScreen(),
+              child: AdminGate(),
             );
           }
           break;

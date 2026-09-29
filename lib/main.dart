@@ -35,7 +35,6 @@ import 'screens/driver/driver_orders_screen.dart';
 import 'screens/driver/active_deliveries_screen.dart';
 import 'screens/driver/delivery_history_screen.dart';
 import 'screens/driver/driver_profile_screen.dart';
-import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_restaurants_screen.dart';
 import 'screens/admin/admin_drivers_screen.dart';
@@ -57,6 +56,7 @@ import 'screens/customer/profile_screen.dart';
 import 'screens/customer/review_screen.dart';
 import 'screens/customer/notifications_screen.dart';
 import 'screens/customer/loyalty_screen.dart';
+import 'screens/customer/hotbite_plus_screen.dart';
 import 'screens/customer/address_book_screen.dart';
 import 'screens/customer/order_history_screen.dart';
 import 'screens/customer/birthday_reward_screen.dart';
@@ -86,6 +86,18 @@ import 'screens/admin/admin_financials_screen.dart';
 import 'screens/admin/admin_analytics_screen.dart';
 import 'screens/admin/admin_ai_panel_screen.dart';
 import 'screens/admin/admin_ai_operations_screen.dart';
+import 'screens/admin/ai_staff/ai_staff_screens.dart';
+import 'screens/admin/admin_ai_banner_studio_screen.dart';
+import 'screens/admin/admin_member_savings_report_screen.dart';
+import 'screens/admin/admin_referral_screen.dart';
+import 'screens/admin/admin_mfa_setup_screen.dart';
+import 'screens/admin/admin_gate.dart';
+import 'screens/admin/admin_pickup_coordinator_screen.dart';
+import 'screens/admin/admin_home_notice_screen.dart';
+import 'screens/admin/admin_app_closure_screen.dart';
+import 'screens/customer/earn_with_hotbite_screen.dart';
+import 'screens/customer/referral_tree_screen.dart';
+import 'screens/customer/referral_tree_diagram_screen.dart';
 import 'screens/admin/admin_executive_intelligence_screen.dart';
 import 'screens/admin/admin_business_intelligence_screen.dart';
 import 'screens/admin/admin_restaurant_success_screen.dart';
@@ -130,7 +142,6 @@ import 'screens/customer/wallet_screen.dart';
 import 'screens/restaurant/restaurant_dashboard_screen.dart';
 import 'screens/restaurant/restaurant_order_management_screen.dart';
 import 'web/restaurant/restaurant_web_app.dart';
-import 'web/admin/admin_web_app.dart';
 import 'web/customer/customer_web_app.dart';
 import 'web/driver/driver_web_app.dart';
 import 'screens/restaurant/restaurant_analytics_screen.dart';
@@ -538,8 +549,10 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         if (kIsWeb) return const RestaurantWebApp();
         return const RestaurantDashboardScreen();
       case 'admin':
-        if (kIsWeb) return const AdminWebApp();
-        return const AdminDashboardScreen();
+        // Two-step verification gate — checks (async) whether the admin still
+        // needs to step up from aal1 and shows the challenge before the console
+        // loads. Renders the web or mobile console internally.
+        return const AdminGate();
       case 'service_provider':
         return const CarServiceProviderDashboardScreen();
       case 'laundry_provider':
@@ -735,9 +748,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
               return MaterialPageRoute(
                 builder: (context) => RoleGuard(
                   allowedRoles: const ['admin'],
-                  child: (kIsWeb && (_webMode == 'full' || _webMode == 'admin'))
-                      ? const AdminWebApp()
-                      : const AdminDashboardScreen(),
+                  // Every login / redirect path lands on '/admin-dashboard', so
+                  // the two-step verification gate lives HERE. AdminGate shows
+                  // the TOTP challenge when needed, then the web or mobile
+                  // console (it picks based on platform).
+                  child: const AdminGate(),
                 ),
               );
             case '/admin-operating-dashboard':
@@ -766,6 +781,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminUsersScreen(),
+                ),
+              );
+            case '/admin-mfa-setup':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminMfaSetupScreen(),
                 ),
               );
             case '/admin-restaurants':
@@ -1002,6 +1024,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: LoyaltyScreen(),
                 ),
               );
+            case '/hotbite-plus':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: HotBitePlusScreen(),
+                ),
+              );
             case '/address-book':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
@@ -1138,6 +1167,63 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AdminAiOperationsScreen(),
                 ),
               );
+            case '/admin-ai-staff':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiStaffHubScreen()));
+            case '/admin-ai-banner-studio':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminAiBannerStudioScreen()));
+            case '/admin-member-savings':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminMemberSavingsReportScreen()));
+            case '/admin-referral':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminReferralScreen()));
+            case '/admin-pickup-coordinator':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminPickupCoordinatorScreen()));
+            case '/admin-home-notice':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminHomeNoticeScreen()));
+            case '/admin-app-closure':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AdminAppClosureScreen()));
+            case '/earn-hotbite':
+              return MaterialPageRoute(
+                builder: (context) => const EarnWithHotBiteScreen());
+            case '/referral-tree':
+              return MaterialPageRoute(
+                builder: (context) => const ReferralTreeScreen());
+            case '/referral-tree-diagram':
+              return MaterialPageRoute(
+                builder: (context) => const ReferralTreeDiagramScreen());
+            case '/admin-ai-staff/briefing':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiBriefingScreen()));
+            case '/admin-ai-staff/roles':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiRolesScreen()));
+            case '/admin-ai-staff/suggestions':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiSuggestionsScreen()));
+            case '/admin-ai-staff/alerts':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiAlertsScreen()));
+            case '/admin-ai-staff/history':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'], child: AiHistoryScreen()));
             case '/admin-ai/executive':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
