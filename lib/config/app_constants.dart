@@ -10,7 +10,7 @@
   );
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_TSislwYLCUtwfkUnglQWBQ_3drsd82-',
+    defaultValue: 'sb_publishable_Wws-3041OFpgbbNuh140Rw_AgZR5P52',
   );
 
   // Stripe Payment Configuration — Stripe is the ONLY payment method
@@ -331,10 +331,11 @@
         (h >= peakHoursStart2 && h < peakHoursEnd2);
   }
 
-  // Loyalty
-  static double loyaltyPointValue = 0.01;
+  // Loyalty (DB-driven via app_config; these are fallback defaults)
+  // 3 pts per $100 × $1.00/pt = $3 back per $100 spent (3% effective reward).
+  static double loyaltyPointValue = 1.00;
   static double loyaltyMaxRedemptionPercent = 0.20;
-  static int loyaltyPointsPer100 = 10;
+  static int loyaltyPointsPer100 = 3;
   static int loyaltyTierSilverThreshold = 500;
   static int loyaltyTierGoldThreshold = 2000;
   static int loyaltyTierPlatinumThreshold = 5000;

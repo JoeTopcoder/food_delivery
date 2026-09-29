@@ -1001,8 +1001,8 @@ class _AnnouncementBanner extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-              child: Text(
-                text,
+              child: _Marquee(
+                text: text,
                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.3),
               ),
             ),
