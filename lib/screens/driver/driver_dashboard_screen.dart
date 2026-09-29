@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/driver_model.dart';
+import '../../models/order_model.dart';
 import '../../providers/driver_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -11,9 +15,15 @@ import '../../services/notification_service.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
-import '../shared/ai_voice_screen.dart';
-import '../../modules/packages/screens/driver/driver_packages_screen.dart';
+import '../../widgets/peak_time_banner.dart';
+import '../../widgets/driver_priority_card.dart';
+import '../../widgets/driver_order_alert.dart';
+import '../../widgets/app_map_tiles.dart';
+import '../../providers/user_provider.dart'
+    show restaurantServiceProvider, restaurantByIdProvider, orderServiceProvider;
+import '../../services/driver/delivery_fee_service.dart';
 import 'driver_verification_screen.dart';
+import 'student_delivery_confirm.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -30,8 +40,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _redirecting = false;
   late AnimationController _pulseController;
   Driver? _lastDriver;
-  final Set<String> _togglingServices = {};
   bool _serviceTopicsInitialized = false;
+  // Ready orders already shown to this driver, so a nearby order isn't
+  // re-popped on every refresh. Cleared when the driver goes offline.
+  final Set<String> _poppedReadyIds = {};
+  bool _readyScanScheduled = false;
+  String? _advancingOrderId;
 
   static const Map<String, String> _serviceTopics = {
     'food_delivery': 'food_delivery_orders',
@@ -49,6 +63,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     NotificationService.onNewOrderReceived = () {
       ref.invalidate(availableOrdersProvider);
+      // An order just became ready — pop it on the dashboard (not only the
+      // one-time scan when going online). Uses the last-known driver profile.
+      final d = _lastDriver;
+      if (d != null && d.isAvailable && mounted) {
+        _scanNearbyReadyOrders(d);
+      }
     };
     NotificationService.onNewPackageReceived = null;
     NotificationService.onNewRideReceived = null;
@@ -63,6 +83,83 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     super.dispose();
   }
 
+  /// Pops the Uber-style order card for orders that are ALREADY ready and
+  /// nearby — so a driver who logs in (or comes online) after an order became
+  /// ready still sees it, not only orders that turn ready while already online.
+  /// Shows one card at a time (the newest un-shown ready order).
+  Future<void> _scanNearbyReadyOrders(Driver driver) async {
+    if (!driver.isAvailable || !mounted) return;
+    double? lat = driver.currentLatitude;
+    double? lng = driver.currentLongitude;
+    // Fall back to a live GPS fix if the profile has no location yet, so the
+    // popup still fires right after going online. If we still have no location
+    // we scan without a proximity filter (same as the Get Orders tab).
+    if (lat == null || lng == null) {
+      try {
+        final pos = await ref.read(locationServiceProvider).getCurrentPosition();
+        if (pos != null) {
+          lat = pos.latitude;
+          lng = pos.longitude;
+        }
+      } catch (_) {}
+    }
+    try {
+      final orders = await ref.read(driverServiceProvider).getAvailableOrders(
+            driverId: driver.id,
+            driverLat: lat,
+            driverLng: lng,
+          );
+      // Only orders currently in the "ready" tab, newest first. The list is
+      // already capped by getAvailableOrders to the driver's remaining slots
+      // (3 - active), so a driver with 1 active order sees up to 2 here.
+      final ready = orders
+          .where((o) => o.status == AppConstants.orderReady)
+          .where((o) => !_poppedReadyIds.contains(o.id))
+          .toList();
+      if (ready.isEmpty) return;
+
+      final cards = <Map<String, dynamic>>[];
+      for (final o in ready) {
+        _poppedReadyIds.add(o.id);
+        String storeName = 'New Order';
+        double? distanceKm;
+        try {
+          final rest = await ref
+              .read(restaurantServiceProvider)
+              .getRestaurantById(o.restaurantId);
+          if (rest != null) {
+            storeName = rest.name;
+            if (lat != null &&
+                lng != null &&
+                rest.latitude != null &&
+                rest.longitude != null) {
+              distanceKm = DeliveryFeeService.haversineKm(
+                lat,
+                lng,
+                rest.latitude!,
+                rest.longitude!,
+              );
+            }
+          }
+        } catch (_) {}
+        cards.add({
+          'order_id': o.id,
+          'store_name': storeName,
+          'address': o.deliveryAddress ?? '',
+          'delivery_fee': o.deliveryFee.toString(),
+          'tip': (o.driverTip ?? 0).toString(),
+          if (distanceKm != null) 'distance_km': distanceKm.toStringAsFixed(2),
+        });
+      }
+
+      if (!mounted || cards.isEmpty) return;
+      // Show every order the driver can still take, together in one popup.
+      DriverOrderAlert.showOrders(cards);
+    } catch (e) {
+      // Non-fatal: the orders are still visible in the Orders screen.
+    }
+  }
+
   Future<void> _syncFcmTopics(List<String> activeServices) async {
     final ns = NotificationService();
     for (final entry in _serviceTopics.entries) {
@@ -74,123 +171,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  Future<void> _toggleService(
-    Driver driver,
-    String currentUserId,
-    String service,
-    bool enable,
-  ) async {
-    final services = List<String>.from(
-      driver.activeServices ?? ['food_delivery'],
-    );
-    if (enable) {
-      if (!services.contains(service)) services.add(service);
-    } else {
-      services.remove(service);
-    }
-    // Guard: driver must be online to enable any service
-    if (enable && !driver.isAvailable) {
-      if (mounted) {
-        showDialog<void>(
-          context: context,
-          builder: (_) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1B24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Color(0xFF2A2D3E)),
-            ),
-            icon: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.power_settings_new_rounded,
-                color: Colors.orange,
-                size: 28,
-              ),
-            ),
-            title: const Text(
-              'You\'re Offline',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            content: const Text(
-              'Go online first before enabling any services. Toggle the Online / Offline switch on your dashboard.',
-              style: TextStyle(
-                color: Color(0xFF9CA3AF),
-                fontSize: 14,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text(
-                    'Got it',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    setState(() => _togglingServices.add(service));
-    try {
-      await ref
-          .read(driverServiceProvider)
-          .updateDriverActiveServices(driver.id, services);
-      // Refresh driver profile immediately after DB write — don't wait on FCM
-      ref.invalidate(driverProfileProvider(currentUserId));
-      // FCM subscription is best-effort; fire and forget so it can't block the UI
-      final ns = NotificationService();
-      final topic = _serviceTopics[service]!;
-      if (enable) {
-        unawaited(ns.subscribeToTopic(topic));
-      } else {
-        unawaited(ns.unsubscribeFromTopic(topic));
-      }
-    } catch (e) {
-      if (mounted) AppSnackbar.error(context, friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _togglingServices.remove(service));
-    }
-  }
-
-  bool _canDoRides(Driver driver) {
-    final t = (driver.vehicleType ?? '').toLowerCase().trim();
-    return t != 'bicycle' && t != 'bike' && t != 'motorcycle' && t != 'scooter';
-  }
-
-  String _completionRate(Driver driver) {
-    final completed = driver.completedDeliveries ?? 0;
-    final cancelled = driver.cancelledDeliveries ?? 0;
-    final total = completed + cancelled;
-    if (total == 0) return '—';
-    return '${(completed / total * 100).round()}%';
-  }
 
   Future<void> _createProfile(String userId) async {
     setState(() => _creatingProfile = true);
@@ -205,19 +185,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
   }
 
-  String _formatPeakHours() {
-    String fmt(int h) {
-      if (h == 0) return '12 am';
-      if (h == 12) return '12 pm';
-      return h < 12 ? '$h am' : '${h - 12} pm';
-    }
-
-    final w1 =
-        '${fmt(AppConstants.peakHoursStart)}–${fmt(AppConstants.peakHoursEnd)}';
-    final w2 =
-        '${fmt(AppConstants.peakHoursStart2)}–${fmt(AppConstants.peakHoursEnd2)}';
-    return 'Peak hours: $w1 & $w2';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -286,6 +253,68 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
       body: _buildDashboard(driver, authState, currentUserId),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF0A0B10),
+        border: Border(top: BorderSide(color: Color(0xFF1A1B24))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _navItem(Icons.home_rounded, 'Home', active: true, onTap: () {}),
+              _navItem(Icons.receipt_long_rounded, 'Orders',
+                  onTap: () => Navigator.of(context).pushNamed('/driver-orders')),
+              _navItem(Icons.location_on_rounded, 'Map',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed('/active-deliveries')),
+              _navItem(Icons.account_balance_wallet_rounded, 'Earnings',
+                  onTap: () => Navigator.of(context)
+                      .pushNamed('/driver-earnings-advanced')),
+              _navItem(Icons.person_rounded, 'Profile',
+                  onTap: () => Navigator.of(context).pushNamed('/driver-profile')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label,
+      {bool active = false, required VoidCallback onTap}) {
+    final color =
+        active ? const Color(0xFF22C55E) : const Color(0xFF6B7280);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -446,304 +475,32 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     );
   }
 
-  Widget _buildHero(
-    Driver driver,
-    dynamic authState,
-    String currentUserId,
-    bool isOnline,
-    double balance,
-  ) {
-    return Container(
-      decoration: const BoxDecoration(color: Color(0xFF0A0B10)),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // ── Top bar ────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(2.5),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: isOnline
-                          ? const LinearGradient(
-                              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-                            )
-                          : null,
-                      color: isOnline ? null : const Color(0xFF2A2D3E),
-                    ),
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: const Color(0xFF1A1D2E),
-                      backgroundImage: authState.user?.profileImageUrl != null
-                          ? NetworkImage(authState.user!.profileImageUrl!)
-                          : null,
-                      child: authState.user?.profileImageUrl == null
-                          ? const Icon(
-                              Icons.person,
-                              color: Colors.white54,
-                              size: 22,
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _greeting(),
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          authState.user?.name?.split(' ').first ?? 'Driver',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _GlassIconButton(
-                    icon: Icons.smart_toy_outlined,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AiVoiceScreen(role: 'driver'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _GlassIconButton(
-                    icon: Icons.tune_rounded,
-                    onTap: () =>
-                        Navigator.of(context).pushNamed('/driver-profile'),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Hero card ─────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF12131C),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isOnline
-                        ? const Color(0xFF22C55E).withValues(alpha: 0.35)
-                        : const Color(0xFF1E1F2A),
-                  ),
-                  boxShadow: isOnline
-                      ? [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF22C55E,
-                            ).withValues(alpha: 0.07),
-                            blurRadius: 24,
-                            spreadRadius: 2,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  children: [
-                    // Balance + online pill
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Wallet Balance',
-                                style: TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${AppConstants.currencySymbol}${balance.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _togglingAvailability
-                            ? const SizedBox(
-                                width: 80,
-                                height: 36,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Color(0xFF22C55E),
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : GestureDetector(
-                                onTap: () async {
-                                  setState(() => _togglingAvailability = true);
-                                  try {
-                                    await ref
-                                        .read(driverServiceProvider)
-                                        .updateDriverAvailability(
-                                          driver.id,
-                                          !isOnline,
-                                        );
-                                    // Broadcast location while online so the
-                                    // "new order nearby" push can find drivers
-                                    // within range; stop when going offline.
-                                    final ls = ref.read(locationServiceProvider);
-                                    if (!isOnline) {
-                                      await ls.startTracking(driverId: driver.id);
-                                    } else {
-                                      await ls.stopTracking();
-                                    }
-                                    ref.invalidate(
-                                      driverProfileProvider(currentUserId),
-                                    );
-                                  } catch (e) {
-                                    if (mounted) {
-                                      AppSnackbar.error(
-                                        context,
-                                        friendlyError(e),
-                                      );
-                                    }
-                                  } finally {
-                                    if (mounted) {
-                                      setState(
-                                        () => _togglingAvailability = false,
-                                      );
-                                    }
-                                  }
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isOnline
-                                        ? const Color(0xFF22C55E)
-                                        : const Color(0xFF1A1B24),
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: isOnline
-                                          ? const Color(0xFF22C55E)
-                                          : const Color(0xFF2A2D3E),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      AnimatedBuilder(
-                                        animation: _pulseController,
-                                        builder: (_, __) => Container(
-                                          width: 7,
-                                          height: 7,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: isOnline
-                                                ? Colors.white.withValues(
-                                                    alpha:
-                                                        0.6 +
-                                                        _pulseController.value *
-                                                            0.4,
-                                                  )
-                                                : const Color(0xFF4B5563),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isOnline ? 'Online' : 'Offline',
-                                        style: TextStyle(
-                                          color: isOnline
-                                              ? Colors.white
-                                              : const Color(0xFF6B7280),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 18),
-                    const Divider(height: 1, color: Color(0xFF1E1F2A)),
-                    const SizedBox(height: 16),
-
-                    // Mini stats row
-                    Row(
-                      children: [
-                        _MiniStat(
-                          label: 'Trips',
-                          value: '${driver.completedDeliveries ?? 0}',
-                          color: const Color(0xFF22C55E),
-                        ),
-                        const _VertDivider(),
-                        _MiniStat(
-                          label: 'Rating',
-                          value: driver.rating != null && driver.rating! > 0
-                              ? driver.rating!.toStringAsFixed(1)
-                              : '—',
-                          color: const Color(0xFFFBBF24),
-                        ),
-                        const _VertDivider(),
-                        _MiniStat(
-                          label: 'Success',
-                          value: _completionRate(driver),
-                          color: const Color(0xFF528BFF),
-                        ),
-                        const _VertDivider(),
-                        _MiniStat(
-                          label: 'Status',
-                          value: driver.isVerified == true
-                              ? 'Verified'
-                              : 'Pending',
-                          color: driver.isVerified == true
-                              ? const Color(0xFF14B8A6)
-                              : const Color(0xFF6B7280),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  // ── Availability toggle (Go Online / Go Offline) ──────────────────────────
+  Future<void> _toggleAvailability(Driver driver, String currentUserId) async {
+    if (_togglingAvailability) return;
+    final isOnline = driver.isAvailable;
+    setState(() => _togglingAvailability = true);
+    try {
+      await ref
+          .read(driverServiceProvider)
+          .updateDriverAvailability(driver.id, !isOnline);
+      final ls = ref.read(locationServiceProvider);
+      if (!isOnline) {
+        _readyScanScheduled = false;
+        _poppedReadyIds.clear();
+        await ls.startTracking(driverId: driver.id);
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) ref.invalidate(driverProfileProvider(currentUserId));
+        });
+      } else {
+        await ls.stopTracking();
+      }
+      ref.invalidate(driverProfileProvider(currentUserId));
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _togglingAvailability = false);
+    }
   }
 
   Widget _buildDashboard(
@@ -753,6 +510,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   ) {
     ref.watch(driverEarningsRealtimeProvider(driver.id));
 
+    // Keep FCM order-type topic subscriptions in sync with the driver's
+    // active services (the toggle UI moved off this screen, but the driver
+    // still receives the right pushes).
     if (!_serviceTopicsInitialized) {
       _serviceTopicsInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback(
@@ -761,417 +521,1371 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     }
 
     final isOnline = driver.isAvailable;
-    final activeServices = driver.activeServices ?? ['food_delivery'];
+
+    if (isOnline) {
+      if (!_readyScanScheduled) {
+        _readyScanScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scanNearbyReadyOrders(driver);
+        });
+      }
+    } else {
+      _readyScanScheduled = false;
+      _poppedReadyIds.clear();
+    }
+
+    final activeOrders =
+        ref.watch(activeDeliveriesProvider(driver.id)).valueOrNull;
+    final Order? activeOrder =
+        (activeOrders != null && activeOrders.isNotEmpty)
+            ? activeOrders.first
+            : null;
+
+    final stats = ref.watch(driverStatsProvider(driver.id)).valueOrNull;
     final balance = ((driver.totalEarnings ?? 0) - (driver.totalPaidOut ?? 0))
         .clamp(0.0, double.infinity);
+    final todayEarnings =
+        (stats?.sessionEarnings ?? 0) > 0 ? stats!.sessionEarnings : balance;
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
-      slivers: [
-        // ── HERO ────────────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: _buildHero(
-            driver,
-            authState,
-            currentUserId,
-            isOnline,
-            balance,
-          ),
+    return RefreshIndicator(
+      color: const Color(0xFF22C55E),
+      backgroundColor: const Color(0xFF12131C),
+      onRefresh: () async {
+        ref.invalidate(driverProfileProvider(currentUserId));
+        ref.invalidate(activeDeliveriesProvider(driver.id));
+      },
+      child: ListView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
         ),
-
-        // ── ACTIVE SERVICES ─────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SectionLabel('Active Services'),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ServiceCard(
-                        icon: Icons.restaurant_rounded,
-                        label: 'Food & Groceries',
-                        color: const Color(0xFFF97316),
-                        isEnabled: activeServices.contains('food_delivery'),
-                        isLoading: _togglingServices.contains('food_delivery'),
-                        locked:
-                            !isOnline &&
-                            !activeServices.contains('food_delivery'),
-                        onToggle: (v) => _toggleService(
-                          driver,
-                          currentUserId,
-                          'food_delivery',
-                          v,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ServiceCard(
-                        icon: Icons.inventory_2_rounded,
-                        label: 'Packages',
-                        color: const Color(0xFF155EEF),
-                        isEnabled: activeServices.contains('package_delivery'),
-                        isLoading: _togglingServices.contains(
-                          'package_delivery',
-                        ),
-                        locked:
-                            !isOnline &&
-                            !activeServices.contains('package_delivery'),
-                        onToggle: (v) => _toggleService(
-                          driver,
-                          currentUserId,
-                          'package_delivery',
-                          v,
-                        ),
-                      ),
-                    ),
-                    if (_canDoRides(driver)) ...[
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _ServiceCard(
-                          icon: Icons.directions_car_rounded,
-                          label: 'Rides',
-                          color: const Color(0xFF22C55E),
-                          isEnabled: activeServices.contains('ride_sharing'),
-                          isLoading: _togglingServices.contains('ride_sharing'),
-                          locked:
-                              !isOnline &&
-                              !activeServices.contains('ride_sharing'),
-                          onToggle: (v) => _toggleService(
-                            driver,
-                            currentUserId,
-                            'ride_sharing',
-                            v,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
+        padding: EdgeInsets.zero,
+        children: [
+          _header(driver, authState, isOnline),
+          const PeakTimeBanner(
+            driver: true,
+            margin: EdgeInsets.fromLTRB(16, 4, 16, 0),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _dutyEarningsCard(
+              driver,
+              currentUserId,
+              isOnline,
+              todayEarnings,
             ),
           ),
-        ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _mapCard(driver, activeOrder),
+          ),
+          if (activeOrder != null) ...[
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _currentDeliveryCard(activeOrder),
+            ),
+          ],
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _quickActions(driver),
+          ),
+          const SizedBox(height: 22),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 10),
+            child: Text(
+              'More',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _moreSection(),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-        // ── TIER BADGE ───────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Consumer(
-              builder: (context, ref, _) {
-                final stats = ref
-                    .watch(driverStatsProvider(driver.id))
-                    .valueOrNull;
-                if (stats == null) return const SizedBox.shrink();
-                final Color c;
-                switch (stats.tier) {
-                  case 'elite':
-                    c = const Color(0xFFE879F9);
-                    break;
-                  case 'gold':
-                    c = const Color(0xFFFBBF24);
-                    break;
-                  case 'silver':
-                    c = const Color(0xFF94A3B8);
-                    break;
-                  default:
-                    c = const Color(0xFFD97706);
-                }
-                return GestureDetector(
-                  onTap: () =>
-                      Navigator.of(context).pushNamed('/driver-performance'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+  // ── More / Explore ─────────────────────────────────────────────────────────
+  Widget _moreSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF12131C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1E1F2A)),
+      ),
+      child: Column(
+        children: [
+          _moreRow(
+            Icons.payments_rounded,
+            const Color(0xFFF59E0B),
+            'Earnings & Analytics',
+            'Income, tips & payouts',
+            () => Navigator.of(context).pushNamed('/driver-earnings-advanced'),
+            divider: true,
+          ),
+          _moreRow(
+            Icons.map_rounded,
+            const Color(0xFFEF4444),
+            'Demand Heatmap',
+            'Find surge zones nearby',
+            () => Navigator.of(context).pushNamed('/driver-heatmap'),
+            divider: true,
+          ),
+          _moreRow(
+            Icons.insights_rounded,
+            const Color(0xFF22C55E),
+            'Performance & Tier',
+            'Score, tier & smart tips',
+            () => Navigator.of(context).pushNamed('/driver-performance'),
+            divider: true,
+          ),
+          _moreRow(
+            Icons.emoji_events_rounded,
+            const Color(0xFF6366F1),
+            'Leaderboard',
+            'Your ranking among drivers',
+            () => Navigator.of(context).pushNamed('/driver-leaderboard'),
+            divider: true,
+          ),
+          _moreRow(
+            Icons.card_giftcard_rounded,
+            const Color(0xFF10B981),
+            'Refer a Driver',
+            'Earn a bonus for every referral',
+            () => Navigator.of(context).pushNamed('/driver-referral'),
+            divider: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moreRow(
+    IconData icon,
+    Color color,
+    String title,
+    String subtitle,
+    VoidCallback onTap, {
+    required bool divider,
+  }) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: c.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: c.withValues(alpha: 0.22)),
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(11),
                     ),
-                    child: Row(
+                    child: Icon(icon, color: color, size: 19),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          stats.tierEmoji,
-                          style: const TextStyle(fontSize: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${stats.tierLabel} Driver',
-                                style: TextStyle(
-                                  color: c,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                'Score ${stats.score.toStringAsFixed(0)}/100'
-                                '${stats.bonusMultiplier > 1 ? "  ·  +${((stats.bonusMultiplier - 1) * 100).toStringAsFixed(0)}% bonus" : ""}',
-                                style: const TextStyle(
-                                  color: Color(0xFF6B7280),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
-                        Icon(Icons.chevron_right_rounded, color: c, size: 18),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                );
-              },
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Color(0xFF4B5563), size: 18),
+                ],
+              ),
             ),
           ),
         ),
+        if (divider)
+          const Divider(
+            height: 1,
+            indent: 68,
+            endIndent: 14,
+            color: Color(0xFF1E1F2A),
+          ),
+      ],
+    );
+  }
 
-        // ── ORDERS (same size as the driver-score card) ──────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: GestureDetector(
-              onTap: () =>
-                  Navigator.of(context).pushNamed('/driver-orders'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _header(Driver driver, dynamic authState, bool isOnline) {
+    return Container(
+      color: const Color(0xFF0A0B10),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 16, 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C63FF).withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFF6C63FF).withValues(alpha: 0.22),
-                  ),
+                  shape: BoxShape.circle,
+                  gradient: isOnline
+                      ? const LinearGradient(
+                          colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                        )
+                      : null,
+                  color: isOnline ? null : const Color(0xFF2A2D3E),
                 ),
-                child: Row(
+                child: Stack(
                   children: [
-                    const Icon(
-                      Icons.receipt_long_rounded,
-                      color: Color(0xFF6C63FF),
-                      size: 22,
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: const Color(0xFF1A1D2E),
+                      backgroundImage: authState.user?.profileImageUrl != null
+                          ? NetworkImage(authState.user!.profileImageUrl!)
+                          : null,
+                      child: authState.user?.profileImageUrl == null
+                          ? const Icon(Icons.person,
+                              color: Colors.white54, size: 26)
+                          : null,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'Orders',
-                            style: TextStyle(
-                              color: Color(0xFF6C63FF),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
+                    if (isOnline)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 15,
+                          height: 15,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22C55E),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: const Color(0xFF0A0B10), width: 2.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_greeting()},',
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      authState.user?.name ?? 'Driver',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (isOnline
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFF6B7280))
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: isOnline
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFF6B7280),
+                              shape: BoxShape.circle,
                             ),
                           ),
+                          const SizedBox(width: 6),
                           Text(
-                            'Get Orders  ·  Active Orders',
+                            isOnline ? 'Online' : 'Offline',
                             style: TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 11,
+                              color: isOnline
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFF9CA3AF),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF6C63FF),
-                      size: 18,
+                  ],
+                ),
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final count = ref
+                          .watch(dbUnreadNotificationCountProvider)
+                          .valueOrNull ??
+                      0;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _GlassIconButton(
+                        icon: Icons.notifications_none_rounded,
+                        onTap: () => Navigator.of(context)
+                            .pushNamed('/notifications')
+                            .then((_) => ref.invalidate(
+                                dbUnreadNotificationCountProvider)),
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          right: -3,
+                          top: -3,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            constraints: const BoxConstraints(minWidth: 18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                  color: const Color(0xFF0A0B10), width: 1.5),
+                            ),
+                            child: Text(
+                              count > 9 ? '9+' : '$count',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              _GlassIconButton(
+                icon: Icons.settings_outlined,
+                onTap: () => Navigator.of(context).pushNamed('/driver-profile'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Earnings + On-duty card ────────────────────────────────────────────────
+  Widget _dutyEarningsCard(
+    Driver driver,
+    String currentUserId,
+    bool isOnline,
+    double todayEarnings,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12131C),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isOnline
+              ? const Color(0xFF22C55E).withValues(alpha: 0.30)
+              : const Color(0xFF1E1F2A),
+        ),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Earnings
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.of(context)
+                    .pushNamed('/driver-earnings-advanced'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF22C55E),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text(
+                          "Today's Earnings",
+                          style: TextStyle(
+                              color: Color(0xFF9CA3AF), fontSize: 12.5),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Color(0xFF6B7280), size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${AppConstants.currencySymbol}${todayEarnings.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${driver.completedDeliveries ?? 0} deliveries completed',
+                      style: const TextStyle(
+                          color: Color(0xFF6B7280), fontSize: 12),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-        ),
-
-        // ── QUICK ACTIONS ────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-            child: const _SectionLabel('Quick Actions'),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverGrid(
-            delegate: SliverChildListDelegate([
-              _ActionCard(
-                icon: Icons.search_rounded,
-                label: 'Find Orders',
-                color: AppTheme.primaryColor,
-                onTap: () =>
-                    Navigator.of(context).pushNamed('/available-orders'),
-              ),
-              _ActionCard(
-                icon: Icons.local_shipping_rounded,
-                label: 'Active',
-                color: const Color(0xFF14B8A6),
-                onTap: () =>
-                    Navigator.of(context).pushNamed('/active-deliveries'),
-              ),
-              _ActionCard(
-                icon: Icons.history_rounded,
-                label: 'History',
-                color: const Color(0xFF3B82F6),
-                onTap: () =>
-                    Navigator.of(context).pushNamed('/delivery-history'),
-              ),
-              _ActionCard(
-                icon: Icons.account_balance_wallet_rounded,
-                label: 'Wallet',
-                color: const Color(0xFF10B981),
-                onTap: () => Navigator.of(context).pushNamed('/driver-wallet'),
-              ),
-              if (_canDoRides(driver))
-                _ActionCard(
-                  icon: Icons.directions_car_rounded,
-                  label: 'Rides',
-                  color: const Color(0xFF22C55E),
-                  onTap: () =>
-                      Navigator.of(context).pushNamed('/rides/driver/mode'),
-                ),
-              _ActionCard(
-                icon: Icons.inventory_2_rounded,
-                label: 'Packages',
-                color: const Color(0xFF155EEF),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DriverPackagesScreen(),
-                  ),
-                ),
-              ),
-            ]),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.95,
-            ),
-          ),
-        ),
-
-        // ── EXPLORE ──────────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-            child: const _SectionLabel('Explore'),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF12131C),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF1E1F2A)),
-              ),
+            const VerticalDivider(width: 28, color: Color(0xFF1E1F2A)),
+            // On duty
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _MenuRow(
-                    icon: Icons.payments_rounded,
-                    iconColor: const Color(0xFFF59E0B),
-                    title: 'Earnings & Analytics',
-                    subtitle: 'Income, tips & payouts',
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pushNamed('/driver-earnings-advanced'),
-                    divider: true,
+                  // Compact HotBite Priority standing chip — taps to details.
+                  DriverStandingChip(driverId: driver.id),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: (isOnline
+                              ? const Color(0xFF22C55E)
+                              : const Color(0xFF6B7280))
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isOnline
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFF6B7280),
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.drive_eta_rounded,
+                      color: isOnline
+                          ? const Color(0xFF22C55E)
+                          : const Color(0xFF6B7280),
+                      size: 22,
+                    ),
                   ),
-                  _MenuRow(
-                    icon: Icons.map_rounded,
-                    iconColor: const Color(0xFFEF4444),
-                    title: 'Demand Heatmap',
-                    subtitle: 'Find surge zones nearby',
-                    onTap: () =>
-                        Navigator.of(context).pushNamed('/driver-heatmap'),
-                    divider: true,
+                  const SizedBox(height: 12),
+                  Text(
+                    isOnline ? "You're On Duty" : "You're Off Duty",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  _MenuRow(
-                    icon: Icons.insights_rounded,
-                    iconColor: const Color(0xFF22C55E),
-                    title: 'Performance & Tier',
-                    subtitle: 'Score, tier & smart tips',
-                    onTap: () =>
-                        Navigator.of(context).pushNamed('/driver-performance'),
-                    divider: true,
+                  const SizedBox(height: 2),
+                  Text(
+                    isOnline
+                        ? 'Ready to receive new orders'
+                        : 'Go online to get orders',
+                    style: const TextStyle(
+                        color: Color(0xFF6B7280), fontSize: 12, height: 1.3),
                   ),
-                  _MenuRow(
-                    icon: Icons.emoji_events_rounded,
-                    iconColor: const Color(0xFF6366F1),
-                    title: 'Leaderboard',
-                    subtitle: 'Your ranking among drivers',
-                    onTap: () =>
-                        Navigator.of(context).pushNamed('/driver-leaderboard'),
-                    divider: true,
-                  ),
-                  _MenuRow(
-                    icon: Icons.card_giftcard_rounded,
-                    iconColor: const Color(0xFF10B981),
-                    title: 'Refer a Driver',
-                    subtitle: 'Earn a bonus for every referral',
-                    onTap: () =>
-                        Navigator.of(context).pushNamed('/driver-referral'),
-                    divider: false,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // ── PEAK HOURS TIP ───────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lightbulb_rounded,
-                    color: AppTheme.primaryColor,
-                    size: 15,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '${_formatPeakHours()} — Stay online for more orders.',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton.icon(
+                      onPressed: _togglingAvailability
+                          ? null
+                          : () => _toggleAvailability(driver, currentUserId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isOnline
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFF1A1B24),
+                        foregroundColor:
+                            isOnline ? Colors.white : const Color(0xFF22C55E),
+                        elevation: 0,
+                        side: isOnline
+                            ? null
+                            : const BorderSide(color: Color(0xFF22C55E)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      icon: _togglingAvailability
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.power_settings_new_rounded,
+                              size: 18),
+                      label: Text(
+                        isOnline ? 'Go Offline' : 'Go Online',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Live map card ──────────────────────────────────────────────────────────
+  Widget _mapCard(Driver driver, Order? order) {
+    final driverLat = driver.currentLatitude;
+    final driverLng = driver.currentLongitude;
+    final dropLat = order?.deliveryLatitude;
+    final dropLng = order?.deliveryLongitude;
+
+    // No active delivery → simple placeholder panel.
+    if (order == null || dropLat == null || dropLng == null) {
+      return Container(
+        height: 150,
+        decoration: BoxDecoration(
+          color: const Color(0xFF12131C),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF1E1F2A)),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.map_rounded, color: Color(0xFF2A2D3E), size: 40),
+              SizedBox(height: 8),
+              Text(
+                'No active delivery',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+              ),
+            ],
           ),
         ),
+      );
+    }
 
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+    final drop = LatLng(dropLat, dropLng);
+    final points = <LatLng>[drop];
+    final markers = <Marker>[
+      Marker(
+        point: drop,
+        width: 40,
+        height: 40,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: const Icon(Icons.home_rounded, color: Colors.white, size: 18),
+        ),
+      ),
+    ];
+
+    double? distanceKm;
+    LatLng? driverPos;
+    if (driverLat != null && driverLng != null) {
+      driverPos = LatLng(driverLat, driverLng);
+      points.add(driverPos);
+      distanceKm =
+          DeliveryFeeService.haversineKm(driverLat, driverLng, dropLat, dropLng);
+      markers.add(
+        Marker(
+          point: driverPos,
+          width: 34,
+          height: 34,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF22C55E),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(Icons.two_wheeler_rounded,
+                color: Colors.white, size: 16),
+          ),
+        ),
+      );
+    }
+
+    final etaMin = distanceKm != null ? (distanceKm / 25 * 60).round() : null;
+    final center = _centerOf(points);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        height: 200,
+        child: Stack(
+          children: [
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: distanceKm != null && distanceKm < 3 ? 14 : 12.5,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom |
+                      InteractiveFlag.drag |
+                      InteractiveFlag.doubleTapZoom,
+                ),
+              ),
+              children: [
+                appMapTileLayer(),
+                if (driverPos != null)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: [driverPos, drop],
+                        strokeWidth: 4,
+                        color: const Color(0xFF3B82F6),
+                      ),
+                    ],
+                  ),
+                MarkerLayer(markers: markers),
+              ],
+            ),
+            // "Next delivery in X min" pill
+            if (etaMin != null)
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A0B10).withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Next delivery in',
+                            style: TextStyle(
+                                color: Color(0xFF9CA3AF), fontSize: 10),
+                          ),
+                          Text(
+                            '$etaMin min',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            // Customer distance pill
+            if (distanceKm != null)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A0B10).withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.home_rounded,
+                          color: Color(0xFFEF4444), size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Customer  ${distanceKm.toStringAsFixed(1)} km',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  LatLng _centerOf(List<LatLng> pts) {
+    if (pts.isEmpty) return const LatLng(18.0179, -76.8099); // Kingston
+    double lat = 0, lng = 0;
+    for (final p in pts) {
+      lat += p.latitude;
+      lng += p.longitude;
+    }
+    return LatLng(lat / pts.length, lng / pts.length);
+  }
+
+  // ── Current delivery card ──────────────────────────────────────────────────
+  Widget _currentDeliveryCard(Order order) {
+    final restaurant =
+        ref.watch(restaurantByIdProvider(order.restaurantId)).valueOrNull;
+    // Driver earns their share (80%) of the delivery fee, plus any tip — same
+    // formula as the Active Deliveries card, so both screens agree.
+    final earnings =
+        order.deliveryFee * AppConstants.driverPayPercent + (order.driverTip ?? 0);
+    final displayId = order.id.substring(0, 8).toUpperCase();
+
+    // Stage: 0 at pickup, 1 picked up, 2 on the way, 3 delivered.
+    final int stage;
+    switch (order.status) {
+      case 'delivered':
+        stage = 3;
+        break;
+      case 'out_for_delivery':
+        stage = 2;
+        break;
+      case 'picked_up':
+        stage = 1;
+        break;
+      default:
+        stage = 0;
+    }
+
+    String fmtTime(DateTime? t) {
+      if (t == null) return '';
+      final l = t.toLocal();
+      final h = l.hour % 12 == 0 ? 12 : l.hour % 12;
+      final m = l.minute.toString().padLeft(2, '0');
+      return '$h:$m ${l.hour < 12 ? 'AM' : 'PM'}';
+    }
+
+    final isPriority = order.isPriority;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isPriority ? const Color(0xFF2A1A0E) : const Color(0xFF12131C),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPriority ? const Color(0xFFEA580C) : const Color(0xFF1E1F2A),
+          width: isPriority ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          if (isPriority)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEA580C),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.flash_on_rounded, size: 14, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text('⚡ PRIORITY DELIVERY',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3)),
+                ],
+              ),
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: (restaurant?.imageUrl != null &&
+                          restaurant!.imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          restaurant.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _restThumbFallback(),
+                        )
+                      : _restThumbFallback(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22C55E),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'Food',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      restaurant?.name ?? 'Restaurant',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded,
+                            color: Color(0xFF6B7280), size: 13),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            order.deliveryAddress ?? 'Delivery address',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Color(0xFF9CA3AF), fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1B24),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Order #$displayId',
+                        style: const TextStyle(
+                            color: Color(0xFF9CA3AF), fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Earnings',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+                  ),
+                  Text(
+                    '${AppConstants.currencySymbol}${earnings.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Color(0xFF22C55E),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _statusActionButton(order, stage),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pushNamed('/active-deliveries'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFF2A2D3E)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+              label: const Text('View Details',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFF1E1F2A)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _progressStep('Picked Up', stage >= 1 ? fmtTime(order.confirmedAt) : '',
+                  Icons.check_rounded, stage >= 1, stage == 1),
+              _progressLine(stage >= 2),
+              _progressStep('On the Way',
+                  stage == 2 ? 'ETA soon' : '', Icons.two_wheeler_rounded,
+                  stage >= 2, stage == 2),
+              _progressLine(stage >= 3),
+              _progressStep('Deliver', fmtTime(order.estimatedDeliveryAt),
+                  Icons.home_rounded, stage >= 3, false),
+              _progressLine(stage >= 3),
+              _progressStep('Completed', fmtTime(order.completedAt),
+                  Icons.check_circle_rounded, stage >= 3, false),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Primary action that advances the delivery status. The final "delivered"
+  /// step routes to Active Deliveries, which handles PIN / cash-on-delivery /
+  /// float via the audited completeDelivery flow — we never mark delivered here.
+  Widget _statusActionButton(Order order, int stage) {
+    final busy = _advancingOrderId == order.id;
+    late final String label;
+    late final IconData icon;
+    late final VoidCallback onPressed;
+
+    switch (order.status) {
+      case 'ready':
+        label = 'Confirm Pickup';
+        icon = Icons.shopping_bag_rounded;
+        onPressed = () => _advanceOrderStatus(order, AppConstants.orderPickedUp);
+        break;
+      case 'picked_up':
+        label = 'Start Delivery — On the Way';
+        icon = Icons.two_wheeler_rounded;
+        onPressed =
+            () => _advanceOrderStatus(order, AppConstants.orderOnTheWay);
+        break;
+      case 'out_for_delivery':
+        label = 'Complete Delivery';
+        icon = Icons.check_circle_rounded;
+        onPressed = () => _completeDelivery(order);
+        break;
+      default:
+        label = 'View Details';
+        icon = Icons.chevron_right_rounded;
+        onPressed = () => Navigator.of(context).pushNamed('/active-deliveries');
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: ElevatedButton.icon(
+        onPressed: busy ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF22C55E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : Icon(icon, size: 18),
+        label: Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Future<void> _advanceOrderStatus(Order order, String toStatus) async {
+    if (_advancingOrderId != null) return;
+    setState(() => _advancingOrderId = order.id);
+    try {
+      await ref.read(orderServiceProvider).updateOrderStatus(order.id, toStatus);
+      final driverId = _lastDriver?.id;
+      if (driverId != null) {
+        ref.invalidate(activeDeliveriesProvider(driverId));
+      }
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          toStatus == AppConstants.orderPickedUp
+              ? 'Marked as picked up'
+              : 'On the way to the customer',
+        );
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _advancingOrderId = null);
+    }
+  }
+
+  /// Completes a delivery from the dashboard using the same audited flow as
+  /// Active Deliveries (COD confirmation, student-delivery check, float via
+  /// completeDelivery). Contactless orders still require PIN verification,
+  /// which lives on the Active Deliveries screen, so those are routed there.
+  Future<void> _completeDelivery(Order order) async {
+    if (order.contactlessDelivery && order.deliveryOtpVerified != true) {
+      AppSnackbar.info(
+        context,
+        'Contactless order — verify the customer\'s PIN in Order Details first.',
+      );
+      Navigator.of(context).pushNamed('/active-deliveries');
+      return;
+    }
+
+    final isCash = order.paymentMethod == 'cash';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E2030),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isCash ? 'Cash collected?' : 'Mark as Delivered?',
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          isCash
+              ? 'This is a Cash on Delivery order. Confirm you collected ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)} from the customer.'
+              : 'Confirm delivery of Order #${order.id.substring(0, 8).toUpperCase()}?',
+          style: const TextStyle(color: Color(0xFF9CA3AF)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF9CA3AF))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF22C55E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(isCash
+                ? 'Yes, collected ${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(0)}'
+                : 'Yes, Delivered'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _advancingOrderId = order.id);
+    try {
+      final proceed =
+          await ensureStudentDeliveryConfirmed(context, ref, order.id);
+      if (!proceed) return;
+
+      await ref.read(driverServiceProvider).completeDelivery(order.id);
+
+      final driverId = _lastDriver?.id;
+      if (driverId != null) {
+        ref.invalidate(activeDeliveriesProvider(driverId));
+        ref.invalidate(deliveryHistoryProvider(driverId));
+        ref.invalidate(driverStatsProvider(driverId));
+      }
+      final userId = ref.read(currentUserIdProvider);
+      if (userId != null) ref.invalidate(driverProfileProvider(userId));
+      if (mounted) AppSnackbar.success(context, 'Delivery completed!');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _advancingOrderId = null);
+    }
+  }
+
+  Widget _restThumbFallback() {
+    return Container(
+      color: const Color(0xFF1A1B24),
+      alignment: Alignment.center,
+      child: const Icon(Icons.restaurant_rounded,
+          color: Color(0xFF4B5563), size: 26),
+    );
+  }
+
+  Widget _progressStep(
+    String label,
+    String time,
+    IconData icon,
+    bool done,
+    bool current,
+  ) {
+    final active = done;
+    final color =
+        active ? const Color(0xFF22C55E) : const Color(0xFF2A2D3E);
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: active ? color : const Color(0xFF1A1B24),
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 1.5),
+            ),
+            child: Icon(
+              icon,
+              color: active ? Colors.white : const Color(0xFF4B5563),
+              size: 17,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: active ? Colors.white : const Color(0xFF6B7280),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (time.isNotEmpty)
+            Text(
+              time,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: current
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFF6B7280),
+                fontSize: 9.5,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressLine(bool active) {
+    return Container(
+      width: 16,
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 26),
+      color: active ? const Color(0xFF22C55E) : const Color(0xFF2A2D3E),
+    );
+  }
+
+  // ── Quick actions ──────────────────────────────────────────────────────────
+  Widget _quickActions(Driver driver) {
+    final availableCount = ref
+            .watch(availableOrdersProvider((
+              driverId: driver.id,
+              lat: driver.currentLatitude,
+              lng: driver.currentLongitude,
+            )))
+            .valueOrNull
+            ?.length ??
+        0;
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _quickAction(
+                Icons.map_rounded,
+                'View Map',
+                'Your current route',
+                const Color(0xFF22C55E),
+                () => Navigator.of(context).pushNamed('/active-deliveries'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _quickAction(
+                Icons.inbox_rounded,
+                'Available Orders',
+                availableCount == 1
+                    ? '1 new order'
+                    : '$availableCount new orders',
+                const Color(0xFF7C3AED),
+                () => Navigator.of(context).pushNamed('/available-orders'),
+                badge: availableCount > 0 ? '$availableCount' : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _quickAction(
+                Icons.account_balance_wallet_rounded,
+                'Earnings',
+                "Today's summary",
+                const Color(0xFFF59E0B),
+                () => Navigator.of(context)
+                    .pushNamed('/driver-earnings-advanced'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _quickAction(
+                Icons.headset_mic_rounded,
+                'Support',
+                'Need help?',
+                const Color(0xFF2563EB),
+                () => Navigator.of(context).pushNamed('/contact-support'),
+              ),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _quickAction(
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+    VoidCallback onTap, {
+    String? badge,
+  }) {
+    return Material(
+      color: const Color(0xFF12131C),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF1E1F2A)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 21),
+                  ),
+                  const Spacer(),
+                  if (badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                      ),
+                      child: Text(
+                        badge,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.chevron_right_rounded,
+                        color: Color(0xFF4B5563), size: 18),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1290,346 +2004,6 @@ class _GlassIconButton extends StatelessWidget {
         ),
         child: Icon(icon, color: const Color(0xFF9CA3AF), size: 19),
       ),
-    );
-  }
-}
-
-// ── Section Label ────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-      ),
-    );
-  }
-}
-
-// ── Mini Stat ────────────────────────────────────────────────────────────────
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Vertical Divider ─────────────────────────────────────────────────────────
-
-class _VertDivider extends StatelessWidget {
-  const _VertDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 32, color: const Color(0xFF1E1F2A));
-  }
-}
-
-// ── Service Card ─────────────────────────────────────────────────────────────
-
-class _ServiceCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool isEnabled;
-  final bool isLoading;
-  final bool locked;
-  final ValueChanged<bool> onToggle;
-
-  const _ServiceCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.isEnabled,
-    required this.isLoading,
-    required this.onToggle,
-    this.locked = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : () => onToggle(!isEnabled),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        decoration: BoxDecoration(
-          color: isEnabled
-              ? color.withValues(alpha: 0.08)
-              : const Color(0xFF12131C),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isEnabled
-                ? color.withValues(alpha: 0.35)
-                : const Color(0xFF1E1F2A),
-          ),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isEnabled
-                    ? color.withValues(alpha: 0.15)
-                    : const Color(0xFF1A1B24),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: isLoading
-                  ? Center(
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          color: color,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    )
-                  : locked
-                  ? const Icon(
-                      Icons.lock_rounded,
-                      color: Color(0xFF4B5563),
-                      size: 16,
-                    )
-                  : Icon(
-                      icon,
-                      color: isEnabled ? color : const Color(0xFF4B5563),
-                      size: 18,
-                    ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: locked
-                    ? const Color(0xFF4B5563)
-                    : isEnabled
-                    ? Colors.white
-                    : const Color(0xFF6B7280),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            // Mini toggle pill
-            Container(
-              width: 28,
-              height: 14,
-              decoration: BoxDecoration(
-                color: isEnabled ? color : const Color(0xFF2A2D3E),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: AnimatedAlign(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                alignment: isEnabled
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Action Card ──────────────────────────────────────────────────────────────
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF12131C),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF1E1F2A)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Menu Row ─────────────────────────────────────────────────────────────────
-
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final bool divider;
-
-  const _MenuRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    required this.divider,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 18),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFF4B5563),
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (divider)
-          const Divider(
-            height: 1,
-            indent: 68,
-            endIndent: 16,
-            color: Color(0xFF1E1F2A),
-          ),
-      ],
     );
   }
 }

@@ -15,6 +15,7 @@ import '../../widgets/menu_item_actions.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'group_order_detail_screen.dart';
+import 'restaurant_public_reviews_screen.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final Restaurant restaurant;
@@ -42,36 +43,53 @@ class _RestaurantDetailScreenState
   String? _selectedCategory;
   bool _startingGroupOrder = false;
   bool _savingToGroup = false;
-  bool? _isFavOverride;
-  bool _isFavLoading = false;
+
+  void _openReviews() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            RestaurantPublicReviewsScreen(restaurant: widget.restaurant),
+      ),
+    );
+  }
+
+  Future<void> _openMenuSearch() async {
+    final items =
+        ref.read(restaurantMenuProvider(widget.restaurant.id)).valueOrNull ??
+        const <MenuItem>[];
+    if (items.isEmpty) {
+      AppSnackbar.info(context, 'Menu is still loading — try again in a moment.');
+      return;
+    }
+    final selected = await showSearch<MenuItem?>(
+      context: context,
+      delegate: _MenuSearchDelegate(
+        restaurantName: widget.restaurant.name,
+        items: items,
+      ),
+    );
+    if (selected != null && mounted) {
+      _showMenuItemDetail(context, selected);
+    }
+  }
 
   Future<void> _toggleFav() async {
     final userId = ref.read(currentUserIdProvider);
-    if (userId == null || _isFavLoading) return;
-    final isFavNow =
-        _isFavOverride ??
-        (ref
-                .read(isFavoriteProvider((userId, widget.restaurant.id)))
-                .valueOrNull ??
-            false);
-    setState(() {
-      _isFavOverride = !isFavNow;
-      _isFavLoading = true;
-    });
+    if (userId == null) return;
     try {
-      final svc = ref.read(favoritesServiceProvider);
-      await svc.toggleFavorite(userId, widget.restaurant.id);
-      ref.invalidate(isFavoriteProvider((userId, widget.restaurant.id)));
-      ref.invalidate(favoriteRestaurantsProvider(userId));
+      // Uses the same shared favourites store as every heart button, so the
+      // detail screen and all cards stay in sync.
+      await ref
+          .read(favoriteRestaurantIdsProvider.notifier)
+          .toggle(widget.restaurant.id);
     } catch (_) {
-      if (mounted) setState(() => _isFavOverride = isFavNow);
-      if (mounted)
+      if (mounted) {
         AppSnackbar.error(
           context,
           'Could not update favourite. Please try again.',
         );
-    } finally {
-      if (mounted) setState(() => _isFavLoading = false);
+      }
     }
   }
 
@@ -298,10 +316,8 @@ class _RestaurantDetailScreenState
       restaurantMenuProvider(widget.restaurant.id),
     );
     final currentUserId = ref.watch(currentUserIdProvider);
-    final isFavAsync = currentUserId != null
-        ? ref.watch(isFavoriteProvider((currentUserId, widget.restaurant.id)))
-        : const AsyncValue<bool>.data(false);
-    final isFav = _isFavOverride ?? isFavAsync.valueOrNull ?? false;
+    final isFav = currentUserId != null &&
+        ref.watch(favoriteRestaurantIdsProvider).contains(widget.restaurant.id);
 
     return Scaffold(
       appBar: _showAppBar
@@ -366,6 +382,13 @@ class _RestaurantDetailScreenState
                 ),
                 IconButton(
                   icon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  onPressed: _openMenuSearch,
+                ),
+                IconButton(
+                  icon: Icon(
                     isFav ? Icons.favorite : Icons.favorite_outline,
                     color: isFav
                         ? AppTheme.accentColor
@@ -390,10 +413,10 @@ class _RestaurantDetailScreenState
                       ShareParams(
                         text:
                             '🍽️ $name$rating\n'
-                            '$cuisine • Order on QuickDash\n\n'
+                            '$cuisine • Order on HotBite\n\n'
                             'Use code NEWUSER for 30% off your first order!\n'
                             'https://quickdash.app/restaurant/$id',
-                        subject: 'Check out $name on QuickDash!',
+                        subject: 'Check out $name on HotBite!',
                       ),
                     );
                   },
@@ -565,6 +588,32 @@ class _RestaurantDetailScreenState
                           ),
                         );
                       },
+                    ),
+                    // Menu search — search this restaurant's menu from here.
+                    Positioned(
+                      top: 40,
+                      right: 64,
+                      child: GestureDetector(
+                        onTap: _openMenuSearch,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(
+                            Icons.search_rounded,
+                            size: 24,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
                     ),
                     Positioned(
                       top: 40,
@@ -756,6 +805,41 @@ class _RestaurantDetailScreenState
                                   ),
                                 ],
                               ],
+                            ),
+                          ),
+                          // Small button that jumps to the reviews section.
+                          GestureDetector(
+                            onTap: _openReviews,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.10,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.rate_review_outlined,
+                                    size: 14,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Reviews',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           Container(
@@ -1269,4 +1353,76 @@ class _RestaurantDetailScreenState
 
   Future<void> _showMenuItemDetail(BuildContext context, MenuItem item) =>
       presentMenuItemAndAddToCart(context, ref, item);
+}
+
+/// Full-screen search over one restaurant's menu — a familiar, friendly search
+/// UX (system search bar, live results, tap to open the item). Returns the
+/// chosen [MenuItem] so the caller can present it.
+class _MenuSearchDelegate extends SearchDelegate<MenuItem?> {
+  final String restaurantName;
+  final List<MenuItem> items;
+
+  _MenuSearchDelegate({required this.restaurantName, required this.items})
+      : super(searchFieldLabel: 'Search the menu');
+
+  List<MenuItem> _matches() {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return items;
+    return items
+        .where(
+          (m) =>
+              m.name.toLowerCase().contains(q) ||
+              (m.description ?? '').toLowerCase().contains(q) ||
+              m.category.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            onPressed: () => query = '',
+          ),
+      ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () => close(context, null),
+      );
+
+  @override
+  Widget buildResults(BuildContext context) => _buildList(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildList(context);
+
+  Widget _buildList(BuildContext context) {
+    final results = _matches();
+    if (results.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'No menu items match "$query"',
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, i) {
+        final item = results[i];
+        return MenuItemCard(
+          item: item,
+          onTap: () => close(context, item),
+          onAddTap: () => close(context, item),
+        );
+      },
+    );
+  }
 }

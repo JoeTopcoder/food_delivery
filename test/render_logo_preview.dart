@@ -61,7 +61,7 @@ void main() {
     await _shoot(
       t,
       'build/logo_preview_mark.png',
-      const SizedBox(width: 320, child: QuickDashMark(size: 300)),
+      const SizedBox(width: 320, child: HotBiteMark(size: 300)),
     );
   });
 
@@ -75,7 +75,7 @@ void main() {
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
         ),
-        child: const QuickDashMark(size: 168),
+        child: const HotBiteMark(size: 168),
       ),
       background: const Color(0xFF0B1220),
     );
@@ -91,7 +91,7 @@ void main() {
       const SizedBox(
         width: 312,
         height: 312,
-        child: Center(child: QuickDashMark(size: 250)),
+        child: Center(child: HotBiteMark(size: 250)),
       ),
       padding: EdgeInsets.zero,
       pixelRatio: 1024 / 312,

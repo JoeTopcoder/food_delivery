@@ -2,23 +2,79 @@ import 'package:flutter/material.dart';
 import 'app_cached_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/feature_providers.dart';
 import '../../models/recommendation_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/recommendation_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/restaurant_card.dart';
-import 'package:food_driver/config/app_constants.dart';
+import 'favorite_heart_button.dart';
+import '../utils/rating_format.dart';
 
 // ════════════════════════════════════════════════════════════════
 // Smart Offer Banner — shows AI-generated coupon at top of screen
 // ════════════════════════════════════════════════════════════════
+
+/// Admin-set home notice (any custom message). Refreshes when app_config changes.
+final homeAnnouncementProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  ref.watch(configVersionProvider); // refetch when an admin updates it
+  try {
+    final res = await Supabase.instance.client.rpc('home_announcement');
+    return (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+  } catch (_) {
+    return <String, dynamic>{};
+  }
+});
+
+/// App closure status ("we're closed today"). Drives the top banner + checkout.
+final appClosureProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  ref.watch(configVersionProvider);
+  try {
+    final res = await Supabase.instance.client.rpc('app_closure_status');
+    return (res is Map) ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+  } catch (_) {
+    return <String, dynamic>{};
+  }
+});
 
 class SmartOfferBanner extends ConsumerWidget {
   const SmartOfferBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // App closed for the day takes the very top priority.
+    final closure = ref.watch(appClosureProvider).maybeWhen(
+          data: (c) => c['closed_today'] == true ? c : null,
+          orElse: () => null,
+        );
+    if (closure != null) {
+      return _AnnouncementBanner(
+        text: (closure['message'] as String?)?.trim().isNotEmpty == true
+            ? (closure['message'] as String).trim()
+            : "We're closed today. You can still browse and schedule an order for another day.",
+        style: 'warning',
+      );
+    }
+
+    // Admin-set custom notice takes next priority (e.g. "We're closing early").
+    final announcement = ref.watch(homeAnnouncementProvider).maybeWhen(
+          data: (a) => (a['active'] == true &&
+                  (a['text'] as String?)?.trim().isNotEmpty == true)
+              ? a
+              : null,
+          orElse: () => null,
+        );
+    if (announcement != null) {
+      return _AnnouncementBanner(
+        text: (announcement['text'] as String).trim(),
+        style: (announcement['style'] as String?) ?? 'notice',
+      );
+    }
+
     // Apology coupons (code starts with SORRY) take priority and override
     // every other offer banner — the user just had a bad experience.
     final activeCouponsAsync = ref.watch(activeCouponsProvider);
@@ -511,18 +567,30 @@ class _SmartRestaurantCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
-                  ? AppCachedImage(
-                      url: rec.imageUrl,
-                      height: cardWidth * 0.61,
-                      width: cardWidth,
-                      decodeWidth: 360,
-                    )
-                  : _imagePlaceholder(),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
+                  child: rec.imageUrl != null && rec.imageUrl!.isNotEmpty
+                      ? AppCachedImage(
+                          url: rec.imageUrl,
+                          height: cardWidth * 0.61,
+                          width: cardWidth,
+                          decodeWidth: 360,
+                        )
+                      : _imagePlaceholder(),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: FavoriteHeartButton(
+                    restaurantId: rec.restaurantId,
+                    size: 30,
+                  ),
+                ),
+              ],
             ),
             // Info
             Padding(
@@ -550,7 +618,7 @@ class _SmartRestaurantCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        rec.rating.toStringAsFixed(1),
+                        formatRating(rec.rating),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -608,10 +676,10 @@ class _SmartRestaurantCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (rec.estimatedDeliveryTime != null) ...[
+                  if (rec.estimatedDeliveryTime != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
                         Icon(
                           Icons.schedule_rounded,
                           size: 12,
@@ -625,17 +693,9 @@ class _SmartRestaurantCard extends StatelessWidget {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(width: 8),
                       ],
-                      Text(
-                        '${AppConstants.currencySymbol}${rec.deliveryFee.toStringAsFixed(0)} delivery',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -897,8 +957,126 @@ class GrocerySmartSections extends ConsumerWidget {
 // ════════════════════════════════════════════════════════════════
 
 /// Scrolling ticker-notification banner shown when the customer has an
-/// apology coupon (code starts with SORRY). The message runs continuously
-/// from right to left, mimicking a system notification / news ticker.
+/// Admin-set custom notice banner (any message). Shows the FULL wording
+/// (wraps up to a few lines) — used for things like closures or announcements.
+class _AnnouncementBanner extends StatelessWidget {
+  const _AnnouncementBanner({required this.text, required this.style});
+  final String text;
+  final String style;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = switch (style) {
+      'warning' => (const [Color(0xFFDC2626), Color(0xFFB91C1C)], 'NOTICE', Icons.warning_amber_rounded),
+      'info' => (const [Color(0xFF2563EB), Color(0xFF1D4ED8)], 'INFO', Icons.info_rounded),
+      _ => (const [Color(0xFFFF6B35), Color(0xFFEA580C)], 'NOTICE', Icons.campaign_rounded),
+    };
+    final colors = palette.$1;
+    final badge = palette.$2;
+    final icon = palette.$3;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        boxShadow: [BoxShadow(color: colors.last.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      // IntrinsicHeight gives the stretch Row a bounded height. Without it,
+      // this banner sits in a SliverToBoxAdapter (unbounded height), so
+      // CrossAxisAlignment.stretch forces the colored badge to infinite height
+      // and the whole home layout collapses to a blank screen.
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              color: Colors.white.withValues(alpha: 0.18),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(height: 3),
+              Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
+            ]),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: _Marquee(
+                text: text,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.3),
+              ),
+            ),
+          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A continuous horizontal marquee — scrolls its text right-to-left and loops,
+/// so a long message runs fully across the banner.
+class _Marquee extends StatefulWidget {
+  const _Marquee({required this.text, required this.style});
+  final String text;
+  final TextStyle style;
+  static const double gap = 64;
+  @override
+  State<_Marquee> createState() => _MarqueeState();
+}
+
+class _MarqueeState extends State<_Marquee> {
+  final _sc = ScrollController();
+  bool _running = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  Future<void> _start() async {
+    if (_running) return;
+    _running = true;
+    while (mounted && _sc.hasClients) {
+      final max = _sc.position.maxScrollExtent;
+      if (max <= 0) {
+        await Future.delayed(const Duration(seconds: 1));
+        continue;
+      }
+      await _sc.animateTo(max,
+          duration: Duration(milliseconds: (max * 22).round().clamp(4000, 60000)),
+          curve: Curves.linear);
+      if (!mounted || !_sc.hasClients) break;
+      _sc.jumpTo(0);
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
+    _running = false;
+  }
+
+  @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Two copies with a gap so the text keeps flowing seamlessly.
+    return SingleChildScrollView(
+      controller: _sc,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Row(children: [
+        Text(widget.text, maxLines: 1, softWrap: false, style: widget.style),
+        const SizedBox(width: _Marquee.gap),
+        Text(widget.text, maxLines: 1, softWrap: false, style: widget.style),
+      ]),
+    );
+  }
+}
+
+/// apology coupon (code starts with SORRY). Runs the full message as a marquee.
 class _ApologyCouponBanner extends ConsumerStatefulWidget {
   const _ApologyCouponBanner({required this.coupon});
   final SmartCoupon coupon;
@@ -908,33 +1086,7 @@ class _ApologyCouponBanner extends ConsumerStatefulWidget {
       _ApologyCouponBannerState();
 }
 
-class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    // Slower = more readable; adjust duration to taste.
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 14),
-    )..repeat();
-
-    // Slides from just off the right edge (1.2, 0) to just off the left (-1.2, 0)
-    _slide = Tween<Offset>(
-      begin: const Offset(1.2, 0),
-      end: const Offset(-1.2, 0),
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.linear));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
+class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner> {
   void _onTap() {
     Clipboard.setData(ClipboardData(text: widget.coupon.code));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -955,18 +1107,29 @@ class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
     return GestureDetector(
       onTap: _onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFB91C1C), Color(0xFFDC2626), Color(0xFFB91C1C)],
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
             // ── Left badge ─────────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: Colors.black.withValues(alpha: 0.15),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              color: Colors.white.withValues(alpha: 0.18),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -989,24 +1152,17 @@ class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
               ),
             ),
 
-            // ── Scrolling text ──────────────────────────────────────────────
+            // ── Running message (marquee — the full wording scrolls across) ──
             Expanded(
-              child: ClipRect(
-                child: SlideTransition(
-                  position: _slide,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      message,
-                      maxLines: 1,
-                      softWrap: false,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                child: _Marquee(
+                  text: message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
@@ -1014,8 +1170,8 @@ class _ApologyCouponBannerState extends ConsumerState<_ApologyCouponBanner>
 
             // ── Right tap hint ──────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: Colors.black.withValues(alpha: 0.15),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              color: Colors.white.withValues(alpha: 0.18),
               child: const Icon(
                 Icons.touch_app_rounded,
                 color: Colors.white,

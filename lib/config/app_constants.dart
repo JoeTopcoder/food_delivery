@@ -1,6 +1,6 @@
 ﻿class AppConstants {
   // App Info
-  static const String appName = 'QuickDash';
+  static const String appName = 'HotBite';
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration (override via --dart-define at build time)
@@ -10,7 +10,7 @@
   );
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_TSislwYLCUtwfkUnglQWBQ_3drsd82-',
+    defaultValue: 'sb_publishable_Wws-3041OFpgbbNuh140Rw_AgZR5P52',
   );
 
   // Stripe Payment Configuration — Stripe is the ONLY payment method
@@ -40,8 +40,8 @@
   static const String termsOfServiceUrl = '$appBaseUrl/terms-of-service';
 
   // ── Compliance / Legal ────────────────────────────────────────────────────
-  static const String appDisplayName = 'QuickDash';
-  static const String businessLegalName = 'QuickDash Technologies Limited';
+  static const String appDisplayName = 'HotBite';
+  static const String businessLegalName = 'HotBite Delivery Limited';
   static const String supportEmailAddress = 'support@quickdash.app';
   static const String supportPhoneDisplay = 'TODO_CONFIGURE';
   static const String supportWhatsAppDisplay = 'TODO_CONFIGURE';
@@ -331,10 +331,11 @@
         (h >= peakHoursStart2 && h < peakHoursEnd2);
   }
 
-  // Loyalty
-  static double loyaltyPointValue = 0.01;
+  // Loyalty (DB-driven via app_config; these are fallback defaults)
+  // 3 pts per $100 × $1.00/pt = $3 back per $100 spent (3% effective reward).
+  static double loyaltyPointValue = 1.00;
   static double loyaltyMaxRedemptionPercent = 0.20;
-  static int loyaltyPointsPer100 = 10;
+  static int loyaltyPointsPer100 = 3;
   static int loyaltyTierSilverThreshold = 500;
   static int loyaltyTierGoldThreshold = 2000;
   static int loyaltyTierPlatinumThreshold = 5000;
@@ -358,7 +359,7 @@
   // customer rather than by us.
   static List<double> presetTips = [200, 300, 500, 1000];
 
-  // Subscription (QuickDash+) — overridden from app_config table
+  // Subscription (HotBite+) — overridden from app_config table
   static double subscriptionBasicPrice = 12.0;
   static int subscriptionBasicDeliveries = 9;
   static double subscriptionProPrice = 24.0;
@@ -384,24 +385,27 @@
   static bool maintenanceMode = false;
 
   // ── Service Toggles (controlled by admin via app_config) ─────────────────
+  // Optional verticals fail CLOSED: hidden unless app_config explicitly enables
+  // them, so a customer never sees an inactive service if config hasn't loaded
+  // or the key is missing. Food & grocery are the core services (default on).
   static bool serviceFoodEnabled = true;
   static bool serviceGroceryEnabled = true;
-  static bool serviceRidesEnabled = true;
-  static bool serviceLaundryEnabled = true;
-  static bool serviceCarServiceEnabled = true;
+  static bool serviceRidesEnabled = false;
+  static bool serviceLaundryEnabled = false;
+  static bool serviceCarServiceEnabled = false;
 
   // ── Grocery white-label storefront ───────────────────────────────────────
   // Partner grocery stores are anonymised to customers: they never see the real
   // store name (e.g. "Loshusan Supermarket"), only this brand or a per-store
   // public alias. Admin / store owner / driver still see the real name.
-  static String groceryPublicBrand = 'Quickdash Groceries';
+  static String groceryPublicBrand = 'HotBite Groceries';
 
   // Customer bottom-nav tab visibility (admin-controlled via app_config).
   // false = tab hidden from customers entirely.
   static bool screenHomeEnabled = true;
   static bool screenGroceryEnabled = true;
   static bool screenOrdersEnabled = true;
-  static bool screenCarServicesEnabled = true;
+  static bool screenCarServicesEnabled = false;
   static bool screenProfileEnabled = true;
 
   /// Canonical food categories surfaced on the customer home screen.

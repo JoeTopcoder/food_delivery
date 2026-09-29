@@ -385,12 +385,18 @@ class _OrderCard extends ConsumerWidget {
     );
     final orderScore = scoreAsync.valueOrNull;
 
+    // Priority orders get a full orange-tinted card so they stand out at a
+    // glance in the driver's available list.
+    final isPriority = order.isPriority;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2030),
+        color: isPriority ? const Color(0xFF2A1A0E) : const Color(0xFF1E2030),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF2A2D3E)),
+        border: Border.all(
+          color: isPriority ? const Color(0xFFEA580C) : const Color(0xFF2A2D3E),
+          width: isPriority ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,9 +419,12 @@ class _OrderCard extends ConsumerWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF162016),
-              border: Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
+            decoration: BoxDecoration(
+              color: isPriority
+                  ? const Color(0xFF3A2410)
+                  : const Color(0xFF162016),
+              border: const Border(
+                  bottom: BorderSide(color: Color(0xFF2A2D3E))),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,6 +527,39 @@ class _OrderCard extends ConsumerWidget {
                               ),
                             ],
                           ],
+                        ),
+                        const SizedBox(height: 4),
+                        if (order.isPriority) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEA580C),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.flash_on_rounded,
+                                    size: 12, color: Colors.white),
+                                SizedBox(width: 3),
+                                Text('PRIORITY ORDER',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Text(
+                          'Order #${order.id.substring(0, 8).toUpperCase()}',
+                          style: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -723,6 +765,7 @@ class _OrderCard extends ConsumerWidget {
                       ? () => _openNavigation(dropLat, dropLng)
                       : null,
                 ),
+                _CustomerNameRow(orderId: order.id),
               ],
             ),
           ),
@@ -834,6 +877,7 @@ class _OrderCard extends ConsumerWidget {
                           final driverService = ref.read(driverServiceProvider);
                           await driverService.declineOrder(order.id, driverId);
                           ref.invalidate(availableOrdersProvider);
+                          ref.invalidate(driverStatsProvider(driverId));
                           if (context.mounted) {
                             AppSnackbar.info(context, 'Order declined');
                           }
@@ -956,6 +1000,51 @@ class _OrderCard extends ConsumerWidget {
             child: const Text(
               'Accept',
               style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Customer name row (prominent) ──────────────────────────────────────────
+
+class _CustomerNameRow extends ConsumerWidget {
+  final String orderId;
+  const _CustomerNameRow({required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(driverCustomerNameProvider(orderId)).maybeWhen(
+          data: (n) => n,
+          orElse: () => 'Customer',
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFF60A5FA).withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_rounded,
+                size: 16, color: Color(0xFF60A5FA)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

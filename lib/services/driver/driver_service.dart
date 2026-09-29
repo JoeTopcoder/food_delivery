@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -256,6 +257,20 @@ class DriverService {
         'declined_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'driver_id,order_id');
       AppLogger.info('Driver $driverId declined order $orderId');
+      // Recompute the driver's acceptance/decline stats so the decline rate
+      // reflects this decline immediately. Uses a lightweight SQL RPC (the
+      // heavier driver-intelligence edge function is unreliable). Awaited so
+      // that by the time this returns, driver_stats is current and the caller
+      // can safely refresh the stats view. A failed recompute must not fail
+      // the decline itself — the row is already recorded.
+      try {
+        await _supabaseClient.rpc(
+          'recompute_driver_acceptance',
+          params: {'p_driver_id': driverId},
+        );
+      } catch (e) {
+        AppLogger.error('decline stats recompute failed: $e');
+      }
     } catch (e) {
       AppLogger.error('Error declining order: $e');
       rethrow;
@@ -269,10 +284,17 @@ class DriverService {
     String? driverId,
     double? driverLat,
     double? driverLng,
-    double radiusKm = 2.0,
+    double radiusKm = 3.0,
   }) async {
     try {
       AppLogger.info('Fetching available orders for delivery');
+
+      // Strict proximity: a driver must have a known location to be offered any
+      // order. No location -> no orders (they can't be within range of a store).
+      if (driverLat == null || driverLng == null) {
+        AppLogger.info('No driver location — offering no orders (strict proximity)');
+        return <Order>[];
+      }
 
       // Fetch recently declined order IDs for this driver
       Set<String> declinedOrderIds = {};
@@ -291,6 +313,54 @@ class DriverService {
             .toSet();
       }
 
+      // Proper dispatching: a driver may hold at most 3 orders at once. Only
+      // offer enough ready orders to top them up to 3 — fewer when they already
+      // have active deliveries (1 active -> offer 2, 2 active -> offer 1,
+      // 3 active -> offer none).
+      const maxConcurrent = 3;
+      int activeCount = 0;
+      if (driverId != null) {
+        final activeRows = await _supabaseClient
+            .from(AppConstants.tableOrders)
+            .select('id')
+            .eq('driver_id', driverId)
+            .not('status', 'in', '(delivered,cancelled)');
+        activeCount = (activeRows as List).length;
+      }
+      final maxSlots = (maxConcurrent - activeCount).clamp(0, maxConcurrent);
+      if (maxSlots <= 0) {
+        AppLogger.info(
+          'Driver has $activeCount active orders (max $maxConcurrent) — offering no new orders',
+        );
+        return <Order>[];
+      }
+
+      // HotBite Priority: fetch this driver's standing + the configured minimum
+      // standing per order class. PRIORITY/PREMIUM orders are only offered to
+      // drivers who meet the bar — NORMAL orders remain open to everyone, so a
+      // low standing never locks a driver out of ordinary work.
+      String driverStanding = 'STANDARD';
+      Map<String, dynamic> classMinStanding = const {};
+      if (driverId != null) {
+        try {
+          final dRow = await _supabaseClient
+              .from('drivers')
+              .select('priority_standing')
+              .eq('id', driverId)
+              .maybeSingle();
+          driverStanding =
+              (dRow?['priority_standing'] as String?) ?? 'STANDARD';
+          final cfg = await _supabaseClient
+              .from('driver_priority_config')
+              .select('assignment')
+              .eq('id', 1)
+              .maybeSingle();
+          classMinStanding = ((cfg?['assignment']
+                  as Map<String, dynamic>?)?['class_min_standing']
+              as Map<String, dynamic>?) ?? const {};
+        } catch (_) {/* priority not configured — treat all as NORMAL */}
+      }
+
       final response = await _supabaseClient
           .from(AppConstants.tableOrders)
           .select('*, restaurants(latitude, longitude)')
@@ -303,6 +373,10 @@ class DriverService {
             AppConstants.orderConfirmed,
             AppConstants.orderPending,
           ])
+          // Customer Priority Delivery orders surface first, so a high-standing
+          // driver sees them ahead of standard work; distance/workload rules
+          // below still apply, so proximity continues to matter.
+          .order('is_priority', ascending: false)
           .order('ordered_at', ascending: false)
           .limit(50); // fetch extra to account for declined/distance filtering
 
@@ -311,19 +385,26 @@ class DriverService {
         // Skip orders this driver recently declined
         if (declinedOrderIds.contains(orderData['id'])) continue;
 
-        // Filter by proximity to restaurant (2 km default)
-        if (driverLat != null && driverLng != null) {
-          final rest = orderData['restaurants'] as Map<String, dynamic>?;
-          final rLat = (rest?['latitude'] as num?)?.toDouble();
-          final rLng = (rest?['longitude'] as num?)?.toDouble();
-          if (rLat != null && rLng != null) {
-            final dist = _haversineKm(driverLat, driverLng, rLat, rLng);
-            if (dist > radiusKm) continue;
-          }
+        // Priority-order gating: skip orders whose class this driver's standing
+        // doesn't meet. NORMAL orders are never gated.
+        final cls = (orderData['priority_class'] as String?) ?? 'NORMAL';
+        if (cls != 'NORMAL' &&
+            !_driverMeetsClass(driverStanding, classMinStanding[cls] as String?)) {
+          continue;
         }
 
-        // Cap at 5 orders per driver
-        if (orders.length >= 5) break;
+        // Strict proximity to the store (≤ radiusKm, default 3 km). An order
+        // whose store has no coordinates can't be distance-checked, so it is
+        // NOT offered — only orders from a store within range are shown.
+        final rest = orderData['restaurants'] as Map<String, dynamic>?;
+        final rLat = (rest?['latitude'] as num?)?.toDouble();
+        final rLng = (rest?['longitude'] as num?)?.toDouble();
+        if (rLat == null || rLng == null) continue;
+        final dist = _haversineKm(driverLat, driverLng, rLat, rLng);
+        if (dist > radiusKm) continue;
+
+        // Cap so active + offered never exceeds the 3-order max.
+        if (orders.length >= maxSlots) break;
 
         final itemsResponse = await _supabaseClient
             .from(AppConstants.tableOrderItems)
@@ -1088,6 +1169,23 @@ class DriverService {
           .update({'is_online': isOnline, 'updated_at': DateTime.now().toIso8601String()})
           .eq('id', driverId);
     }
+  }
+
+  /// Whether [standing] meets the minimum [required] standing for an order
+  /// class. Uses the fixed HotBite standing ladder; a null requirement (class
+  /// not configured) is always allowed.
+  static const _standingLadder = [
+    'NEEDS_IMPROVEMENT',
+    'STANDARD',
+    'GOOD_STANDING',
+    'PRIORITY',
+    'ELITE',
+  ];
+  bool _driverMeetsClass(String standing, String? required) {
+    if (required == null) return true;
+    final have = _standingLadder.indexOf(standing);
+    final need = _standingLadder.indexOf(required);
+    return (have < 0 ? 1 : have) >= (need < 0 ? 0 : need);
   }
 
   static double _haversineKm(

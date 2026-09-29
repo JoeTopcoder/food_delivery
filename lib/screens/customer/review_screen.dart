@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../../models/order_model.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/payment_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../config/app_constants.dart';
@@ -89,15 +90,33 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       );
 
       // Tip after the review is stored, and never in a way that can lose the
-      // review: if the wallet is short, the rating still counts and the
-      // customer is told only the tip failed.
+      // review: the rating still counts even if the card tip is cancelled or
+      // fails, and the customer is told only the tip failed. Tips are always
+      // charged to the customer's card (never the wallet), and only here —
+      // after the order has been delivered.
       var tipFailed = false;
       if (_tip != null && _tip! > 0) {
         try {
-          await Supabase.instance.client.rpc(
-            'add_driver_tip',
-            params: {'p_order_id': widget.order.id, 'p_amount': _tip},
+          final paymentService = ref.read(paymentServiceProvider);
+          final authUser = Supabase.instance.client.auth.currentUser;
+          final email = authUser?.email ?? '';
+          final name =
+              authUser?.userMetadata?['name'] as String? ?? 'Customer';
+          final result = await paymentService.presentStripePaymentSheet(
+            orderId: widget.order.id,
+            amount: _tip!,
+            customerEmail: email,
+            customerName: name,
+            type: 'tip',
           );
+          if (result != null) {
+            await service.tipDriver(
+              orderId: widget.order.id,
+              tipAmount: _tip!,
+            );
+          } else {
+            tipFailed = true; // customer cancelled the card sheet
+          }
         } catch (e) {
           tipFailed = true;
           if (mounted) AppSnackbar.error(context, friendlyError(e));
@@ -158,7 +177,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '100% goes to your driver, straight from your wallet.',
+            '100% goes to your driver, charged to your card.',
             style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),

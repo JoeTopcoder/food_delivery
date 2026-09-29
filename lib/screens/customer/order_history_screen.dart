@@ -5,14 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/order_model.dart';
 import '../../models/master_order_model.dart';
-import '../../models/menu_model.dart';
+import '../../services/reorder/reorder_flow.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../providers/promo_provider.dart';
-import '../../providers/loyalty_provider.dart';
-import '../../providers/address_provider.dart';
 import '../../config/supabase_config.dart';
 import '../../widgets/rate_driver_sheet.dart';
 import '../../widgets/order_countdown_timer.dart';
@@ -274,7 +271,7 @@ class _MasterOrderCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '#${masterOrder.masterOrderNumber ?? masterOrder.id.substring(0, 8).toUpperCase()}',
+                  '#${masterOrder.id.substring(0, 8).toUpperCase()}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -491,7 +488,7 @@ class _OrderCard extends ConsumerWidget {
                   ),
                 const Spacer(),
                 Text(
-                  '#${AppConstants.displayOrderNumber(order.receiptNumber, fallback: order.id.substring(0, 8).toUpperCase())}',
+                  '#${order.id.substring(0, 8).toUpperCase()}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -900,103 +897,11 @@ class _OrderCard extends ConsumerWidget {
     );
   }
 
-  void _reorder(BuildContext context, WidgetRef ref, Order order) async {
-    // Show a loading dialog while we fetch live menu items
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Preparing your order...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final menuService = ref.read(menuServiceProvider);
-      final cartNotifier = ref.read(cartProvider.notifier);
-
-      // Fetch live menu items in parallel
-      final futures = order.items
-          .map((item) => menuService.getMenuItemById(item.menuItemId))
-          .toList();
-      final fetchedItems = await Future.wait(futures);
-
-      // Pair fetched items with the original order items
-      final available = <({MenuItem item, OrderItem orderItem})>[];
-      final unavailable = <String>[];
-
-      for (int i = 0; i < order.items.length; i++) {
-        final live = fetchedItems[i];
-        final orig = order.items[i];
-        if (live != null && live.isAvailable && live.inStock) {
-          available.add((item: live, orderItem: orig));
-        } else {
-          unavailable.add(orig.itemName);
-        }
-      }
-
-      if (!context.mounted) return;
-      Navigator.pop(context); // close loading dialog
-
-      if (available.isEmpty) {
-        AppSnackbar.warning(
-          context,
-          'None of the items from this order are currently available.',
-        );
-        return;
-      }
-
-      // Clear cart and populate with live items
-      cartNotifier.clearCart();
-      for (final pair in available) {
-        for (int q = 0; q < pair.orderItem.quantity; q++) {
-          cartNotifier.addItem(pair.item);
-        }
-      }
-
-      // Reset checkout-related state so reorder behaves like a fresh
-      // cart -> checkout flow every time.
-      ref.read(appliedPromoProvider.notifier).clear();
-      ref.read(redeemPointsProvider.notifier).state = 0;
-      ref.read(groupOrderIdForCheckoutProvider.notifier).state = null;
-      ref.read(groupOrderParticipantCountProvider.notifier).state = 0;
-      ref.read(isPickupProvider.notifier).state = order.isPickup;
-      if (order.isPickup) {
-        ref.read(selectedAddressIdProvider.notifier).state = null;
-      }
-
-      // Navigate to checkout immediately
-      Navigator.pushNamed(context, '/checkout');
-
-      // If some items were unavailable, inform the user after navigation
-      if (unavailable.isNotEmpty) {
-        // Small delay so the snackbar appears on the checkout screen
-        await Future.delayed(const Duration(milliseconds: 400));
-        if (context.mounted) {
-          AppSnackbar.warning(
-            context,
-            '${unavailable.length} item(s) unavailable and were skipped: ${unavailable.join(', ')}',
-          );
-        }
-      }
-    } catch (e) {
-      AppLogger.error('Reorder error: $e');
-      if (context.mounted) {
-        Navigator.pop(context); // close loading dialog on error
-        AppSnackbar.error(context, 'Could not load items. Please try again.');
-      }
-    }
+  void _reorder(BuildContext context, WidgetRef ref, Order order) {
+    // Shared Order Again flow: re-checks live price/availability, prompts before
+    // replacing another restaurant's cart, and routes food vs grocery to the
+    // correct cart/checkout. Never silently clears the customer's cart.
+    ReorderFlow.start(context, ref, order);
   }
 
   void _showPostTipSheet(BuildContext context, WidgetRef ref, Order order) {
@@ -1137,7 +1042,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Center(
               child: Text(
-                'QuickDash',
+                'HotBite',
                 style: TextStyle(
                   fontSize: Responsive.headingLarge(context),
                   fontWeight: FontWeight.bold,
@@ -1148,7 +1053,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 4),
             Center(
               child: Text(
-                'Receipt #${AppConstants.displayOrderNumber(order.receiptNumber, fallback: order.id.substring(0, 8))}',
+                'Order #${order.id.substring(0, 8).toUpperCase()}',
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1240,7 +1145,7 @@ class _OrderCard extends ConsumerWidget {
             const SizedBox(height: 20),
             const Center(
               child: Text(
-                'Thank you for using QuickDash!',
+                'Thank you for using HotBite!',
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,

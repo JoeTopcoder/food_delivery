@@ -72,7 +72,7 @@ export async function handle(req: Request): Promise<Response> {
           payout_request_id: pr.id,
           requester_id: pr.requester_id,
           driver_id: pr.driver_id ?? '',
-          app: 'QuickDash',
+          app: 'HotBite',
         },
       },
       { idempotencyKey: `old_transfer_${pr.id}` },
@@ -86,7 +86,7 @@ export async function handle(req: Request): Promise<Response> {
         metadata: {
           payout_request_id: pr.id,
           transfer_id: transfer.id,
-          app: 'QuickDash',
+          app: 'HotBite',
         },
       },
       {

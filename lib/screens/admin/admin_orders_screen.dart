@@ -492,7 +492,7 @@ class _OrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '#$shortId',
+                        '#${shortId.toUpperCase()}',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -1421,7 +1421,6 @@ class _OrderDetailSheet extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final id = (order['id'] ?? '').toString();
     final shortId = id.length > 8 ? id.substring(0, 8) : id;
-    final receipt = (order['receipt_number'] ?? '').toString();
     final status = (order['status'] ?? 'unknown').toString();
     final user = order['users'] as Map?;
     final restaurant = order['restaurants'] as Map?;
@@ -1491,7 +1490,7 @@ class _OrderDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            receipt.isNotEmpty ? receipt : 'Order #$shortId',
+            'Order #${shortId.toUpperCase()}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 18),

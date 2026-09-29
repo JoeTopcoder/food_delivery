@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/theme_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../config/app_constants.dart';
@@ -11,7 +10,6 @@ class AppSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeModeProvider);
     final currentLocale = ref.watch(localeProvider);
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -21,19 +19,6 @@ class AppSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ── Theme Section ──
-          _SectionHeader(title: l10n.themeMode, icon: Icons.palette_outlined),
-          const SizedBox(height: 8),
-          _ThemeCard(
-            currentTheme: currentTheme,
-            isDark: isDark,
-            onChanged: (mode) {
-              ref.read(themeModeProvider.notifier).setThemeMode(mode);
-            },
-            l10n: l10n,
-          ),
-          const SizedBox(height: 24),
-
           // ── Language Section ──
           _SectionHeader(title: l10n.language, icon: Icons.language_outlined),
           const SizedBox(height: 8),
@@ -123,85 +108,6 @@ class _SectionHeader extends StatelessWidget {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
-    );
-  }
-}
-
-class _ThemeCard extends StatelessWidget {
-  final ThemeMode currentTheme;
-  final bool isDark;
-  final ValueChanged<ThemeMode> onChanged;
-  final AppLocalizations l10n;
-
-  const _ThemeCard({
-    required this.currentTheme,
-    required this.isDark,
-    required this.onChanged,
-    required this.l10n,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          children: [
-            _ThemeOption(
-              icon: Icons.light_mode_outlined,
-              label: l10n.light,
-              selected: currentTheme == ThemeMode.light,
-              onTap: () => onChanged(ThemeMode.light),
-            ),
-            const Divider(height: 1),
-            _ThemeOption(
-              icon: Icons.dark_mode_outlined,
-              label: l10n.dark,
-              selected: currentTheme == ThemeMode.dark,
-              onTap: () => onChanged(ThemeMode.dark),
-            ),
-            const Divider(height: 1),
-            _ThemeOption(
-              icon: Icons.settings_brightness_outlined,
-              label: l10n.system,
-              selected: currentTheme == ThemeMode.system,
-              onTap: () => onChanged(ThemeMode.system),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ThemeOption({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: selected ? AppTheme.primaryColor : null),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          color: selected ? AppTheme.primaryColor : null,
-        ),
-      ),
-      trailing: selected
-          ? Icon(Icons.check_circle, color: AppTheme.primaryColor)
-          : null,
-      onTap: onTap,
     );
   }
 }
