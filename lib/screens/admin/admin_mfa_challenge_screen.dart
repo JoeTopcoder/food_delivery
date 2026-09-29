@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/mfa_service.dart';
 import '../../utils/app_theme.dart';
+import 'admin_mfa_setup_screen.dart';
 import 'admin_overview_screen.dart';
 
 /// Post-login step-up for an admin with two-step verification enabled.
@@ -134,7 +135,21 @@ class _AdminMfaChallengeScreenState
       final ok = await _svc.verifyRecoveryCode(code);
       if (!mounted) return;
       if (ok) {
-        _toConsole();
+        // Recovery leaves the session at aal1, which the database now blocks
+        // for admin data. Route into re-enrolling a fresh authenticator, which
+        // reaches aal2; on completion, continue into the console.
+        setState(() => _busy = false);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AdminMfaSetupScreen(
+              forceEnroll: true,
+              onCompleted: () {
+                Navigator.of(context).pop();
+                _toConsole();
+              },
+            ),
+          ),
+        );
       } else {
         setState(() {
           _busy = false;
