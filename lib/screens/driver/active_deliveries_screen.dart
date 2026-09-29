@@ -9,6 +9,7 @@ import '../../providers/driver_provider.dart';
 import '../../providers/driver_intelligence_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../services/driver/delivery_fee_service.dart';
 import '../../services/location_service.dart';
@@ -338,7 +339,14 @@ class _ActiveDeliveriesScreenState
                               '/chat',
                               arguments: {
                                 'orderId': delivery.id,
-                                'otherPartyName': 'Customer',
+                                'otherPartyName': ref
+                                    .read(
+                                      driverCustomerNameProvider(delivery.id),
+                                    )
+                                    .maybeWhen(
+                                      data: (n) => n,
+                                      orElse: () => 'Customer',
+                                    ),
                                 'receiverId': delivery.userId,
                               },
                             );
@@ -688,15 +696,20 @@ class _DeliveryCard extends ConsumerWidget {
     final tipAmount = delivery.driverTip ?? 0;
     final totalPay = driverPay + tipAmount;
 
+    // Customer Priority Delivery orders get a full orange-tinted card.
+    final isPriority = delivery.isPriority;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2030),
+        color: isPriority ? const Color(0xFF2A1A0E) : const Color(0xFF1E2030),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isTracking
-              ? const Color(0xFF22C55E).withValues(alpha: 0.4)
-              : const Color(0xFF2A2D3E),
+          color: isPriority
+              ? const Color(0xFFEA580C)
+              : isTracking
+                  ? const Color(0xFF22C55E).withValues(alpha: 0.4)
+                  : const Color(0xFF2A2D3E),
+          width: isPriority ? 2 : 1,
         ),
       ),
       child: Column(
@@ -717,9 +730,12 @@ class _DeliveryCard extends ConsumerWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF162016),
-              border: Border(bottom: BorderSide(color: Color(0xFF2A2D3E))),
+            decoration: BoxDecoration(
+              color: isPriority
+                  ? const Color(0xFF3A2410)
+                  : const Color(0xFF162016),
+              border: const Border(
+                  bottom: BorderSide(color: Color(0xFF2A2D3E))),
             ),
             child: Row(
               children: [
@@ -755,6 +771,30 @@ class _DeliveryCard extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        if (isPriority) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEA580C),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.flash_on_rounded,
+                                    size: 11, color: Colors.white),
+                                SizedBox(width: 2),
+                                Text('PRIORITY',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -863,21 +903,33 @@ class _DeliveryCard extends ConsumerWidget {
                       ? () => _openNav(dropLat, dropLng)
                       : null,
                 ),
+                _CustomerNameRow(
+                  orderId: delivery.id,
+                  customerUserId: delivery.userId,
+                ),
               ],
             ),
           ),
 
           // ── Cash: pay store + collect COD, side by side ─────────
+          // "Pay store" only shows for CASH_PAYMENT restaurants — the driver
+          // pays the food cost in cash from float. BANK_PAYMENT (and grocery)
+          // restaurants are settled via the payout run, so no cash to hand over.
           if (delivery.paymentMethod == 'cash' ||
               ((restaurant?.storeType ?? 'food') != 'grocery' &&
-                  delivery.subtotal > 0))
+                  delivery.subtotal > 0 &&
+                  (delivery.restaurantPaymentMethodSnapshot ?? 'CASH_PAYMENT') ==
+                      'CASH_PAYMENT'))
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: _DeliveryCashRow(
                 delivery: delivery,
                 showPayStore:
                     (restaurant?.storeType ?? 'food') != 'grocery' &&
-                    delivery.subtotal > 0,
+                    delivery.subtotal > 0 &&
+                    (delivery.restaurantPaymentMethodSnapshot ??
+                            'CASH_PAYMENT') ==
+                        'CASH_PAYMENT',
               ),
             ),
 
@@ -1021,6 +1073,123 @@ class _DeliveryCard extends ConsumerWidget {
     } else {
       await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
     }
+  }
+}
+
+// ─── Customer name row (prominent) ──────────────────────────────────────────
+
+class _CustomerNameRow extends ConsumerStatefulWidget {
+  final String orderId;
+  final String customerUserId;
+  const _CustomerNameRow({
+    required this.orderId,
+    required this.customerUserId,
+  });
+
+  @override
+  ConsumerState<_CustomerNameRow> createState() => _CustomerNameRowState();
+}
+
+class _CustomerNameRowState extends ConsumerState<_CustomerNameRow> {
+  bool _calling = false;
+
+  Future<void> _callCustomer(String name) async {
+    if (_calling) return;
+    if (widget.customerUserId.isEmpty) {
+      AppSnackbar.warning(context, 'Cannot call — no customer found');
+      return;
+    }
+    setState(() => _calling = true);
+    try {
+      final call = await ref.read(chatServiceProvider).initiateCall(
+            orderId: widget.orderId,
+            receiverId: widget.customerUserId,
+          );
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/call',
+          arguments: {
+            'call': call,
+            'isCaller': true,
+            'otherPartyName': name,
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _calling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = ref.watch(driverCustomerNameProvider(widget.orderId)).maybeWhen(
+          data: (n) => n,
+          orElse: () => 'Customer',
+        );
+    // Responsive call button — scales with screen width, never a fixed size.
+    final btnSize = (Responsive.width(context) * 0.115).clamp(40.0, 54.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFF60A5FA).withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_rounded,
+                size: 16, color: Color(0xFF60A5FA)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: btnSize,
+            height: btnSize,
+            child: Material(
+              color: const Color(0xFF22C55E),
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _calling ? null : () => _callCustomer(name),
+                child: Center(
+                  child: _calling
+                      ? SizedBox(
+                          width: btnSize * 0.4,
+                          height: btnSize * 0.4,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          Icons.call_rounded,
+                          color: Colors.white,
+                          size: btnSize * 0.44,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

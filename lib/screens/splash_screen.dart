@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 import '../features/auth/screens/auth_launch_gate_screen.dart';
 import '../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../modules/laundry/screens/provider/laundry_provider_dashboard_screen.dart';
@@ -11,10 +12,9 @@ import '../screens/driver/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';
 import '../screens/restaurant/restaurant_dashboard_screen.dart';
-import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_gate.dart';
 import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
-import '../web/admin/admin_web_app.dart';
 import '../web/customer/customer_web_app.dart';
 import '../widgets/quickdash_logo.dart';
 import '../widgets/riding_courier.dart';
@@ -230,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen>
                               vertical: 18,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Colors.transparent,
                               borderRadius: BorderRadius.circular(28),
                               boxShadow: [
                                 BoxShadow(
@@ -240,7 +240,17 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child: const QuickDashMark(size: 168),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'assets/images/app_icon.png',
+                                width: 200,
+                                height: 140,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const HotBiteMark(size: 168),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -260,7 +270,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Opacity(
                           opacity: _titleOpacity.value,
                           child: Text(
-                            'QuickDash',
+                            'HotBite',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w800,
@@ -525,11 +535,37 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   late final Animation<double> _titleSlide;
   late final Animation<double> _shimmer;
 
+  VideoPlayerController? _videoController;
+  bool _videoReady = false;
+
+  // Keep the splash (and its background video) visible for at least this long
+  // on cold start, so the video is actually seen before we navigate on.
+  static const _minVisible = Duration(milliseconds: 3200);
+  final DateTime _startedAt = DateTime.now();
+
   bool _navigated = false;
+
+  Future<void> _awaitMinVisible() async {
+    final elapsed = DateTime.now().difference(_startedAt);
+    if (elapsed < _minVisible) {
+      await Future.delayed(_minVisible - elapsed);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+
+    // Cold-start splash background video (muted, looping). Best-effort: if it
+    // fails to load we simply fall back to the gradient behind the content.
+    _videoController = VideoPlayerController.asset('assets/video/splash_bg.mp4')
+      ..setLooping(true)
+      ..setVolume(0)
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _videoReady = true);
+        _videoController?.play();
+      }).catchError((_) {});
 
     _bgController = AnimationController(
       duration: const Duration(milliseconds: 2400),
@@ -579,7 +615,9 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     _navigateToGate();
   }
 
-  void _navigateToGate() {
+  Future<void> _navigateToGate() async {
+    if (!mounted || _navigated) return;
+    await _awaitMinVisible();
     if (!mounted || _navigated) return;
     _navigated = true;
     Navigator.of(context).pushReplacement(
@@ -664,15 +702,12 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
             // Admin visiting the restaurant portal — sign out, show landing page
             await ref.read(authNotifierProvider.notifier).signOut();
             destination = const RestaurantLandingPage();
-          } else if (kIsWeb && (_webMode == 'full' || _webMode == 'admin')) {
-            destination = const RoleGuard(
-              allowedRoles: ['admin'],
-              child: AdminWebApp(),
-            );
           } else {
+            // Two-step verification gate before the console loads (AdminGate
+            // renders the web or mobile console once MFA is satisfied).
             destination = const RoleGuard(
               allowedRoles: ['admin'],
-              child: AdminDashboardScreen(),
+              child: AdminGate(),
             );
           }
           break;
@@ -703,6 +738,8 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     }
 
     if (!mounted || _navigated) return;
+    await _awaitMinVisible();
+    if (!mounted || _navigated) return;
     _navigated = true;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -725,6 +762,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
     _logoController.dispose();
     _contentController.dispose();
     _bgController.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -734,24 +772,38 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Gradient background
-          AnimatedBuilder(
-            animation: _shimmer,
-            builder: (_, __) => Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: const [
-                    Color(0xFF0B1220),
-                    Color(0xFF1743B5),
-                    Color(0xFF0B1220),
-                  ],
-                  stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
+          // Background video (full-bleed, cover) once ready; gradient until then.
+          if (_videoReady && _videoController != null)
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController!.value.size.width,
+                height: _videoController!.value.size.height,
+                child: VideoPlayer(_videoController!),
+              ),
+            )
+          else
+            AnimatedBuilder(
+              animation: _shimmer,
+              builder: (_, __) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: const [
+                      Color(0xFF0B1220),
+                      Color(0xFF1743B5),
+                      Color(0xFF0B1220),
+                    ],
+                    stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
+
+          // Dark scrim over the video so the logo, title and spinner stay legible.
+          if (_videoReady)
+            Container(color: Colors.black.withValues(alpha: 0.5)),
 
           // Floating decorative circles
           ..._buildCircles(MediaQuery.of(context).size),
@@ -775,7 +827,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                           vertical: 18,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
@@ -785,7 +837,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                             ),
                           ],
                         ),
-                        child: const QuickDashMark(size: 168),
+                        child: const HotBiteMark(size: 168),
                       ),
                     ),
                   ),
@@ -803,7 +855,7 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
                       child: Column(
                         children: [
                           Text(
-                            'QuickDash',
+                            'HotBite',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w800,

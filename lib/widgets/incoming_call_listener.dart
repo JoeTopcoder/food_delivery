@@ -85,17 +85,19 @@ class _IncomingCallListenerState extends ConsumerState<IncomingCallListener>
       // Fetch caller's name then navigate
       Supabase.instance.client
           .from('users')
-          .select('name')
+          .select('name, role')
           .eq('id', callerId)
           .maybeSingle()
           .then((row) {
             final callerName = row?['name'] as String?;
+            final callerRole = row?['role'] as String?;
             widget.navigatorKey.currentState?.pushNamed(
               '/call',
               arguments: {
                 'call': call,
                 'isCaller': false,
                 'otherPartyName': callerName,
+                'callerRole': callerRole,
               },
             );
           })

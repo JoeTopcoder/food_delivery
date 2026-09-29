@@ -21,7 +21,7 @@ class GroceryService {
   /// customer. This replaces [Restaurant.name] with the store's per-store
   /// public alias (`public_name`) or the global brand fallback, and blanks the
   /// real logo (`imageUrl` → '') unless a `public_image_url` is set, so the UI
-  /// falls back to the default Quickdash grocery logo. All other fields — id,
+  /// falls back to the default HotBite grocery logo. All other fields — id,
   /// fees, coordinates, store_type — are preserved for fulfilment.
   /// Use ONLY in customer paths; owner/admin/driver paths keep the real name.
   static Restaurant maskGroceryStore(Map<String, dynamic> row) {
@@ -121,7 +121,7 @@ class GroceryService {
 
   /// Admin: read a store's customer-facing storefront override.
   /// Returns (publicName, publicImageUrl); either may be null (falls back to
-  /// the global "Quickdash Groceries" brand and the default logo).
+  /// the global "HotBite Groceries" brand and the default logo).
   Future<({String? publicName, String? publicImageUrl})> getStorePublicStorefront(
     String storeId,
   ) async {

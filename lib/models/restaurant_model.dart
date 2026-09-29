@@ -37,6 +37,9 @@ class Restaurant {
   final double? totalEarnings;
   final double? totalPaidOut;
   final String storeType; // 'food', 'grocery', or 'both'
+  final String restaurantPaymentMethod; // 'CASH_PAYMENT' or 'BANK_PAYMENT'
+  final bool hotBiteNowEnabled; // opted into the HotBite Now fast-prep section
+  final int hotBiteNowPrepMinutes; // committed prep time (5–60)
   final String status; // 'draft' or 'active'
   final int onboardingStep;
   final String? stripeAccountId;
@@ -76,6 +79,9 @@ class Restaurant {
     this.totalEarnings,
     this.totalPaidOut,
     this.storeType = 'food',
+    this.restaurantPaymentMethod = 'CASH_PAYMENT',
+    this.hotBiteNowEnabled = false,
+    this.hotBiteNowPrepMinutes = 15,
     this.status = 'active',
     this.onboardingStep = 0,
     this.stripeAccountId,
@@ -120,6 +126,9 @@ class Restaurant {
     double? totalEarnings,
     double? totalPaidOut,
     String? storeType,
+    String? restaurantPaymentMethod,
+    bool? hotBiteNowEnabled,
+    int? hotBiteNowPrepMinutes,
     String? status,
     int? onboardingStep,
     String? stripeAccountId,
@@ -160,6 +169,11 @@ class Restaurant {
       totalEarnings: totalEarnings ?? this.totalEarnings,
       totalPaidOut: totalPaidOut ?? this.totalPaidOut,
       storeType: storeType ?? this.storeType,
+      restaurantPaymentMethod:
+          restaurantPaymentMethod ?? this.restaurantPaymentMethod,
+      hotBiteNowEnabled: hotBiteNowEnabled ?? this.hotBiteNowEnabled,
+      hotBiteNowPrepMinutes:
+          hotBiteNowPrepMinutes ?? this.hotBiteNowPrepMinutes,
       status: status ?? this.status,
       onboardingStep: onboardingStep ?? this.onboardingStep,
       stripeAccountId: stripeAccountId ?? this.stripeAccountId,

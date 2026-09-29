@@ -227,12 +227,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ],
                       ),
                       child: const Center(
-                        child: QuickDashMark(size: 84),
+                        child: HotBiteMark(size: 84),
                       ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'QUICKDASH',
+                      'HotBite',
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,

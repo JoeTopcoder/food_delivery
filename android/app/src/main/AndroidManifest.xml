@@ -13,6 +13,8 @@
     <!-- Full-screen intent for incoming call screen -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Let calls ring when the app is swiped away on aggressive OEMs (Samsung, etc.) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -21,7 +23,7 @@
     <!-- Strip MEDIA_PROJECTION injected by io.agora.rtc:full-screen-sharing — not used by this app -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove"/>
     <application
-        android:label="QuickDash"
+        android:label="HotBite"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">

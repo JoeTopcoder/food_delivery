@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/notification_service.dart';
 import '../services/realtime_service.dart';
+import 'auth_provider.dart';
 
 /// Notification model for displaying in UI
 class AppNotification {
@@ -122,6 +124,25 @@ final notificationNotifierProvider =
 final unreadNotificationCountProvider = Provider<int>((ref) {
   final notifications = ref.watch(notificationNotifierProvider);
   return notifications.where((notification) => !notification.isRead).length;
+});
+
+/// DB-backed unread count for the CURRENT user (any role). Used for the header
+/// bell badge — the in-memory provider above only reflects notifications
+/// received while the app is open.
+final dbUnreadNotificationCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  final uid = ref.watch(currentUserIdProvider);
+  if (uid == null) return 0;
+  try {
+    final res = await Supabase.instance.client
+        .from('notifications')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('is_read', false);
+    return (res as List).length;
+  } catch (_) {
+    return 0;
+  }
 });
 
 /// Initialize notification service provider

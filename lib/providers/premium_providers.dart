@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/social/referral_service.dart';
 import '../services/food/favorites_service.dart';
+import 'auth_provider.dart';
 
 // ==================== REFERRAL PROVIDERS ====================
 
@@ -55,6 +56,73 @@ final isFavoriteProvider =
       final service = ref.watch(favoritesServiceProvider);
       return service.isFavorite(params.$1, params.$2);
     });
+
+/// Single shared source of truth for which restaurants the signed-in user has
+/// favourited. Every heart button across the app watches this, so toggling a
+/// favourite on any card, the restaurant detail screen, or the favourites list
+/// updates all of them at once. Holds the set of favourited restaurant ids.
+class FavoriteRestaurantsNotifier extends StateNotifier<Set<String>> {
+  FavoriteRestaurantsNotifier(this._ref, this._service, this._userId)
+      : super(<String>{}) {
+    _load();
+  }
+
+  final Ref _ref;
+  final FavoritesService _service;
+  final String? _userId;
+
+  Future<void> _load() async {
+    final uid = _userId;
+    if (uid == null) {
+      state = <String>{};
+      return;
+    }
+    final ids = await _service.getFavoriteRestaurantIds(uid);
+    if (mounted) state = ids;
+  }
+
+  bool isFavorite(String restaurantId) => state.contains(restaurantId);
+
+  /// Optimistically flips the favourite and persists it. On failure the local
+  /// state is rolled back so the UI never drifts from the database.
+  Future<void> toggle(String restaurantId) async {
+    final uid = _userId;
+    if (uid == null) return;
+    final wasFav = state.contains(restaurantId);
+    final next = Set<String>.from(state);
+    if (wasFav) {
+      next.remove(restaurantId);
+    } else {
+      next.add(restaurantId);
+    }
+    state = next;
+    try {
+      await _service.setFavorite(uid, restaurantId, !wasFav);
+      // Keep the favourites list screen in sync.
+      _ref.invalidate(favoriteRestaurantsProvider(uid));
+    } catch (_) {
+      if (!mounted) return;
+      final revert = Set<String>.from(state);
+      if (wasFav) {
+        revert.add(restaurantId);
+      } else {
+        revert.remove(restaurantId);
+      }
+      state = revert;
+      rethrow;
+    }
+  }
+}
+
+final favoriteRestaurantIdsProvider =
+    StateNotifierProvider<FavoriteRestaurantsNotifier, Set<String>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  return FavoriteRestaurantsNotifier(
+    ref,
+    ref.watch(favoritesServiceProvider),
+    userId,
+  );
+});
 
 final favoriteLaundryProvidersProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, userId) async {

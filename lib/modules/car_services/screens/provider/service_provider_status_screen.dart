@@ -25,7 +25,7 @@ class ServiceProviderStatusScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: _kBlueDark,
         foregroundColor: Colors.white,
-        title: const Text('QuickDash Car Services'),
+        title: const Text('HotBite Car Services'),
         automaticallyImplyLeading: true,
         actions: [
           TextButton(

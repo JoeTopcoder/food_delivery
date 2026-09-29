@@ -73,7 +73,7 @@ Deno.serve(async (request) => {
       })
       .eq("id", orderId)
       .neq("status", "delivered") // Prevent double-completion
-      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, subtotal, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km")
+      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, subtotal, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km, restaurant_payment_method_snapshot")
       .single();
 
     if (updateErr || !order) {
@@ -220,23 +220,40 @@ Deno.serve(async (request) => {
         .update(updateData)
         .eq("id", driverId);
 
-      // ── 4. Cash float for cash orders ───────────────────────────────
-      // On COD the driver collects the FULL order total from the customer in
-      // cash, so the float they hold equals the order total. Their delivery
-      // earning is tracked in total_earnings and settled via payout — it is not
-      // skimmed from the collected cash.
-      if (order.payment_method === "cash") {
-        const totalAmount = Number(order.total_amount) || 0;
-        const floatAmount = totalAmount;
+      // ── 4. Float settlement (ORDER MATTERS) ──────────────────────────
+      // Do the restaurant payment FIRST (driver fronts the food cost → float
+      // dips), then the COD collection LAST (driver collects the customer's
+      // cash → float recovers plus the platform's margin). This makes the
+      // ledger's running balance tell the real story, e.g. for a J$2,500 food /
+      // J$3,000 COD order starting at J$3,500:
+      //   − 2,500  Paid restaurant     → 1,000
+      //   + 3,000  Collected cash (COD)→ 4,000
 
-        if (floatAmount > 0) {
-          // Try atomic increment via RPC, fall back to manual
-          try {
-            await admin.rpc("increment_cash_float", {
-              p_driver_id: driverId,
-              p_amount: floatAmount,
-            });
-          } catch {
+      // 4a. Restaurant payment for CASH_PAYMENT orders (from driver float).
+      // pay_restaurant_from_float is payment-method-gated (CASH only) and
+      // idempotent in the DB: BANK_PAYMENT and grocery orders are a $0 no-op and
+      // are instead settled through the restaurant payout run.
+      try {
+        await admin.rpc("pay_restaurant_from_float", {
+          p_driver_id: driverId,
+          p_order_id: orderId,
+        });
+      } catch (_e) { /* non-fatal: float ledger best-effort */ }
+
+      // 4b. COD collection — the driver collected the FULL order total in cash.
+      // Recorded via the audited RPC so it shows in the float history
+      // ('cod_collection') and reconciles with the balance. Idempotent.
+      if (order.payment_method === "cash") {
+        try {
+          await admin.rpc("collect_cod_to_float", {
+            p_driver_id: driverId,
+            p_order_id: orderId,
+          });
+        } catch {
+          // Fallback: direct increment (keeps the balance correct even if the
+          // RPC/ledger write fails).
+          const totalAmount = Number(order.total_amount) || 0;
+          if (totalAmount > 0) {
             const { data: driverRow } = await admin
               .from("drivers")
               .select("cash_float")
@@ -245,35 +262,11 @@ Deno.serve(async (request) => {
             const currentFloat = Number(driverRow?.cash_float) || 0;
             await admin
               .from("drivers")
-              .update({ cash_float: currentFloat + floatAmount, updated_at: now })
+              .update({ cash_float: currentFloat + totalAmount, updated_at: now })
               .eq("id", driverId);
           }
         }
       }
-
-      // ── 4b. Restaurant payment for non-partner food orders ──────────────
-      // Restaurants aren't fully partnered yet, so the driver pays the food
-      // cost in cash at the counter. That comes out of their float; if the
-      // float goes negative, the platform owes the driver that reimbursement.
-      // Grocery (white-label partner) orders are settled directly, not fronted.
-      try {
-        const { data: rest } = await admin
-          .from("restaurants")
-          .select("store_type")
-          .eq("id", order.restaurant_id)
-          .maybeSingle();
-        const isGrocery = (rest?.store_type ?? "food") === "grocery";
-        const foodCost = Number(order.subtotal) || 0;
-        if (!isGrocery && foodCost > 0) {
-          await admin.rpc("apply_driver_float_change", {
-            p_driver_id: driverId,
-            p_amount: -foodCost,
-            p_type: "restaurant_payment",
-            p_order_id: orderId,
-            p_note: "Cash paid to restaurant for order items",
-          });
-        }
-      } catch (_e) { /* non-fatal: float ledger best-effort */ }
 
       driverStats = {
         completed_deliveries: completedCount,
@@ -395,9 +388,14 @@ Deno.serve(async (request) => {
         .catch(() => {});
     }
 
-    // ── 4c. Credit restaurant earnings ledger (fire-and-forget) ─────��───
+    // ── 4c. Credit restaurant earnings ledger (fire-and-forget) ─────────
+    // Only BANK_PAYMENT orders accrue restaurant earnings toward the payout
+    // run. CASH_PAYMENT orders were already settled to the restaurant through
+    // the driver's float above, so crediting earnings here would pay twice.
     const restaurantId = order.restaurant_id as string | null;
-    if (restaurantId) {
+    const restPayoutEligible =
+      (order.restaurant_payment_method_snapshot ?? "CASH_PAYMENT") === "BANK_PAYMENT";
+    if (restaurantId && restPayoutEligible) {
       const earningsSecretR = Deno.env.get("RELEASE_EARNINGS_SECRET") ?? "";
       Promise.all([
         admin.from("restaurants").select("owner_id").eq("id", restaurantId).single(),

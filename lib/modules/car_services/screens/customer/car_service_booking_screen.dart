@@ -1002,8 +1002,8 @@ class _ReviewStep extends ConsumerWidget {
               ignoring: walletBalance <= 0,
               child: _PaymentOption(
                 label: walletBalance > 0
-                    ? 'QuickDash Wallet (\$${walletBalance.toStringAsFixed(2)})'
-                    : 'QuickDash Wallet (no funds)',
+                    ? 'HotBite Wallet (\$${walletBalance.toStringAsFixed(2)})'
+                    : 'HotBite Wallet (no funds)',
                 icon: Icons.account_balance_wallet_rounded,
                 value: 'wallet',
                 groupValue: paymentMethod,

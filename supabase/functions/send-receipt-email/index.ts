@@ -37,16 +37,24 @@ function formatDate(dateStr: string): string {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "America/Jamaica",
+  });
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Jamaica",
   });
 }
 
-/// Customer-facing order number without the daily sequence suffix
-/// (e.g. "GRO-20260916-0002" -> "GRO-20260916").
-function displayReceipt(receipt: string): string {
-  return receipt.replace(/-\d+$/, "");
+/// Canonical order id shown to everyone — app order history, driver screens,
+/// admin and this email receipt — so the same order reads identically in every
+/// place: "#AA311238" (first 8 of the order UUID, upper-cased).
+function orderDisplayId(orderId: string): string {
+  return orderId.substring(0, 8).toUpperCase();
 }
 
 function escapeHtml(str: string): string {
@@ -66,9 +74,9 @@ interface OrderItem {
 }
 
 function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], restaurant: Record<string, unknown>, customerName: string): string {
-  const rawReceipt = order.receipt_number as string || `FD-${(order.id as string).substring(0, 8).toUpperCase()}`;
-  const receiptNumber = displayReceipt(rawReceipt);
+  const receiptNumber = orderDisplayId(order.id as string);
   const orderDate = formatDate(order.ordered_at as string);
+  const orderTime = formatTime(order.ordered_at as string);
   // White-label: grocery partner stores are anonymised to customers — show the
   // public brand / alias and hide the store address. Food stores show the real
   // name and address.
@@ -77,7 +85,7 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   const publicName = (restaurant.public_name as string || "").trim();
   const restName = escapeHtml(
     isGrocery
-      ? (publicName || "Quickdash Groceries")
+      ? (publicName || "HotBite Groceries")
       : (restaurant.name as string || "Restaurant"),
   );
   const restAddress = isGrocery
@@ -131,25 +139,44 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
   <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
 
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:32px 24px;text-align:center;">
-      <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">QuickDash</div>
-      <div style="color:rgba(255,255,255,0.85);font-size:14px;margin-top:4px;">Order Receipt</div>
+    <div style="background:#FF6B35;background:linear-gradient(135deg,#FF6B35 0%,#FF8C42 100%);border-radius:16px 16px 0 0;padding:32px 24px 28px;text-align:center;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+        <tr>
+          <td style="vertical-align:middle;padding-right:12px;">
+            <img src="https://yharweliruemjexmuuxn.supabase.co/storage/v1/object/public/banners/quickdash-logo.png"
+                 width="48" height="48" alt="HotBite"
+                 style="display:block;width:48px;height:48px;border-radius:12px;background:#ffffff;" />
+          </td>
+          <td style="vertical-align:middle;">
+            <div style="font-size:26px;line-height:30px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">HotBite</div>
+          </td>
+        </tr>
+      </table>
+      <div style="color:rgba(255,255,255,0.9);font-size:14px;line-height:20px;margin-top:10px;">Order Receipt</div>
     </div>
 
     <!-- Body -->
     <div style="background:#fff;padding:28px 24px;border-radius:0 0 16px 16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-      <!-- Receipt info -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Receipt</div>
-          <div style="font-weight:700;color:#1a1a2e;font-size:15px;">${escapeHtml(receiptNumber)}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
-          <div style="color:#1a1a2e;font-size:13px;">${orderDate}</div>
-        </div>
+      <!-- Celebratory banner -->
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-size:34px;line-height:38px;">🎉🛵💨</div>
+        <div style="font-size:19px;font-weight:800;color:#1a1a2e;margin-top:6px;">Woohoo! Your order is confirmed 🙌</div>
+        <div style="font-size:13px;color:#666;margin-top:4px;">Sit back and relax${isPickup ? "" : " — a rider is on the way"}. Good food is coming your way! 😋</div>
       </div>
+
+      <!-- Receipt info (table for email-client reliability) -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr>
+          <td style="vertical-align:top;padding:0;">
+            <div style="font-weight:700;color:#1a1a2e;font-size:15px;">${escapeHtml(receiptNumber)}</div>
+          </td>
+          <td style="vertical-align:top;padding:0;text-align:right;">
+            <div style="color:#1a1a2e;font-size:13px;">${orderDate}</div>
+            <div style="color:#999;font-size:12px;margin-top:2px;">${orderTime}</div>
+          </td>
+        </tr>
+      </table>
 
       <!-- Restaurant -->
       <div style="background:#f8f9fa;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
@@ -214,8 +241,9 @@ function buildReceiptHtml(order: Record<string, unknown>, items: OrderItem[], re
 
     <!-- Footer -->
     <div style="text-align:center;padding:24px 0;color:#999;font-size:12px;">
-      <div>Thank you for ordering with QuickDash!</div>
-      <div style="margin-top:4px;">If you have questions, contact support@quickdash.app</div>
+      <div style="font-size:15px;color:#FF6B35;font-weight:700;">Thanks for choosing HotBite! 🧡</div>
+      <div style="margin-top:6px;">Made with love in Jamaica 🇯🇲 — eat good, feel good. 🍽️✨</div>
+      <div style="margin-top:8px;">Questions? We've got you: support@quickdash.app</div>
     </div>
   </div>
 </body>
@@ -283,21 +311,19 @@ Deno.serve(async (request) => {
     const items = (order.order_items || []) as OrderItem[];
     const html = buildReceiptHtml(order, items, restaurant || {}, customerName);
 
-    // Customer-facing order number without the daily sequence suffix.
-    const receiptNumber = displayReceipt(
-      (order.receipt_number as string) || `FD-${orderId.substring(0, 8).toUpperCase()}`,
-    );
+    // Canonical order id, matching the app order history, driver and admin.
+    const receiptNumber = orderDisplayId(orderId);
     // White-label grocery stores in the subject line too.
     const st = restaurant?.store_type as string || "";
     const isGroceryStore = st === "grocery" || st === "both";
     const restName = isGroceryStore
-      ? ((restaurant?.public_name as string || "").trim() || "Quickdash Groceries")
-      : (restaurant?.name || "QuickDash");
+      ? ((restaurant?.public_name as string || "").trim() || "HotBite Groceries")
+      : (restaurant?.name || "HotBite");
 
     // ── 5. Send via Resend ───────────────────────────────────────────────
     const emailResult = await sendEmail({
       to: [customer.email],
-      subject: `Your QuickDash Receipt — ${receiptNumber} from ${restName}`,
+      subject: `Your HotBite Receipt — ${receiptNumber} from ${restName}`,
       html,
     });
 

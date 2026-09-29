@@ -119,6 +119,26 @@ async function getTaxRateForLocation(
   return 0; // outside all zones → no tax
 }
 
+/** Server-authoritative delivery-zone gate. A delivery address must fall inside
+ *  an active delivery_regions zone. When no zones are configured, delivery is
+ *  open everywhere (returns true), matching the client-side check. */
+async function addressInActiveZone(lat: number | null, lng: number | null): Promise<boolean> {
+  if (lat == null || lng == null) return false; // no coordinates → not serviceable
+  const { data: regions } = await admin
+    .from("delivery_regions")
+    .select("latitude, longitude, radius_km, polygon")
+    .eq("is_active", true);
+  if (!regions || regions.length === 0) return true; // no zones → allow all
+  for (const region of regions) {
+    if (region.polygon && Array.isArray(region.polygon) && region.polygon.length >= 3) {
+      if (pointInPolygon(lat, lng, region.polygon as Array<{lat: number; lng: number}>)) return true;
+    } else if (haversineKm(lat, lng, region.latitude, region.longitude) <= region.radius_km) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function pointInPolygon(lat: number, lng: number, polygon: Array<{lat: number; lng: number}>): boolean {
   let inside = false;
   const n = polygon.length;
@@ -260,6 +280,21 @@ Deno.serve(async (request) => {
     if (studentDelivery!.school_lng != null) deliveryLongitude = studentDelivery!.school_lng;
   }
 
+  // ── Delivery-zone gate (server-authoritative) ──────────────────────────────
+  // A delivery order must have coordinates inside an active delivery zone. This
+  // mirrors the client check but cannot be bypassed. Pickup orders are exempt.
+  if (!isPickup) {
+    const inZone = await addressInActiveZone(deliveryLatitude, deliveryLongitude);
+    if (!inZone) {
+      console.warn(`[place-order] address outside delivery zone, requestId=${requestId}`);
+      return json({
+        error: "This delivery address is outside our delivery area.",
+        code: "OUT_OF_DELIVERY_ZONE",
+        request_id: requestId,
+      }, 422);
+    }
+  }
+
   // ── PAYMENT GATE ───────────────────────────────────────────────────────────
   // card   → charge Stripe BEFORE insert; order only created on success
   // wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
@@ -351,6 +386,59 @@ Deno.serve(async (request) => {
           }, 409);
         }
       }
+    }
+
+    // ── Dynamic Peak Time surcharge (server-authoritative) ──────────────
+    // The client sends the peak fee it displayed. We re-derive the real peak
+    // fee from get_peak_time_state and, if they differ, correct the total so
+    // the customer is charged exactly the backend's amount — never a stale or
+    // tampered client value. Pickup orders carry no delivery surcharge.
+    const clientPeakFee = Math.max(0, Number(body.peak_fee) || 0);
+    let peakFee = 0;
+    if (!isPickup) {
+      try {
+        const { data: peakState } = await admin.rpc("get_peak_time_state");
+        const serverPeakFee = Math.max(0, Number(peakState?.fee) || 0);
+        peakFee = round2(serverPeakFee);
+      } catch (e) {
+        console.error(`[place-order] peak state lookup failed, peak fee=0: ${e}`);
+        peakFee = 0;
+      }
+    }
+    if (peakFee !== round2(clientPeakFee)) {
+      // Reconcile the total to the authoritative peak fee before charging.
+      totalAmount = round2(totalAmount - clientPeakFee + peakFee);
+      console.log(
+        `[place-order] peak fee corrected ${clientPeakFee} -> ${peakFee}, ` +
+          `total now ${totalAmount}, requestId=${requestId}`,
+      );
+    }
+
+    // ── Customer Priority Delivery (server-authoritative) ───────────────────
+    // The client sends whether the customer chose Priority and the fee it
+    // displayed. We ignore the client fee and re-derive the real one from
+    // config: Priority only applies when it's enabled AND has a positive fee.
+    // The total is reconciled so the customer is charged exactly what the
+    // backend decides. The priority fee is a delivery-side charge and never
+    // touches restaurant payout or driver float.
+    const clientWantsPriority = body.is_priority === true;
+    const clientPriorityFee = Math.max(0, Number(body.priority_fee) || 0);
+    const { data: prioCfg } = await admin.from("app_config").select("value")
+      .eq("key", "priority_delivery_enabled").maybeSingle();
+    const priorityEnabled = prioCfg?.value === "true" || prioCfg?.value === "1";
+    const configuredPriorityFee = await getConfig("priority_delivery_fee", 0);
+    let priorityFee = 0;
+    let isPriority = false;
+    if (clientWantsPriority && priorityEnabled && configuredPriorityFee > 0) {
+      priorityFee = round2(configuredPriorityFee);
+      isPriority = true;
+    }
+    if (priorityFee !== round2(clientPriorityFee)) {
+      totalAmount = round2(totalAmount - clientPriorityFee + priorityFee);
+      console.log(
+        `[place-order] priority fee corrected ${clientPriorityFee} -> ${priorityFee}, ` +
+          `total now ${totalAmount}, requestId=${requestId}`,
+      );
     }
 
     const defaultCommission = await getConfig("default_commission_rate", 0.15);
@@ -501,6 +589,11 @@ Deno.serve(async (request) => {
       commission_amount: commissionAmount,
       stripe_fee_amount: processorFee,
       is_pickup: isPickup,
+      peak_fee: peakFee,
+      is_priority: isPriority,
+      priority_fee: priorityFee,
+      priority_service_status: isPriority ? "requested" : "none",
+      priority_selected_at: isPriority ? now.toISOString() : null,
     };
 
     // Who the order is for. The school is snapshotted onto the order rather

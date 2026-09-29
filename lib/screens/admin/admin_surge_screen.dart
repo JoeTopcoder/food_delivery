@@ -35,6 +35,10 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
   @override
   Widget build(BuildContext context) {
     final zonesAsync = ref.watch(allSurgeZonesProvider);
+    // Surge zones only make sense inside a delivery zone, so adding one requires
+    // at least one active delivery zone to exist first.
+    final hasDeliveryZone =
+        (ref.watch(activeRegionsProvider).valueOrNull ?? const []).isNotEmpty;
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -45,8 +49,18 @@ class _AdminSurgeScreenState extends ConsumerState<AdminSurgeScreen> {
         foregroundColor: Colors.white,
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openMapPicker(context),
-        backgroundColor: AppTheme.primaryColor,
+        onPressed: hasDeliveryZone
+            ? () => _openMapPicker(context)
+            : () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Set a delivery zone first — surge zones can only be placed inside a delivery zone.'),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                ),
+        backgroundColor:
+            hasDeliveryZone ? AppTheme.primaryColor : Colors.grey,
         icon: const Icon(Icons.add_location_alt, color: Colors.white),
         label: const Text('New Zone', style: TextStyle(color: Colors.white)),
       ),
@@ -441,9 +455,12 @@ class _SurgeZoneMapPickerState extends ConsumerState<_SurgeZoneMapPicker> {
   Widget build(BuildContext context) {
     final regionsAsync = ref.watch(activeRegionsProvider);
     final regions = regionsAsync.valueOrNull ?? [];
-    final maxRadius = regions.isEmpty ? 20.0 : _maxAllowedRadius(_pin, regions);
+    // A surge zone can only be created inside an active delivery zone — there is
+    // no point surging where HotBite does not deliver. With no delivery zones
+    // set, surge zones cannot be placed at all.
+    final maxRadius = regions.isEmpty ? 0.0 : _maxAllowedRadius(_pin, regions);
     final insideRegion =
-        regions.isEmpty || _containingRegion(_pin, regions) != null;
+        regions.isNotEmpty && _containingRegion(_pin, regions) != null;
 
     // Clamp current radius if it exceeds the new max
     if (_radiusKm > maxRadius && maxRadius > 0) {

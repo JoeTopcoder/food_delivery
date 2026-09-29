@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/restaurant_model.dart';
 import '../utils/app_theme.dart';
 import 'app_cached_image.dart';
+import 'favorite_heart_button.dart';
 import '../core/utils/responsive.dart';
-import 'package:food_driver/config/app_constants.dart';
+import '../utils/rating_format.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
@@ -66,10 +67,11 @@ class RestaurantCard extends StatelessWidget {
                         )
                       : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
-                // Rating badge
+                // Rating badge (moved to bottom-left so the favorite button
+                // can sit at the top-right)
                 Positioned(
-                  top: spacing * 0.75,
-                  right: spacing * 0.75,
+                  bottom: spacing * 0.75,
+                  left: spacing * 0.75,
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: spacing * 0.5,
@@ -96,7 +98,7 @@ class RestaurantCard extends StatelessWidget {
                         ),
                         SizedBox(width: spacing * 0.2),
                         Text(
-                          '${restaurant.rating ?? '-'}',
+                          formatRating(restaurant.rating),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: Responsive.smallText(context),
@@ -131,6 +133,12 @@ class RestaurantCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+                // Favorite (save) button — top-right
+                Positioned(
+                  top: spacing * 0.75,
+                  right: spacing * 0.75,
+                  child: FavoriteHeartButton(restaurantId: restaurant.id),
                 ),
               ],
             ),
@@ -205,30 +213,6 @@ class RestaurantCard extends StatelessWidget {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(width: spacing * 0.75),
-                      Icon(
-                        Icons.delivery_dining_rounded,
-                        size: Responsive.isSmallPhone(context) ? 13 : 15,
-                        color: Colors.grey[700],
-                      ),
-                      SizedBox(width: spacing * 0.2),
-                      Flexible(
-                        child: Text(
-                          () {
-                            final fee = restaurant.deliveryFee;
-                            if (fee == null) return 'Delivery';
-                            if (fee <= 0) return 'Free delivery';
-                            return '${AppConstants.currencySymbol}${fee.toStringAsFixed(2)} delivery';
-                          }(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize:
-                                Responsive.smallText(context),
-                            color: Colors.grey[600],
-                          ),
                         ),
                       ),
                     ],

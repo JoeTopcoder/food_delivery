@@ -472,15 +472,39 @@ class ChatService {
     if (status == CallStatus.accepted) {
       updates['started_at'] = DateTime.now().toUtc().toIso8601String();
     }
-    if (status == CallStatus.ended ||
+    final isTerminal = status == CallStatus.ended ||
         status == CallStatus.missed ||
         status == CallStatus.declined ||
-        status == CallStatus.failed) {
+        status == CallStatus.failed;
+    if (isTerminal) {
       updates['ended_at'] = DateTime.now().toUtc().toIso8601String();
       // Clear stale token so the next call always gets a fresh one
       updates['agora_token'] = null;
     }
     await _client.from('calls').update(updates).eq('id', callId);
+
+    // When a call ends/declines, push a cancel to the OTHER party so their
+    // ringing/in-call UI (native CallKit when the app was closed, or the
+    // in-app screen) is dismissed — the realtime stream alone doesn't reach a
+    // device that only has the native call UI up.
+    if (isTerminal) {
+      try {
+        final call = await getCallById(callId);
+        final myId = _client.auth.currentUser?.id;
+        if (call != null && myId != null) {
+          final other =
+              call.callerId == myId ? call.receiverId : call.callerId;
+          if (other.isNotEmpty) {
+            await _client.functions.invoke(
+              'cancel-call-notification',
+              body: {'recipientUserId': other, 'callId': callId},
+            );
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('cancel-call push failed: $e');
+      }
+    }
   }
 
   /// Fetch a single call record by ID (to get the agora_token from the DB).

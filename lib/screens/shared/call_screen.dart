@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat_model.dart';
+import '../../models/order_model.dart';
+import '../../models/restaurant_model.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../services/social/agora_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
+import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';
 
 class CallScreen extends ConsumerStatefulWidget {
@@ -15,11 +19,16 @@ class CallScreen extends ConsumerStatefulWidget {
   final bool isCaller;
   final String? otherPartyName;
 
+  /// Role of the caller ('driver' | 'admin' | 'restaurant' | 'user'). Used to
+  /// show the receiver who's calling (e.g. "Driver", "HotBite").
+  final String? callerRole;
+
   const CallScreen({
     super.key,
     required this.call,
     required this.isCaller,
     this.otherPartyName,
+    this.callerRole,
   });
 
   @override
@@ -81,10 +90,25 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
     _listenForCallUpdates();
     _initCall();
+
+    // If the other party cancels/ends, a call_cancelled push arrives — close
+    // this screen immediately rather than waiting on the realtime row update.
+    NotificationService.onCallCancelled = (callId) {
+      if (!mounted) return;
+      if (callId != null && callId != widget.call.id) return;
+      if (_callStatus == CallStatus.ended) return;
+      _stopRinging();
+      _durationTimer?.cancel();
+      if (mounted) setState(() => _callStatus = CallStatus.ended);
+      _agora.leaveChannel().then((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
+    };
   }
 
   @override
   void dispose() {
+    NotificationService.onCallCancelled = null;
     _durationTimer?.cancel();
     _ringTimer?.cancel();
     _remoteLeftTimer?.cancel();
@@ -143,18 +167,29 @@ class _CallScreenState extends ConsumerState<CallScreen>
         _audioReady = true; // local audio is live once we join
         _isJoining = false;
         _joinRetryCount = 0;
+        _stageError = null; // a successful join clears any earlier transient error
       });
       await _agora.ensureAudioActive();
       _agora.setVolumes();
     };
     _agora.onUserJoined = (_) {
-      if (mounted) setState(() => _audioReady = true);
+      if (mounted) {
+        setState(() {
+          _audioReady = true;
+          _stageError = null; // remote joined — we're connected
+        });
+      }
       // Remote user reconnected — cancel any pending end-call timer
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
     };
     _agora.onRemoteAudioActive = () {
-      if (mounted) setState(() => _audioReady = true);
+      if (mounted) {
+        setState(() {
+          _audioReady = true;
+          _stageError = null; // audio flowing — connected
+        });
+      }
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
     };
@@ -447,115 +482,284 @@ class _CallScreenState extends ConsumerState<CallScreen>
     return '$m:$s';
   }
 
+  Color get _accent =>
+      widget.isCaller ? AppTheme.primaryColor : const Color(0xFF22C55E);
+
+  /// What the receiver sees as the caller. Admin → "HotBite", driver →
+  /// "Driver", restaurant → the store/name, otherwise the caller's name.
+  String get _displayName {
+    if (!widget.isCaller) {
+      switch (widget.callerRole) {
+        case 'admin':
+          return 'HotBite';
+        case 'driver':
+          return 'Driver';
+        case 'restaurant':
+          return widget.otherPartyName ?? 'Restaurant';
+      }
+    }
+    return widget.otherPartyName ?? 'Order Participant';
+  }
+
+  /// Small line under the name describing who this is on the call.
+  String? get _subtitle {
+    // The party being shown. When we're the caller, that's the other party's
+    // role, which we don't always know — so key off callerRole when we're the
+    // receiver, and infer "delivery driver" for the common customer↔driver case.
+    switch (widget.callerRole) {
+      case 'admin':
+        return 'HotBite Support';
+      case 'driver':
+        return 'Your delivery driver';
+      case 'restaurant':
+        return 'Restaurant';
+    }
+    // Caller side (e.g. driver calling the customer) — label the person we rang.
+    return widget.isCaller ? 'On your order' : null;
+  }
+
+  /// Avatar icon for role-based callers (initials look odd for "HotBite").
+  IconData? get _callerIcon {
+    if (widget.isCaller) return null;
+    switch (widget.callerRole) {
+      case 'admin':
+        return Icons.support_agent_rounded;
+      case 'driver':
+        return Icons.delivery_dining_rounded;
+      case 'restaurant':
+        return Icons.storefront_rounded;
+    }
+    return null;
+  }
+
+  String get _initials {
+    final parts = _displayName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
+        .toUpperCase();
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final accent = _accent;
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1117),
-      body: SafeArea(
-        child: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1F35), Color(0xFF0B0D16)],
+          ),
+        ),
+        child: Stack(
           children: [
-            const Spacer(flex: 2),
-            _buildAvatar(),
-            const SizedBox(height: 20),
-            Text(
-              widget.otherPartyName ?? 'Order Participant',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildStatusText(),
-            if (_callStatus == CallStatus.accepted) ...[
-              const SizedBox(height: 4),
-              Text(
-                _formattedDuration,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w300,
+            // Soft brand glow behind the avatar.
+            Positioned(
+              top: -60,
+              left: -40,
+              right: -40,
+              height: 360,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [accent.withValues(alpha: 0.22), Colors.transparent],
+                  ),
                 ),
               ),
-            ],
-            const SizedBox(height: 24),
-            _buildConnectionStages(),
-            const Spacer(flex: 3),
-            _buildControls(),
-            const SizedBox(height: 48),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 14),
+                  _topLabel(),
+                  const Spacer(flex: 2),
+                  _buildAvatar(),
+                  const SizedBox(height: 26),
+                  Text(
+                    _displayName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  if (_subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _subtitle!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _statusPill(),
+                  if (_callStatus == CallStatus.accepted) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      _formattedDuration,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 1.5,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  _buildConnectionStages(),
+                  const Spacer(flex: 3),
+                  _buildControls(),
+                  const SizedBox(height: 24),
+                  _buildOrderCard(),
+                  const SizedBox(height: 18),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _topLabel() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.phone_in_talk_rounded, size: 15, color: _accent),
+        const SizedBox(width: 6),
+        Text(
+          'HotBite Call',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: _buildStatusText(),
+    );
+  }
+
   Widget _buildAvatar() {
-    final ringColor = widget.isCaller
-        ? AppTheme.primaryColor
-        : const Color(0xFF22C55E);
-    if (_callStatus == CallStatus.ringing) {
-      return AnimatedBuilder(
-        animation: _pulseAnim,
-        builder: (_, _) => SizedBox(
-          width: 140,
-          height: 140,
+    final accent = _accent;
+    final ringing = _callStatus == CallStatus.ringing;
+    final connected = _callStatus == CallStatus.accepted;
+    final borderColor = connected
+        ? const Color(0xFF22C55E)
+        : (ringing ? accent : const Color(0xFF6B7280));
+
+    const radius = 28.0;
+    final core = Container(
+      width: 124,
+      height: 124,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.85),
+            accent.withValues(alpha: 0.45),
+          ],
+        ),
+        border: Border.all(color: borderColor, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: connected || ringing ? 0.45 : 0.25),
+            blurRadius: 28,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius - 3),
+        child: Image.asset(
+          'assets/images/app_icon.png',
+          width: 118,
+          height: 118,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _callerIcon != null
+              ? Icon(_callerIcon, color: Colors.white, size: 52)
+              : Text(
+                  _initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+        ),
+      ),
+    );
+
+    if (!ringing) return core;
+
+    // Animated pulse rings while ringing.
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (_, __) {
+        final t = (_pulseAnim.value - 1.0) / 0.35; // 0..1
+        return SizedBox(
+          width: 180,
+          height: 180,
           child: Stack(
             alignment: Alignment.center,
             children: [
               Transform.scale(
                 scale: _pulseAnim.value,
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: 150,
+                  height: 150,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(34),
                     border: Border.all(
-                      color: ringColor.withAlpha(
-                        (100 * (1.35 - _pulseAnim.value) / 0.35).round(),
-                      ),
-                      width: 2.5,
+                      color: accent.withValues(alpha: 0.35 * (1 - t)),
+                      width: 2,
                     ),
                   ),
                 ),
               ),
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1E2030),
-                  border: Border.all(color: ringColor, width: 3),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 48,
-                  color: Color(0xFF6B7280),
+              Transform.scale(
+                scale: 1 + (_pulseAnim.value - 1) * 0.6,
+                child: Container(
+                  width: 132,
+                  height: 132,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.5 * (1 - t)),
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
+              core,
             ],
           ),
-        ),
-      );
-    }
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFF1E2030),
-        border: Border.all(
-          color: _callStatus == CallStatus.accepted
-              ? const Color(0xFF22C55E)
-              : const Color(0xFF6B7280),
-          width: 3,
-        ),
-      ),
-      child: const Icon(
-        Icons.person_rounded,
-        size: 48,
-        color: Color(0xFF6B7280),
-      ),
+        );
+      },
     );
   }
 
@@ -567,11 +771,19 @@ class _CallScreenState extends ConsumerState<CallScreen>
       return const SizedBox.shrink();
     }
 
-    // Determine overall connection state
-    final bool isConnected = _channelReady && _audioReady;
+    // Determine overall connection state. Being in the Agora channel is
+    // authoritative — the flags can lag, and a transient onConnectionFailed
+    // must never surface once we're actually joined or the call is answered.
+    final bool isConnected = _agora.isInChannel ||
+        (_channelReady && _audioReady) ||
+        _callStatus == CallStatus.accepted;
     final bool hasFailed = _stageError != null;
 
-    if (!isConnected && !hasFailed) {
+    // Connected wins over a stale transient error — never show "Connection
+    // failed" once we're actually in the channel with audio.
+    if (isConnected) return const SizedBox.shrink();
+
+    if (!hasFailed) {
       // Still connecting — show a subtle spinner
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -634,7 +846,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
                 ],
               )
             : const Text(
-                'Incoming call',
+                'is calling…',
                 style: TextStyle(color: Color(0xFF22C55E), fontSize: 15),
               );
       case CallStatus.accepted:
@@ -666,6 +878,238 @@ class _CallScreenState extends ConsumerState<CallScreen>
           style: TextStyle(color: Color(0xFFEF4444), fontSize: 15),
         );
     }
+  }
+
+  // ── Bottom order card (real order + restaurant data) ───────────────────────
+  Widget _buildOrderCard() {
+    final orderId = widget.call.orderId;
+    if (orderId == null || orderId.isEmpty) return const SizedBox.shrink();
+
+    final orderAsync = ref.watch(orderByIdProvider(orderId));
+    return orderAsync.maybeWhen(
+      data: (order) {
+        if (order == null) return const SizedBox.shrink();
+        final restaurantAsync = ref.watch(
+          restaurantByIdProvider(order.restaurantId),
+        );
+        final restaurant = restaurantAsync.asData?.value;
+        return _orderCardShell(order, restaurant);
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _orderCardShell(Order order, Restaurant? restaurant) {
+    final itemName = _orderItemsLabel(order);
+    final restaurantName = restaurant?.name ?? 'your restaurant';
+    final imageUrl = restaurant?.imageUrl;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _thumbFallback(),
+                      )
+                    : _thumbFallback(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Order text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Your Order',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    itemName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'from $restaurantName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Status + ETA
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _statusChip(order.status),
+                if (_etaLabel(order) != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _etaLabel(order)!,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thumbFallback() {
+    return Container(
+      color: Colors.white.withValues(alpha: 0.08),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.restaurant_rounded,
+        color: Colors.white.withValues(alpha: 0.6),
+        size: 26,
+      ),
+    );
+  }
+
+  String _orderItemsLabel(Order order) {
+    if (order.items.isEmpty) {
+      return 'Order #${(order.receiptNumber ?? order.id).toString()}';
+    }
+    final first = order.items.first;
+    final name = first.quantity > 1
+        ? '${first.quantity}× ${first.itemName}'
+        : first.itemName;
+    final extra = order.items.length - 1;
+    return extra > 0 ? '$name  +$extra more' : name;
+  }
+
+  Widget _statusChip(String status) {
+    final label = _statusLabel(status);
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(status), size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'preparing':
+        return 'Preparing';
+      case 'ready':
+        return 'Ready';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status.isEmpty
+            ? 'Order'
+            : status[0].toUpperCase() + status.substring(1);
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'out_for_delivery':
+      case 'delivered':
+        return const Color(0xFF22C55E);
+      case 'preparing':
+      case 'ready':
+      case 'confirmed':
+        return const Color(0xFFF59E0B);
+      case 'cancelled':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF9CA3AF);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'out_for_delivery':
+        return Icons.delivery_dining_rounded;
+      case 'delivered':
+        return Icons.check_circle_rounded;
+      case 'preparing':
+      case 'ready':
+        return Icons.soup_kitchen_rounded;
+      case 'cancelled':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  /// "Arriving in N min" when we have a future ETA, else the order total.
+  String? _etaLabel(Order order) {
+    final eta = order.estimatedDeliveryAt;
+    if (eta != null) {
+      final mins = eta.difference(DateTime.now()).inMinutes;
+      if (mins > 0) return 'Arriving in $mins min';
+      if (mins > -5 && order.status == 'out_for_delivery') return 'Arriving soon';
+    }
+    return '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}';
   }
 
   Widget _buildControls() {
@@ -767,25 +1211,49 @@ class _CallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = large ? 72.0 : 56.0;
+    final size = large ? 74.0 : 62.0;
+    // "Glassy" neutral buttons keep a subtle translucent look; coloured action
+    // buttons (accept/decline/end) stay solid with a matching glow.
+    final isNeutral = color == const Color(0xFF2A2D3E);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: large ? 32 : 24),
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isNeutral ? Colors.white.withValues(alpha: 0.08) : color,
+            border: isNeutral
+                ? Border.all(color: Colors.white.withValues(alpha: 0.14))
+                : null,
+            boxShadow: isNeutral
+                ? null
+                : [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.45),
+                      blurRadius: 20,
+                      spreadRadius: 1,
+                    ),
+                  ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Icon(icon, color: Colors.white, size: large ? 32 : 26),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
