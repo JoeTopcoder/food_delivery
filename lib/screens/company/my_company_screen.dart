@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/company/company_service.dart';
 import '../../utils/app_theme.dart';
+import 'company_dashboard_screen.dart';
+import 'company_register_screen.dart';
 
 /// Employee "My Company": search a company, apply, and see application status.
 /// Uses the employee's normal HotBite account.
@@ -17,6 +20,7 @@ class _MyCompanyScreenState extends ConsumerState<MyCompanyScreen> {
   List<CompanyMembership> _memberships = [];
   bool _loading = true;
   bool _searching = false;
+  bool _ownsCompany = false;
 
   CompanyService get _svc => ref.read(companyServiceProvider);
 
@@ -36,6 +40,7 @@ class _MyCompanyScreenState extends ConsumerState<MyCompanyScreen> {
     setState(() => _loading = true);
     try {
       _memberships = await _svc.myMemberships();
+      _ownsCompany = (await _svc.myCompany()) != null;
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
@@ -157,9 +162,40 @@ class _MyCompanyScreenState extends ConsumerState<MyCompanyScreen> {
               'Approved employees of an active company can choose "Company-sponsored order" at checkout — once per day. Your company covers delivery and service fees.',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5, height: 1.4),
             ),
+            const Divider(height: 32),
+            _companyAdminFooter(),
           ],
         ),
       ),
     );
+  }
+
+  /// Dashboard access is only for company owners / HotBite admins. Regular
+  /// customers see a modest "Register a company" affordance instead — never a
+  /// company dashboard.
+  Widget _companyAdminFooter() {
+    final isHotbiteAdmin = ref.read(currentUserProvider)?.role == 'admin';
+    if (_ownsCompany || isHotbiteAdmin) {
+      return OutlinedButton.icon(
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const CompanyDashboardScreen())),
+        icon: const Icon(Icons.dashboard_customize_rounded),
+        label: const Text('Open company dashboard'),
+      );
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Are you a company?',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 12.5)),
+      TextButton.icon(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(context,
+              MaterialPageRoute(builder: (_) => const CompanyRegisterScreen()));
+          if (created == true) _loadMemberships();
+        },
+        style: TextButton.styleFrom(foregroundColor: AppTheme.primaryColor, padding: EdgeInsets.zero),
+        icon: const Icon(Icons.add_business_rounded, size: 18),
+        label: const Text('Register your company'),
+      ),
+    ]);
   }
 }
