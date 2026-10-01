@@ -49,6 +49,23 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 
+// Shared Member Savings split (integer JMD, mirrors SQL hotbite_member_split):
+// customer_saving = floor(available/2); HotBite takes the odd JMD; the customer
+// pays regular - customer_saving = store_member + hotbite_share. Store gets store_member.
+function memberSplit(regular: number, storeMember: number): {
+  customerPrice: number; customerSaving: number; hotbiteShare: number; storePayout: number; eligible: boolean;
+} {
+  const reg = Math.round(regular);
+  const sm = Math.round(storeMember);
+  if (!(sm > 0) || sm >= reg) {
+    return { customerPrice: reg, customerSaving: 0, hotbiteShare: 0, storePayout: reg, eligible: false };
+  }
+  const avail = reg - sm;
+  const cust = Math.floor(avail / 2);
+  const hb = avail - cust;
+  return { customerPrice: reg - cust, customerSaving: cust, hotbiteShare: hb, storePayout: sm, eligible: true };
+}
+
 async function notifyUser(userId: string, title: string, body: string, data: Record<string, string>) {
   try {
     const { data: user } = await admin.from("users").select("fcm_token").eq("id", userId).maybeSingle();
@@ -202,9 +219,53 @@ Deno.serve(async (request) => {
   const idempotencyKey = body.idempotency_key as string | undefined;
   // Set when a parent is sending this order to a linked student at school.
   const studentId = body.student_id as string | undefined;
+  // Company-sponsored ordering: { reservation_id } from company_reserve_sponsorship.
+  // company_service_fee is the UI-computed service fee the COMPANY absorbs (the
+  // employee is not charged it). Everything else (eligibility, pricing, the
+  // once-per-day slot) is validated/recorded server-side.
+  const sponsorship = body.company_sponsorship as { reservation_id?: string } | undefined;
+  const sponsorServiceFee = Math.max(0, Number(body.company_service_fee) || 0);
+  let sponsored = false;
+  let sponsorReservationId: string | null = null;
 
   if (!userId || !restaurantId || !items?.length || !deliveryAddress) {
     return json({ error: "Missing required fields", request_id: requestId }, 400);
+  }
+
+  // ── Company sponsorship: revalidate server-side & snap to company address ───
+  if (sponsorship?.reservation_id) {
+    const { data: resv } = await admin
+      .from("company_sponsorship_usage")
+      .select("id, company_id, user_id, status, expires_at")
+      .eq("id", sponsorship.reservation_id)
+      .maybeSingle();
+    if (!resv || resv.user_id !== userId || resv.status !== "reserved" ||
+        (resv.expires_at && new Date(resv.expires_at as string) < new Date())) {
+      return json({ error: "Company sponsorship reservation is invalid or expired.", request_id: requestId }, 409);
+    }
+    const { data: company } = await admin
+      .from("companies").select("*").eq("id", resv.company_id).maybeSingle();
+    const { data: member } = await admin
+      .from("company_members").select("status")
+      .eq("company_id", resv.company_id).eq("user_id", userId).maybeSingle();
+    if (!company || !company.is_active || member?.status !== "approved") {
+      await admin.rpc("company_release_sponsorship", { p_reservation_id: sponsorship.reservation_id }).catch(() => {});
+      return json({ error: "You are not an approved member of an active company.", request_id: requestId }, 403);
+    }
+    // Restaurant must be within the company's radius (server recompute).
+    const { data: chk } = await admin.rpc("company_check_restaurant", {
+      p_company_id: resv.company_id, p_restaurant_id: restaurantId,
+    });
+    if (!chk || chk.eligible !== true) {
+      return json({ error: "This restaurant is outside your company's delivery area.",
+                    reason: chk?.reason ?? "ineligible", request_id: requestId }, 422);
+    }
+    // Snap delivery to the company address — the employee cannot override it.
+    sponsored = true;
+    sponsorReservationId = sponsorship.reservation_id as string;
+    deliveryAddress = company.delivery_address as string;
+    deliveryLatitude = company.latitude as number;
+    deliveryLongitude = company.longitude as number;
   }
 
   // ── Idempotency check ─────────────────────────────────────────────────────
@@ -298,10 +359,14 @@ Deno.serve(async (request) => {
   // ── PAYMENT GATE ───────────────────────────────────────────────────────────
   // card   → charge Stripe BEFORE insert; order only created on success
   // wallet → deduct BEFORE insert (atomic); if deduction fails, no order created
-  // cash   → 'preparing' immediately (collected on delivery)
+  // cash   → collected on delivery
   const isCardPayment = paymentMethod === "stripe" || paymentMethod === "card";
   const isWalletPayment = paymentMethod === "wallet";
-  const initialStatus = "preparing";
+  // Orders start as 'pending' and wait for the restaurant to ACCEPT them on their
+  // device (which sets a prep time and moves the order to 'accepted'/'preparing').
+  // Payment is still captured up front; 'pending' only means "awaiting the
+  // restaurant", never "awaiting payment".
+  const initialStatus = "pending";
 
   // Pre-generate the order UUID so we can pass it to wallet_pay before the insert.
   const orderId: string = crypto.randomUUID();
@@ -332,6 +397,19 @@ Deno.serve(async (request) => {
       }, 409);
     }
 
+    // HotBite+ active membership — decided once, server-side. Drives the member
+    // price floor below and the member benefits later.
+    const { data: memberFlag } = await admin.rpc("is_hotbite_plus_member", { p_user_id: userId });
+    const isMember = memberFlag === true;
+
+    // Per-item member-price snapshot (menu_item_id → {regularUnit, memberDiscUnit}),
+    // populated during revalidation below and used when inserting order_items so
+    // each line permanently records what it cost at purchase.
+    const priceSnap = new Map<string, {
+      regularUnit: number; memberDiscUnit: number; storeMemberUnit: number;
+      hotbiteShareUnit: number; storePayoutUnit: number;
+    }>();
+
     // ── 1b. Revalidate every item belongs to this restaurant & is available ─
     // The client-sent prices/ids are not trusted for availability: an item
     // disabled after the cart was built, or an id from another restaurant, is
@@ -343,7 +421,7 @@ Deno.serve(async (request) => {
       if (itemIds.length > 0) {
         const { data: menuRows } = await admin
           .from("menus")
-          .select("id, is_available, restaurant_id, price, discount")
+          .select("id, is_available, restaurant_id, price, discount, hotbite_plus_price")
           .in("id", itemIds);
         const byId = new Map(
           (menuRows ?? []).map((m: Record<string, unknown>) => [m.id, m]),
@@ -363,7 +441,23 @@ Deno.serve(async (request) => {
           // discount the TOTAL, not the item, so per-item price must hold.
           const basePrice = Number(m.price) || 0;
           const disc = Number(m.discount) || 0;
-          const dbUnit = disc > 0 ? basePrice * (1 - disc / 100) : basePrice;
+          const regularUnit = disc > 0 ? basePrice * (1 - disc / 100) : basePrice;
+          let dbUnit = regularUnit;
+          // Shared Member Savings: an active member pays the customer price
+          // (store_member + HotBite's 50% share of the saving), NOT the raw
+          // store price. Store still receives only store_member_price; HotBite
+          // keeps its share. Server is the sole authority for the split.
+          const storeMemberUnit = Number(m.hotbite_plus_price) || 0;
+          const split = memberSplit(regularUnit, storeMemberUnit);
+          const memberApplies = isMember && split.eligible;
+          if (memberApplies) dbUnit = split.customerPrice;
+          priceSnap.set(m.id as string, {
+            regularUnit: round2(regularUnit),
+            memberDiscUnit: memberApplies ? split.customerSaving : 0,      // customer saving / unit
+            storeMemberUnit: memberApplies ? split.storePayout : 0,
+            hotbiteShareUnit: memberApplies ? split.hotbiteShare : 0,
+            storePayoutUnit: memberApplies ? split.storePayout : round2(regularUnit),
+          });
           const clientUnit = Number(i.price) || 0;
           if (clientUnit < dbUnit - 1) {
             underpriced.push((i.item_name as string) ?? String(i.menu_item_id));
@@ -426,7 +520,16 @@ Deno.serve(async (request) => {
     const { data: prioCfg } = await admin.from("app_config").select("value")
       .eq("key", "priority_delivery_enabled").maybeSingle();
     const priorityEnabled = prioCfg?.value === "true" || prioCfg?.value === "1";
-    const configuredPriorityFee = await getConfig("priority_delivery_fee", 0);
+    let configuredPriorityFee = await getConfig("priority_delivery_fee", 0);
+
+    // HotBite+ member priority-fee override (when enabled): active members pay
+    // the reduced member priority fee. Non-members are unaffected.
+    const { data: mPrioFlag } = await admin.from("app_config").select("value")
+      .eq("key", "membership_priority_enabled").maybeSingle();
+    if (isMember && (mPrioFlag?.value === "true" || mPrioFlag?.value === "1")) {
+      configuredPriorityFee = await getConfig("membership_priority_fee", configuredPriorityFee);
+    }
+
     let priorityFee = 0;
     let isPriority = false;
     if (clientWantsPriority && priorityEnabled && configuredPriorityFee > 0) {
@@ -439,6 +542,27 @@ Deno.serve(async (request) => {
         `[place-order] priority fee corrected ${clientPriorityFee} -> ${priorityFee}, ` +
           `total now ${totalAmount}, requestId=${requestId}`,
       );
+    }
+
+    // ── HotBite+ member deal discount (server-authoritative) ────────────────
+    // Compute the member discount for this business from approved deals, honour
+    // usage limits, and subtract it from the total. Recorded after insert.
+    let membershipDiscount = 0;
+    let membershipDiscountInfo: Record<string, unknown> | null = null;
+    if (isMember) {
+      try {
+        const { data: md } = await admin.rpc("calculate_membership_discount", {
+          p_user_id: userId, p_business_id: restaurantId, p_subtotal: subtotal,
+        });
+        membershipDiscount = round2(Number(md?.discount_amount) || 0);
+        if (membershipDiscount > 0) {
+          membershipDiscountInfo = md as Record<string, unknown>;
+          totalAmount = round2(Math.max(0, totalAmount - membershipDiscount));
+          console.log(`[place-order] HotBite+ member discount ${membershipDiscount}, total now ${totalAmount}, requestId=${requestId}`);
+        }
+      } catch (e) {
+        console.error(`[place-order] membership discount failed (ignored): ${e}`);
+      }
     }
 
     const defaultCommission = await getConfig("default_commission_rate", 0.15);
@@ -454,6 +578,20 @@ Deno.serve(async (request) => {
       ? 0
       : await getTaxRateForLocation(deliveryLatitude, deliveryLongitude, globalTaxRate);
     const serverTaxAmount = round2(subtotal * effectiveTaxRate);
+
+    // ── Company-sponsored: employee pays FOOD + personal extras only ────────
+    // The company absorbs delivery, service, peak and priority. Recompute the
+    // employee's charge from parts (server-authoritative) so no delivery/service
+    // can leak into their bill. The company's delivery (flat daily tier) and
+    // service charge are recorded by company_confirm_sponsorship after insert.
+    if (sponsored) {
+      deliveryFee = 0;
+      peakFee = 0;
+      priorityFee = 0;
+      isPriority = false;
+      totalAmount = round2(Math.max(0,
+        subtotal + serverTaxAmount + driverTip - discount - membershipDiscount));
+    }
 
     // Commission is the platform's cut of the RESTAURANT's revenue, so it is
     // charged on the food subtotal. Charging it on totalAmount billed the
@@ -565,11 +703,26 @@ Deno.serve(async (request) => {
       }
     }
 
+    // ── Multi-location routing ───────────────────────────────────────────
+    // If the ordered restaurant is part of a multi-location brand (KFC, …), the
+    // customer browsed the brand; route fulfillment to the location CLOSEST to
+    // the delivery address. Single-location restaurants are unchanged. The menu
+    // is shared across a brand's locations, so item names/prices carry over.
+    let fulfillmentRestaurantId = restaurantId;
+    try {
+      const { data: routed } = await admin.rpc("resolve_fulfillment_store", {
+        p_restaurant_id: restaurantId,
+        p_lat: deliveryLatitude ?? null,
+        p_lng: deliveryLongitude ?? null,
+      });
+      if (typeof routed === "string" && routed) fulfillmentRestaurantId = routed;
+    } catch (_) { /* fall back to the browsed location */ }
+
     // ── 5. Insert order ──────────────────────────────────────────────────
     const orderData: Record<string, unknown> = {
       id: orderId,           // use pre-generated UUID (needed for wallet_pay above)
       user_id: userId,
-      restaurant_id: restaurantId,
+      restaurant_id: fulfillmentRestaurantId,
       subtotal,
       tax_amount: serverTaxAmount,
       delivery_fee: deliveryFee,
@@ -633,6 +786,42 @@ Deno.serve(async (request) => {
       return json({ error: "Failed to create order", details: orderErr?.message }, 500);
     }
 
+    // ── Company sponsorship: mark the slot placed & record company charges ───
+    // The reservation was revalidated before any charge, so this bookkeeping
+    // call succeeds in practice; it is idempotent. If it ever fails we keep the
+    // (already-paid, already-created) order and log for reconciliation rather
+    // than failing the customer's order.
+    if (sponsored && sponsorReservationId) {
+      try {
+        await admin.rpc("company_confirm_sponsorship", {
+          p_reservation_id: sponsorReservationId,
+          p_order_id: orderId,
+          p_service_cents: Math.round(sponsorServiceFee * 100),
+        });
+      } catch (e) {
+        console.error(`[place-order] company_confirm_sponsorship failed for order ${orderId}: ${e}`);
+      }
+    }
+
+    // ── HotBite+ member discount record (reporting / partner settlement) ─────
+    if (membershipDiscount > 0 && membershipDiscountInfo) {
+      try {
+        const { data: mem } = await admin.rpc("get_active_membership", { p_user_id: userId });
+        await admin.from("order_membership_discounts").insert({
+          order_id: orderId,
+          membership_id: (mem as Record<string, unknown> | null)?.["membership_id"] ?? null,
+          deal_id: membershipDiscountInfo["deal_id"] ?? null,
+          business_id: restaurantId,
+          discount_type: membershipDiscountInfo["discount_type"] ?? null,
+          discount_amount: membershipDiscount,
+          business_funded_amount: Number(membershipDiscountInfo["business_funded_amount"]) || 0,
+          hotbite_funded_amount: Number(membershipDiscountInfo["hotbite_funded_amount"]) || 0,
+        });
+      } catch (e) {
+        console.error(`[place-order] membership discount record failed (non-fatal): ${e}`);
+      }
+    }
+
     // Promotion consumption is NOT done here. trg_mark_user_coupon_used already
     // fires on orders and marks the customer's coupon used; doing it again in
     // this function would be two owners of one rule, and the next person to
@@ -641,20 +830,51 @@ Deno.serve(async (request) => {
     // ── 6. Batch insert order items ──────────────────────────────────────
     // Single INSERT instead of N round-trips — critical at scale.
     // We still need returned IDs to insert sides, so we use select("id, menu_item_id").
-    const itemRows = items.map((item) => ({
-      order_id: orderId,
-      menu_item_id: item.menu_item_id,
-      item_name: item.item_name,
-      price: item.price,
-      quantity: item.quantity,
-      subtotal: item.subtotal,
-      notes: item.notes ?? null,
-    }));
+    let memberSavingsTotal = 0;
+    let hotbiteShareTotal = 0;
+    const itemRows = items.map((item) => {
+      const snap = priceSnap.get(item.menu_item_id as string);
+      const qty = Number(item.quantity) || 1;
+      const memberDiscUnit = snap?.memberDiscUnit ?? 0;       // = customer saving / unit
+      const hbShareUnit = snap?.hotbiteShareUnit ?? 0;
+      const storeMemberUnit = snap?.storeMemberUnit ?? 0;
+      const storePayoutUnit = snap?.storePayoutUnit ?? (Number(item.price) || 0);
+      memberSavingsTotal += round2(memberDiscUnit * qty);
+      hotbiteShareTotal += round2(hbShareUnit * qty);
+      return {
+        order_id: orderId,
+        menu_item_id: item.menu_item_id,
+        item_name: item.item_name,
+        price: item.price,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+        notes: item.notes ?? null,
+        // Immutable Shared Member Savings snapshot (server-authoritative).
+        regular_price: snap?.regularUnit ?? (Number(item.price) || 0),
+        store_member_price: storeMemberUnit || null,
+        member_discount: memberDiscUnit,             // customer saving / unit
+        customer_saving: memberDiscUnit,
+        hotbite_savings_share: hbShareUnit,          // HotBite share / unit
+        store_payout_total: round2(storePayoutUnit * qty),
+        membership_applied: memberDiscUnit > 0,
+        pricing_version: 2,
+      };
+    });
+    memberSavingsTotal = round2(memberSavingsTotal);
+    hotbiteShareTotal = round2(hotbiteShareTotal);
 
     const { data: insertedItems } = await admin
       .from("order_items")
       .insert(itemRows)
       .select("id, menu_item_id");
+
+    // Record the order's customer saving + HotBite savings-share revenue.
+    if (memberSavingsTotal > 0 || hotbiteShareTotal > 0) {
+      await admin.from("orders").update({
+        member_savings: memberSavingsTotal,
+        hotbite_savings_share: hotbiteShareTotal,
+      }).eq("id", orderId);
+    }
 
     // Batch insert sides — group all sides from all items into one INSERT
     const allSideRows: Array<{ order_item_id: string; side_name: string; side_price: number }> = [];
