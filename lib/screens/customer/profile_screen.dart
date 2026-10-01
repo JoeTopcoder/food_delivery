@@ -90,12 +90,44 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               Navigator.of(context).pushNamed('/favorites'),
                         ),
                         _MenuItem(
+                          icon: Icons.business_rounded,
+                          color: const Color(0xFF2563EB),
+                          title: 'My Company',
+                          sub: 'Join your company & apply for sponsored orders',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/my-company'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.dashboard_customize_rounded,
+                          color: const Color(0xFF7C3AED),
+                          title: 'Company Dashboard',
+                          sub: 'Register / manage your company',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/company-dashboard'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.workspace_premium_rounded,
+                          color: const Color(0xFFFF5A1F),
+                          title: 'HotBite+',
+                          sub: 'Exclusive deals & member benefits',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/hotbite-plus'),
+                        ),
+                        _MenuItem(
                           icon: Icons.stars_rounded,
                           color: const Color(0xFFF59E0B),
                           title: context.l10n.loyaltyPoints,
                           sub: context.l10n.loyaltyPointsSub,
                           onTap: () =>
                               Navigator.of(context).pushNamed('/loyalty'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.card_giftcard_rounded,
+                          color: const Color(0xFFFF5A1F),
+                          title: 'Earn with HotBite',
+                          sub: 'Refer members, earn wallet cashback',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/earn-hotbite'),
                         ),
                         _MenuItem(
                           icon: Icons.people_rounded,

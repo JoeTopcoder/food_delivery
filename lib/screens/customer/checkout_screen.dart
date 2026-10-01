@@ -4,6 +4,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../widgets/smart_home_widgets.dart' show appClosureProvider;
 import '../../core/utils/responsive.dart';
 import '../../config/app_constants.dart';
 import '../../models/order_model.dart';
@@ -29,6 +30,8 @@ import '../../utils/safe_state_mixin.dart';
 import '../../providers/delivery_region_provider.dart';
 import '../../providers/feature_providers.dart';
 import '../../services/driver/delivery_fee_service.dart';
+import '../../services/company/company_service.dart';
+import '../company/eligible_restaurants_screen.dart';
 import '../../features/recipient/recipient_service.dart';
 import '../../features/recipient/recipient_selector.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -62,6 +65,182 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   bool _scheduleHydrated = false;
   bool _contactlessDelivery = false;
   bool _priorityDelivery = false; // Customer Priority Delivery (opt-in, default off)
+  // Company-sponsored ordering (optional). When a company is selected the
+  // employee pays food+personal only; the company covers delivery+service and
+  // delivery is forced to the company address.
+  Company? _sponsorCompany;
+  String? _sponsorReservationId;
+  double _sponsorServiceFee = 0; // the service fee the company absorbs (JMD)
+  bool _sponsorBusy = false;
+
+  CompanyService get _companySvc => ref.read(companyServiceProvider);
+
+  // Flat company fees (JMD) — must mirror the server (company_confirm_sponsorship).
+  static const double _kCompanyDeliveryFee = 350;
+  static const double _kCompanyServiceFee = 250;
+
+  void _sponsorSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _chooseCompany(String restaurantId) async {
+    setState(() => _sponsorBusy = true);
+    List<Company> list = [];
+    try {
+      list = await _companySvc.eligibleForCheckout();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _sponsorBusy = false);
+    if (list.isEmpty) {
+      _sponsorSnack('No company available (need approved membership of an active '
+          'company, and you haven\'t used sponsorship today).');
+      return;
+    }
+    final picked = await showModalBottomSheet<Company>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(padding: EdgeInsets.all(16),
+              child: Text('Choose your company', style: TextStyle(fontWeight: FontWeight.w800))),
+          ...list.map((c) => ListTile(
+                leading: const Icon(Icons.business_rounded),
+                title: Text(c.name),
+                subtitle: Text(c.deliveryAddress),
+                onTap: () => Navigator.pop(ctx, c),
+              )),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (picked != null) await _validateAndReserve(picked, restaurantId);
+  }
+
+  Future<void> _validateAndReserve(Company c, String restaurantId) async {
+    setState(() => _sponsorBusy = true);
+    try {
+      final r = await _companySvc.reserve(c.id, restaurantId);
+      if (!mounted) return;
+      if (r['ok'] == true) {
+        setState(() {
+          _sponsorCompany = c;
+          _sponsorReservationId = r['reservation_id'] as String?;
+          _sponsorServiceFee = _kCompanyServiceFee;
+        });
+      } else {
+        final reason = r['reason'];
+        if (reason == 'outside_radius') {
+          await _outsideRadiusDialog(c);
+        } else if (reason == 'missing_coordinates') {
+          _sponsorSnack('Your company office location isn\'t set. Ask your company '
+              'admin to add coordinates before using sponsorship.');
+        } else if (reason == 'already_used_today') {
+          _sponsorSnack('You\'ve already used company sponsorship today.');
+        } else if (reason == 'not_approved_member') {
+          _sponsorSnack('You\'re not an approved member of this company.');
+        } else {
+          _sponsorSnack('Not eligible for company sponsorship.');
+        }
+      }
+    } catch (e) {
+      _sponsorSnack('Could not apply sponsorship.');
+    } finally {
+      if (mounted) setState(() => _sponsorBusy = false);
+    }
+  }
+
+  Future<void> _outsideRadiusDialog(Company c) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Outside delivery area'),
+        content: Text('This restaurant is outside your company\'s delivery area. '
+            'Please choose a restaurant within ${c.radiusKm} km of your office to '
+            'use company-sponsored delivery.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, 'view'),
+              child: const Text('View eligible restaurants')),
+          TextButton(onPressed: () => Navigator.pop(ctx, 'personal'),
+              child: const Text('Continue as personal order')),
+        ],
+      ),
+    );
+    if (choice == 'view' && mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => EligibleRestaurantsScreen(company: c)));
+    }
+    // 'personal'/dismiss → sponsorship simply not applied; cart is preserved.
+  }
+
+  Future<void> _removeSponsorship() async {
+    final id = _sponsorReservationId;
+    setState(() {
+      _sponsorCompany = null;
+      _sponsorReservationId = null;
+      _sponsorServiceFee = 0;
+    });
+    if (id != null) {
+      try {
+        await _companySvc.release(id);
+      } catch (_) {}
+    }
+  }
+
+  Widget _companySponsorSection(String restaurantId, double normalServiceFee) {
+    final c = _sponsorCompany;
+    return _Section(
+      title: 'Company-sponsored order',
+      icon: Icons.business_rounded,
+      child: c == null
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Have your company cover delivery and service fees '
+                  '(once per day).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 10),
+              SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                onPressed: _sponsorBusy ? null : () => _chooseCompany(restaurantId),
+                icon: _sponsorBusy
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_business_rounded),
+                label: const Text('Use company sponsorship'),
+              )),
+            ])
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.3)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800))),
+                  ]),
+                  const SizedBox(height: 6),
+                  const Text('Your company covers delivery and service fees.',
+                      style: TextStyle(color: Color(0xFF16A34A), fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text('Delivery to: ${c.deliveryAddress}',
+                      style: const TextStyle(fontSize: 12.5)),
+                  const SizedBox(height: 6),
+                  Text('Delivery ${AppConstants.currencySymbol}${_kCompanyDeliveryFee.toStringAsFixed(0)} · '
+                      'Service ${AppConstants.currencySymbol}${_kCompanyServiceFee.toStringAsFixed(0)} — paid by company',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _sponsorBusy ? null : _removeSponsorship,
+                icon: const Icon(Icons.close_rounded, size: 16),
+                label: const Text('Remove company sponsorship'),
+              ),
+            ]),
+    );
+  }
+  // The "lat|lng" we've already shown the out-of-zone popup for, so it fires
+  // once per out-of-area address rather than on every rebuild.
+  String? _outOfZoneShownFor;
   String? _promoError;
   DateTime? _scheduledAt;
   double _driverTip = 0;
@@ -168,9 +347,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
+    // HotBite+ member saving on this cart: the difference between each line's
+    // regular price (menuItem.price) and the charged member price
+    // (discountedPrice). Zero for non-members / items without a member price.
+    final memberSavings = cart.fold<double>(
+      0,
+      (sum, c) =>
+          sum + (c.menuItem.price - c.menuItem.discountedPrice) * c.quantity,
+    );
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
     final isPickup = ref.watch(isPickupProvider);
+    // App-closure guard: block checkout when the fulfillment date is closed.
+    // Immediate orders target today; scheduled orders target their chosen date.
+    // Scheduling for an OPEN date stays allowed.
+    final closure = ref.watch(appClosureProvider).valueOrNull ?? const {};
+    final closedDates = ((closure['upcoming'] as List?) ?? const [])
+        .map((e) => (e as Map)['date'].toString())
+        .toSet();
+    final targetDateStr = _scheduledAt != null
+        ? DateFormat('yyyy-MM-dd').format(_scheduledAt!)
+        : (closure['today']?.toString() ?? '');
+    final closedForTarget = closedDates.contains(targetDateStr);
+    final closureMessage = (closure['message'] as String?)?.trim();
     final restaurantId = cart.isNotEmpty
         ? cart.first.menuItem.restaurantId
         : null;
@@ -243,6 +442,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final zoneChecking = inZoneAsync?.isLoading ?? false;
     final confirmedInZone = isPickup ? true : (inZoneAsync?.valueOrNull ?? false);
     final canDeliverHere = isPickup || (hasDeliveryAddress && confirmedInZone);
+
+    // Pop up once when we've confirmed the delivery address is outside the
+    // delivery area (not while still checking, and not for pickup).
+    final zoneKey = '$delLat|$delLng';
+    if (!isPickup &&
+        hasDeliveryAddress &&
+        !zoneChecking &&
+        !confirmedInZone &&
+        _outOfZoneShownFor != zoneKey) {
+      _outOfZoneShownFor = zoneKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showOutOfZoneDialog();
+      });
+    }
+    // Reset the guard once a serviceable address is chosen, so a later switch
+    // back to an out-of-zone address pops up again.
+    if (canDeliverHere && _outOfZoneShownFor != null) {
+      _outOfZoneShownFor = null;
+    }
     final feeKey = hasCoords
         ? '$restaurantId|$delLat|$delLng|${restaurant?.latitude ?? ''}|${restaurant?.longitude ?? ''}|${restaurant?.deliveryFee ?? ''}'
         : '';
@@ -321,16 +539,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final priorityFee =
         (_priorityDelivery && priorityAvailable) ? (priorityCfg?.fee ?? 0) : 0.0;
 
+    // Company-sponsored: the company covers delivery + service (+ peak/priority),
+    // so the employee pays food + personal extras only.
+    final sponsored = _sponsorCompany != null && _sponsorReservationId != null;
+    final effActiveFee = sponsored ? 0.0 : activeFee;
+    final effService = sponsored ? 0.0 : platformServiceFee;
+    final effPeak = sponsored ? 0.0 : peakFee;
+    final effPriority = sponsored ? 0.0 : priorityFee;
     final orderTotal =
         (subtotal -
                 promoDiscount -
                 loyaltyDiscount +
-                activeFee +
-                peakFee +
-                priorityFee +
-                platformServiceFee +
+                effActiveFee +
+                effPeak +
+                effPriority +
+                effService +
                 tax)
-            .clamp(activeFee + peakFee, double.infinity);
+            .clamp(0.0, double.infinity);
     final total = orderTotal + _driverTip;
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
@@ -659,6 +884,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   },
                 ),
                 const SizedBox(height: 6),
+
+                // ── Company-sponsored order (optional) ────────────────
+                if (!isPickup && restaurantId != null)
+                  _companySponsorSection(restaurantId, platformServiceFee),
 
                 // ── Payment ───────────────────────────────────────────
                 _Section(
@@ -1275,10 +1504,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   ),
                   child: Column(
                     children: [
+                      // Members already see member prices throughout, so the
+                      // checkout stays uncluttered: a single Subtotal at the
+                      // member price plus one savings line — no original-price
+                      // reference. Non-members see the normal Subtotal line.
                       _SummaryRow(
                         context.l10n.subtotal,
                         '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                       ),
+                      if (memberSavings > 0)
+                        _SummaryRow(
+                          '⭐ HotBite+ Member Savings',
+                          '−${AppConstants.currencySymbol}${memberSavings.toStringAsFixed(2)}',
+                          valueColor: const Color(0xFFFF5A1F),
+                        ),
                       if (promoDiscount > 0)
                         _SummaryRow(
                           'Promo (${appliedPromo!.code})',
@@ -1400,6 +1639,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // App-closure guard message.
+                    if (closedForTarget)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDECEC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFF5C2C2)),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.event_busy_rounded, color: Color(0xFFDC2626), size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              (closureMessage?.isNotEmpty == true)
+                                  ? closureMessage!
+                                  : "We're closed on the selected date. You can still schedule your order for another day.",
+                              style: const TextStyle(fontSize: 12.5, color: Color(0xFF991B1B)),
+                            ),
+                          ),
+                        ]),
+                      ),
                     // Address / delivery-zone guard message.
                     if (!isPickup && !canDeliverHere)
                       Container(
@@ -1493,18 +1756,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   (_addressConfirmed || isPickup) &&
                                   canDeliverHere &&
                                   !_placingOrder &&
+                                  !closedForTarget &&
                                   cart.isNotEmpty &&
                                   currentUserId != null
                               ? () => _placeOrder(
                                   userId: currentUserId,
                                   subtotal: subtotal,
-                                  deliveryFee: activeFee,
-                                  peakFee: peakFee,
-                                  isPriority: _priorityDelivery && priorityAvailable,
-                                  priorityFee: priorityFee,
+                                  deliveryFee: effActiveFee,
+                                  peakFee: effPeak,
+                                  isPriority: sponsored
+                                      ? false
+                                      : (_priorityDelivery && priorityAvailable),
+                                  priorityFee: effPriority,
                                   tax: tax,
                                   total: total,
-                                  deliveryAddress: deliveryAddress,
+                                  deliveryAddress: sponsored
+                                      ? _sponsorCompany!.deliveryAddress
+                                      : deliveryAddress,
                                   studentId: isStudentOrder ? student.id : null,
                                   currentUser: currentUser,
                                   promoDiscount: promoDiscount,
@@ -1513,6 +1781,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   isPickup: isPickup,
                                   pickupFee: isPickup ? pickupServiceFee : null,
                                   outstandingDebt: outstandingDebt,
+                                  companyReservationId: sponsored ? _sponsorReservationId : null,
+                                  companyServiceFee: sponsored ? _sponsorServiceFee : 0,
                                 )
                               : null,
                           style: ElevatedButton.styleFrom(
@@ -1536,6 +1806,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 )
                               : Text(
                                   () {
+                                    if (closedForTarget) {
+                                      return _scheduledAt != null
+                                          ? 'Closed on that date \u2014 pick another'
+                                          : 'Closed today \u2014 schedule for later';
+                                    }
                                     final amt =
                                         '${AppConstants.currencySymbol}'
                                         '${grandTotal.toStringAsFixed(2)}';
@@ -1619,6 +1894,38 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     setState(() => _scheduledAt = chosen);
   }
 
+  /// Popup shown at checkout when the delivery address is outside HotBite's
+  /// delivery area. The customer can change the address or switch to pickup.
+  void _showOutOfZoneDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.location_off_rounded,
+            color: Color(0xFFDC2626), size: 40),
+        title: const Text('Outside delivery area'),
+        content: const Text(
+          "Sorry — this address is outside HotBite's delivery area right now. "
+          'Please choose a delivery address within our zone to place your order.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushNamed(context, '/address-book');
+            },
+            child: const Text('Change address'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _placeOrder({
     required String userId,
     required double subtotal,
@@ -1641,6 +1948,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     bool isPickup = false,
     double? pickupFee,
     double outstandingDebt = 0,
+    String? companyReservationId,
+    double companyServiceFee = 0,
   }) async {
     if (_placingOrder) return;
 
@@ -1732,9 +2041,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       // Use server amounts if available, otherwise fall back to client math.
       // IMPORTANT: if the caller already waived delivery (deliveryFee == 0 because
       // of a subscription), never let the server override that back to a non-zero fee.
+      final sponsoredOrder = companyReservationId != null;
       final verifiedSubtotal = breakdown?.subtotal ?? subtotal;
       final serverDeliveryFee = breakdown?.deliveryFee ?? deliveryFee;
-      final verifiedDeliveryFee = deliveryFee == 0.0 ? 0.0 : serverDeliveryFee;
+      final verifiedDeliveryFee =
+          (sponsoredOrder || deliveryFee == 0.0) ? 0.0 : serverDeliveryFee;
       final verifiedTax = breakdown?.taxAmount ?? tax;
       final verifiedDiscount =
           (breakdown?.promoDiscount ?? promoDiscount) +
@@ -1746,10 +2057,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       // client-shown peak fee here. place-order re-derives the authoritative
       // peak fee from get_peak_time_state and corrects the total if it differs,
       // so the charge is always the backend's number.
-      final verifiedTotal = (serverDeliveryFee == verifiedDeliveryFee
-              ? serverTotal
-              : serverTotal - serverDeliveryFee + verifiedDeliveryFee) +
-          peakFee;
+      // Sponsored: employee pays the food-only total the caller computed (the
+      // place-order edge function also re-derives this server-side); the server
+      // breakdown would re-add delivery/service, so bypass it here.
+      final verifiedTotal = sponsoredOrder
+          ? total
+          : (serverDeliveryFee == verifiedDeliveryFee
+                  ? serverTotal
+                  : serverTotal - serverDeliveryFee + verifiedDeliveryFee) +
+              peakFee;
 
       final orderItems = cart
           .map(
@@ -1834,6 +2150,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         promoCode: appliedPromo?.code,
         savedCardPaymentMethodId: savedCardPmId,
         studentId: studentId,
+        companyReservationId: companyReservationId,
+        companyServiceFee: companyServiceFee,
       );
 
       // Clear active ad after order placed
