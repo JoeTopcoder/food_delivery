@@ -24,6 +24,7 @@ final _serviceTogglesProvider = FutureProvider.autoDispose<Map<String, bool>>((
         'screen_orders_enabled',
         'screen_car_services_enabled',
         'screen_profile_enabled',
+        'company_sponsorship_enabled',
       ]);
   final map = <String, bool>{};
   for (final r in rows as List) {
@@ -40,6 +41,7 @@ final _serviceTogglesProvider = FutureProvider.autoDispose<Map<String, bool>>((
   map.putIfAbsent('screen_orders_enabled', () => true);
   map.putIfAbsent('screen_car_services_enabled', () => true);
   map.putIfAbsent('screen_profile_enabled', () => true);
+  map.putIfAbsent('company_sponsorship_enabled', () => true);
   return map;
 });
 
@@ -211,6 +213,33 @@ class AdminServicesScreen extends ConsumerWidget {
                 onChanged: (val) => _toggle(context, ref, scr.key, val),
               ),
             )),
+
+            const SizedBox(height: 24),
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 8),
+              child: Text('Features',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Turn Company-Sponsored Ordering off to hide the company checkout '
+                'option from all employees (enforced server-side).',
+                style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+              ),
+            ),
+            _ServiceToggleTile(
+              def: const _ServiceDef(
+                key: 'company_sponsorship_enabled',
+                label: 'Company-Sponsored Ordering',
+                subtitle: 'Companies cover employee delivery & service fees',
+                icon: Icons.business_rounded,
+                color: Color(0xFF2563EB),
+              ),
+              enabled: toggles['company_sponsorship_enabled'] ?? true,
+              onChanged: (val) =>
+                  _toggle(context, ref, 'company_sponsorship_enabled', val),
+            ),
           ],
         ),
       ),

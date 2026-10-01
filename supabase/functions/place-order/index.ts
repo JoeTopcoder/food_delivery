@@ -234,6 +234,11 @@ Deno.serve(async (request) => {
 
   // ── Company sponsorship: revalidate server-side & snap to company address ───
   if (sponsorship?.reservation_id) {
+    const { data: feCfg } = await admin
+      .from("app_config").select("value").eq("key", "company_sponsorship_enabled").maybeSingle();
+    if (feCfg && feCfg.value !== "true" && feCfg.value !== "1") {
+      return json({ error: "Company sponsorship is currently unavailable.", request_id: requestId }, 403);
+    }
     const { data: resv } = await admin
       .from("company_sponsorship_usage")
       .select("id, company_id, user_id, status, expires_at")
