@@ -675,6 +675,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                     icon: Icons.location_on_rounded,
                     child: Column(
                       children: [
+                        // Company-sponsored: delivery is locked to the company
+                        // office and cannot be changed here (server-enforced).
+                        if (sponsored) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.lock_rounded, size: 16, color: Color(0xFF2563EB)),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(
+                                'Delivering to ${_sponsorCompany!.name} office: '
+                                '${_sponsorCompany!.deliveryAddress}. Remove company '
+                                'sponsorship to use a personal address.',
+                                style: const TextStyle(fontSize: 12.5, height: 1.35))),
+                            ]),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
                         // Who the order is for, asked before where it goes —
                         // choosing a student decides the address, so offering
                         // the address book first would be offering a choice
@@ -1530,64 +1553,78 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           '−\$${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
-                      // Most restaurants charge nothing to collect, and a
-                      // J$0.00 row is just one more fee-shaped line to read.
-                      if (isPickup)
-                        rawFee > 0
-                            ? _SummaryRow(
-                                subServiceDiscount > 0
-                                    ? 'Pickup Fee (HotBite+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
-                                    : 'Pickup Fee',
-                                '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
-                                valueColor: subServiceDiscount > 0
-                                    ? const Color(0xFF528BFF)
-                                    : const Color(0xFF10B981),
-                              )
-                            : const SizedBox.shrink()
-                      else if (isGroupOrder)
+                      // Company-sponsored: show delivery + service as covered by
+                      // the company, never added to the employee's payable.
+                      if (sponsored) ...[
                         _SummaryRow(
-                          'Delivery (Group 40% off – $groupParticipantCount members)',
-                          feeLoading
-                              ? 'Calculating…'
-                              : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                          valueColor: const Color(0xFF10B981),
-                        )
-                      else
-                        _SummaryRow(
-                          subDeliveryFree
-                              ? 'Delivery (HotBite+ FREE)'
-                              : 'Delivery${feeResult?.calculation == 'distance_based'
-                                    ? ''
-                                    : feeResult?.restaurantOverride != null
-                                    ? ' (Store)'
-                                    : ' (Base)'}${feeResult?.distanceMiles != null
-                                    ? ' – ${feeResult!.distanceMiles!.toStringAsFixed(1)} mi'
-                                    : distanceKm != null
-                                    ? ' – ${(distanceKm * 0.621371).toStringAsFixed(1)} mi'
-                                    : ''}',
-                          feeLoading
-                              ? 'Calculating…'
-                              : subDeliveryFree
-                              ? '\$0.00'
-                              : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
-                          valueColor: subDeliveryFree
-                              ? const Color(0xFF528BFF)
-                              : null,
+                          'Delivery — paid by company',
+                          '${AppConstants.currencySymbol}350.00',
+                          valueColor: const Color(0xFF16A34A),
                         ),
-                      // Priority Delivery fee — shown separately, never folded
-                      // into the delivery fee.
-                      if (priorityFee > 0)
                         _SummaryRow(
-                          '⚡ Priority Fee',
-                          '${AppConstants.currencySymbol}${priorityFee.toStringAsFixed(2)}',
-                          valueColor: const Color(0xFFFF5A1F),
+                          'Service fee — paid by company',
+                          '${AppConstants.currencySymbol}250.00',
+                          valueColor: const Color(0xFF16A34A),
                         ),
-                      // Peak Time surcharge is folded into the Service Fee line
-                      // (not shown separately) per current business rule.
-                      _SummaryRow(
-                        'Service Fee',
-                        '${AppConstants.currencySymbol}${(platformServiceFee + peakFee).toStringAsFixed(2)}',
-                      ),
+                      ] else ...[
+                        // Most restaurants charge nothing to collect, and a
+                        // J$0.00 row is just one more fee-shaped line to read.
+                        if (isPickup)
+                          rawFee > 0
+                              ? _SummaryRow(
+                                  subServiceDiscount > 0
+                                      ? 'Pickup Fee (HotBite+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
+                                      : 'Pickup Fee',
+                                  '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                  valueColor: subServiceDiscount > 0
+                                      ? const Color(0xFF528BFF)
+                                      : const Color(0xFF10B981),
+                                )
+                              : const SizedBox.shrink()
+                        else if (isGroupOrder)
+                          _SummaryRow(
+                            'Delivery (Group 40% off – $groupParticipantCount members)',
+                            feeLoading
+                                ? 'Calculating…'
+                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                            valueColor: const Color(0xFF10B981),
+                          )
+                        else
+                          _SummaryRow(
+                            subDeliveryFree
+                                ? 'Delivery (HotBite+ FREE)'
+                                : 'Delivery${feeResult?.calculation == 'distance_based'
+                                      ? ''
+                                      : feeResult?.restaurantOverride != null
+                                      ? ' (Store)'
+                                      : ' (Base)'}${feeResult?.distanceMiles != null
+                                      ? ' – ${feeResult!.distanceMiles!.toStringAsFixed(1)} mi'
+                                      : distanceKm != null
+                                      ? ' – ${(distanceKm * 0.621371).toStringAsFixed(1)} mi'
+                                      : ''}',
+                            feeLoading
+                                ? 'Calculating…'
+                                : subDeliveryFree
+                                ? '\$0.00'
+                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                            valueColor: subDeliveryFree
+                                ? const Color(0xFF528BFF)
+                                : null,
+                          ),
+                        // Priority Delivery fee — shown separately, never folded
+                        // into the delivery fee.
+                        if (priorityFee > 0)
+                          _SummaryRow(
+                            '⚡ Priority Fee',
+                            '${AppConstants.currencySymbol}${priorityFee.toStringAsFixed(2)}',
+                            valueColor: const Color(0xFFFF5A1F),
+                          ),
+                        // Peak Time surcharge is folded into the Service Fee line.
+                        _SummaryRow(
+                          'Service Fee',
+                          '${AppConstants.currencySymbol}${(platformServiceFee + peakFee).toStringAsFixed(2)}',
+                        ),
+                      ],
                       if (tax > 0)
                         _SummaryRow(
                           'Tax (${(effectiveTaxRate * 100).toStringAsFixed(0)}%)',
