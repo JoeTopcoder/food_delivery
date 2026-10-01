@@ -531,3 +531,22 @@ final featureFlagsProvider = FutureProvider.autoDispose<Map<String, bool>>((
     return {}; // fail-open: treat all features as enabled
   }
 });
+
+/// Whether Company-Sponsored Ordering is enabled (admin app_config flag).
+/// Defaults to true if unset; re-evaluates on any config change.
+final companySponsorshipEnabledProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
+  ref.watch(configVersionProvider);
+  try {
+    final row = await SupabaseConfig.client
+        .from('app_config')
+        .select('value')
+        .eq('key', 'company_sponsorship_enabled')
+        .maybeSingle();
+    final v = row?['value']?.toString();
+    if (v == null) return true;
+    return v == 'true' || v == '1';
+  } catch (_) {
+    return true;
+  }
+});
