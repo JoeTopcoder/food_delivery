@@ -92,6 +92,8 @@ import 'screens/admin/admin_member_savings_report_screen.dart';
 import 'screens/admin/admin_referral_screen.dart';
 import 'screens/admin/admin_mfa_setup_screen.dart';
 import 'screens/admin/admin_gate.dart';
+import 'screens/company/my_company_screen.dart';
+import 'screens/company/company_dashboard_screen.dart';
 import 'screens/admin/admin_pickup_coordinator_screen.dart';
 import 'screens/admin/admin_home_notice_screen.dart';
 import 'screens/admin/admin_app_closure_screen.dart';
@@ -781,6 +783,20 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminUsersScreen(),
+                ),
+              );
+            case '/my-company':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer', 'admin', 'driver', 'restaurant'],
+                  child: MyCompanyScreen(),
+                ),
+              );
+            case '/company-dashboard':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['user', 'customer', 'admin', 'driver', 'restaurant'],
+                  child: CompanyDashboardScreen(),
                 ),
               );
             case '/admin-mfa-setup':

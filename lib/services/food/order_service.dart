@@ -91,6 +91,11 @@ class OrderService {
     // Idempotency key — generate once per checkout attempt and keep it across
     // retries so a network drop never creates a duplicate order.
     String? idempotencyKey,
+    // Company-sponsored order: the reservation id from
+    // company_reserve_sponsorship, plus the UI-computed service fee the company
+    // absorbs. The edge function revalidates and charges the employee food-only.
+    String? companyReservationId,
+    double? companyServiceFee,
   }) async {
     // Generate idempotency key here if the caller didn't supply one.
     // Using a stable key derived from user+cart ensures the same order isn't
@@ -164,6 +169,10 @@ class OrderService {
       }
       if (savedCardPaymentMethodId != null && savedCardPaymentMethodId.isNotEmpty) {
         body['saved_card_payment_method_id'] = savedCardPaymentMethodId;
+      }
+      if (companyReservationId != null && companyReservationId.isNotEmpty) {
+        body['company_sponsorship'] = {'reservation_id': companyReservationId};
+        body['company_service_fee'] = companyServiceFee ?? 0;
       }
       if (paymentIntentId != null && paymentIntentId.isNotEmpty) {
         body['payment_intent_id'] = paymentIntentId;
@@ -365,21 +374,38 @@ class OrderService {
   }
 
   // Update order status
-  Future<void> updateOrderStatus(String orderId, String status) async {
+  Future<void> updateOrderStatus(
+    String orderId,
+    String status, {
+    int? prepMinutes,
+  }) async {
     try {
-      AppLogger.info('Updating order status: $orderId -> $status');
+      AppLogger.info('Updating order status: $orderId -> $status'
+          '${prepMinutes != null ? ' (prep ${prepMinutes}m)' : ''}');
 
+      final now = DateTime.now();
       final updateData = <String, dynamic>{
         'status': status,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': now.toIso8601String(),
       };
 
       if (status == AppConstants.orderConfirmed) {
-        updateData['confirmed_at'] = DateTime.now().toIso8601String();
+        updateData['confirmed_at'] = now.toIso8601String();
       } else if (status == AppConstants.orderDelivered) {
-        updateData['completed_at'] = DateTime.now().toIso8601String();
+        updateData['completed_at'] = now.toIso8601String();
       } else if (status == AppConstants.orderCancelled) {
-        updateData['cancelled_at'] = DateTime.now().toIso8601String();
+        updateData['cancelled_at'] = now.toIso8601String();
+      }
+
+      // When the restaurant accepts an order it sets a prep time. Record the
+      // chosen minutes and the resulting ready-by time so the customer ETA and
+      // the driver dispatch both work from the restaurant's own estimate.
+      if (prepMinutes != null && prepMinutes > 0) {
+        updateData['estimated_prep_minutes'] = prepMinutes;
+        updateData['ready_at'] = now.add(Duration(minutes: prepMinutes)).toIso8601String();
+        if (status == AppConstants.orderPreparing) {
+          updateData['preparing_started_at'] = now.toIso8601String();
+        }
       }
 
       await _supabaseClient
