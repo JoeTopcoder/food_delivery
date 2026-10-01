@@ -908,8 +908,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 ),
                 const SizedBox(height: 6),
 
-                // ── Company-sponsored order (optional) ────────────────
-                if (!isPickup && restaurantId != null)
+                // ── Company-sponsored order (optional; admin-toggleable) ──
+                if (!isPickup &&
+                    restaurantId != null &&
+                    (ref.watch(companySponsorshipEnabledProvider).valueOrNull ?? true))
                   _companySponsorSection(restaurantId, platformServiceFee),
 
                 // ── Payment ───────────────────────────────────────────
