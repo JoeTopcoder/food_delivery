@@ -98,14 +98,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               Navigator.of(context).pushNamed('/my-company'),
                         ),
                         _MenuItem(
-                          icon: Icons.dashboard_customize_rounded,
-                          color: const Color(0xFF7C3AED),
-                          title: 'Company Dashboard',
-                          sub: 'Register / manage your company',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/company-dashboard'),
-                        ),
-                        _MenuItem(
                           icon: Icons.workspace_premium_rounded,
                           color: const Color(0xFFFF5A1F),
                           title: 'HotBite+',
