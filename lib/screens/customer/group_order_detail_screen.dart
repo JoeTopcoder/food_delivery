@@ -162,7 +162,7 @@ class _GroupOrderDetailScreenState
   }
 
   String _inviteLink(GroupOrder group) =>
-      'https://quickdash.app/join-group/${group.inviteCode}';
+      'https://hotbite.app/join-group/${group.inviteCode}';
 
   void _shareInvite(GroupOrder group) {
     final link = _inviteLink(group);

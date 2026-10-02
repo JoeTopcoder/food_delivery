@@ -262,7 +262,7 @@ class _HeroVisual extends StatelessWidget {
               child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.fastfood_rounded, color: Color(0xFFFF6B35), size: 48),
                 SizedBox(height: 10),
-                Text('QUICKDASH', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                Text('HotBite', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 2)),
                 SizedBox(height: 2),
                 Text('Order. Track. Enjoy.', style: TextStyle(color: Colors.white30, fontSize: 10)),
               ]),
@@ -386,8 +386,8 @@ class _PortalCardsSection extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             isMobile
-                ? 'QUICKDASH has a dedicated portal for everyone.'
-                : 'Whether you\'re hungry, a restaurant owner, a driver, or managing the platform —\nQUICKDASH has a dedicated portal for you.',
+                ? 'HotBite has a dedicated portal for everyone.'
+                : 'Whether you\'re hungry, a restaurant owner, a driver, or managing the platform —\nHotBite has a dedicated portal for you.',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.6),
           ),
@@ -809,7 +809,7 @@ class _FooterSection extends StatelessWidget {
           child: const Icon(Icons.fastfood_rounded, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 10),
-        const Text('QUICKDASH', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const Text('HotBite', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 1)),
       ]);
 
       final tagline = const Text(
@@ -848,14 +848,14 @@ class _FooterSection extends StatelessWidget {
                 const SizedBox(width: 24),
                 Expanded(child: _FooterCol('For Partners', ['Restaurant Portal', 'Driver Sign Up', 'Partner Benefits', 'Contact Sales'])),
                 const SizedBox(width: 24),
-                Expanded(child: _FooterCol('Company', ['About QUICKDASH', 'Privacy Policy', 'Terms of Service', 'Support'])),
+                Expanded(child: _FooterCol('Company', ['About HotBite', 'Privacy Policy', 'Terms of Service', 'Support'])),
               ],
             ),
           ],
           const SizedBox(height: 40),
           const Divider(color: Colors.white12, height: 1),
           const SizedBox(height: 18),
-          const Text('© 2026 QUICKDASH · All rights reserved · Cayman Islands',
+          const Text('© 2026 HotBite · All rights reserved · Cayman Islands',
               style: TextStyle(color: Colors.white24, fontSize: 12)),
         ]),
       );
