@@ -906,6 +906,12 @@ Deno.serve(async (request) => {
       body: { order_id: orderId },
     }).catch(() => {});
 
+    // Alert the business (restaurant owner + admins + order_alert_email) that a
+    // new order came in. Fire-and-forget so it never blocks order placement.
+    admin.functions.invoke("send-new-order-alert", {
+      body: { order_id: orderId },
+    }).catch(() => {});
+
     // ── 7. Notify customer ───────────────────────────────────────────────
     await notifyUser(userId, '🍽️ Order Placed!', `Your order #${receiptNumber} has been received and is being prepared.`, {
       type: 'order_placed', order_id: orderId, receipt_number: receiptNumber,

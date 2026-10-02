@@ -459,6 +459,9 @@ verify_jwt = false
 [functions.automation-workflow-runner]
 verify_jwt = false
 
+[functions.send-new-order-alert]
+verify_jwt = false
+
 [functions.approve-payout-request]
 verify_jwt = false
 
