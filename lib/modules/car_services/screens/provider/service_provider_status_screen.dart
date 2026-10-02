@@ -362,7 +362,7 @@ class _SuspendedContent extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Contact support at support@7dash.com to resolve this.',
+                  'Contact support at support@hotbite.app to resolve this.',
                   style: TextStyle(fontSize: 13),
                 ),
               ),
