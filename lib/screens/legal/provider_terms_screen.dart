@@ -73,7 +73,7 @@ class ProviderTermsScreen extends StatelessWidget {
               '• Violation of food safety or applicable law.\n'
               '• Fraudulent activity or misrepresentation.\n'
               '• Failure to maintain required licences.\n\n'
-              'Providers may terminate the partnership by providing 14 days\' written notice via support@7dash.app.',
+              'Providers may terminate the partnership by providing 14 days\' written notice via support@hotbite.app.',
         ),
         LegalSection(
           heading: '11. Intellectual Property',
@@ -83,7 +83,7 @@ class ProviderTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '12. Contact',
           body:
-              'Questions about your partnership or this agreement? Contact us at support@7dash.app.',
+              'Questions about your partnership or this agreement? Contact us at support@hotbite.app.',
         ),
       ],
     );
