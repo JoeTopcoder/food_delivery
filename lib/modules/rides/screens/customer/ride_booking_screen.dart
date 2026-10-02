@@ -401,7 +401,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'HotBite/1.0 (support@mealhubcayman.com)',
+              'User-Agent': 'HotBite/1.0 (support@hotbite.app)',
             },
           )
           .timeout(const Duration(seconds: 6));
@@ -610,7 +610,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
           .get(
             uri,
             headers: {
-              'User-Agent': 'HotBite/1.0 (support@mealhubcayman.com)',
+              'User-Agent': 'HotBite/1.0 (support@hotbite.app)',
               'Accept-Language': 'en',
             },
           )

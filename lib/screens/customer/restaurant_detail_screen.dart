@@ -65,7 +65,7 @@ class _RestaurantDetailScreenState
     final selected = await showSearch<MenuItem?>(
       context: context,
       delegate: _MenuSearchDelegate(
-        restaurantName: widget.restaurant.name,
+        restaurantName: widget.restaurant.displayBrand,
         items: items,
       ),
     );
@@ -232,7 +232,7 @@ class _RestaurantDetailScreenState
       final group = await service.createGroupOrder(
         hostUserId: userId,
         restaurantId: widget.restaurant.id,
-        name: '${widget.restaurant.name} Group Order',
+        name: '${widget.restaurant.displayBrand} Group Order',
         deadlineMinutes: 60,
       );
       if (group == null) throw Exception('Failed to create group order');
@@ -331,7 +331,7 @@ class _RestaurantDetailScreenState
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
-                widget.restaurant.name,
+                widget.restaurant.displayBrand,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -403,7 +403,7 @@ class _RestaurantDetailScreenState
                   ),
                   onPressed: () {
                     final id = widget.restaurant.id;
-                    final name = widget.restaurant.name;
+                    final name = widget.restaurant.displayBrand;
                     final cuisine =
                         widget.restaurant.cuisineType ?? 'great food';
                     final rating = widget.restaurant.rating != null
@@ -415,7 +415,7 @@ class _RestaurantDetailScreenState
                             '🍽️ $name$rating\n'
                             '$cuisine • Order on HotBite\n\n'
                             'Use code NEWUSER for 30% off your first order!\n'
-                            'https://quickdash.app/restaurant/$id',
+                            'https://hotbite.app/restaurant/$id',
                         subject: 'Check out $name on HotBite!',
                       ),
                     );
@@ -649,7 +649,7 @@ class _RestaurantDetailScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.restaurant.name,
+                        widget.restaurant.displayBrand,
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -657,7 +657,13 @@ class _RestaurantDetailScreenState
                         ),
                       ),
                       const SizedBox(height: 6),
-                      if (widget.restaurant.address != null)
+                      // Hide the specific branch address for multi-location
+                      // chains — the customer orders from the brand, not a named
+                      // location; the order routes to the nearest branch behind
+                      // the scenes (resolve_fulfillment_store).
+                      if (widget.restaurant.address != null &&
+                          (widget.restaurant.chainId == null ||
+                              widget.restaurant.chainId!.trim().isEmpty))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
