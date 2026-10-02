@@ -8,7 +8,7 @@ class TermsConditionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const LegalPolicyScreen(
       title: 'Terms & Conditions',
-      lastUpdated: 'June 2026',
+      lastUpdated: 'October 2026',
       sections: [
         LegalSection(
           heading: '1. Acceptance of Terms',
@@ -23,7 +23,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '3. Account Registration',
           body:
-              'You must create an account to access most features. You are responsible for maintaining the confidentiality of your credentials and for all activity under your account. Notify us immediately at support@7dash.app if you suspect unauthorized access.',
+              'You must create an account to access most features. You are responsible for maintaining the confidentiality of your credentials and for all activity under your account. Notify us immediately at support@hotbite.app if you suspect unauthorized access.',
         ),
         LegalSection(
           heading: '4. Customer Responsibilities',
@@ -59,7 +59,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '7. Payments',
           body:
-              'All payments are processed securely by Stripe. By placing an order or booking a service, you authorize HotBite to charge your selected payment method for the total amount shown at checkout, including item prices, delivery fees, service fees, applicable taxes, and tip if added. Payments are denominated in USD unless otherwise indicated. We do not store full card numbers.',
+              'All payments are processed securely by Stripe. By placing an order or booking a service, you authorize HotBite to charge your selected payment method for the total amount shown at checkout, including item prices, delivery fees, service fees, applicable taxes, and tip if added. Payments are denominated in the currency shown at checkout. We do not store full card numbers.',
         ),
         LegalSection(
           heading: '8. Delivery Fees & Service Fees',
@@ -121,7 +121,7 @@ class TermsConditionsScreen extends StatelessWidget {
         LegalSection(
           heading: '18. Contact',
           body:
-              'Questions about these Terms? Contact us at support@7dash.app or via Settings → Contact Support.',
+              'Questions about these Terms? Contact us at support@hotbite.app or via Settings → Contact Support.',
         ),
       ],
     );

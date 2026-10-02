@@ -50,7 +50,7 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '6. Reporting Incidents',
           body:
-              'If you are involved in an accident, witness criminal activity, or feel unsafe during a delivery or ride, end the trip safely and contact emergency services first. Then report the incident to HotBite through the app or at support@7dash.app. We will work with you on next steps.',
+              'If you are involved in an accident, witness criminal activity, or feel unsafe during a delivery or ride, end the trip safely and contact emergency services first. Then report the incident to HotBite through the app or at support@hotbite.app. We will work with you on next steps.',
         ),
         LegalSection(
           heading: '7. Zero-Tolerance Behaviors',
@@ -78,7 +78,7 @@ class DriverSafetyPolicyScreen extends StatelessWidget {
           body:
               'If you feel unsafe during a delivery or ride, you can:\n\n'
               '• Tap the emergency button in the active delivery or ride screen to call emergency services.\n'
-              '• Contact HotBite support at support@7dash.app.\n'
+              '• Contact HotBite support at support@hotbite.app.\n'
               '• End the order or ride safely and leave the situation.\n\n'
               'Your personal safety always takes priority over completing a trip.',
         ),

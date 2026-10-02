@@ -64,7 +64,7 @@ class CancellationPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '9. How to Cancel',
           body:
-              'To cancel an active order or ride, open the order or ride detail screen and tap "Cancel". If the cancel option is unavailable, the order has progressed past the cancellation window. For assistance, contact support@7dash.app.',
+              'To cancel an active order or ride, open the order or ride detail screen and tap "Cancel". If the cancel option is unavailable, the order has progressed past the cancellation window. For assistance, contact support@hotbite.app.',
         ),
       ],
     );

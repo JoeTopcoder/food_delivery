@@ -8,7 +8,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const LegalPolicyScreen(
       title: 'Privacy Policy',
-      lastUpdated: 'June 2026',
+      lastUpdated: 'October 2026',
       sections: [
         LegalSection(
           heading: '1. Introduction',
@@ -47,9 +47,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
               '• Restaurants and grocery stores: your name and order details required to prepare your order.\n'
               '• Service providers: contact and booking information needed to complete your car service or laundry booking.\n'
               '• Payment processors: Stripe receives payment-related data to process transactions. Stripe\'s own privacy policy applies to data they handle.\n'
+              '• Service sub-processors who operate our infrastructure (see "Where Your Data Is Hosted" below).\n'
               '• Analytics and crash reporting services: anonymized or aggregated usage data.\n'
               '• Law enforcement: when required by applicable law, court order, or governmental regulation.\n\n'
               'We do not sell your personal information to third parties.',
+        ),
+        LegalSection(
+          heading: '4a. Where Your Data Is Hosted & Our Sub-Processors',
+          body:
+              'HotBite does not operate its own data centres. We rely on the following trusted sub-processors, and your information may be stored or processed on their infrastructure:\n\n'
+              '• Supabase (database, authentication, file storage, and backend functions) — hosted on Amazon Web Services in the United States (US West / Oregon region). This is where your account, order, and profile data is stored.\n\n'
+              '• Stripe, Inc. (payment processing) — processes card and transaction data.\n\n'
+              '• Google Firebase Cloud Messaging (push notifications) — handles delivery of notifications to your device.\n\n'
+              '• Agora (in-app voice calls) — carries voice-call audio and related metadata when you place or receive an in-app call.\n\n'
+              'Because these providers may process data in the United States and other countries, your information may be transferred to and processed in jurisdictions outside your own. We take reasonable steps to ensure such transfers are protected by appropriate safeguards. Each sub-processor is bound by its own privacy and security commitments.',
         ),
         LegalSection(
           heading: '5. Location Data',
@@ -71,7 +82,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               '• Withdraw consent for data processing where consent is the basis.\n'
               '• Data portability.\n'
               '• Lodge a complaint with a data protection authority.\n\n'
-              'To exercise any of these rights, contact us at support@7dash.app or use the in-app Data Deletion Request feature.',
+              'To exercise any of these rights, contact us at support@hotbite.app or use the in-app Data Deletion Request feature.',
         ),
         LegalSection(
           heading: '8. Security',
@@ -81,7 +92,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '9. Children\'s Privacy',
           body:
-              'Our Service is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, contact us at support@7dash.app and we will promptly delete it.',
+              'Our Service is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, contact us at support@hotbite.app and we will promptly delete it.',
         ),
         LegalSection(
           heading: '10. Third-Party Links',
@@ -98,7 +109,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           body:
               'If you have questions about this Privacy Policy or our data practices, contact us at:\n\n'
               'HotBite Delivery Limited\n'
-              'Email: support@7dash.app\n'
+              'Email: support@hotbite.app\n'
               'App: Settings → Contact Support',
         ),
       ],
