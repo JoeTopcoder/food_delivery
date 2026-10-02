@@ -11,12 +11,20 @@ import { serviceClient } from '../stripe-shared/supabase.ts'
 declare const Deno: { env: { get(key: string): string | undefined } }
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const FALLBACK_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') ?? 'HotBite <onboarding@resend.dev>'
+// Explicit, Resend-VERIFIED sender. The technical From address is decoupled
+// from the user-facing support contact (app_config.support_email): the support
+// email may use a brand domain (e.g. hotbite.app) that is not yet verified in
+// Resend, and Resend rejects any send whose From-domain is unverified. When
+// RESEND_FROM_EMAIL is set it always wins, so email keeps working regardless of
+// what support_email is. Once hotbite.app is verified, just update this secret.
+const EXPLICIT_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL')?.trim() ?? ''
+const SANDBOX_FROM_EMAIL = 'HotBite <onboarding@resend.dev>'
 
 export async function getDefaultFromEmail(): Promise<string> {
+  if (EXPLICIT_FROM_EMAIL) return EXPLICIT_FROM_EMAIL
   const { data } = await serviceClient.from('app_config').select('value').eq('key', 'support_email').maybeSingle()
   const email = data?.value ? String(data.value).replace(/"/g, '').trim() : null
-  return email ? `HotBite <${email}>` : FALLBACK_FROM_EMAIL
+  return email ? `HotBite <${email}>` : SANDBOX_FROM_EMAIL
 }
 
 export interface SendEmailArgs {
