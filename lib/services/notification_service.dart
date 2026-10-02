@@ -182,20 +182,6 @@ class NotificationService {
         if (!status.isGranted) {
           await Permission.notification.request();
         }
-
-        // Aggressive OEMs (Samsung, Xiaomi…) freeze/kill the app process when
-        // it's swiped away, which stops the high-priority FCM that rings an
-        // incoming call from ever being delivered to the background handler.
-        // Ask the user once to exempt us from battery optimization so calls
-        // still arrive when the app is fully closed.
-        try {
-          final battery = await Permission.ignoreBatteryOptimizations.status;
-          if (!battery.isGranted) {
-            await Permission.ignoreBatteryOptimizations.request();
-          }
-        } catch (e) {
-          AppLogger.error('Battery optimization request failed: $e');
-        }
       }
 
       // iOS: use firebase_messaging's requestPermission for APNs registration.
