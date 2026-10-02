@@ -144,7 +144,7 @@ class _AdminPayoutBatchScreenState
       final res = await SupabaseConfig.client.rpc('create_payout_batch');
       final billed =
           (res as List).map((e) => Map<String, dynamic>.from(e)).toList();
-      await _share(billed, 'quickdash-payouts');
+      await _share(billed, 'hotbite-payouts');
       // Email anyone still owed but missing bank details so they add it.
       int reminders = 0;
       try {
@@ -278,7 +278,7 @@ class _AdminPayoutBatchScreenState
                       child: OutlinedButton.icon(
                         onPressed: payable.isEmpty
                             ? null
-                            : () => _share(payable, 'quickdash-payouts-preview'),
+                            : () => _share(payable, 'hotbite-payouts-preview'),
                         icon: const Icon(Icons.download_rounded),
                         label: const Text('Export CSV'),
                       ),

@@ -102,7 +102,7 @@ class MfaService {
 
   /// Ask the server to email a one-time recovery code to the admin's account
   /// email (for when the authenticator app isn't available). Returns a masked
-  /// version of the destination email (e.g. "su****@7-dash.com").
+  /// version of the destination email (e.g. "su****@hotbite.app").
   Future<String> requestRecoveryCode() async {
     try {
       final res = await _client.functions

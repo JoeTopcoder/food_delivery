@@ -1,6 +1,6 @@
 {
-    "name": "MealHub",
-    "short_name": "MealHub",
+    "name": "HotBite",
+    "short_name": "HotBite",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
