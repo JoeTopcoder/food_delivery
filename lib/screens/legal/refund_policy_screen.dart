@@ -82,7 +82,7 @@ class RefundPolicyScreen extends StatelessWidget {
         LegalSection(
           heading: '13. How to Request a Refund',
           body:
-              'To request a refund, go to Orders → select the relevant order → Report an Issue, or contact us at support@7dash.app. Include your order number and a description of the issue. We aim to respond within 24–48 hours.',
+              'To request a refund, go to Orders → select the relevant order → Report an Issue, or contact us at support@hotbite.app. Include your order number and a description of the issue. We aim to respond within 24–48 hours.',
         ),
       ],
     );

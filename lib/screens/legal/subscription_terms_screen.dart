@@ -43,7 +43,7 @@ class SubscriptionTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '7. Refunds',
           body:
-              'Subscription fees are non-refundable once a billing period has started. If you believe you were incorrectly charged, contact support@7dash.app within 7 days of the charge and we will investigate.',
+              'Subscription fees are non-refundable once a billing period has started. If you believe you were incorrectly charged, contact support@hotbite.app within 7 days of the charge and we will investigate.',
         ),
         LegalSection(
           heading: '8. Price Changes',
@@ -63,7 +63,7 @@ class SubscriptionTermsScreen extends StatelessWidget {
         LegalSection(
           heading: '11. Contact',
           body:
-              'For subscription-related questions, contact us at support@7dash.app or through Settings → Contact Support.',
+              'For subscription-related questions, contact us at support@hotbite.app or through Settings → Contact Support.',
         ),
       ],
     );
