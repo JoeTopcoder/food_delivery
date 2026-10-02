@@ -151,9 +151,9 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "sevendash.app://login-callback"
+site_url = "quickdash.app://login-callback"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000", "http://127.0.0.1:3000", "sevendash.app://login-callback", "com.example.food_driver://login-callback"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "http://127.0.0.1:3000", "quickdash.app://login-callback", "com.example.food_driver://login-callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 33600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -408,6 +408,9 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.place-order]
 verify_jwt = false
 
+[functions.activate-membership]
+verify_jwt = false
+
 [functions.grocery-order]
 verify_jwt = false
 
@@ -587,4 +590,13 @@ verify_jwt = false
 # Consolidated packages function. Package-delivery logistics; each route
 # authenticates in-handler, so the platform gate is off.
 [functions.packages]
+verify_jwt = false
+
+[functions.ai-staff-daily-report]
+verify_jwt = false
+
+[functions.ai-admin-briefing]
+verify_jwt = false
+
+[functions.ai-banner-designer]
 verify_jwt = false
