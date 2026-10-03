@@ -550,3 +550,22 @@ final companySponsorshipEnabledProvider =
     return true;
   }
 });
+
+/// Call fallback (private telephone bridge). Default FALSE — Agora is unaffected
+/// when this is off. Read at call time so the UI only offers phone fallback when
+/// an admin has enabled it. See CallFallbackService.
+final callFallbackEnabledProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
+  ref.watch(configVersionProvider);
+  try {
+    final row = await SupabaseConfig.client
+        .from('app_config')
+        .select('value')
+        .eq('key', 'call_fallback_enabled')
+        .maybeSingle();
+    final v = row?['value']?.toString();
+    return v == 'true' || v == '1';
+  } catch (_) {
+    return false;
+  }
+});
