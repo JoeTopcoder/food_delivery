@@ -153,11 +153,20 @@ Deno.serve(async (req: Request) => {
 
     // Look up the caller's role so the receiver's call screen can show who's
     // calling ("Driver", "HotBite", etc.).
+    // PRIVACY: never expose a caller's full name to the other party. We derive a
+    // first-name-only display from the authoritative DB record and ignore the
+    // client-supplied callerName (which was the full name). Falls back to masking
+    // the client value if the caller row can't be read.
+    const firstNameOnly = (n: string) =>
+      (n || "").trim().split(/\s+/)[0] || "Someone";
     let callerRole = "";
+    let safeCallerName = firstNameOnly(callerName);
     if (callerId) {
       const { data: callerRow } = await admin
-        .from("users").select("role").eq("id", callerId).maybeSingle();
+        .from("users").select("role, name").eq("id", callerId).maybeSingle();
       callerRole = (callerRow?.role as string) ?? "";
+      const dbName = ((callerRow?.name as string) ?? "").trim();
+      if (dbName) safeCallerName = firstNameOnly(dbName);
     }
 
     // 2. Build and send a data-only FCM message (high priority)
@@ -176,10 +185,10 @@ Deno.serve(async (req: Request) => {
         data: {
           type: "incoming_call",
           title: "Incoming Call 📞",
-          body: `${callerName} is calling you`,
+          body: `${safeCallerName} is calling you`,
           call_id: callId,
           caller_id: callerId ?? "",
-          caller_name: callerName,
+          caller_name: safeCallerName,
           caller_role: callerRole,
           order_id: orderId ?? "",
           channel_name: channelName,
@@ -195,7 +204,7 @@ Deno.serve(async (req: Request) => {
               sound: "default",
               alert: {
                 title: "Incoming Call 📞",
-                body: `${callerName} is calling you`,
+                body: `${safeCallerName} is calling you`,
               },
             },
           },
@@ -230,7 +239,7 @@ Deno.serve(async (req: Request) => {
       .insert({
         user_id: recipientUserId,
         title: "Incoming Call",
-        body: `${callerName} is calling you`,
+        body: `${safeCallerName} is calling you`,
         type: "incoming_call",
         data: {
           type: "incoming_call",
