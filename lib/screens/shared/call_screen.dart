@@ -9,6 +9,8 @@ import '../../models/restaurant_model.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/social/agora_service.dart';
+import '../../services/call/call_fallback_service.dart';
+import '../../providers/feature_providers.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 import '../../config/app_constants.dart';
@@ -64,6 +66,17 @@ class _CallScreenState extends ConsumerState<CallScreen>
   int _joinRetryCount = 0;
   Timer? _remoteLeftTimer; // grace period before ending call on user leave
 
+  // ── Telephone fallback (separate from Agora; feature-flagged) ───────────────
+  final CallFallbackService _fallback = CallFallbackService();
+  Timer? _connectTimeoutTimer; // accepted-but-never-connected watchdog
+  bool _rtcEverConnected = false;
+  bool _fallbackEnabled = false;
+  bool _showPhoneButton = false; // manual "Connect by phone" after no-answer
+  FallbackPhase _fallbackPhase = FallbackPhase.idle;
+  String? _fallbackId;
+  bool _fallbackMock = false;
+  bool _fallbackInFlight = false;
+
   // ── Animation ──────────────────────────────────────────────────────────────
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
@@ -86,7 +99,16 @@ class _CallScreenState extends ConsumerState<CallScreen>
     ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut));
 
     if (_callStatus == CallStatus.ringing) _startRinging();
-    if (_callStatus == CallStatus.accepted) _startDurationTimer();
+    if (_callStatus == CallStatus.accepted) {
+      _startDurationTimer();
+      _startConnectTimeout();
+    }
+
+    // Read the telephone-fallback feature flag once (default off). Agora is
+    // unaffected whether this is on or off.
+    ref.read(callFallbackEnabledProvider.future).then((enabled) {
+      if (mounted) setState(() => _fallbackEnabled = enabled);
+    }).catchError((_) {});
 
     _listenForCallUpdates();
     _initCall();
@@ -112,6 +134,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _durationTimer?.cancel();
     _ringTimer?.cancel();
     _remoteLeftTimer?.cancel();
+    _connectTimeoutTimer?.cancel();
+    _fallback.dispose();
     _pulseCtrl.dispose();
     _agora.clearCallbacks();
     _agora.leaveChannel();
@@ -182,6 +206,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       // Remote user reconnected — cancel any pending end-call timer
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
+      _onRtcConnected();
     };
     _agora.onRemoteAudioActive = () {
       if (mounted) {
@@ -192,6 +217,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
       }
       _remoteLeftTimer?.cancel();
       _remoteLeftTimer = null;
+      _onRtcConnected();
     };
     _agora.onUserLeft = (_) {
       if (mounted) setState(() => _audioReady = false);
@@ -200,7 +226,15 @@ class _CallScreenState extends ConsumerState<CallScreen>
       if (mounted && _callStatus == CallStatus.accepted) {
         _remoteLeftTimer?.cancel();
         _remoteLeftTimer = Timer(const Duration(seconds: 10), () {
-          if (mounted && _callStatus != CallStatus.ended) _endCall();
+          if (!mounted || _callStatus == CallStatus.ended) return;
+          // Established call dropped and did not recover within the grace window.
+          // If fallback is enabled and the call had actually connected, bridge by
+          // phone instead of silently ending. Otherwise keep the old behavior.
+          if (_fallbackEnabled && _rtcEverConnected) {
+            _triggerFallback(FallbackReason.reconnectFailed);
+          } else {
+            _endCall();
+          }
         });
       } else if (mounted && _callStatus == CallStatus.ringing) {
         // During ringing, the other party hasn't connected yet — ignore
@@ -368,6 +402,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     if (mounted) {
       setState(() => _callStatus = CallStatus.accepted);
       _startDurationTimer();
+      _startConnectTimeout();
     }
 
     // Ensure engine is ready before joining
@@ -391,6 +426,202 @@ class _CallScreenState extends ConsumerState<CallScreen>
         .updateCallStatus(widget.call.id, CallStatus.declined);
     await _agora.leaveChannel();
     if (mounted) Navigator.of(context).pop();
+  }
+
+  // ── Telephone-fallback hooks (separate from Agora) ──────────────────────────
+
+  /// RTC connected (remote joined / audio flowing). Cancels the connect-timeout
+  /// watchdog and, if a fallback was mid-request, resolves the race by cancelling
+  /// it — a working Agora call must never be replaced by a phone bridge.
+  void _onRtcConnected() {
+    _rtcEverConnected = true;
+    _connectTimeoutTimer?.cancel();
+    _connectTimeoutTimer = null;
+    if (mounted && _showPhoneButton) setState(() => _showPhoneButton = false);
+    // Agora won the race — cancel any pending (not-yet-bridged) fallback.
+    if (_fallbackId != null &&
+        _fallbackPhase != FallbackPhase.phoneConnected &&
+        _fallbackPhase != FallbackPhase.idle) {
+      final id = _fallbackId!;
+      _fallback.cancel(id);
+      _fallback.dispose();
+      if (mounted) {
+        setState(() {
+          _fallbackPhase = FallbackPhase.idle;
+          _fallbackId = null;
+        });
+      }
+    }
+  }
+
+  /// Accepted call that never establishes RTC within 15s → request phone fallback.
+  void _startConnectTimeout() {
+    if (!_fallbackEnabled) return;
+    _connectTimeoutTimer?.cancel();
+    _connectTimeoutTimer = Timer(const Duration(seconds: 15), () {
+      if (!mounted) return;
+      if (_rtcEverConnected || _audioReady) return; // connected in time
+      if (_callStatus == CallStatus.ended) return;
+      _triggerFallback(FallbackReason.connectTimeout);
+    });
+  }
+
+  /// Switch from Agora to the private phone bridge. Terminates the Agora attempt
+  /// first (so the customer can't answer a stale invite), then asks the backend
+  /// to bridge. Atomic: if Agora connects before commit, _onRtcConnected cancels.
+  Future<void> _triggerFallback(FallbackReason reason) async {
+    if (!_fallbackEnabled || _fallbackInFlight) return;
+    if (_fallbackPhase == FallbackPhase.phoneConnected) return;
+    _fallbackInFlight = true;
+    _connectTimeoutTimer?.cancel();
+
+    if (mounted) {
+      setState(() {
+        _fallbackPhase = FallbackPhase.requesting;
+        _showPhoneButton = false;
+      });
+    }
+
+    // Terminate the Agora attempt through its existing cleanup/signaling path so
+    // a stale invitation can't be answered. We do NOT navigate away.
+    try {
+      await _agora.leaveChannel();
+    } catch (_) {}
+
+    final res = await _fallback.request(
+      orderId: widget.call.orderId ?? '',
+      callId: widget.call.id,
+      reason: reason,
+    );
+    _fallbackInFlight = false;
+    if (!mounted) return;
+
+    if (!res.ok || res.fallbackId == null) {
+      setState(() => _fallbackPhase = FallbackPhase.failed);
+      return;
+    }
+    setState(() {
+      _fallbackId = res.fallbackId;
+      _fallbackMock = res.mock;
+      _fallbackPhase = FallbackPhase.connectingByPhone;
+    });
+    _fallback.watch(res.fallbackId!, (phase) {
+      if (mounted) setState(() => _fallbackPhase = phase);
+    });
+  }
+
+  Future<void> _cancelFallback() async {
+    final id = _fallbackId;
+    if (id != null) await _fallback.cancel(id);
+    _fallback.dispose();
+    if (mounted) {
+      setState(() {
+        _fallbackPhase = FallbackPhase.idle;
+        _fallbackId = null;
+      });
+    }
+  }
+
+  // Driver-facing fallback status. NEVER shows a phone number.
+  ({IconData icon, String title, String body}) _fallbackCopy() {
+    switch (_fallbackPhase) {
+      case FallbackPhase.requesting:
+        return (icon: Icons.sync_rounded, title: 'In-app call could not connect',
+            body: 'Switching to a phone call…');
+      case FallbackPhase.connectingByPhone:
+        return (icon: Icons.phone_forwarded_rounded, title: 'Connecting by phone',
+            body: 'A regular incoming HotBite call will arrive on your phone shortly.');
+      case FallbackPhase.answerIncoming:
+        return (icon: Icons.ring_volume_rounded, title: 'Answer the incoming HotBite call',
+            body: 'Pick up and press 1 to be connected to your customer.');
+      case FallbackPhase.callingCustomer:
+        return (icon: Icons.phone_in_talk_rounded, title: 'Calling customer',
+            body: 'Please hold while we connect you.');
+      case FallbackPhase.phoneConnected:
+        return (icon: Icons.check_circle_rounded, title: 'Phone call connected',
+            body: 'You are now connected by phone.');
+      case FallbackPhase.customerNoAnswer:
+        return (icon: Icons.phone_missed_rounded, title: 'Customer did not answer',
+            body: 'You can try again shortly.');
+      case FallbackPhase.failed:
+        return (icon: Icons.error_outline_rounded, title: 'Phone connection failed',
+            body: 'Please try again, or contact support.');
+      case FallbackPhase.cancelled:
+        return (icon: Icons.cancel_rounded, title: 'Cancelled', body: '');
+      case FallbackPhase.idle:
+        return (icon: Icons.phone_rounded, title: '', body: '');
+    }
+  }
+
+  Widget _buildFallbackSheet() {
+    final c = _fallbackCopy();
+    final pending = _fallbackPhase == FallbackPhase.requesting ||
+        _fallbackPhase == FallbackPhase.connectingByPhone ||
+        _fallbackPhase == FallbackPhase.answerIncoming ||
+        _fallbackPhase == FallbackPhase.callingCustomer;
+    final terminal = _fallbackPhase == FallbackPhase.phoneConnected ||
+        _fallbackPhase == FallbackPhase.failed ||
+        _fallbackPhase == FallbackPhase.customerNoAnswer ||
+        _fallbackPhase == FallbackPhase.cancelled;
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 16)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(c.icon, color: AppTheme.primaryColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(c.title,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              ),
+              if (_fallbackMock)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Text('MOCK',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
+                ),
+            ]),
+            if (c.body.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(c.body, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+            ],
+            const SizedBox(height: 14),
+            Row(children: [
+              if (pending)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _cancelFallback,
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              if (terminal)
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => _fallbackPhase = FallbackPhase.idle);
+                      _endCall();
+                    },
+                    child: const Text('Done'),
+                  ),
+                ),
+            ]),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _endCall() async {
@@ -459,6 +690,16 @@ class _CallScreenState extends ConsumerState<CallScreen>
         HapticFeedback.mediumImpact();
       }
     });
+    // Customer hasn't answered the in-app invite within 30s → offer the driver a
+    // manual "Connect by phone" button (we don't auto-switch on no-answer).
+    if (widget.isCaller && _fallbackEnabled) {
+      Timer(const Duration(seconds: 30), () {
+        if (!mounted) return;
+        if (_callStatus == CallStatus.ringing && !_rtcEverConnected) {
+          setState(() => _showPhoneButton = true);
+        }
+      });
+    }
   }
 
   void _stopRinging() {
@@ -545,6 +786,15 @@ class _CallScreenState extends ConsumerState<CallScreen>
   Widget build(BuildContext context) {
     final accent = _accent;
     return Scaffold(
+      floatingActionButton: (_showPhoneButton && _fallbackPhase == FallbackPhase.idle)
+          ? FloatingActionButton.extended(
+              onPressed: () => _triggerFallback(FallbackReason.noAnswerManual),
+              backgroundColor: const Color(0xFF22C55E),
+              icon: const Icon(Icons.phone_in_talk_rounded),
+              label: const Text('Connect by phone'),
+            )
+          : null,
+      bottomSheet: _fallbackPhase == FallbackPhase.idle ? null : _buildFallbackSheet(),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
