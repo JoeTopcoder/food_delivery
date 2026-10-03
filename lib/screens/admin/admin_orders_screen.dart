@@ -8,6 +8,7 @@ import '../../widgets/order_countdown_timer.dart';
 import '../../widgets/order_status_timeline.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import 'admin_wallet_adjust_sheet.dart';
 
 /// Realtime listener that auto-refreshes admin orders on any change.
 final _adminOrderRealtimeProvider = Provider.autoDispose<void>((ref) {
@@ -295,7 +296,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                 onChanged: (v) => setState(() => _searchQuery = v.trim()),
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search by ID, customer, restaurant…',
+                  hintText: 'Search by Order ID, receipt, customer…',
                   hintStyle: const TextStyle(
                     color: Color(0xFF9CA3AF),
                     fontSize: 14,
@@ -376,6 +377,17 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                 return TabBarView(
                   controller: _tabController,
                   children: List.generate(_tabs.length, (tabIdx) {
+                    // In search mode, query the DB directly so an older order
+                    // (e.g. a delivered order beyond the recent list) can be
+                    // found by its full/partial Order ID, receipt or customer.
+                    if (_searchQuery.isNotEmpty) {
+                      return _ServerOrderSearch(
+                        query: _searchQuery,
+                        statuses: _statusesForTab(tabIdx),
+                        typeFilter: _typeFilter,
+                        onRefresh: _refresh,
+                      );
+                    }
                     final orders = _filter(allOrders, tabIdx);
                     if (orders.isEmpty) {
                       return _emptyState(tabIdx);
@@ -1590,6 +1602,11 @@ class _OrderDetailSheet extends StatelessWidget {
 
           const Divider(height: 28),
           ..._buildTotals(context),
+
+          const SizedBox(height: 8),
+          _RefundedLine(orderId: id),
+          const SizedBox(height: 16),
+          _AdminMoneyActions(order: order),
         ],
       ),
     );
@@ -1702,6 +1719,216 @@ class _OrderDetailSheet extends StatelessWidget {
                   color: bold ? AppTheme.primaryColor : null)),
         ],
       ),
+    );
+  }
+}
+
+// Shows how much of an order has already been refunded (admin view).
+class _RefundedLine extends StatelessWidget {
+  final String orderId;
+  const _RefundedLine({required this.orderId});
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<num>(
+      future: SupabaseConfig.client
+          .rpc('admin_order_refunded_total', params: {'p_order_id': orderId})
+          .then((v) => (v as num?) ?? 0),
+      builder: (context, snap) {
+        final refunded = (snap.data ?? 0).toDouble();
+        if (refunded <= 0) return const SizedBox.shrink();
+        return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Refunded so far', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+          Text('-${AppConstants.currencySymbol}${refunded.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFDC2626))),
+        ]);
+      },
+    );
+  }
+}
+
+// Admin money actions on an order: refund (to wallet or manual) + wallet top-up/deduct.
+class _AdminMoneyActions extends StatefulWidget {
+  final Map<String, dynamic> order;
+  const _AdminMoneyActions({required this.order});
+  @override
+  State<_AdminMoneyActions> createState() => _AdminMoneyActionsState();
+}
+
+class _AdminMoneyActionsState extends State<_AdminMoneyActions> {
+  bool _busy = false;
+
+  String? get _userId => widget.order['user_id']?.toString();
+  String get _customerName =>
+      ((widget.order['users'] as Map?)?['name'] ?? (widget.order['users'] as Map?)?['email'] ?? 'Customer').toString();
+  double get _total => (widget.order['total_amount'] ?? 0).toDouble();
+  String get _orderId => (widget.order['id'] ?? '').toString();
+
+  Future<void> _refund() async {
+    final amountCtl = TextEditingController(text: _total.toStringAsFixed(2));
+    final reasonCtl = TextEditingController();
+    bool toWallet = true;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+        title: const Text('Refund order'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: amountCtl, keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'Amount', prefixText: AppConstants.currencySymbol)),
+          const SizedBox(height: 8),
+          TextField(controller: reasonCtl, decoration: const InputDecoration(labelText: 'Reason')),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Refund to customer wallet', style: TextStyle(fontSize: 13)),
+            subtitle: Text(toWallet ? 'Credits the wallet immediately.' : 'Logs the refund only (handle payout/Stripe manually).', style: const TextStyle(fontSize: 11)),
+            value: toWallet, onChanged: (v) => setD(() => toWallet = v),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Refund')),
+        ],
+      )),
+    );
+    if (ok != true || !mounted) return;
+    final amount = double.tryParse(amountCtl.text.trim());
+    if (amount == null || amount <= 0) { AppSnackbar.error(context, 'Enter a valid amount'); return; }
+    setState(() => _busy = true);
+    try {
+      final adminId = SupabaseConfig.client.auth.currentUser?.id;
+      final res = await SupabaseConfig.client.rpc('admin_refund_order', params: {
+        'p_order_id': _orderId, 'p_amount': amount, 'p_reason': reasonCtl.text.trim(),
+        'p_admin_id': adminId, 'p_to_wallet': toWallet,
+      });
+      final m = res is Map ? Map<String, dynamic>.from(res) : {};
+      if (mounted) {
+        AppSnackbar.success(context, toWallet
+            ? 'Refunded ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} to wallet'
+            : 'Refund logged (${AppConstants.currencySymbol}${amount.toStringAsFixed(2)})');
+        setState(() {}); // refresh refunded line
+      }
+      if (m['remaining_refundable'] != null && mounted) {
+        // no-op, value available if needed
+      }
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_userId == null) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Admin money actions', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: ElevatedButton.icon(
+          onPressed: _busy ? null : _refund,
+          icon: const Icon(Icons.currency_exchange_rounded, size: 18),
+          label: const Text('Refund'),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: OutlinedButton.icon(
+          onPressed: _busy ? null : () => AdminWalletAdjustSheet.show(
+                context, userId: _userId!, customerName: _customerName, onDone: () { if (mounted) setState(() {}); }),
+          icon: const Icon(Icons.account_balance_wallet_rounded, size: 18),
+          label: const Text('Wallet'),
+        )),
+      ]),
+      const SizedBox(height: 6),
+      Text('Wallet: top up (credit) or deduct (debit) the customer balance. All actions are audited.',
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+    ]);
+  }
+}
+
+// Server-side order search — finds ANY order (including old delivered ones) by
+// full/partial Order ID, receipt, or customer, via the admin_search_orders RPC.
+class _ServerOrderSearch extends StatefulWidget {
+  final String query;
+  final List<String> statuses;
+  final String typeFilter;
+  final Future<void> Function() onRefresh;
+  const _ServerOrderSearch({
+    required this.query,
+    required this.statuses,
+    required this.typeFilter,
+    required this.onRefresh,
+  });
+  @override
+  State<_ServerOrderSearch> createState() => _ServerOrderSearchState();
+}
+
+class _ServerOrderSearchState extends State<_ServerOrderSearch> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _run();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ServerOrderSearch old) {
+    super.didUpdateWidget(old);
+    if (old.query != widget.query ||
+        old.statuses.join(',') != widget.statuses.join(',') ||
+        old.typeFilter != widget.typeFilter) {
+      // didUpdateWidget is already followed by build(); assign without setState.
+      _future = _run();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _run() async {
+    final res = await SupabaseConfig.client.rpc('admin_search_orders', params: {
+      'p_q': widget.query,
+      'p_statuses': widget.statuses.isEmpty ? null : widget.statuses,
+      'p_limit': 50,
+    });
+    var list = (res as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    // Apply the same food/grocery vertical filter as the local list.
+    if (widget.typeFilter == 'grocery') {
+      list = list.where((o) => (o['restaurants'] as Map?)?['store_type'] == 'grocery' || (o['restaurants'] as Map?)?['store_type'] == 'both').toList();
+    } else if (widget.typeFilter == 'food') {
+      list = list.where((o) => (o['restaurants'] as Map?)?['store_type'] != 'grocery' && (o['restaurants'] as Map?)?['store_type'] != 'both').toList();
+    }
+    return list;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const AppLoadingIndicator(message: 'Searching orders…');
+        }
+        if (snap.hasError) {
+          return AppErrorState(message: friendlyError(snap.error!), onRetry: () => setState(() { _future = _run(); }));
+        }
+        final orders = snap.data ?? [];
+        if (orders.isEmpty) {
+          return AppEmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No orders match "${widget.query}"',
+            subtitle: 'Search by Order ID, receipt number, or customer.',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: () async { await widget.onRefresh(); setState(() { _future = _run(); }); },
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: orders.length,
+            itemBuilder: (_, i) => _OrderCard(
+              order: orders[i],
+              onRefresh: () async { await widget.onRefresh(); setState(() { _future = _run(); }); },
+            ),
+          ),
+        );
+      },
     );
   }
 }

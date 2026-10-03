@@ -8,6 +8,7 @@ import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
+import '../restaurant/menu_management_screen.dart';
 
 class AdminRestaurantsScreen extends ConsumerStatefulWidget {
   const AdminRestaurantsScreen({super.key});
@@ -437,6 +438,32 @@ class _RestaurantList extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF6366F1),
                             side: const BorderSide(color: Color(0xFF6366F1)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MenuManagementScreen(
+                                adminRestaurantId: restaurant.id,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('Edit Menu & Prices'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFF6B35),
+                            side: const BorderSide(color: Color(0xFFFF6B35)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),

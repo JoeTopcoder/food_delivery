@@ -83,7 +83,7 @@ class _OrderAgainCard extends ConsumerWidget {
     final storeAsync = ref.watch(orderAgainStoreProvider(entry.restaurantId));
     final store = storeAsync.valueOrNull;
     final isGrocery = store?.storeType == 'grocery';
-    final name = store?.name ?? 'Your order';
+    final name = store?.displayBrand ?? 'Your order';
 
     return SizedBox(
       width: 208,

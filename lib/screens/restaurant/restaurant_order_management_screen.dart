@@ -17,6 +17,73 @@ import '../../utils/friendly_error.dart';
 import '../../core/utils/responsive.dart';
 import '../../config/supabase_config.dart';
 
+/// Prep-time picker shown when a restaurant accepts an order. Returns the
+/// chosen minutes (10/15/25/30) or null if the restaurant backs out. The value
+/// becomes the order's estimated_prep_minutes + ready_at, which drive the
+/// customer ETA and driver dispatch.
+Future<int?> showPrepTimePicker(BuildContext context) {
+  const options = [10, 15, 25, 30];
+  return showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetCtx) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 16, 20, 20 + MediaQuery.of(sheetCtx).padding.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('How long until this order is ready?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('The customer sees this as their estimated time.',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 2.4,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              children: options
+                  .map((m) => ElevatedButton(
+                        onPressed: () => Navigator.pop(sheetCtx, m),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade50,
+                          foregroundColor: Colors.green.shade800,
+                          elevation: 0,
+                          side: BorderSide(color: Colors.green.shade200),
+                        ),
+                        child: Text('$m min',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w800)),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
   const RestaurantOrderManagementScreen({super.key});
 
@@ -216,6 +283,13 @@ class _StatusTabSection extends StatelessWidget {
       return orderStatus == AppConstants.orderPickedUp ||
           orderStatus == AppConstants.orderOnTheWay;
     }
+    // The "Pending" tab covers a new order awaiting the restaurant AND one just
+    // accepted (prep time set) but not yet marked preparing — so an accepted
+    // order stays visible for the "Preparing" step instead of disappearing.
+    if (tabStatus == AppConstants.orderPending) {
+      return orderStatus == AppConstants.orderPending ||
+          orderStatus == 'accepted';
+    }
     return orderStatus == tabStatus;
   }
 
@@ -365,11 +439,15 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
   bool _isUpdating = false;
   bool _itemsExpanded = false;
 
-  Future<void> _updateStatus(String newStatus) async {
+  Future<void> _updateStatus(String newStatus, {int? prepMinutes}) async {
     setState(() => _isUpdating = true);
     try {
       final orderService = ref.read(orderServiceProvider);
-      await orderService.updateOrderStatus(widget.order.id, newStatus);
+      await orderService.updateOrderStatus(
+        widget.order.id,
+        newStatus,
+        prepMinutes: prepMinutes,
+      );
       ref.invalidate(ownerAllOrdersProvider(widget.ownerId));
       if (mounted) {
         AppSnackbar.success(
@@ -384,6 +462,14 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
     } finally {
       if (mounted) setState(() => _isUpdating = false);
     }
+  }
+
+  /// On Accept, the restaurant must choose how long the order will take to be
+  /// ready. The chosen minutes drive the customer ETA and driver dispatch.
+  Future<void> _acceptWithPrepTime() async {
+    final chosen = await showPrepTimePicker(context);
+    if (chosen == null) return; // cancelled — do not accept
+    await _updateStatus(AppConstants.orderPreparing, prepMinutes: chosen);
   }
 
   void _showStatusTimeline(BuildContext context, String orderId) {
@@ -1008,7 +1094,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _updateStatus(AppConstants.orderPreparing),
+                onPressed: _acceptWithPrepTime,
                 icon: const Icon(Icons.check, size: 18),
                 label: const Text('Accept'),
                 style: ElevatedButton.styleFrom(
@@ -1351,16 +1437,22 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
     }
   }
 
-  Future<void> _updateStatus(String newStatus) async {
+  Future<void> _updateStatus(String newStatus, {int? prepMinutes}) async {
     if (_updating) return;
     setState(() => _updating = true);
     try {
-      final now = DateTime.now().toIso8601String();
+      final nowDt = DateTime.now();
+      final now = nowDt.toIso8601String();
       final patch = <String, dynamic>{'status': newStatus, 'updated_at': now};
       if (newStatus == 'accepted')  patch['confirmed_at']  = now;
       if (newStatus == 'preparing') patch['preparing_at']  = now;
       if (newStatus == 'ready')     patch['ready_at']      = now;
       if (newStatus == 'cancelled') patch['cancelled_at']  = now;
+      // Restaurant's chosen prep time on accept → estimated minutes + ready-by.
+      if (prepMinutes != null && prepMinutes > 0) {
+        patch['estimated_prep_minutes'] = prepMinutes;
+        patch['ready_at'] = nowDt.add(Duration(minutes: prepMinutes)).toIso8601String();
+      }
 
       await SupabaseConfig.client
           .from('restaurant_orders')
@@ -1544,7 +1636,11 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                       children: [
                         if (ro.status == 'pending')
                           ElevatedButton.icon(
-                            onPressed: () => _updateStatus('accepted'),
+                            onPressed: () async {
+                              final m = await showPrepTimePicker(context);
+                              if (m == null) return;
+                              await _updateStatus('accepted', prepMinutes: m);
+                            },
                             icon: const Icon(Icons.check_circle_outline, size: 15),
                             label: const Text('Accept'),
                             style: ElevatedButton.styleFrom(

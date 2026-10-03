@@ -1046,6 +1046,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ).pushNamed('/admin-ai-operations'),
                           ),
                           _GridAction(
+                            icon: Icons.groups_rounded,
+                            label: 'AI Staff',
+                            color: const Color(0xFF7C3AED),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pushNamed('/admin-ai-staff'),
+                          ),
+                          _GridAction(
                             icon: Icons.schedule_rounded,
                             label: 'Workflow Station',
                             color: const Color(0xFF155EEF),

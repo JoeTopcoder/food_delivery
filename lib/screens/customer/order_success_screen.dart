@@ -1,5 +1,7 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/app_constants.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
 
@@ -26,12 +28,26 @@ class OrderSuccessScreen extends StatefulWidget {
 
 class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
   late final ConfettiController _confettiCtrl;
+  double _memberSavings = 0;
 
   @override
   void initState() {
     super.initState();
     _confettiCtrl = ConfettiController(duration: const Duration(seconds: 3));
     _confettiCtrl.play();
+    _loadMemberSavings();
+  }
+
+  Future<void> _loadMemberSavings() async {
+    try {
+      final row = await Supabase.instance.client
+          .from('orders')
+          .select('member_savings')
+          .eq('id', widget.orderId)
+          .maybeSingle();
+      final v = (row?['member_savings'] as num?)?.toDouble() ?? 0;
+      if (mounted && v > 0) setState(() => _memberSavings = v);
+    } catch (_) {/* non-fatal */}
   }
 
   @override
@@ -105,6 +121,40 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                         height: 1.5,
                       ),
                     ),
+
+                    // HotBite+ member savings banner.
+                    if (_memberSavings > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF5A1F)
+                              .withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: const Color(0xFFFF5A1F)
+                                  .withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.workspace_premium_rounded,
+                                color: Color(0xFFFF5A1F), size: 20),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'You saved ${AppConstants.currencySymbol}${_memberSavings.toStringAsFixed(2)} with your HotBite+ Membership.',
+                                style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFFF5A1F)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     // Contactless delivery PIN
                     if (widget.contactlessDelivery &&

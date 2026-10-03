@@ -80,6 +80,7 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
       category: json['category'] as String,
       isAvailable: json['is_available'] as bool? ?? true,
       discount: (json['discount'] as num?)?.toDouble(),
+      hotBitePlusPrice: (json['hotbite_plus_price'] as num?)?.toDouble(),
       tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
       preparationTime: (json['preparation_time'] as num?)?.toInt(),
       sides: (json['sides'] as List<dynamic>?)
@@ -107,6 +108,7 @@ Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
       'category': instance.category,
       'is_available': instance.isAvailable,
       'discount': instance.discount,
+      'hotbite_plus_price': instance.hotBitePlusPrice,
       'tags': instance.tags,
       'preparation_time': instance.preparationTime,
       'sides': instance.sides?.map((e) => e.toJson()).toList(),

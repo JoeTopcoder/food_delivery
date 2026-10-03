@@ -31,11 +31,15 @@ class MenuService {
         'Fetching menu for restaurant: $restaurantId (includeUnavailable=$includeUnavailable)',
       );
 
-      // Single query with embedded sides + option groups (with nested choices)
+      // List query is intentionally lightweight: it embeds sides (shown as chips
+      // on the card) but NOT option groups/choices, which can be hundreds of rows
+      // for a big menu (e.g. KFC ≈ 129 kB → most of it option choices). Those are
+      // lazy-loaded per item when the detail sheet is opened
+      // (see getMenuItemWithOptions), so the menu list loads fast.
       var query = _supabaseClient
           .from(AppConstants.tableMenus)
           .select(
-            '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
+            '*, ${AppConstants.tableMenuItemSides}(*)',
           )
           .eq('restaurant_id', restaurantId);
       if (!includeUnavailable) {
@@ -53,6 +57,26 @@ class MenuService {
     } catch (e) {
       AppLogger.error('Error fetching menu: $e');
       rethrow;
+    }
+  }
+
+  // Full menu item WITH its sides + option groups + choices — used when the
+  // detail sheet opens, so the menu list query can stay lightweight.
+  Future<MenuItem?> getMenuItemWithOptions(String menuItemId) async {
+    try {
+      final res = await _supabaseClient
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('id', menuItemId)
+          .maybeSingle();
+      if (res == null) return null;
+      final sidesJson = res[AppConstants.tableMenuItemSides] as List? ?? [];
+      return MenuItem.fromJson({...res, 'sides': sidesJson});
+    } catch (e) {
+      AppLogger.error('Error fetching menu item with options: $e');
+      return null;
     }
   }
 
@@ -148,6 +172,7 @@ class MenuService {
     String? description,
     String? imageUrl,
     double? discount,
+    double? hotBitePlusPrice,
     List<String>? tags,
     int? preparationTime,
   }) async {
@@ -165,6 +190,7 @@ class MenuService {
             'image_url': imageUrl,
             'is_available': true,
             'discount': discount,
+            'hotbite_plus_price': hotBitePlusPrice,
             'tags': tags,
             'preparation_time': preparationTime,
             'created_at': DateTime.now().toIso8601String(),
@@ -191,6 +217,8 @@ class MenuService {
     bool? isAvailable,
     double? discount,
     int? preparationTime,
+    double? hotBitePlusPrice,
+    bool clearHotBitePlusPrice = false,
   }) async {
     try {
       AppLogger.info('Updating menu item: $menuItemId');
@@ -205,6 +233,11 @@ class MenuService {
       if (imageUrl != null) updateData['image_url'] = imageUrl;
       if (isAvailable != null) updateData['is_available'] = isAvailable;
       if (discount != null) updateData['discount'] = discount;
+      if (clearHotBitePlusPrice) {
+        updateData['hotbite_plus_price'] = null;
+      } else if (hotBitePlusPrice != null) {
+        updateData['hotbite_plus_price'] = hotBitePlusPrice;
+      }
       if (preparationTime != null) {
         updateData['preparation_time'] = preparationTime;
       }

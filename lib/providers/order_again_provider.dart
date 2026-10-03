@@ -48,6 +48,26 @@ const _reorderableStatuses = {'delivered', 'completed'};
 /// Ranking: most frequently ordered first, then most recent. One entry per
 /// restaurant (its latest reorderable order). Capped so the home screen never
 /// walks the customer's entire lifetime history.
+/// Maps each restaurant id in the customer's history to a chain grouping key
+/// (chain_id when set, else the id itself). Lets "Order Again" collapse a chain
+/// that the customer has ordered from at more than one location into one card.
+final _historyChainKeysProvider =
+    FutureProvider.autoDispose.family<Map<String, String>, List<String>>(
+        (ref, ids) async {
+  if (ids.isEmpty) return const {};
+  final rows = await SupabaseConfig.client
+      .from('restaurants')
+      .select('id, chain_id')
+      .inFilter('id', ids);
+  final out = <String, String>{};
+  for (final r in (rows as List)) {
+    final id = r['id'] as String;
+    final chain = (r['chain_id'] as String?)?.trim();
+    out[id] = (chain != null && chain.isNotEmpty) ? 'c:$chain' : id;
+  }
+  return out;
+});
+
 final orderAgainProvider =
     Provider.autoDispose<List<OrderAgainEntry>>((ref) {
   final uid = ref.watch(currentUserIdProvider);
@@ -61,23 +81,29 @@ final orderAgainProvider =
       .toList()
     ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt)); // most recent first
 
-  // Group by restaurant: keep the most recent order (first seen) + a count.
-  final byRestaurant = <String, ({Order order, int count})>{};
+  // Chain keys for the restaurants in this history (resolved async, once).
+  final ids = reorderable.map((o) => o.restaurantId).toSet().toList();
+  final chainKeys =
+      ref.watch(_historyChainKeysProvider(ids)).valueOrNull ?? const {};
+
+  // Group by chain (falling back to restaurant id): keep the most recent order
+  // (first seen) as the reorder target + a count across all locations.
+  final byChain = <String, ({Order order, int count})>{};
   for (final o in reorderable) {
-    final existing = byRestaurant[o.restaurantId];
+    final key = chainKeys[o.restaurantId] ?? o.restaurantId;
+    final existing = byChain[key];
     if (existing == null) {
-      byRestaurant[o.restaurantId] = (order: o, count: 1);
+      byChain[key] = (order: o, count: 1);
     } else {
-      byRestaurant[o.restaurantId] =
-          (order: existing.order, count: existing.count + 1);
+      byChain[key] = (order: existing.order, count: existing.count + 1);
     }
   }
 
-  final entries = byRestaurant.entries
+  final entries = byChain.values
       .map((e) => OrderAgainEntry(
-            restaurantId: e.key,
-            order: e.value.order,
-            timesOrdered: e.value.count,
+            restaurantId: e.order.restaurantId,
+            order: e.order,
+            timesOrdered: e.count,
           ))
       .toList()
     ..sort((a, b) {

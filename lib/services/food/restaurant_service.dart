@@ -176,6 +176,24 @@ class RestaurantService {
     }, label: 'getAllRestaurants');
   }
 
+  /// Admin: EVERY food restaurant, uncollapsed and unfiltered by radius / open /
+  /// verified / page size, so an admin can target a specific branch (banners,
+  /// promos…). Customer listings collapse chains to one card and hide branches;
+  /// admin tooling must still see and select each individual location, otherwise
+  /// a banner pointing at a collapsed-away branch has no matching dropdown item.
+  Future<List<Restaurant>> getAllRestaurantsForAdmin() async {
+    return withRetry(() async {
+      final response = await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .select(_kRestaurantListCols)
+          .neq('store_type', 'grocery')
+          .order('name');
+      return (response as List)
+          .map((r) => Restaurant.fromJson(Map<String, dynamic>.from(r as Map)))
+          .toList();
+    }, label: 'getAllRestaurantsForAdmin');
+  }
+
   /// Restaurants that serve a given menu [category] — used by browse-by-
   /// category so a tap shows matching *restaurants*, not individual meals.
   /// Inner-joins `menus` so only restaurants with at least one available item

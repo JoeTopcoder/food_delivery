@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_constants.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/membership_provider.dart';
 import '../../services/food/menu_category_service.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_theme.dart';
@@ -91,10 +92,16 @@ class _MealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = meal.item;
+    final isMember = ref.watch(isHotBitePlusMemberProvider);
+    final showMember = isMember && item.hasMemberPrice;
     final hasDiscount = (item.discount ?? 0) > 0;
-    final discounted = hasDiscount
-        ? item.price * (1 - (item.discount! / 100))
-        : item.price;
+    // Member price wins when eligible; otherwise the regular (discounted) price.
+    final discounted = item.priceForMember(isMember);
+    // Strike-through reference: for members the regular member-eligible price,
+    // otherwise the pre-discount price when discounted.
+    final strikePrice = showMember
+        ? item.discountedPrice
+        : (hasDiscount ? item.price : null);
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -212,9 +219,30 @@ class _MealCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      if (hasDiscount) ...[
+                      if (showMember) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6B00),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '⭐ HotBite+',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      if (strikePrice != null) ...[
                         Text(
-                          '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
+                          '${AppConstants.currencySymbol}${strikePrice.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[500],
@@ -228,7 +256,9 @@ class _MealCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: Responsive.bodyText(context),
                           fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryColor,
+                          color: showMember
+                              ? const Color(0xFFFF6B00)
+                              : AppTheme.primaryColor,
                         ),
                       ),
                       const Spacer(),
