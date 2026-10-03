@@ -93,6 +93,15 @@ final allRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>((
   return restaurantService.getAllRestaurants();
 });
 
+/// Admin-only: every food restaurant, uncollapsed (each chain branch visible)
+/// and unfiltered, for admin pickers such as banner targeting.
+final adminAllRestaurantsProvider =
+    FutureProvider.autoDispose<List<Restaurant>>((ref) async {
+  ref.keepAlive();
+  final restaurantService = ref.watch(restaurantServiceProvider);
+  return restaurantService.getAllRestaurantsForAdmin();
+});
+
 final topRatedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       ref.keepAlive();

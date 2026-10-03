@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/restaurant_model.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
+import '../../providers/membership_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -28,6 +29,17 @@ class _GroceryStoreDetailScreenState
     extends ConsumerState<GroceryStoreDetailScreen> {
   String? _selectedCategory;
   String _searchQuery = '';
+
+  /// Open/closed must match the store card in the list. Some entry points (the
+  /// "Stores for You" recommendation rail) construct a partial Restaurant with
+  /// no operating hours, whose isCurrentlyOpen wrongly falls back to the raw
+  /// is_open flag. So resolve the authoritative store record by id and use its
+  /// schedule-aware status; fall back to the passed store only while it loads.
+  bool get _storeIsOpen {
+    final authoritative =
+        ref.watch(restaurantByIdProvider(widget.store.id)).valueOrNull;
+    return (authoritative ?? widget.store).isCurrentlyOpen;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,17 +158,17 @@ class _GroceryStoreDetailScreenState
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: widget.store.isCurrentlyOpen
+                        color: _storeIsOpen
                             ? const Color(0xFF10B981).withValues(alpha: 0.1)
                             : Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        widget.store.isCurrentlyOpen ? 'Open' : 'Closed',
+                        _storeIsOpen ? 'Open' : 'Closed',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: widget.store.isCurrentlyOpen
+                          color: _storeIsOpen
                               ? const Color(0xFF10B981)
                               : Colors.red,
                         ),
@@ -272,9 +284,18 @@ class _GroceryStoreDetailScreenState
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: Responsive.gridColumns(context),
-                    childAspectRatio: Responsive.productCardAspectRatio(
-                      context,
-                    ),
+                    // Responsive height instead of a fixed aspect ratio: the
+                    // image scales with the cell width (1.5 ratio) and we add a
+                    // fixed content block (brand + 2-line name + size + price +
+                    // add button) that also scales a little with text size, so
+                    // the card fits any screen without clipping the price.
+                    mainAxisExtent: () {
+                      final cellW = Responsive.gridItemWidth(context);
+                      final imageH = cellW / 1.5;
+                      final scale = MediaQuery.of(context).textScaler.scale(1.0);
+                      final contentH = 100.0 * scale.clamp(1.0, 1.3);
+                      return imageH + contentH;
+                    }(),
                     crossAxisSpacing: Responsive.gridSpacing(context),
                     mainAxisSpacing: Responsive.gridSpacing(context),
                   ),
@@ -444,7 +465,7 @@ class _ProductCard extends ConsumerWidget {
                   Flexible(
                     child: Text(
                       product.name,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
@@ -465,41 +486,60 @@ class _ProductCard extends ConsumerWidget {
                   Flexible(
                     child: Row(
                       children: [
-                        // Price
+                        // Price — HotBite+ members see the member price.
                         Expanded(
-                          child:
-                              product.discount != null && product.discount! > 0
-                              ? Row(
-                                  children: [
-                                    Text(
-                                      '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}',
-                                      style: TextStyle(
+                          child: Builder(builder: (context) {
+                            final isMember =
+                                ref.watch(isHotBitePlusMemberProvider);
+                            if (isMember && product.hasMemberPrice) {
+                              return Row(
+                                children: [
+                                  const Icon(Icons.workspace_premium_rounded,
+                                      size: 13, color: Color(0xFFFF5A1F)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${AppConstants.currencySymbol}${product.memberPrice.toStringAsFixed(2)}',
+                                    style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w800,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.primaryColor,
+                                        color: Color(0xFFFF5A1F)),
                                   ),
-                                ),
+                                ],
+                              );
+                            }
+                            if (product.discount != null &&
+                                product.discount! > 0) {
+                              return Row(
+                                children: [
+                                  Text(
+                                    '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.primaryColor),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        decoration:
+                                            TextDecoration.lineThrough),
+                                  ),
+                                ],
+                              );
+                            }
+                            return Text(
+                              '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.primaryColor),
+                            );
+                          }),
                         ),
                         // Add button / quantity badge
                         Builder(
@@ -648,7 +688,7 @@ class _ProductCard extends ConsumerWidget {
       return;
     }
 
-    cartNotifier.addItem(product);
+    cartNotifier.addItem(memberPricedItem(product, ref.read(isHotBitePlusMemberProvider)));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} added to grocery cart'),

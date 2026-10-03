@@ -42,6 +42,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final scheme = Theme.of(context).colorScheme;
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
+    // HotBite+ member saving on this cart (regular − charged member price).
+    final memberSavings = ref.watch(cartProvider).fold<double>(
+      0,
+      (s, c) => s + (c.menuItem.price - c.menuItem.discountedPrice) * c.quantity,
+    );
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
     final isPickup = ref.watch(isPickupProvider);
@@ -628,6 +633,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               imageUrl: cartItem.menuItem.imageUrl,
                               quantity: cartItem.quantity,
                               price: cartItem.menuItem.discountedPrice,
+                              originalPrice: cartItem.menuItem.price,
                               customizationSummary: _buildCustomizationSummary(
                                 cartItem,
                               ),
@@ -654,6 +660,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           imageUrl: cartItem.menuItem.imageUrl,
                           quantity: cartItem.quantity,
                           price: cartItem.menuItem.discountedPrice,
+                          originalPrice: cartItem.menuItem.price,
                           customizationSummary: _buildCustomizationSummary(
                             cartItem,
                           ),
@@ -762,6 +769,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           context.l10n.subtotal,
                           '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
                         ),
+                        if (memberSavings > 0) ...[
+                          const SizedBox(height: 8),
+                          _PriceRow(
+                            '⭐ HotBite+ Member Savings',
+                            '−${AppConstants.currencySymbol}${memberSavings.toStringAsFixed(2)}',
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         if (isGroupOrder) ...[
                           _PriceRow(
@@ -942,6 +956,7 @@ class _CartItemWidget extends StatelessWidget {
   final String? imageUrl;
   final int quantity;
   final double price;
+  final double? originalPrice;
   final String? customizationSummary;
   final VoidCallback onRemove;
   final Function(int) onQuantityChanged;
@@ -951,6 +966,7 @@ class _CartItemWidget extends StatelessWidget {
     this.imageUrl,
     required this.quantity,
     required this.price,
+    this.originalPrice,
     this.customizationSummary,
     required this.onRemove,
     required this.onQuantityChanged,
@@ -1015,12 +1031,29 @@ class _CartItemWidget extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 4),
-                Text(
-                  '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: AppTheme.priceColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 2,
+                  children: [
+                    // Slashed original line total first, when discounted.
+                    if (originalPrice != null && originalPrice! > price)
+                      Text(
+                        '${AppConstants.currencySymbol}${(originalPrice! * quantity).toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: Responsive.smallText(context),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    Text(
+                      '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: AppTheme.priceColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

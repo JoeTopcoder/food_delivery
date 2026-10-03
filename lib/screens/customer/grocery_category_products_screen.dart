@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/menu_model.dart';
 import '../../providers/grocery_provider.dart';
+import '../../providers/membership_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -305,7 +306,7 @@ class _CategoryProductCard extends ConsumerWidget {
                     ),
                   Text(
                     product.name,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
@@ -313,6 +314,17 @@ class _CategoryProductCard extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
+                  if (product.description != null &&
+                      product.description!.trim().isNotEmpty)
+                    Text(
+                      product.description!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   if (product.weight != null)
                     Text(
                       product.weight!,
@@ -469,7 +481,7 @@ class _CategoryProductCard extends ConsumerWidget {
       return;
     }
 
-    cartNotifier.addItem(product);
+    cartNotifier.addItem(memberPricedItem(product, ref.read(isHotBitePlusMemberProvider)));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} added to grocery cart'),

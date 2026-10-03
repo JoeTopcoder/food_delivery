@@ -119,6 +119,7 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
       isHotBiteNow: json['is_hotbite_now'] as bool? ?? false,
       isPriority: json['is_priority'] as bool? ?? false,
       priorityFee: (json['priority_fee'] as num?)?.toDouble() ?? 0,
+      memberSavings: (json['member_savings'] as num?)?.toDouble() ?? 0,
     );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -180,4 +181,5 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
       'is_hotbite_now': instance.isHotBiteNow,
       'is_priority': instance.isPriority,
       'priority_fee': instance.priorityFee,
+      'member_savings': instance.memberSavings,
     };

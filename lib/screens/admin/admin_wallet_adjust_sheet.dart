@@ -31,6 +31,7 @@ class AdminWalletAdjustSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -137,17 +138,22 @@ class _AdminWalletAdjustSheetState
   Widget build(BuildContext context) {
     final c = AppConstants.currencySymbol;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    final media = MediaQuery.of(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          // Keyboard inset + system nav bar inset so buttons never sit under
+          // the nav bar / keyboard (see CLAUDE.md bottom-sheet gotcha).
+          bottom: media.viewInsets.bottom + media.padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Handle
           Center(
             child: Container(
@@ -355,6 +361,7 @@ class _AdminWalletAdjustSheetState
             ),
           ),
         ],
+        ),
       ),
     );
   }

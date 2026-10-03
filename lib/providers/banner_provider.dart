@@ -9,7 +9,7 @@ final activeBannersProvider = FutureProvider.autoDispose<List<Banner>>((ref) asy
   final now = DateTime.now().toUtc();
   final data = await SupabaseConfig.client
       .from('banners')
-      .select('*, restaurants(name, is_verified)')
+      .select('*, restaurants(name, chain_name, is_verified)')
       .eq('is_active', true)
       .eq('section', 'food')
       .order('sort_order', ascending: true);
@@ -29,7 +29,7 @@ final activeGroceryBannersProvider = FutureProvider.autoDispose<List<Banner>>((r
   final now = DateTime.now().toUtc();
   final data = await SupabaseConfig.client
       .from('banners')
-      .select('*, restaurants(name, is_verified, store_type)')
+      .select('*, restaurants(name, chain_name, is_verified, store_type)')
       .eq('is_active', true)
       .eq('section', 'grocery')
       .order('sort_order', ascending: true);

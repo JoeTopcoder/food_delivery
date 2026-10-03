@@ -199,7 +199,7 @@ Deno.serve(async (request) => {
     const productIds = items.map((i) => i.menu_item_id);
     const { data: products, error: prodErr } = await admin
       .from("menus")
-      .select("id, name, price, discount, is_available, in_stock, max_quantity, product_type")
+      .select("id, name, price, discount, hotbite_plus_price, is_available, in_stock, max_quantity, product_type")
       .in("id", productIds);
 
     if (prodErr || !products) {
@@ -208,7 +208,20 @@ Deno.serve(async (request) => {
 
     const productMap = new Map(products.map((p: Record<string, unknown>) => [p.id as string, p]));
     let subtotal = 0;
+    let memberSavings = 0;
+    let hotbiteShare = 0;
     const verifiedItems: Array<Record<string, unknown>> = [];
+
+    // Is this customer an active HotBite+ member? If so, eligible products are
+    // charged the merchant-funded member price (server-authoritative, mirroring
+    // place-order — the client-sent price is never trusted here).
+    let isMember = false;
+    try {
+      const { data: memberFlag } = await admin.rpc("is_hotbite_plus_member", { p_user_id: userId });
+      isMember = memberFlag === true;
+    } catch (_) {
+      isMember = false;
+    }
 
     for (const item of items) {
       const dbProduct = productMap.get(item.menu_item_id) as Record<string, unknown> | undefined;
@@ -232,7 +245,26 @@ Deno.serve(async (request) => {
 
       const basePrice = dbProduct.price as number;
       const discountPct = (dbProduct.discount as number) ?? 0;
-      const price = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100) * 100) / 100 : basePrice;
+      const regularPrice = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100) * 100) / 100 : basePrice;
+
+      // Shared Member Savings (integer JMD, mirrors hotbite_member_split):
+      // the member pays regular - customer_saving; store gets store_member; HotBite
+      // keeps its share. Server-authoritative.
+      const storeMemberUnit = Number(dbProduct.hotbite_plus_price);
+      const eligible = isMember && Number.isFinite(storeMemberUnit)
+        && storeMemberUnit > 0 && Math.round(storeMemberUnit) < Math.round(regularPrice);
+      let price = regularPrice;
+      let hbShareUnit = 0;
+      let custSaveUnit = 0;
+      if (eligible) {
+        const avail = Math.round(regularPrice) - Math.round(storeMemberUnit);
+        custSaveUnit = Math.floor(avail / 2);
+        hbShareUnit = avail - custSaveUnit;
+        price = Math.round(regularPrice) - custSaveUnit;   // customer price
+        memberSavings += custSaveUnit * item.quantity;
+        hotbiteShare += hbShareUnit * item.quantity;
+      }
+
       const lineTotal = price * item.quantity;
       subtotal += lineTotal;
 
@@ -460,6 +492,8 @@ Deno.serve(async (request) => {
       restaurant_id: storeId,
       status: initialStatus,
       subtotal,
+      member_savings: memberSavings,
+      hotbite_savings_share: hotbiteShare,
       delivery_fee: deliveryFee,
       tax_amount: tax,
       total_amount: grandTotal,

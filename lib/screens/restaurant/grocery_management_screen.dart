@@ -1546,6 +1546,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
+  final _memberPriceCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
@@ -1600,6 +1601,7 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
     _costCtrl.dispose();
     _nameCtrl.dispose();
     _priceCtrl.dispose();
+    _memberPriceCtrl.dispose();
     _descCtrl.dispose();
     _brandCtrl.dispose();
     _weightCtrl.dispose();
@@ -1765,6 +1767,9 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
             : _weightCtrl.text.trim(),
         maxQuantity: int.tryParse(_maxQtyCtrl.text) ?? 99,
         costPrice: double.tryParse(_costCtrl.text.trim()),
+        hotBitePlusPrice: _memberPriceCtrl.text.trim().isNotEmpty
+            ? double.tryParse(_memberPriceCtrl.text.trim())
+            : null,
       );
 
       // Seed starting stock (turns on inventory tracking for the product).
@@ -1993,6 +1998,25 @@ class _AddGroceryProductDialogState extends State<_AddGroceryProductDialog> {
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return null; // optional
                     return double.tryParse(v.trim()) == null ? 'Invalid' : null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                // HotBite+ member price — shown to and charged to active members.
+                TextFormField(
+                  controller: _memberPriceCtrl,
+                  decoration: _inputDecor('HotBite+ member price (optional)'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null; // optional
+                    final val = double.tryParse(v.trim());
+                    if (val == null) return 'Invalid';
+                    final regular = double.tryParse(_priceCtrl.text.trim()) ?? 0;
+                    if (regular > 0 && val > regular * 0.965) {
+                      return 'Member price must be at least 3.5% below the sale price';
+                    }
+                    return null;
                   },
                 ),
                 const SizedBox(height: 4),

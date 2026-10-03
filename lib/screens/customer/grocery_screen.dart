@@ -9,6 +9,7 @@ import '../../models/menu_model.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/banner_provider.dart';
 import '../../providers/grocery_provider.dart';
+import '../../providers/membership_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
@@ -608,15 +609,32 @@ class _SearchProductCard extends ConsumerWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            product.discount != null && product.discount! > 0
-                                ? '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}'
-                                : '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primaryColor,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Slashed original price first, when discounted.
+                              if (product.discount != null &&
+                                  product.discount! > 0)
+                                Text(
+                                  '${AppConstants.currencySymbol}${product.price.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                              Text(
+                                '${AppConstants.currencySymbol}${product.discountedPrice.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Builder(
@@ -755,7 +773,7 @@ class _SearchProductCard extends ConsumerWidget {
       );
       return;
     }
-    cartNotifier.addItem(product);
+    cartNotifier.addItem(memberPricedItem(product, ref.read(isHotBitePlusMemberProvider)));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} added to grocery cart'),

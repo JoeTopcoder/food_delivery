@@ -10,6 +10,7 @@ class MenuSearchResult {
   final String? itemImageUrl;
   final String? itemCategory;
   final double? itemDiscount;
+  final double? itemHotBitePlusPrice;
   final String restaurantId;
   final String restaurantName;
   final String? restaurantImage;
@@ -25,6 +26,7 @@ class MenuSearchResult {
     this.itemImageUrl,
     this.itemCategory,
     this.itemDiscount,
+    this.itemHotBitePlusPrice,
     required this.restaurantId,
     required this.restaurantName,
     this.restaurantImage,
@@ -40,6 +42,23 @@ class MenuSearchResult {
     return itemPrice;
   }
 
+  /// True when a HotBite+ member price is set and genuinely below the price a
+  /// non-member would pay.
+  bool get hasMemberPrice =>
+      itemHotBitePlusPrice != null &&
+      itemHotBitePlusPrice! > 0 &&
+      itemHotBitePlusPrice! < discountedPrice;
+
+  // Shared Member Savings: member pays regular - floor(available/2).
+  double get memberSaving => hasMemberPrice
+      ? ((discountedPrice.round() - itemHotBitePlusPrice!.round()) / 2).floor().toDouble()
+      : 0;
+
+  /// The price to show/charge for [isMember]: the shared-savings member price
+  /// when eligible, else the regular (already-discounted) price.
+  double priceForMember(bool isMember) =>
+      isMember && hasMemberPrice ? (discountedPrice.round() - memberSaving) : discountedPrice;
+
   factory MenuSearchResult.fromJson(Map<String, dynamic> json) {
     return MenuSearchResult(
       itemId: json['item_id'] as String,
@@ -49,6 +68,7 @@ class MenuSearchResult {
       itemImageUrl: json['item_image_url'] as String?,
       itemCategory: json['item_category'] as String?,
       itemDiscount: (json['item_discount'] as num?)?.toDouble(),
+      itemHotBitePlusPrice: (json['item_hotbite_plus_price'] as num?)?.toDouble(),
       restaurantId: json['restaurant_id'] as String,
       restaurantName: json['restaurant_name'] as String,
       restaurantImage: json['restaurant_image'] as String?,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/restaurant_brand.dart';
 
 import '../../providers/user_provider.dart';
 import '../../widgets/restaurant_card.dart';
@@ -55,7 +56,8 @@ class RestaurantsByCategoryScreen extends ConsumerWidget {
             onRetry: () =>
                 ref.invalidate(restaurantsByCategoryProvider(categoryName)),
           ),
-          data: (restaurants) {
+          data: (rawRestaurants) {
+            final restaurants = collapseRestaurantsByBrand(rawRestaurants);
             if (restaurants.isEmpty) {
               return AppEmptyState(
                 icon: Icons.storefront_outlined,
