@@ -89,11 +89,14 @@ class GroceryService {
   Future<List<Restaurant>> getGroceryStores({int? limit}) async {
     try {
       AppLogger.info('Fetching grocery stores');
+      // A store closed by its owner (is_open=false) is hidden here exactly as it
+      // is in the food section, so a store closed in one area is closed in all.
       var query = _client
           .from(AppConstants.tableRestaurants)
           .select()
           .or('store_type.eq.grocery,store_type.eq.both')
           .eq('is_verified', true)
+          .eq('is_open', true)
           .order('rating', ascending: false);
 
       if (limit != null) {
@@ -166,6 +169,7 @@ class GroceryService {
           .select()
           .or('store_type.eq.grocery,store_type.eq.both')
           .eq('is_verified', true)
+          .eq('is_open', true)
           .ilike('name', '%${_sanitize(query)}%')
           .order('rating', ascending: false);
 
@@ -203,11 +207,15 @@ class GroceryService {
   /// Search grocery products across all stores.
   Future<List<MenuItem>> searchGroceryProducts(String query) async {
     try {
+      // Inner-join the store so a product from a CLOSED store (is_open=false)
+      // never appears in grocery search — a store closed in one area is closed
+      // in all. `restaurants!inner` filters rows to open stores only.
       final response = await _client
           .from(AppConstants.tableMenus)
-          .select()
+          .select('*, restaurants!inner(is_open)')
           .eq('product_type', 'grocery')
           .eq('is_available', true)
+          .eq('restaurants.is_open', true)
           .or(
             'name.ilike.%${_sanitize(query)}%,brand.ilike.%${_sanitize(query)}%,description.ilike.%${_sanitize(query)}%',
           );
@@ -312,15 +320,18 @@ class GroceryService {
   Future<List<MenuItem>> getAllProductsByCategory(String category) async {
     try {
       AppLogger.info('Fetching all grocery products for category: $category');
+      // Cross-store listing: inner-join the store so a closed store's products
+      // are excluded here just as the store itself is hidden from the listings.
       final response = await _client
           .from(AppConstants.tableMenus)
           .select(
-            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*)), restaurants!inner(is_open)',
           )
           .eq('product_type', 'grocery')
           .eq('category', category)
           .eq('is_available', true)
           .eq('in_stock', true)
+          .eq('restaurants.is_open', true)
           .order('name');
 
       return (response as List).map((row) {
@@ -346,6 +357,7 @@ class GroceryService {
     String? weight,
     int maxQuantity = 99,
     double? costPrice,
+    double? hotBitePlusPrice,
   }) async {
     try {
       final response = await _client
@@ -359,6 +371,7 @@ class GroceryService {
             'image_url': imageUrl,
             'is_available': true,
             'product_type': 'grocery',
+            'hotbite_plus_price': hotBitePlusPrice,
             'unit': unit,
             'brand': brand,
             'weight': weight,

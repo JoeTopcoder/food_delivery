@@ -131,6 +131,12 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
   double get subtotal =>
       (item.discountedPrice + sidesTotal + optionsTotal) * _quantity;
 
+  /// The pre-discount subtotal, shown struck-through when the item is on offer.
+  double get originalSubtotal =>
+      (item.price + sidesTotal + optionsTotal) * _quantity;
+
+  bool get hasDiscount => item.discount != null && item.discount! > 0;
+
   bool get allRequiredSelected {
     for (final group in item.optionGroups) {
       if (group.isRequired) {
@@ -232,42 +238,39 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Compact summary row: thumbnail + description + price. The
-                  // name is already in the sticky header, so repeating it here
-                  // (and giving the photo a 220px hero) pushed the options —
-                  // the entire point of this sheet — below the fold.
+                  // Large hero image at the top of the sheet.
+                  if (item.imageUrl?.isNotEmpty == true)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          item.imageUrl!,
+                          width: double.infinity,
+                          height: 210,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            width: double.infinity,
+                            height: 210,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            child: Icon(
+                              Icons.fastfood_rounded,
+                              size: 48,
+                              color:
+                                  Theme.of(context).colorScheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Description + price row (name is in the sticky header).
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (item.imageUrl?.isNotEmpty == true)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                item.imageUrl!,
-                                height: 76,
-                                width: 76,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Container(
-                                  height: 76,
-                                  width: 76,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.fastfood_rounded,
-                                    size: 28,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.outlineVariant,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +318,19 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                                   ),
                                 ],
                               ),
+                              // HotBite+ "You save" — shows when a member has a
+                              // saving on this item (price > charged price).
+                              if (item.price - item.discountedPrice > 0.01) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  '⭐ You save ${AppConstants.currencySymbol}${(item.price - item.discountedPrice).toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFFF5A1F),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -622,12 +638,31 @@ class _MenuItemDetailSheetState extends State<_MenuItemDetailSheet> {
                                     color: Colors.white70,
                                   ),
                                 ),
-                                Text(
-                                  '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Slashed original price first, then the
+                                    // discounted subtotal.
+                                    if (hasDiscount) ...[
+                                      Text(
+                                        '${AppConstants.currencySymbol}${originalSubtotal.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white70,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                    ],
+                                    Text(
+                                      '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

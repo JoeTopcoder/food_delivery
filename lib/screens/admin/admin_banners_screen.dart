@@ -476,7 +476,9 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
 
   @override
   Widget build(BuildContext context) {
-    final restaurantsAsync = ref.watch(allRestaurantsProvider);
+    // Admin picker needs the uncollapsed list so every branch (and whatever a
+    // banner already points to) has a matching dropdown item.
+    final restaurantsAsync = ref.watch(adminAllRestaurantsProvider);
     final groceryStoresAsync = ref.watch(groceryStoresProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -682,57 +684,74 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
             groceryStoresAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
-              data: (stores) => DropdownButtonFormField<String>(
-                initialValue: _selectedRestaurantId,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              data: (stores) {
+                // Dedupe by id and only keep the selected value if it exists in
+                // the list, so DropdownButton never asserts on a stale id.
+                final unique = {for (final r in stores) r.id: r}.values.toList();
+                final safeValue =
+                    unique.any((r) => r.id == _selectedRestaurantId)
+                        ? _selectedRestaurantId
+                        : null;
+                return DropdownButtonFormField<String>(
+                  initialValue: safeValue,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-                hint: const Text('Select a grocery store'),
-                items: stores
-                    .map(
-                      (r) => DropdownMenuItem(
-                        value: r.id,
-                        child: Text(r.name, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (id) => setState(() => _selectedRestaurantId = id),
-              ),
+                  hint: const Text('Select a grocery store'),
+                  items: unique
+                      .map(
+                        (r) => DropdownMenuItem(
+                          value: r.id,
+                          child: Text(r.name, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) => setState(() => _selectedRestaurantId = id),
+                );
+              },
             )
           else
             restaurantsAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
-              data: (restaurants) => DropdownButtonFormField<String>(
-                initialValue: _selectedRestaurantId,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              data: (restaurants) {
+                final unique =
+                    {for (final r in restaurants) r.id: r}.values.toList();
+                final safeValue =
+                    unique.any((r) => r.id == _selectedRestaurantId)
+                        ? _selectedRestaurantId
+                        : null;
+                return DropdownButtonFormField<String>(
+                  initialValue: safeValue,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-                hint: const Text('Select a restaurant'),
-                items: restaurants
-                    .map(
-                      (r) => DropdownMenuItem(
-                        value: r.id,
-                        child: Text(r.name, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (id) => setState(() => _selectedRestaurantId = id),
-              ),
+                  hint: const Text('Select a restaurant'),
+                  items: unique
+                      .map(
+                        (r) => DropdownMenuItem(
+                          value: r.id,
+                          child: Text(r.name, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (id) => setState(() => _selectedRestaurantId = id),
+                );
+              },
             ),
           const SizedBox(height: 20),
 

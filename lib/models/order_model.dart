@@ -122,6 +122,9 @@ class Order {
   final bool isPriority;
   final double priorityFee;
 
+  /// Total HotBite+ member saving applied to this order (merchant-funded).
+  final double memberSavings;
+
   Order({
     required this.id,
     required this.userId,
@@ -180,6 +183,7 @@ class Order {
     this.isHotBiteNow = false,
     this.isPriority = false,
     this.priorityFee = 0,
+    this.memberSavings = 0,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
@@ -298,6 +302,7 @@ class Order {
       isHotBiteNow: isHotBiteNow,
       isPriority: isPriority,
       priorityFee: priorityFee,
+      memberSavings: memberSavings,
     );
   }
 }

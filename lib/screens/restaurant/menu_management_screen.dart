@@ -14,16 +14,116 @@ import 'package:food_driver/config/app_constants.dart';
 import '../../core/utils/responsive.dart';
 
 class MenuManagementScreen extends ConsumerStatefulWidget {
-  const MenuManagementScreen({super.key});
+  /// When set, the screen manages this restaurant directly instead of the
+  /// logged-in owner's restaurant. Used by admins to edit any restaurant's
+  /// menu prices and HotBite+ prices (menus RLS already permits admin writes).
+  final String? adminRestaurantId;
+
+  const MenuManagementScreen({super.key, this.adminRestaurantId});
 
   @override
   ConsumerState<MenuManagementScreen> createState() =>
       _MenuManagementScreenState();
 }
 
+/// Live "Shared Member Savings" preview shown under the member-price field.
+/// Mirrors the DB `hotbite_member_split()` function exactly (integer JMD:
+/// customer keeps floor(saving/2), HotBite keeps the remainder).
+Widget _memberSplitPreview(String priceRaw, String discountRaw, String memberRaw) {
+  final price = double.tryParse(priceRaw.trim());
+    final storeMember = double.tryParse(memberRaw.trim());
+    if (price == null || price <= 0 || storeMember == null || storeMember <= 0) {
+      return const SizedBox.shrink();
+    }
+    // Regular = discounted price if a discount % is set (what a non-member pays).
+    final discount = double.tryParse(discountRaw.trim());
+    final regular = (discount != null && discount > 0 && discount <= 100)
+        ? price * (1 - discount / 100)
+        : price;
+    final regJ = regular.round();
+    final memJ = storeMember.round();
+    final availJ = regJ - memJ;
+    if (availJ <= 0) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text(
+          'Member price must be below the regular price to share savings.',
+          style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+        ),
+      );
+    }
+    final custSaveJ = availJ ~/ 2; // floor
+    final hbShareJ = availJ - custSaveJ;
+    final custPriceJ = regJ - custSaveJ;
+    final sym = AppConstants.currencySymbol;
+    String m(int v) => '$sym$v';
+
+    Widget row(String label, String value, {bool strong = false, Color? color}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: TextStyle(fontSize: 12.5, color: color ?? Colors.grey.shade700)),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      color: color ?? Colors.black87,
+                      fontWeight: strong ? FontWeight.w700 : FontWeight.w500)),
+            ],
+          ),
+        );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3EC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFFFD3BE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Shared Member Savings preview',
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFFF5A1F))),
+          const SizedBox(height: 6),
+          row('Regular price', m(regJ)),
+          row('Store payout (what you receive)', m(memJ), color: Colors.green.shade800),
+          const Divider(height: 14),
+          row('Customer member price', m(custPriceJ), strong: true),
+          row('Customer saving', m(custSaveJ)),
+          row('HotBite share', m(hbShareJ)),
+        ],
+      ),
+    );
+}
+
 class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
   @override
   Widget build(BuildContext context) {
+    final adminId = widget.adminRestaurantId;
+
+    // Admin mode: resolve the restaurant by id, not by owner.
+    if (adminId != null) {
+      final restaurantAsync = ref.watch(restaurantByIdProvider(adminId));
+      return restaurantAsync.when(
+        loading: () => const Scaffold(
+          body: AppLoadingIndicator(message: 'Loading restaurant...'),
+        ),
+        error: (error, _) => Scaffold(
+          appBar: AppBar(title: const Text('Menu Management')),
+          body: AppErrorState(
+            message: friendlyError(error),
+            onRetry: () => ref.invalidate(restaurantByIdProvider(adminId)),
+          ),
+        ),
+        data: (restaurant) => _buildForRestaurant(context, restaurant),
+      );
+    }
+
     final currentUserId = ref.watch(currentUserIdProvider);
 
     if (currentUserId == null) {
@@ -46,7 +146,12 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
               ref.invalidate(restaurantByOwnerProvider(currentUserId)),
         ),
       ),
-      data: (restaurant) {
+      data: (restaurant) => _buildForRestaurant(context, restaurant),
+    );
+  }
+
+  Widget _buildForRestaurant(BuildContext context, dynamic restaurant) {
+    {
         if (restaurant == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Menu Management')),
@@ -137,87 +242,149 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                       ...items.map(
                         (item) => Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
+                          child: InkWell(
                             onTap: () =>
                                 _showSidesDialog(context, item, restaurant.id),
-                            leading: CircleAvatar(
-                              backgroundColor: item.isAvailable
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : Colors.grey.withValues(alpha: 0.2),
-                              child: Icon(
-                                Icons.fastfood,
-                                color: item.isAvailable
-                                    ? Colors.green
-                                    : Colors.grey,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                4,
+                                10,
                               ),
-                            ),
-                            title: Text(
-                              item.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
-                                ),
-                                if (item.discount != null && item.discount! > 0)
-                                  Text(
-                                    '${item.discount!.toStringAsFixed(0)}% off',
-                                    style: const TextStyle(
-                                      color: Colors.green,
-                                      fontSize: 12,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: item.isAvailable
+                                        ? Colors.green.withValues(alpha: 0.2)
+                                        : Colors.grey.withValues(alpha: 0.2),
+                                    child: Icon(
+                                      Icons.fastfood,
+                                      color: item.isAvailable
+                                          ? Colors.green
+                                          : Colors.grey,
                                     ),
                                   ),
-                                Text(
-                                  item.isAvailable
-                                      ? 'Available'
-                                      : 'Unavailable',
-                                  style: TextStyle(
-                                    color: item.isAvailable
-                                        ? Colors.green
-                                        : Colors.red,
-                                    fontSize: 12,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${AppConstants.currencySymbol}${item.price.toStringAsFixed(2)}',
+                                        ),
+                                        if (item.discount != null &&
+                                            item.discount! > 0)
+                                          Text(
+                                            '${item.discount!.toStringAsFixed(0)}% off',
+                                            style: const TextStyle(
+                                              color: Colors.green,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        if (item.hotBitePlusPrice != null &&
+                                            item.hotBitePlusPrice! > 0)
+                                          Text(
+                                            '⭐ HotBite+ ${AppConstants.currencySymbol}${item.hotBitePlusPrice!.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFFF6B35),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        Text(
+                                          item.isAvailable
+                                              ? 'Available'
+                                              : 'Unavailable',
+                                          style: TextStyle(
+                                            color: item.isAvailable
+                                                ? Colors.green
+                                                : Colors.red,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (item.sides != null &&
+                                            item.sides!.isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          _SidesDrinksChips(sides: item.sides!),
+                                        ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                if (item.sides != null &&
-                                    item.sides!.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  _SidesDrinksChips(sides: item.sides!),
+                                  const SizedBox(width: 4),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 34,
+                                          minHeight: 34,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        icon: const Icon(
+                                          Icons.edit_rounded,
+                                          size: 20,
+                                          color: Color(0xFFFF6B35),
+                                        ),
+                                        tooltip: 'Edit Prices',
+                                        onPressed: () => _showEditPriceDialog(
+                                          context,
+                                          item,
+                                          restaurant.id,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 34,
+                                          minHeight: 34,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        icon: const Icon(
+                                          Icons.add_circle_outline,
+                                          size: 20,
+                                          color: Colors.blue,
+                                        ),
+                                        tooltip: 'Manage Sides',
+                                        onPressed: () => _showSidesDialog(
+                                          context,
+                                          item,
+                                          restaurant.id,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 34,
+                                          minHeight: 34,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          size: 20,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () => _confirmDelete(
+                                          context,
+                                          item.id,
+                                          item.name,
+                                          restaurant.id,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
-                              ],
-                            ),
-                            isThreeLine: true,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.add_circle_outline,
-                                    color: Colors.blue,
-                                  ),
-                                  tooltip: 'Manage Sides',
-                                  onPressed: () => _showSidesDialog(
-                                    context,
-                                    item,
-                                    restaurant.id,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () => _confirmDelete(
-                                    context,
-                                    item.id,
-                                    item.name,
-                                    restaurant.id,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -234,8 +401,7 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
             label: const Text('Add'),
           ),
         );
-      },
-    );
+    }
   }
 
   void _showSidesDialog(
@@ -434,6 +600,144 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
       }
     }
   }
+
+  /// Edit an existing item's regular price, discount and HotBite+ member price.
+  /// Available to restaurant owners and (via the admin entry) to admins — menus
+  /// RLS permits both. Enforces the same ≥3.5%-below member-price rule as Add.
+  Future<void> _showEditPriceDialog(
+    BuildContext context,
+    MenuItem item,
+    String restaurantId,
+  ) async {
+    final priceCtl =
+        TextEditingController(text: item.price.toStringAsFixed(2));
+    final discountCtl = TextEditingController(
+      text: (item.discount ?? 0) > 0
+          ? item.discount!.toStringAsFixed(0)
+          : '',
+    );
+    final memberCtl = TextEditingController(
+      text: item.hotBitePlusPrice != null && item.hotBitePlusPrice! > 0
+          ? item.hotBitePlusPrice!.toStringAsFixed(2)
+          : '',
+    );
+    final formKey = GlobalKey<FormState>();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit Prices — ${item.name}'),
+        content: StatefulBuilder(builder: (ctx, setD) => SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: priceCtl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setD(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Regular price',
+                    prefixIcon: Icon(Icons.attach_money),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter price';
+                    if (double.tryParse(v.trim()) == null) {
+                      return 'Enter a valid price';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: discountCtl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setD(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Discount % (optional)',
+                    prefixIcon: Icon(Icons.percent),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final d = double.tryParse(v.trim());
+                    if (d == null || d < 0 || d > 100) {
+                      return 'Enter 0–100';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: memberCtl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setD(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Store member price (what you receive)',
+                    prefixIcon: Icon(Icons.workspace_premium_rounded,
+                        color: Color(0xFFFF5A1F)),
+                    helperText:
+                        'The amount you agree to receive for a member sale. Must be at least 3.5% below the regular price. HotBite splits the saving with the member.',
+                    helperMaxLines: 3,
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final m = double.tryParse(v.trim());
+                    if (m == null) return 'Enter a valid amount';
+                    final regular = double.tryParse(priceCtl.text.trim()) ?? 0;
+                    if (regular > 0 && m > regular * 0.965) {
+                      return 'Member price must be at least 3.5% below the regular price';
+                    }
+                    return null;
+                  },
+                ),
+                _memberSplitPreview(priceCtl.text, discountCtl.text, memberCtl.text),
+              ],
+            ),
+          ),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(ctx).pop(true);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+
+    try {
+      final menuService = ref.read(menuServiceProvider);
+      final memberText = memberCtl.text.trim();
+      await menuService.updateMenuItem(
+        menuItemId: item.id,
+        price: double.parse(priceCtl.text.trim()),
+        discount: discountCtl.text.trim().isNotEmpty
+            ? double.parse(discountCtl.text.trim())
+            : 0,
+        hotBitePlusPrice:
+            memberText.isNotEmpty ? double.tryParse(memberText) : null,
+        clearHotBitePlusPrice: memberText.isEmpty,
+      );
+      ref.invalidate(restaurantMenuManagementProvider(restaurantId));
+      if (context.mounted) {
+        AppSnackbar.success(context, 'Prices updated.');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
 }
 
 class _AddMenuItemDialog extends StatefulWidget {
@@ -462,6 +766,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _memberPriceController = TextEditingController();
   final _categoryController = TextEditingController();
   String? _selectedCategory;
   bool _isNewCategory = false;
@@ -489,6 +794,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _memberPriceController.dispose();
     _categoryController.dispose();
     super.dispose();
   }
@@ -581,6 +887,9 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
             ? _descriptionController.text.trim()
             : null,
         discount: _discount > 0 ? _discount : null,
+        hotBitePlusPrice: _memberPriceController.text.trim().isNotEmpty
+            ? double.tryParse(_memberPriceController.text.trim())
+            : null,
         imageUrl: imageUrl,
       );
 
@@ -640,6 +949,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                 TextFormField(
                   controller: _priceController,
                   keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Price',
                     prefixIcon: Icon(Icons.attach_money),
@@ -653,6 +963,39 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 12),
+                // Optional HotBite+ member price. This is the amount the store
+                // agrees to RECEIVE for a member sale (store payout). HotBite
+                // splits the difference from the regular price with the member.
+                TextFormField(
+                  controller: _memberPriceController,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Store member price (what you receive)',
+                    prefixIcon: Icon(Icons.workspace_premium_rounded,
+                        color: Color(0xFFFF5A1F)),
+                    helperText:
+                        'The amount you agree to receive for a member sale. Must be at least 3.5% below the regular price. HotBite splits the saving with the member.',
+                    helperMaxLines: 3,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return null;
+                    final v = double.tryParse(value.trim());
+                    if (v == null) return 'Enter a valid amount';
+                    final regular =
+                        double.tryParse(_priceController.text.trim()) ?? 0;
+                    if (regular > 0 && v > regular * 0.965) {
+                      return 'Member price must be at least 3.5% below the regular price';
+                    }
+                    return null;
+                  },
+                ),
+                _memberSplitPreview(
+                  _priceController.text,
+                  _discount > 0 ? _discount.toStringAsFixed(0) : '',
+                  _memberPriceController.text,
                 ),
                 const SizedBox(height: 12),
                 if (!_isNewCategory)

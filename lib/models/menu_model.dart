@@ -108,6 +108,7 @@ class MenuItem {
   final String category;
   final bool isAvailable;
   final double? discount;
+  final double? hotBitePlusPrice; // optional HotBite+ member price
   final List<String>? tags;
   final int? preparationTime;
   final List<MenuItemSide>? sides;
@@ -132,6 +133,7 @@ class MenuItem {
     required this.category,
     this.isAvailable = true,
     this.discount,
+    this.hotBitePlusPrice,
     this.tags,
     this.preparationTime,
     this.sides,
@@ -171,6 +173,7 @@ class MenuItem {
     String? category,
     bool? isAvailable,
     double? discount,
+    double? hotBitePlusPrice,
     List<String>? tags,
     int? preparationTime,
     List<MenuItemSide>? sides,
@@ -190,6 +193,7 @@ class MenuItem {
       name: name ?? this.name,
       description: description ?? this.description,
       price: price ?? this.price,
+      hotBitePlusPrice: hotBitePlusPrice ?? this.hotBitePlusPrice,
       imageUrl: imageUrl ?? this.imageUrl,
       category: category ?? this.category,
       isAvailable: isAvailable ?? this.isAvailable,
@@ -213,4 +217,30 @@ class MenuItem {
     if (discount == null || discount == 0) return price;
     return price - (price * discount! / 100);
   }
+
+  /// Whether this item has a genuine HotBite+ member price. `hotBitePlusPrice`
+  /// is the STORE member price (what the store agrees to receive).
+  bool get hasMemberPrice =>
+      hotBitePlusPrice != null &&
+      hotBitePlusPrice! > 0 &&
+      hotBitePlusPrice! < discountedPrice;
+
+  // ── Shared Member Savings (mirrors SQL hotbite_member_split, integer JMD) ──
+  // available = regular - store_member; customer_saving = floor(available/2);
+  // the member pays regular - customer_saving (= store_member + HotBite's share).
+  int get _availableSaving =>
+      hasMemberPrice ? (discountedPrice.round() - hotBitePlusPrice!.round()) : 0;
+
+  /// The member's personal saving on this item (half the available saving).
+  double get memberSaving => (_availableSaving / 2).floor().toDouble();
+
+  /// The price an active member actually SEES and PAYS (store member price +
+  /// HotBite's share) — NOT the store's payout price.
+  double get memberPrice =>
+      hasMemberPrice ? (discountedPrice.round() - memberSaving) : discountedPrice;
+
+  /// Price the given customer actually pays: the shared-savings member price for
+  /// active HotBite+ members, otherwise the normal (discounted) price.
+  double priceForMember(bool isMember) =>
+      isMember ? memberPrice : discountedPrice;
 }
