@@ -26,10 +26,12 @@ export interface TelephonyProvider {
 }
 
 // ── Twilio ──────────────────────────────────────────────────────────────────
+// Auth: basic auth with either the Account SID + Auth Token, or an API Key SID
+// (SK…) + its secret. In BOTH cases the REST path uses the Account SID (AC…).
 class TwilioProvider implements TelephonyProvider {
   name = 'twilio'; isMock = false
-  constructor(private sid: string, private token: string) {}
-  private auth() { return 'Basic ' + btoa(`${this.sid}:${this.token}`) }
+  constructor(private accountSid: string, private authUser: string, private authPass: string) {}
+  private auth() { return 'Basic ' + btoa(`${this.authUser}:${this.authPass}`) }
 
   async startDriverLeg(a: StartDriverLegArgs): Promise<LegResult> {
     // Call the DRIVER first. The TwiML at voiceWebhookUrl plays "press 1" and,
@@ -42,7 +44,7 @@ class TwilioProvider implements TelephonyProvider {
       'StatusCallbackEvent': 'initiated ringing answered completed',
       Timeout: '30',
     })
-    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.sid}/Calls.json`, {
+    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Calls.json`, {
       method: 'POST',
       headers: { Authorization: this.auth(), 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
@@ -54,7 +56,7 @@ class TwilioProvider implements TelephonyProvider {
 
   async endCall(sid: string): Promise<void> {
     try {
-      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.sid}/Calls/${sid}.json`, {
+      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Calls/${sid}.json`, {
         method: 'POST',
         headers: { Authorization: this.auth(), 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'Status=completed',
@@ -90,10 +92,16 @@ export async function verifyTwilioSignature(
 }
 
 export function getProvider(): TelephonyProvider {
-  const sid = Deno.env.get('TWILIO_ACCOUNT_SID') ?? ''
-  const token = Deno.env.get('TWILIO_AUTH_TOKEN') ?? ''
+  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID') ?? ''   // AC…
+  const authToken  = Deno.env.get('TWILIO_AUTH_TOKEN') ?? ''
+  const apiKeySid  = Deno.env.get('TWILIO_API_KEY_SID') ?? ''   // SK…
+  const apiKeySecret = Deno.env.get('TWILIO_API_KEY_SECRET') ?? ''
   const configured = (Deno.env.get('CALL_FALLBACK_PROVIDER') ?? 'mock').toLowerCase()
-  if (configured === 'twilio' && sid && token) return new TwilioProvider(sid, token)
+  if (configured === 'twilio' && accountSid) {
+    // Prefer API key auth when present, else Account SID + Auth Token.
+    if (apiKeySid && apiKeySecret) return new TwilioProvider(accountSid, apiKeySid, apiKeySecret)
+    if (authToken) return new TwilioProvider(accountSid, accountSid, authToken)
+  }
   return new MockProvider()
 }
 
