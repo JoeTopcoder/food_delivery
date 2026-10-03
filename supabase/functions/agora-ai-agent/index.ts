@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
       try {
         const basicAuth = btoa(`${AGORA_CUSTOMER_KEY}:${AGORA_CUSTOMER_SECRET}`)
         await fetch(
-          `https://api.agora.io/api/conversational-ai/v2/projects/${AGORA_APP_ID}/leave/${agent_id}`,
+          `https://api.agora.io/api/conversational-ai-agent/v2/projects/${AGORA_APP_ID}/leave/${agent_id}`,
           { method: 'DELETE', headers: { Authorization: `Basic ${basicAuth}` } },
         )
       } catch (e) {
@@ -124,7 +124,7 @@ Deno.serve(async (req: Request) => {
   const basicAuth = btoa(`${AGORA_CUSTOMER_KEY}:${AGORA_CUSTOMER_SECRET}`)
 
   const agentResp = await fetch(
-    `https://api.agora.io/api/conversational-ai/v2/projects/${AGORA_APP_ID}/join`,
+    `https://api.agora.io/api/conversational-ai-agent/v2/projects/${AGORA_APP_ID}/join`,
     {
       method: 'POST',
       headers: {

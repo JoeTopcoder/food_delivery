@@ -524,6 +524,27 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (order.memberSavings > 0) ...[
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF5A1F).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '⭐ Saved ${AppConstants.currencySymbol}${order.memberSavings.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFFF5A1F)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

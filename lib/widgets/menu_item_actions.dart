@@ -5,6 +5,7 @@ import '../providers/user_provider.dart';
 import '../providers/feature_providers.dart';
 import '../utils/app_feedback_widgets.dart';
 import 'menu_item_detail_sheet.dart';
+import '../providers/membership_provider.dart';
 
 /// Opens the existing menu-item detail sheet and, on confirm, adds the item to
 /// the cart — handling the multi-restaurant conflict flow. Shared by the
@@ -13,8 +14,32 @@ import 'menu_item_detail_sheet.dart';
 Future<void> presentMenuItemAndAddToCart(
   BuildContext context,
   WidgetRef ref,
-  MenuItem item,
+  MenuItem rawItem,
 ) async {
+  // HotBite+ item pricing: an active member sees and pays the member price.
+  // Substituting a member-priced copy makes the detail sheet, the cart and the
+  // (server-revalidated) checkout all use the correct price with no extra
+  // plumbing. Non-members are unaffected.
+  // The menu list is fetched WITHOUT option groups/choices for speed, so pull
+  // this one item's full options now (fast — a single row). If it fails or the
+  // item has none, fall back to what we already have.
+  MenuItem base = rawItem;
+  if (rawItem.optionGroups.isEmpty) {
+    final full = await ref.read(menuServiceProvider).getMenuItemWithOptions(rawItem.id);
+    if (full != null) base = full;
+  }
+
+  final isMember = ref.read(isHotBitePlusMemberProvider);
+  // For a member, present a copy whose CHARGED price (discountedPrice) is the
+  // member price, while keeping the regular price on `price` so the cart and
+  // checkout can show the member saving. The order records both.
+  MenuItem item = base;
+  if (isMember && base.hasMemberPrice) {
+    final regular = base.discountedPrice; // non-member price
+    final pct = ((1 - base.memberPrice / regular) * 100).clamp(0.0, 100.0);
+    item = base.copyWith(price: regular, discount: pct);
+  }
+  if (!context.mounted) return;
   final result = await showMenuItemDetailSheet(context, item);
   if (result == null) return; // cancelled
   if (!context.mounted) return;

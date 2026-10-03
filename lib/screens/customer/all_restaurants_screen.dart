@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/restaurant_brand.dart';
 
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
@@ -141,7 +142,9 @@ class _AllRestaurantsScreenState extends ConsumerState<AllRestaurantsScreen> {
           // Restaurant list
           Expanded(
             child: restaurantsAsync.when(
-              data: (restaurants) {
+              data: (rawRestaurants) {
+                // Show one card per multi-location brand (e.g. "KFC").
+                final restaurants = collapseRestaurantsByBrand(rawRestaurants);
                 if (restaurants.isEmpty) {
                   return Center(
                     child: Column(

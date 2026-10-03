@@ -62,3 +62,4 @@ android/app/*.apk
 
 # Native build intermediates (CMake/NDK) for vendored plugin sources
 packages/agora_rtc_engine/android/.cxx/
+food-delivery/

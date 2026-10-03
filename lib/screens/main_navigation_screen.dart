@@ -303,6 +303,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                     return;
                   }
                 }
+                // Opening the Orders tab: force a fresh fetch so the list can
+                // never show a stale status (e.g. "Preparing" for an order that
+                // was already delivered while a realtime event was missed). The
+                // list provider is keepAlive-cached, so without this it only
+                // updates on live realtime events, which can be dropped if the
+                // app was backgrounded when the status changed.
+                if (tab.key == 'orders' && userId != null) {
+                  ref.invalidate(userOrdersProvider(userId));
+                  ref.invalidate(customerMasterOrdersProvider(userId));
+                }
                 ref.read(currentTabIndexProvider.notifier).state = index;
                 setState(() {
                   _loadedTabs.add(tab.originalIndex);

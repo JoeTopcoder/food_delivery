@@ -47,6 +47,35 @@ class Restaurant {
   final DateTime createdAt;
   final DateTime? updatedAt;
 
+  /// Multi-location brand (e.g. "KFC"). When set, several locations share it and
+  /// the customer sees the brand; orders route to the closest location.
+  @JsonKey(includeToJson: false)
+  final String? brand;
+
+  /// Chain grouping (existing schema): chain_id + chain_name. When several
+  /// locations share a chain, customers see the chain name and orders route to
+  /// the closest location. Preferred over [brand].
+  @JsonKey(includeToJson: false)
+  final String? chainId;
+  @JsonKey(includeToJson: false)
+  final String? chainName;
+
+  /// The single name/group a customer should see: the chain/brand if set, else
+  /// the restaurant's own name.
+  String get displayBrand =>
+      (chainName != null && chainName!.trim().isNotEmpty)
+          ? chainName!.trim()
+          : ((brand != null && brand!.trim().isNotEmpty) ? brand!.trim() : name);
+
+  /// Stable grouping key for collapsing multi-location brands.
+  String? get brandKey {
+    final c = chainId?.trim();
+    if (c != null && c.isNotEmpty) return 'c:$c';
+    final b = brand?.trim();
+    if (b != null && b.isNotEmpty) return 'b:$b';
+    return null;
+  }
+
   Restaurant({
     required this.id,
     required this.ownerId,
@@ -88,10 +117,19 @@ class Restaurant {
     this.menuImageUrl,
     required this.createdAt,
     this.updatedAt,
+    this.brand,
+    this.chainId,
+    this.chainName,
   });
 
+  // The generated .g.dart doesn't know about brand/chain (added without a
+  // rebuild), so set them from the raw json after the generated parse.
   factory Restaurant.fromJson(Map<String, dynamic> json) =>
-      _$RestaurantFromJson(json);
+      _$RestaurantFromJson(json).copyWith(
+        brand: json['brand'] as String?,
+        chainId: json['chain_id'] as String?,
+        chainName: json['chain_name'] as String?,
+      );
   Map<String, dynamic> toJson() => _$RestaurantToJson(this);
 
   Restaurant copyWith({
@@ -135,6 +173,9 @@ class Restaurant {
     String? menuImageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? brand,
+    String? chainId,
+    String? chainName,
   }) {
     return Restaurant(
       id: id ?? this.id,
@@ -180,6 +221,9 @@ class Restaurant {
       menuImageUrl: menuImageUrl ?? this.menuImageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      brand: brand ?? this.brand,
+      chainId: chainId ?? this.chainId,
+      chainName: chainName ?? this.chainName,
     );
   }
 

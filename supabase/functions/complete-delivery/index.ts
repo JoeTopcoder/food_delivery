@@ -73,7 +73,7 @@ Deno.serve(async (request) => {
       })
       .eq("id", orderId)
       .neq("status", "delivered") // Prevent double-completion
-      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, subtotal, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km, restaurant_payment_method_snapshot")
+      .select("id, user_id, driver_id, restaurant_id, payment_method, total_amount, subtotal, delivery_fee, driver_tip, delivery_latitude, delivery_longitude, distance_km, restaurant_payment_method_snapshot, hotbite_savings_share")
       .single();
 
     if (updateErr || !order) {
@@ -406,7 +406,13 @@ Deno.serve(async (request) => {
         const totalAmount = Number(order.total_amount) || 0;
         const deliveryFee = Number(order.delivery_fee) || 0;
         const tip = Number(order.driver_tip) || 0;
-        const foodSubtotal = Math.max(0, totalAmount - deliveryFee - tip);
+        // Shared Member Savings: the customer paid the member price, which is
+        // store_member_price + HotBite's savings share. The restaurant only
+        // agreed to receive store_member_price, so the HotBite share must be
+        // removed from the earning base — it is HotBite revenue, not the
+        // store's. Zero for non-member orders.
+        const hotbiteShare = Math.max(0, Number(order.hotbite_savings_share) || 0);
+        const foodSubtotal = Math.max(0, totalAmount - deliveryFee - tip - hotbiteShare);
         const restaurantEarningCents = Math.round(foodSubtotal * (1 - commissionPct) * 100);
         if (restaurantEarningCents <= 0) return;
         admin.functions.invoke("create-earning-entry", {
@@ -423,6 +429,25 @@ Deno.serve(async (request) => {
         }).catch(() => {});
       }).catch(() => {});
     }
+
+    // ── 4d. Record platform revenue ledger (fire-and-forget) ────────────
+    // Itemizes what HotBite keeps on this order — commission, delivery-fee
+    // platform share, HotBite+ Shared Member Savings share, service fee — as an
+    // explicit accounting record. Idempotent per order (UNIQUE order_id), so a
+    // retried completion is a no-op. Runs for BOTH payment methods.
+    admin.rpc("record_platform_revenue", { p_order_id: orderId }).then(
+      () => {},
+      () => {},
+    );
+
+    // ── 4e. Member Referral Rewards (fire-and-forget) ───────────────────
+    // Awards this order's direct/second-tier referral rewards (if the purchaser
+    // is an active member) and tries to unlock the purchaser's own pending
+    // rewards (their order may complete the 3-order requirement). Idempotent.
+    admin.rpc("referral_process_order", { p_order_id: orderId }).then(
+      () => {},
+      () => {},
+    );
 
     // ── 5. Process referral earnings (fire-and-forget) ──────────────────
     if (customerId) {

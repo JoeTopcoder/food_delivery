@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_constants.dart';
 import '../providers/hotbite_picks_provider.dart';
 import '../providers/user_provider.dart';
-import '../providers/feature_providers.dart';
 import '../core/utils/responsive.dart';
 import '../utils/rating_format.dart';
-import '../screens/customer/restaurants_by_category_screen.dart';
 import 'app_cached_image.dart';
 
 /// 🔥 HotBite Picks — the discovery hub. Composes several real-data rails
@@ -24,8 +22,6 @@ class HotBitePicksSection extends ConsumerWidget {
     final mostOrdered = ref.watch(mostOrderedProvider).valueOrNull ?? const [];
     final topRated = ref.watch(topRatedPicksProvider).valueOrNull ?? const [];
     final deals = ref.watch(hotDealsProvider).valueOrNull ?? const [];
-    final categories =
-        ref.watch(foodCategoriesProvider).valueOrNull ?? const [];
 
     final hasAny = curated.isNotEmpty ||
         mostOrdered.isNotEmpty ||
@@ -87,9 +83,8 @@ class HotBitePicksSection extends ConsumerWidget {
           if (deals.isNotEmpty) _DealRail(deals: deals, hPad: hPad),
         ],
 
-        // Popular categories always reuse the existing category browse.
-        if (categories.isNotEmpty)
-          _CategoryRail(categories: categories, hPad: hPad),
+        // Popular Categories intentionally removed — "Browse by Category"
+        // already provides category browsing, so this was duplicate.
       ],
     );
   }
@@ -339,48 +334,3 @@ class _DealRail extends ConsumerWidget {
   }
 }
 
-class _CategoryRail extends StatelessWidget {
-  const _CategoryRail({required this.categories, required this.hPad});
-  final List<Map<String, String>> categories;
-  final double hPad;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 8),
-          child: const Text('🍽 Popular Categories',
-              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
-        ),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
-            padding: EdgeInsets.symmetric(horizontal: hPad),
-            itemCount: categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final c = categories[i];
-              return ActionChip(
-                label: Text('${c['emoji'] ?? ''} ${c['name'] ?? ''}'.trim()),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RestaurantsByCategoryScreen(
-                      categoryName: c['name'] ?? '',
-                      categoryEmoji: c['emoji'],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}

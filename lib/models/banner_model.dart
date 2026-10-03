@@ -65,7 +65,13 @@ class Banner {
           ? DateTime.parse(json['ends_at'] as String)
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
-      restaurantName: restaurant?['name'] as String?,
+      // Prefer the chain/brand name ("KFC") over the specific location
+      // ("KFC Sovereign") so multi-location brands read as one brand.
+      restaurantName: (() {
+        final chain = (restaurant?['chain_name'] as String?)?.trim();
+        if (chain != null && chain.isNotEmpty) return chain;
+        return restaurant?['name'] as String?;
+      })(),
       restaurantVerified: restaurant?['is_verified'] as bool?,
       discountType: json['discount_type'] as String?,
       discountValue: (json['discount_value'] as num?)?.toDouble(),

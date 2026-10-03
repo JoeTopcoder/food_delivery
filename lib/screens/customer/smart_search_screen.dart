@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_cached_image.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/restaurant_brand.dart';
 import '../../models/restaurant_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/search_provider.dart';
+import '../../providers/membership_provider.dart';
 import 'restaurant_detail_screen.dart';
 import '../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -198,7 +200,8 @@ class _SmartSearchScreenState extends ConsumerState<SmartSearchScreen>
                     Expanded(
                       child: restaurantsAsync.when(
                         data: (restaurants) {
-                          final filtered = _applyFilters(restaurants);
+                          final filtered =
+                              collapseRestaurantsByBrand(_applyFilters(restaurants));
                           if (filtered.isEmpty) {
                             return Center(
                               child: Column(
@@ -782,13 +785,20 @@ class _MenuItemsSearchTab extends ConsumerWidget {
           itemCount: results.length,
           itemBuilder: (context, index) {
             final r = results[index];
+            final isMember = ref.watch(isHotBitePlusMemberProvider);
+            final showMember = isMember && r.hasMemberPrice;
             return RepaintBoundary(
               child: _MenuItemCard(
                 name: r.itemName,
-                price: r.discountedPrice,
-                originalPrice: r.itemDiscount != null && r.itemDiscount! > 0
-                    ? r.itemPrice
-                    : null,
+                price: r.priceForMember(isMember),
+                // For members, strike through the regular price to show the
+                // saving; otherwise keep the pre-discount original if discounted.
+                originalPrice: showMember
+                    ? r.discountedPrice
+                    : (r.itemDiscount != null && r.itemDiscount! > 0
+                          ? r.itemPrice
+                          : null),
+                isMemberPrice: showMember,
                 imageUrl: r.itemImageUrl,
                 restaurantName: r.restaurantName,
                 restaurantId: r.restaurantId,
@@ -816,6 +826,7 @@ class _MenuItemCard extends StatelessWidget {
   final String? restaurantImage;
   final double? rating;
   final String? category;
+  final bool isMemberPrice;
 
   const _MenuItemCard({
     required this.name,
@@ -827,6 +838,7 @@ class _MenuItemCard extends StatelessWidget {
     this.restaurantImage,
     this.rating,
     this.category,
+    this.isMemberPrice = false,
   });
 
   @override
@@ -887,12 +899,35 @@ class _MenuItemCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
+                      if (isMemberPrice) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF6B00),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '⭐ HotBite+',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       Text(
                         '${AppConstants.currencySymbol}${price.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
+                          color: isMemberPrice
+                              ? const Color(0xFFFF6B00)
+                              : AppTheme.primaryColor,
                         ),
                       ),
                       if (originalPrice != null) ...[

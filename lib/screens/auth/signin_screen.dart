@@ -216,18 +216,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       height: 90,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        // The logo artwork has a solid black background, so use a
+                        // black badge — the logo fills the circle cleanly instead
+                        // of showing black corners inside a white circle.
+                        color: Colors.black,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
                         ],
                       ),
                       child: const Center(
-                        child: HotBiteMark(size: 84),
+                        child: HotBiteMark(size: 90),
                       ),
                     ),
                     const SizedBox(height: 16),
