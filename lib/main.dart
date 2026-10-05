@@ -226,6 +226,7 @@ import 'screens/shared/report_user_screen.dart';
 import 'screens/admin/admin_support_requests_screen.dart';
 import 'screens/admin/admin_deletion_requests_screen.dart';
 import 'screens/admin/admin_call_fallback_log_screen.dart';
+import 'screens/admin/ai_decision_room.dart';
 import 'screens/admin/admin_chat_reports_screen.dart';
 import 'screens/stripe/earnings_dashboard_screen.dart';
 import 'screens/stripe/payout_setup_screen.dart';
@@ -1694,6 +1695,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminCallFallbackLogScreen(),
+                ),
+              );
+            case '/admin-ai-decision-room':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AiDecisionDashboardScreen(),
                 ),
               );
             case '/wallet':
