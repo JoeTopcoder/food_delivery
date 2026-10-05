@@ -187,6 +187,7 @@ class AdminOverviewScreen extends ConsumerWidget {
       _Tool('Payout Run', Icons.batch_prediction_rounded, '/admin-payout-batch'),
       _Tool('Member Savings', Icons.workspace_premium_rounded, '/admin-member-savings'),
       _Tool('Phone Fallback', Icons.phone_forwarded_rounded, '/admin-call-fallback-log'),
+      _Tool('AI Decision Room', Icons.psychology_rounded, '/admin-ai-decision-room'),
       _Tool('Pricing', Icons.sell_rounded, '/admin-pricing'),
       _Tool('Loyalty', Icons.card_giftcard_rounded, '/admin-loyalty'),
       _Tool('Contracts', Icons.description_rounded, '/admin-contract'),
