@@ -244,6 +244,13 @@ void main() {
       // ensureInitialized must be called inside the same zone as runApp.
       WidgetsFlutterBinding.ensureInitialized();
 
+      // Larger image cache so list images aren't evicted + re-decoded when the
+      // user scrolls back up — a common cause of repeat-scroll jank in
+      // image-heavy lists. Decoded bitmaps are already downscaled via
+      // AppCachedImage's memCacheWidth, so this stays well-bounded.
+      PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200 MB
+      PaintingBinding.instance.imageCache.maximumSize = 400; // decoded images
+
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
       ]);
