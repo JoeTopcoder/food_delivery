@@ -98,6 +98,22 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               Navigator.of(context).pushNamed('/my-company'),
                         ),
                         _MenuItem(
+                          icon: Icons.point_of_sale_rounded,
+                          color: const Color(0xFF0EA5E9),
+                          title: 'My Shift',
+                          sub: 'Cashier shift & cash reconciliation',
+                          onTap: () =>
+                              Navigator.of(context).pushNamed('/my-shift'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.mail_outline_rounded,
+                          color: const Color(0xFF22C55E),
+                          title: 'Accept staff invite',
+                          sub: 'Join a restaurant as staff',
+                          onTap: () => Navigator.of(context)
+                              .pushNamed('/accept-staff-invite'),
+                        ),
+                        _MenuItem(
                           icon: Icons.workspace_premium_rounded,
                           color: const Color(0xFFFF5A1F),
                           title: 'HotBite+',
