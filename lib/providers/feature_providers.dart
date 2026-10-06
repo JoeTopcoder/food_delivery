@@ -569,3 +569,23 @@ final callFallbackEnabledProvider =
     return false;
   }
 });
+
+/// Voice ordering (press-to-talk) availability. Reads app_config
+/// `voice_ordering_enabled` (default true); the voice button renders nothing
+/// when false, so admins can disable the feature without a build.
+final voiceOrderingEnabledProvider =
+    FutureProvider.autoDispose<bool>((ref) async {
+  ref.watch(configVersionProvider);
+  try {
+    final row = await SupabaseConfig.client
+        .from('app_config')
+        .select('value')
+        .eq('key', 'voice_ordering_enabled')
+        .maybeSingle();
+    final v = row?['value']?.toString();
+    if (v == null) return true;
+    return v == 'true' || v == '1';
+  } catch (_) {
+    return true;
+  }
+});

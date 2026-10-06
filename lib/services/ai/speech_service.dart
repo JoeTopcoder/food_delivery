@@ -110,6 +110,21 @@ class SpeechService {
     onListeningStopped?.call();
   }
 
+  /// Force-stop listening immediately, regardless of the tracked state. Cancels
+  /// the recogniser (discarding any pending result) and always clears the flag —
+  /// used when the mic must be guaranteed released (teardown, error recovery).
+  Future<void> forceStopListening() async {
+    try {
+      await _speech.cancel();
+    } catch (_) {
+      try {
+        await _speech.stop();
+      } catch (_) {/* ignore */}
+    }
+    _isListening = false;
+    onListeningStopped?.call();
+  }
+
   /// Interrupt any ongoing speech and start listening immediately.
   Future<void> interruptAndListen({String localeId = 'en_US'}) async {
     await stopSpeaking();
