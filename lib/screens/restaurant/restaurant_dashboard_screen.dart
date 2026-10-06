@@ -1135,6 +1135,10 @@ class _RestaurantDashboardScreenState
                   'Marketing Tools', 'Promote your restaurant',
                   () => Navigator.of(context).pushNamed('/restaurant-offer'),
                   divider: true),
+              _qaRow(Icons.badge_rounded, const Color(0xFF0EA5E9),
+                  'Staff Management', 'Staff, shifts & cash reconciliation',
+                  () => Navigator.of(context).pushNamed('/staff-management'),
+                  divider: true),
               _qaRow(Icons.payments_rounded, const Color(0xFF06B6D4),
                   'Payouts', 'View earnings & transactions',
                   () => Navigator.push(

@@ -227,6 +227,9 @@ import 'screens/admin/admin_support_requests_screen.dart';
 import 'screens/admin/admin_deletion_requests_screen.dart';
 import 'screens/admin/admin_call_fallback_log_screen.dart';
 import 'screens/admin/ai_decision_room.dart';
+import 'screens/restaurant/staff_management_screen.dart';
+import 'screens/restaurant/cashier_shift_screen.dart';
+import 'screens/staff/accept_staff_invite_screen.dart';
 import 'screens/admin/admin_chat_reports_screen.dart';
 import 'screens/stripe/earnings_dashboard_screen.dart';
 import 'screens/stripe/payout_setup_screen.dart';
@@ -1711,6 +1714,18 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   child: AiDecisionDashboardScreen(),
                 ),
               );
+            case '/staff-management':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant', 'admin'],
+                  child: StaffManagementEntry(),
+                ),
+              );
+            case '/my-shift':
+              return MaterialPageRoute(builder: (context) => const CashierShiftScreen());
+            case '/accept-staff-invite':
+              final tok = settings.arguments is String ? settings.arguments as String : null;
+              return MaterialPageRoute(builder: (context) => AcceptStaffInviteScreen(token: tok));
             case '/wallet':
               return MaterialPageRoute(
                 builder: (context) => const RoleGuard(
