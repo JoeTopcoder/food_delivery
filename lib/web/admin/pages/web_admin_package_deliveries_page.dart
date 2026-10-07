@@ -270,7 +270,7 @@ class _DeliveryRow extends StatelessWidget {
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)))),
           Expanded(flex: 2, child: _StatusBadge(status: status)),
           Expanded(flex: 2, child: Text(
-            createdAt != null ? DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica) : '—',
+            createdAt != null ? DateFormat('MMM d, h:mm a').format(toJamaicaOf(createdAt.toLocal())) : '—',
             style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
           )),
         ]),

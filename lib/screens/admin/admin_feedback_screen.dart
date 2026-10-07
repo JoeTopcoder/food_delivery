@@ -137,7 +137,7 @@ class _FeedbackCard extends ConsumerWidget {
             ],
             const SizedBox(height: 2),
             Text(
-              DateFormat.yMMMd().format(feedback.createdAt.toJamaica),
+              DateFormat.yMMMd().format(toJamaicaOf(feedback.createdAt)),
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -203,7 +203,7 @@ class _NewBookingCardState extends ConsumerState<_NewBookingCard> {
   @override
   Widget build(BuildContext context) {
     final b = widget.booking;
-    final time = DateFormat('EEE, MMM d · h:mm a').format(b.scheduledAt.toJamaica);
+    final time = DateFormat('EEE, MMM d · h:mm a').format(toJamaicaOf(b.scheduledAt));
     final vehicleInfo = [b.vehicleMake, b.vehicleModel, b.vehicleColor]
         .where((v) => v != null && v.isNotEmpty)
         .join(' ');
@@ -411,7 +411,7 @@ class _StandardBookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final time =
-        DateFormat('EEE, MMM d · h:mm a').format(booking.scheduledAt.toJamaica);
+        DateFormat('EEE, MMM d · h:mm a').format(toJamaicaOf(booking.scheduledAt));
     final color = _statusColor;
 
     return GestureDetector(

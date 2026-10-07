@@ -679,7 +679,7 @@ class _ReviewTile extends StatelessWidget {
               _StarRow(rating: review.rating.toDouble()),
               const Spacer(),
               Text(
-                DateFormat('MMM d, y').format(review.createdAt.toJamaica),
+                DateFormat('MMM d, y').format(toJamaicaOf(review.createdAt)),
                 style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],

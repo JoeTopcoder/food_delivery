@@ -1378,7 +1378,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       if (mounted) {
         AppSnackbar.info(
           context,
-          'Earliest time is ${DateFormat('MMM d, h:mm a').format((earliest).toJamaica)}. Adjusted.',
+          'Earliest time is ${DateFormat('MMM d, h:mm a').format(toJamaicaOf(earliest))}. Adjusted.',
         );
       }
     }

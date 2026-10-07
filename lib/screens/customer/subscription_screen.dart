@@ -626,8 +626,8 @@ class _ActiveSubBanner extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 isCancelling
-                    ? 'Cancels ${DateFormat('MMM d, y').format((sub.currentPeriodEnd!).toJamaica)}'
-                    : 'Renews ${DateFormat('MMM d, y').format((sub.currentPeriodEnd!).toJamaica)}',
+                    ? 'Cancels ${DateFormat('MMM d, y').format(toJamaicaOf(sub.currentPeriodEnd!))}'
+                    : 'Renews ${DateFormat('MMM d, y').format(toJamaicaOf(sub.currentPeriodEnd!))}',
                 style: TextStyle(
                   fontSize: 12,
                   color: isCancelling

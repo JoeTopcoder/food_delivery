@@ -130,7 +130,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             ),
           ]),
           const SizedBox(height: 4),
-          Text('$itemCount item${itemCount == 1 ? '' : 's'} · ${o.paymentMethod ?? 'Cash'} · ${DateFormat('h:mm a').format(o.orderedAt.toJamaica)}',
+          Text('$itemCount item${itemCount == 1 ? '' : 's'} · ${o.paymentMethod ?? 'Cash'} · ${DateFormat('h:mm a').format(toJamaicaOf(o.orderedAt))}',
               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           if (o.deliveryAddress != null) ...[
             const SizedBox(height: 4),

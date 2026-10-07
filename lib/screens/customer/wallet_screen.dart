@@ -1096,7 +1096,7 @@ class _TransactionTile extends StatelessWidget {
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return DateFormat('d MMM, h:mm a').format((dt).toJamaica);
+    return DateFormat('d MMM, h:mm a').format(toJamaicaOf(dt));
   }
 
   @override
@@ -2598,7 +2598,7 @@ class _TransactionHistorySheetState
                     if (!d.isBefore(yesterday) && d.isBefore(today))
                       return 'Yesterday';
                     if (!d.isBefore(thisWeekStart)) return 'This Week';
-                    return DateFormat('MMMM yyyy').format((dt).toJamaica);
+                    return DateFormat('MMMM yyyy').format(toJamaicaOf(dt));
                   }
 
                   final List<Object> items = [];

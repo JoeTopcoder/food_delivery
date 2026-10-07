@@ -16,7 +16,7 @@ class CarServiceBookingSummaryScreen extends StatelessWidget {
 
     final providerName = booking.provider?.businessName ?? 'Service Provider';
     final scheduledStr =
-        DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt.toJamaica);
+        DateFormat('EEE, MMM d, y · h:mm a').format(toJamaicaOf(booking.scheduledAt));
 
     final vehicleCount = booking.vehicleCount > 1 ? booking.vehicleCount : null;
     final serviceCount = booking.serviceCount > 1 ? booking.serviceCount : null;

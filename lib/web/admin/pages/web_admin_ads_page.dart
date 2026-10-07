@@ -146,7 +146,7 @@ class _AdRow extends ConsumerWidget {
           Expanded(flex: 3, child: Text(title, style: const TextStyle(fontSize: 13, color: Color(0xFF475569)), overflow: TextOverflow.ellipsis)),
           Expanded(flex: 2, child: _TypeBadge(type: type)),
           Expanded(flex: 2, child: Text(
-            expiresAt != null ? DateFormat('MMM d, yyyy').format((expiresAt.toLocal()).toJamaica) : '—',
+            expiresAt != null ? DateFormat('MMM d, yyyy').format(toJamaicaOf(expiresAt.toLocal())) : '—',
             style: TextStyle(fontSize: 12, color: isExpired ? const Color(0xFFEF4444) : const Color(0xFF94A3B8)),
           )),
           Expanded(flex: 1, child: _StatusDot(isActive: isActive && !isExpired)),

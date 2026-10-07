@@ -950,7 +950,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Ride scheduled for ${DateFormat("MMM d 'at' h:mm a").format((_scheduledFor!).toJamaica)}',
+                  'Ride scheduled for ${DateFormat("MMM d 'at' h:mm a").format(toJamaicaOf(_scheduledFor!))}',
                 ),
                 duration: const Duration(seconds: 4),
               ),
@@ -1820,7 +1820,7 @@ class _FareContent extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    DateFormat("MMM d 'at' h:mm a").format((scheduledFor!).toJamaica),
+                    DateFormat("MMM d 'at' h:mm a").format(toJamaicaOf(scheduledFor!)),
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

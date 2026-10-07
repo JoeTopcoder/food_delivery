@@ -576,7 +576,7 @@ class _HeroHeader extends StatelessWidget {
     final email = currentUser?.email as String?;
     final photo = currentUser?.profileImageUrl as String?;
     final since = currentUser?.createdAt != null
-        ? DateFormat.yMMM().format((currentUser!.createdAt as DateTime).toJamaica)
+        ? DateFormat.yMMM().format(toJamaicaOf(currentUser!.createdAt as DateTime))
         : null;
 
     return Container(

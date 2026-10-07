@@ -309,7 +309,7 @@ class _OrderResultSection extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text('${AppConstants.currencySymbol}${fmt.format(total)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               ]),
-              if (orderedAt != null) Text(DateFormat('MMM d, y HH:mm').format((orderedAt).toJamaica), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+              if (orderedAt != null) Text(DateFormat('MMM d, y HH:mm').format(toJamaicaOf(orderedAt)), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
               const Divider(height: 20),
               _Row2('Customer', customer['name'] ?? '—', customer['email'] ?? '—'),
               if (restaurant.isNotEmpty) _Row2('Restaurant', restaurant['name'] ?? '—', ''),

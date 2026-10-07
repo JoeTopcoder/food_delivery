@@ -163,7 +163,7 @@ class _ReviewCardState extends State<_ReviewCard> {
                 const SizedBox(width: 8),
                 Expanded(child: Text(restaurantName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
                 if (r['created_at'] != null)
-                  Text(DateFormat('MMM d').format((DateTime.parse(r['created_at']).toLocal()).toJamaica), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text(DateFormat('MMM d').format(toJamaicaOf(DateTime.parse(r['created_at']).toLocal())), style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             if (r['review_text'] != null) ...[

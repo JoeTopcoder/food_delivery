@@ -405,7 +405,7 @@ class _WorkflowCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'Last run ${DateFormat('MMM d, h:mm a').format((DateTime.parse(lastAt).toLocal()).toJamaica)}${lastSummary != null ? ' — $lastSummary' : ''}',
+                      'Last run ${DateFormat('MMM d, h:mm a').format(toJamaicaOf(DateTime.parse(lastAt).toLocal()))}${lastSummary != null ? ' — $lastSummary' : ''}',
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

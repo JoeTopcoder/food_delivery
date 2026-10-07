@@ -258,7 +258,7 @@ class Restaurant {
   Map<String, dynamic>? _todayHours() {
     if (operatingHours == null || operatingHours!.isEmpty) return null;
     final now = EstDateTime.now();
-    final dayName = DateFormat('EEEE').format((now).toJamaica).toLowerCase();
+    final dayName = DateFormat('EEEE').format(toJamaicaOf(now)).toLowerCase();
     final dayData = operatingHours![dayName];
     return dayData is Map ? Map<String, dynamic>.from(dayData) : null;
   }
@@ -327,8 +327,8 @@ class Restaurant {
     if (t == null) return 'Unavailable';
     // Subtract the 1-hour buffer to show actual opening time
     final openTime = t.subtract(const Duration(hours: 1));
-    return 'Opens ${DateFormat('EEEE').format((openTime).toJamaica)} at '
-        '${DateFormat('h:mm a').format((openTime).toJamaica)}';
+    return 'Opens ${DateFormat('EEEE').format(toJamaicaOf(openTime))} at '
+        '${DateFormat('h:mm a').format(toJamaicaOf(openTime))}';
   }
 
   /// Today's hours formatted as "8:00 AM - 10:00 PM" or null.
@@ -355,7 +355,7 @@ class Restaurant {
     final h = int.tryParse(parts[0]) ?? 0;
     final m = int.tryParse(parts[1]) ?? 0;
     final dt = DateTime(2000, 1, 1, h, m);
-    return DateFormat('h:mm a').format((dt).toJamaica);
+    return DateFormat('h:mm a').format(toJamaicaOf(dt));
   }
 
   bool _isWithinTimeRange(String openStr, String closeStr) {

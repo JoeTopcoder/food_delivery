@@ -337,7 +337,7 @@ class LoyaltyScreen extends ConsumerWidget {
                                         Text(
                                           DateFormat(
                                             'MMM d, y',
-                                          ).format(tx.createdAt.toJamaica),
+                                          ).format(toJamaicaOf(tx.createdAt)),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: Theme.of(

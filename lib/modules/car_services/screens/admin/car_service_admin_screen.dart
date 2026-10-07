@@ -522,7 +522,7 @@ class _AdminBookingsTab extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             DateFormat('MMM d · h:mm a')
-                                .format(b.scheduledAt.toJamaica),
+                                .format(toJamaicaOf(b.scheduledAt)),
                             style: TextStyle(
                                 fontSize: 11, color: Colors.grey.shade400),
                           ),

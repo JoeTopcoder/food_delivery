@@ -44,3 +44,11 @@ extension JamaicaTime on DateTime {
     return jmFormat('MMM d, y');
   }
 }
+
+/// Robust Jamaica conversion that also works on dynamic/String values (where a
+/// DateTime extension can't bind at compile time). Accepts a DateTime or an
+/// ISO string; returns the Jamaica wall-clock instant for display.
+DateTime toJamaicaOf(dynamic v) {
+  final dt = v is DateTime ? v : DateTime.parse(v.toString());
+  return dt.toUtc().add(EstDateTime.offset);
+}

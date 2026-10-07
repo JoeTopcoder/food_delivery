@@ -175,7 +175,7 @@ class _AdminChatReportsScreenState extends State<AdminChatReportsScreen> {
 
   String _fmt(String iso) {
     try {
-      return DateFormat('MMM d, y – h:mm a').format((DateTime.parse(iso).toLocal()).toJamaica);
+      return DateFormat('MMM d, y – h:mm a').format(toJamaicaOf(DateTime.parse(iso).toLocal()));
     } catch (_) {
       return iso;
     }

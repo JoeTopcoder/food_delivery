@@ -334,7 +334,7 @@ class _BirthdayRow extends StatelessWidget {
     final promo = row['promo_codes'] as Map<String, dynamic>?;
     final name = (user?['name'] as String?) ?? 'Customer';
     final date = row['birthday_date'] != null
-        ? DateFormat('MMM d').format((DateTime.parse(row['birthday_date'] as String)).toJamaica)
+        ? DateFormat('MMM d').format(toJamaicaOf(DateTime.parse(row['birthday_date'] as String)))
         : '—';
     final code = promo?['code'] as String?;
     final usageCount = (promo?['usage_count'] as num?)?.toInt() ?? 0;

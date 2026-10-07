@@ -227,7 +227,7 @@ class _BookingList extends StatelessWidget {
                         Flexible(
                           child: Text(
                           DateFormat('EEE, MMM d · h:mm a')
-                              .format(b.scheduledAt.toJamaica),
+                              .format(toJamaicaOf(b.scheduledAt)),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 12, color: Colors.grey),

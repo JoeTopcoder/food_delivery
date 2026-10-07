@@ -140,7 +140,7 @@ class _StatusCard extends StatelessWidget {
                     color: Colors.white, fontWeight: FontWeight.w700)),
             if (status?.endDate != null)
               Text(
-                'Active until ${DateFormat('MMM d, yyyy').format((status!.endDate!.toLocal()).toJamaica)}',
+                'Active until ${DateFormat('MMM d, yyyy').format(toJamaicaOf(status!.endDate!.toLocal()))}',
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
           ] else ...[

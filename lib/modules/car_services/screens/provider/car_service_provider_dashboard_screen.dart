@@ -553,7 +553,7 @@ class _BookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = DateFormat('EEE, MMM d · h:mm a').format(booking.scheduledAt.toJamaica);
+    final time = DateFormat('EEE, MMM d · h:mm a').format(toJamaicaOf(booking.scheduledAt));
     final color = _statusColor;
 
     return Container(

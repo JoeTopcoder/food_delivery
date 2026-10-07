@@ -953,7 +953,7 @@ class _ReviewStep extends ConsumerWidget {
         _Card(children: [
           if (scheduledAt != null)
             _Row(icon: Icons.schedule, label: 'Date & Time',
-              value: DateFormat('EEE, MMM d · h:mm a').format((scheduledAt!).toJamaica)),
+              value: DateFormat('EEE, MMM d · h:mm a').format(toJamaicaOf(scheduledAt!))),
           if (mobileService && address != null)
             _Row(icon: Icons.location_on_rounded, label: address!.label, value: address!.address)
           else

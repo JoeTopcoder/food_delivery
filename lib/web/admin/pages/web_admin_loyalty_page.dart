@@ -159,7 +159,7 @@ class WebAdminLoyaltyPage extends ConsumerWidget {
                                       SizedBox(width: 140, child: Text('${(t['balance_after'] as num?)?.toInt() ?? 0} pts', style: const TextStyle(fontSize: 13, color: Color(0xFF374151)))),
                                       Expanded(
                                         child: Text(
-                                          t['created_at'] != null ? DateFormat('MMM d, y').format((DateTime.parse(t['created_at'] as String)).toJamaica) : '—',
+                                          t['created_at'] != null ? DateFormat('MMM d, y').format(toJamaicaOf(DateTime.parse(t['created_at'] as String))) : '—',
                                           style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                                           textAlign: TextAlign.right,
                                         ),

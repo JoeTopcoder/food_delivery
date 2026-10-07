@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../utils/est_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/supabase_config.dart';
@@ -696,7 +697,8 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  static String _formatDate(DateTime dt) {
+  static String _formatDate(DateTime dtRaw) {
+    final dt = toJamaicaOf(dtRaw); // show Jamaica local time, not UTC
     final months = [
       'Jan',
       'Feb',

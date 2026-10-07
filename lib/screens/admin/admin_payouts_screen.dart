@@ -293,7 +293,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(p.createdAt.toJamaica),
+                  DateFormat('MMM d, y').format(toJamaicaOf(p.createdAt)),
                   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                 ),
               ],

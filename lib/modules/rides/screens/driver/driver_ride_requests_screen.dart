@@ -371,7 +371,7 @@ class _RideTripCard extends StatelessWidget {
     final earning = ride.driverEarning ??
         ((ride.finalFare ?? ride.estimatedFare ?? 0) * 0.8);
     final dateLabel =
-        DateFormat('MMM d, yyyy • h:mm a').format((ride.requestedAt).toJamaica);
+        DateFormat('MMM d, yyyy • h:mm a').format(toJamaicaOf(ride.requestedAt));
 
     return Container(
       padding: const EdgeInsets.all(16),

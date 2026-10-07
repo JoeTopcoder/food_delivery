@@ -83,7 +83,7 @@ class _State extends ConsumerState<CarServiceProviderBookingDetailScreen> {
   Widget build(BuildContext context) {
     final status = _booking.status;
     final time =
-        DateFormat('EEEE, MMMM d, y · h:mm a').format(_booking.scheduledAt.toJamaica);
+        DateFormat('EEEE, MMMM d, y · h:mm a').format(toJamaicaOf(_booking.scheduledAt));
     final isClosed = status == CarServiceBookingStatus.completed ||
         status == CarServiceBookingStatus.cancelled ||
         status == CarServiceBookingStatus.noShow;
