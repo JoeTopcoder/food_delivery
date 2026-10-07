@@ -9,6 +9,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/feature_providers.dart';
+import '../../providers/delivery_region_provider.dart';
 import '../../services/driver/delivery_fee_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/context_extensions.dart';
@@ -170,8 +171,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       subtotal,
       otherCharges: activeFee + totalExtraStopFee,
     );
-    // Tax is determined server-side (zone-based) at checkout — omit from estimate.
-    final total = subtotal + activeFee + platformServiceFee + totalExtraStopFee;
+    // Zone-based tax (mirrors checkout): needs delivery coords to resolve the zone.
+    final taxKey = hasCoords ? '$delLat|$delLng' : null;
+    final zoneTax =
+        taxKey != null ? ref.watch(zoneTaxProvider(taxKey)).valueOrNull : null;
+    final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
+    final tax = subtotal * effectiveTaxRate;
+    final total =
+        subtotal + activeFee + platformServiceFee + totalExtraStopFee + tax;
 
     return Scaffold(
       appBar: AppBar(
@@ -825,6 +832,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           _PriceRow(
                             'Multi-stop Fee (${restaurantCount - 1} extra stop${restaurantCount - 1 > 1 ? 's' : ''})',
                             '${AppConstants.currencySymbol}${totalExtraStopFee.toStringAsFixed(2)}',
+                          ),
+                        ],
+                        if (tax > 0) ...[
+                          const SizedBox(height: 8),
+                          _PriceRow(
+                            'Tax (${(effectiveTaxRate * 100).toStringAsFixed(0)}%)',
+                            '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
                           ),
                         ],
                         Divider(color: scheme.outlineVariant, height: 16),
