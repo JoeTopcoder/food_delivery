@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -331,7 +332,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               ],
             ),
             const SizedBox(height: 4),
-            Text(fmt.format(order.orderedAt), style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+            Text(fmt.format(order.orderedAt.toJamaica), style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
 
             if (order.status != AppConstants.orderDelivered && order.status != AppConstants.orderCancelled) ...[
               const SizedBox(height: 8),
@@ -582,7 +583,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                 ),
               ],
             ),
-            Text(DateFormat('MMM d, h:mm a').format(ro.createdAt), style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+            Text(DateFormat('MMM d, h:mm a').format(ro.createdAt.toJamaica), style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
             if (ro.deliveryAddress != null) ...[
               const SizedBox(height: 6),
               Row(

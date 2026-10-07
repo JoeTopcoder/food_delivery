@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:food_driver/modules/car_services/models/car_service_booking.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +16,7 @@ class CarServiceBookingSummaryScreen extends StatelessWidget {
 
     final providerName = booking.provider?.businessName ?? 'Service Provider';
     final scheduledStr =
-        DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt);
+        DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt.toJamaica);
 
     final vehicleCount = booking.vehicleCount > 1 ? booking.vehicleCount : null;
     final serviceCount = booking.serviceCount > 1 ? booking.serviceCount : null;

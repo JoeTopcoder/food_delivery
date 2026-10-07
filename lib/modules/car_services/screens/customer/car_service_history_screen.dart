@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/modules/car_services/models/car_service_booking.dart';
@@ -355,8 +356,8 @@ class _HistoryCard extends StatelessWidget {
     final serviceName = booking.serviceCount > 1
         ? '${booking.serviceCount} services'
         : (booking.offering?.name ?? 'Car Service');
-    final dateStr = DateFormat('EEE, MMM d, y').format(booking.scheduledAt);
-    final timeStr = DateFormat('h:mm a').format(booking.scheduledAt);
+    final dateStr = DateFormat('EEE, MMM d, y').format(booking.scheduledAt.toJamaica);
+    final timeStr = DateFormat('h:mm a').format(booking.scheduledAt.toJamaica);
     final isCompleted = booking.status == CarServiceBookingStatus.completed;
     final (statusColor, statusBg, statusLabel) = _statusStyle(booking.status, context);
 
@@ -533,7 +534,7 @@ class _BookingDetailSheet extends StatelessWidget {
     final serviceName = booking.serviceCount > 1
         ? '${booking.serviceCount} services'
         : (booking.offering?.name ?? 'Car Service');
-    final scheduledStr = DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt);
+    final scheduledStr = DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt.toJamaica);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,

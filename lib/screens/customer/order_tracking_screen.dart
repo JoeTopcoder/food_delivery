@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -245,7 +246,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Estimated delivery: ${DateFormat.jm().format(liveOrder.estimatedDeliveryAt!)}',
+                            'Estimated delivery: ${DateFormat.jm().format(liveOrder.estimatedDeliveryAt!.toJamaica)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF10B981),
@@ -829,7 +830,7 @@ class _TimelineCard extends StatelessWidget {
           const SizedBox(height: 14),
           _TimelineRow(
             title: 'Order Placed',
-            subtitle: fmt.format(order.orderedAt),
+            subtitle: fmt.format(order.orderedAt.toJamaica),
             isCompleted: true,
             isCurrent: statusIndex == 0,
           ),

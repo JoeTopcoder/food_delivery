@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -226,7 +227,7 @@ class _BookingList extends StatelessWidget {
                         Flexible(
                           child: Text(
                           DateFormat('EEE, MMM d · h:mm a')
-                              .format(b.scheduledAt),
+                              .format(b.scheduledAt.toJamaica),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 12, color: Colors.grey),

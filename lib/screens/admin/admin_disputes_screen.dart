@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -147,7 +148,7 @@ class _AdminRefundCard extends ConsumerWidget {
             Text(refund.reason, style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 4),
             Text(
-              DateFormat.yMMMd().add_jm().format(refund.createdAt),
+              DateFormat.yMMMd().add_jm().format(refund.createdAt.toJamaica),
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

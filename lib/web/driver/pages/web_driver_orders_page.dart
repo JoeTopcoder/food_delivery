@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -129,7 +130,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             ),
           ]),
           const SizedBox(height: 4),
-          Text('$itemCount item${itemCount == 1 ? '' : 's'} · ${o.paymentMethod ?? 'Cash'} · ${DateFormat('h:mm a').format(o.orderedAt)}',
+          Text('$itemCount item${itemCount == 1 ? '' : 's'} · ${o.paymentMethod ?? 'Cash'} · ${DateFormat('h:mm a').format(o.orderedAt.toJamaica)}',
               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           if (o.deliveryAddress != null) ...[
             const SizedBox(height: 4),

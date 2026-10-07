@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -521,7 +522,7 @@ class _AdminBookingsTab extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             DateFormat('MMM d · h:mm a')
-                                .format(b.scheduledAt),
+                                .format(b.scheduledAt.toJamaica),
                             style: TextStyle(
                                 fontSize: 11, color: Colors.grey.shade400),
                           ),

@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -490,7 +491,7 @@ class _PayoutRequestScreenState extends ConsumerState<PayoutRequestScreen> {
                   ),
                 ),
                 Text(
-                  DateFormat('MMM d, yyyy · h:mm a').format(p.createdAt),
+                  DateFormat('MMM d, yyyy · h:mm a').format(p.createdAt.toJamaica),
                   style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                 ),
                 if (p.adminNotes != null && p.adminNotes!.isNotEmpty)

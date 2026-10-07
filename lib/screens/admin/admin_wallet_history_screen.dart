@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
+import '../../utils/est_datetime.dart';
 
 /// Admin-only, read-only view of a customer's wallet: balances + transaction
 /// history (via admin_wallet_history RPC). Ledger convention: amount > 0 is a
@@ -86,7 +87,7 @@ class _S extends ConsumerState<AdminWalletHistoryScreen> {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text((t['type'] ?? 'transaction').toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
           if (t['description'] != null) Text(t['description'].toString(), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-          Text('${(t['created_at'] ?? '').toString().replaceFirst('T', ' ').substring(0, 16)}'
+          Text('${t['created_at'] != null ? DateTime.parse(t['created_at'].toString()).jmFormat('MMM d, y · h:mm a') : ''}'
               '${t['status'] != null ? ' • ${t['status']}' : ''}',
               style: const TextStyle(fontSize: 11, color: Colors.black38)),
         ])),

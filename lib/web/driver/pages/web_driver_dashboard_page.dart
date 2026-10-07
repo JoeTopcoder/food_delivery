@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -260,7 +261,7 @@ class _HistoryRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(order.deliveryAddress ?? 'Delivered', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)), overflow: TextOverflow.ellipsis),
-          Text(DateFormat('MMM d, h:mm a').format(order.orderedAt), style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+          Text(DateFormat('MMM d, h:mm a').format(order.orderedAt.toJamaica), style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
