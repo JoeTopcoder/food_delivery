@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
+import '../../providers/chat_provider.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../widgets/order_status_timeline.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -1416,7 +1417,7 @@ class _AssignDriverSheetState extends ConsumerState<_AssignDriverSheet> {
 // Shows the vertical (Food/Grocery), customer, store, address, payment, totals,
 // and the itemised line items (fetched on open).
 
-class _OrderDetailSheet extends StatelessWidget {
+class _OrderDetailSheet extends ConsumerWidget {
   final Map<String, dynamic> order;
   const _OrderDetailSheet({required this.order});
 
@@ -1428,8 +1429,32 @@ class _OrderDetailSheet extends StatelessWidget {
   String _money(dynamic v) =>
       '${AppConstants.currencySymbol}${(v ?? 0).toDouble().toStringAsFixed(2)}';
 
+  // Admin can call the customer (in-app Agora) while the order is live.
+  static const _activeStatuses = {
+    'confirmed', 'preparing', 'ready', 'picked_up', 'on_the_way', 'out_for_delivery',
+  };
+
+  Future<void> _callCustomer(BuildContext context, WidgetRef ref, String name) async {
+    final customerId = (order['user_id'] ?? '').toString();
+    final orderId = (order['id'] ?? '').toString();
+    if (customerId.isEmpty) {
+      AppSnackbar.warning(context, 'Cannot call — no customer on this order');
+      return;
+    }
+    try {
+      final call = await ref.read(chatServiceProvider).initiateCall(
+            orderId: orderId, receiverId: customerId);
+      if (context.mounted) {
+        Navigator.pushNamed(context, '/call',
+            arguments: {'call': call, 'isCaller': true, 'otherPartyName': name});
+      }
+    } catch (e) {
+      if (context.mounted) AppSnackbar.error(context, friendlyError(e));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final id = (order['id'] ?? '').toString();
     final shortId = id.length > 8 ? id.substring(0, 8) : id;
@@ -1515,6 +1540,23 @@ class _OrderDetailSheet extends StatelessWidget {
           if (user?['phone'] != null)
             _detailRow(context, Icons.phone_rounded, 'Phone',
                 user!['phone'].toString()),
+          if (_activeStatuses.contains(status) && (order['user_id'] ?? '').toString().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _callCustomer(context, ref,
+                      (user?['name'] ?? 'Customer').toString()),
+                  icon: const Icon(Icons.phone_in_talk_rounded),
+                  label: const Text('Call customer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF22C55E),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           if (user?['email'] != null)
             _detailRow(context, Icons.email_rounded, 'Email',
                 user!['email'].toString()),
