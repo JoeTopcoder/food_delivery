@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/weather_model.dart';
+import '../providers/user_provider.dart' show currentTabIndexProvider;
 import '../providers/weather_provider.dart';
 import '../services/weather_service.dart';
 import '../utils/app_theme.dart';
@@ -9,20 +12,144 @@ import 'weather_details_sheet.dart';
 
 /// Compact weather card for the customer home screen. Sits below the delivery
 /// address. Non-blocking: it watches an autoDispose FutureProvider and renders
-/// its own loading / loaded / empty / stale / error states without holding up
-/// the rest of the home screen. Tapping opens the details bottom sheet.
-class WeatherCard extends ConsumerWidget {
+/// its own loading / loaded / stale / error states without holding up the rest
+/// of the home screen. Tapping opens the details bottom sheet.
+///
+/// Two display rules the product wants:
+///  1. Only shown when a delivery address with coordinates is available —
+///     otherwise the card renders nothing (no placeholder).
+///  2. Capped to ~4 minutes of cumulative on-screen time per Jamaica-day. Time
+///     only accrues while the home tab is the active tab and the app is in the
+///     foreground. Once the daily budget is spent the card hides until the next
+///     Jamaica day. The budget persists across app restarts (SharedPreferences).
+class WeatherCard extends ConsumerStatefulWidget {
   const WeatherCard({super.key});
 
   static const double _radius = 16;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final query = ref.watch(effectiveWeatherQueryProvider);
+  /// Daily on-screen budget: 4 minutes.
+  static const int _dailyBudgetSeconds = 4 * 60;
 
-    if (query == null) {
-      return _Shell(child: _NoLocation(ref: ref));
+  @override
+  ConsumerState<WeatherCard> createState() => _WeatherCardState();
+}
+
+class _WeatherCardState extends ConsumerState<WeatherCard>
+    with WidgetsBindingObserver {
+  static const String _prefsPrefix = 'weather_screen_secs_';
+
+  Timer? _ticker;
+  int _usedSeconds = 0;
+  bool _loadedBudget = false;
+  String _dayKey = '';
+  int _unsavedSeconds = 0; // batched before writing to prefs
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _dayKey = _todayKey();
+    _loadBudget();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _flush();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Pause accrual when backgrounded; persist what we've counted so far.
+    if (state != AppLifecycleState.resumed) {
+      _ticker?.cancel();
+      _ticker = null;
+      _flush();
+    } else {
+      // Resuming on a new day resets the budget.
+      final key = _todayKey();
+      if (key != _dayKey) {
+        _dayKey = key;
+        _usedSeconds = 0;
+        _unsavedSeconds = 0;
+      }
+      if (mounted) setState(() {});
     }
+  }
+
+  String _todayKey() => DateTime.now().jmFormat('yyyy-MM-dd');
+
+  Future<void> _loadBudget() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _usedSeconds = prefs.getInt('$_prefsPrefix$_dayKey') ?? 0;
+    } catch (_) {
+      _usedSeconds = 0;
+    }
+    if (mounted) setState(() => _loadedBudget = true);
+  }
+
+  Future<void> _flush() async {
+    if (_unsavedSeconds <= 0) return;
+    final toSave = _usedSeconds;
+    final key = _dayKey;
+    _unsavedSeconds = 0;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('$_prefsPrefix$key', toSave);
+    } catch (_) {
+      /* best-effort */
+    }
+  }
+
+  bool get _budgetSpent => _usedSeconds >= WeatherCard._dailyBudgetSeconds;
+
+  /// Starts the 1s accrual ticker if it should be running and isn't already.
+  void _ensureTicker() {
+    if (_ticker != null || _budgetSpent) return;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      // Roll over at midnight Jamaica time.
+      final key = _todayKey();
+      if (key != _dayKey) {
+        _dayKey = key;
+        _usedSeconds = 0;
+        _unsavedSeconds = 0;
+      }
+      _usedSeconds++;
+      _unsavedSeconds++;
+      if (_unsavedSeconds >= 10) _flush(); // batch writes every ~10s
+      if (_budgetSpent) {
+        _ticker?.cancel();
+        _ticker = null;
+        _flush();
+      }
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _stopTicker() {
+    _ticker?.cancel();
+    _ticker = null;
+    _flush();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Rule 1: require an address (query is null when no coords are available).
+    final query = ref.watch(effectiveWeatherQueryProvider);
+    final onHomeTab = ref.watch(currentTabIndexProvider) == 0;
+
+    // Not shown: no address, budget still loading, daily budget spent, or the
+    // home tab isn't the one on screen. Stop accruing time in those cases.
+    if (query == null || !_loadedBudget || _budgetSpent || !onHomeTab) {
+      _stopTicker();
+      return const SizedBox.shrink();
+    }
+
+    // Visible on the home tab → accrue screen time.
+    _ensureTicker();
 
     final async = ref.watch(weatherProvider(query));
 
@@ -255,29 +382,6 @@ class _LoadingSkeleton extends StatelessWidget {
   }
 }
 
-class _NoLocation extends StatelessWidget {
-  final WidgetRef ref;
-  const _NoLocation({required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(Icons.cloud_outlined, color: scheme.onSurfaceVariant, size: 28),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Select a location to see the weather.',
-            style: TextStyle(fontSize: 13, color: scheme.onSurface),
-          ),
-        ),
-        _UseCurrentLocationButton(ref: ref),
-      ],
-    );
-  }
-}
-
 class _ErrorState extends StatelessWidget {
   final String code;
   final VoidCallback onRetry;
@@ -312,62 +416,6 @@ class _ErrorState extends StatelessWidget {
           child: const Text('Retry'),
         ),
       ],
-    );
-  }
-}
-
-/// "Use my current location" action. Requests GPS only when tapped, handles
-/// denial gracefully, and never changes the delivery address.
-class _UseCurrentLocationButton extends StatefulWidget {
-  final WidgetRef ref;
-  const _UseCurrentLocationButton({required this.ref});
-
-  @override
-  State<_UseCurrentLocationButton> createState() =>
-      _UseCurrentLocationButtonState();
-}
-
-class _UseCurrentLocationButtonState
-    extends State<_UseCurrentLocationButton> {
-  bool _busy = false;
-
-  Future<void> _run() async {
-    setState(() => _busy = true);
-    bool ok = false;
-    try {
-      ok = await useCurrentLocationForWeather(widget.ref);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Location unavailable. Enable location services and permission to '
-            'use your current location.',
-          ),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: _busy ? null : _run,
-      icon: _busy
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.my_location, size: 16),
-      label: const Text('Use my location', style: TextStyle(fontSize: 12)),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
     );
   }
 }

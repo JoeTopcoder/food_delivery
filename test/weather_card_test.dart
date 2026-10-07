@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_driver/models/weather_model.dart';
 import 'package:food_driver/providers/weather_provider.dart';
 import 'package:food_driver/services/weather_service.dart';
+import 'package:food_driver/utils/est_datetime.dart';
 import 'package:food_driver/widgets/weather_card.dart';
 
 Weather _sample({bool stale = false}) => Weather.fromJson({
@@ -98,39 +100,57 @@ void main() {
   });
 
   group('WeatherCard states', () {
-    testWidgets('no-location prompt when there is no query', (tester) async {
+    // Settle the async budget load + weatherProvider future, then dispose the
+    // card (cancels its 1s accrual ticker so no timer is pending at test end).
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump(); // budget load (SharedPreferences)
+      await tester.pump(const Duration(milliseconds: 50)); // weatherProvider
+    }
+
+    Future<void> teardownCard(WidgetTester tester) async {
+      await tester.pumpWidget(const SizedBox());
+    }
+
+    testWidgets('hidden entirely when there is no address', (tester) async {
+      SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(_host([
         effectiveWeatherQueryProvider.overrideWithValue(null),
       ]));
-      expect(find.text('Select a location to see the weather.'), findsOneWidget);
-      expect(find.text('Use my location'), findsOneWidget);
+      await settle(tester);
+      expect(find.byType(WeatherCard), findsOneWidget); // widget present...
+      expect(find.byIcon(Icons.chevron_right_rounded), findsNothing); // ...but renders nothing
+      expect(find.textContaining('°C'), findsNothing);
+      await teardownCard(tester);
     });
 
     testWidgets('loaded state shows condition and temperature',
         (tester) async {
+      SharedPreferences.setMockInitialValues({});
       final q = _query();
       await tester.pumpWidget(_host([
         effectiveWeatherQueryProvider.overrideWithValue(q),
         weatherProvider.overrideWith((ref, arg) async => _sample()),
       ]));
-      await tester.pump(); // resolve the future
-      await tester.pump();
+      await settle(tester);
       expect(find.textContaining('Light rain'), findsOneWidget);
       expect(find.text('27°C'), findsOneWidget);
+      await teardownCard(tester);
     });
 
     testWidgets('stale weather shows the last-known label', (tester) async {
+      SharedPreferences.setMockInitialValues({});
       final q = _query();
       await tester.pumpWidget(_host([
         effectiveWeatherQueryProvider.overrideWithValue(q),
         weatherProvider.overrideWith((ref, arg) async => _sample(stale: true)),
       ]));
-      await tester.pump();
-      await tester.pump();
+      await settle(tester);
       expect(find.textContaining('Last known'), findsOneWidget);
+      await teardownCard(tester);
     });
 
     testWidgets('error state offers retry', (tester) async {
+      SharedPreferences.setMockInitialValues({});
       final q = _query();
       await tester.pumpWidget(_host([
         effectiveWeatherQueryProvider.overrideWithValue(q),
@@ -138,9 +158,28 @@ void main() {
           (ref, arg) async => throw WeatherException('weather_unreachable'),
         ),
       ]));
-      await tester.pump();
-      await tester.pump();
+      await settle(tester);
       expect(find.text('Retry'), findsOneWidget);
+      await teardownCard(tester);
+    });
+
+    testWidgets('hidden once the daily screen-time budget is spent',
+        (tester) async {
+      // Pre-seed today's Jamaica-day counter at the full 4-minute budget.
+      final dayKey = DateTime.now().jmFormat('yyyy-MM-dd');
+      SharedPreferences.setMockInitialValues({
+        'weather_screen_secs_$dayKey': 4 * 60,
+      });
+      final q = _query();
+      await tester.pumpWidget(_host([
+        effectiveWeatherQueryProvider.overrideWithValue(q),
+        weatherProvider.overrideWith((ref, arg) async => _sample()),
+      ]));
+      await settle(tester);
+      // Budget exhausted -> nothing rendered even with a valid address + data.
+      expect(find.textContaining('°C'), findsNothing);
+      expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
+      await teardownCard(tester);
     });
   });
 }
