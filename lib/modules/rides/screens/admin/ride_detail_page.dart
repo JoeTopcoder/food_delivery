@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -361,7 +362,7 @@ String _shortId(String? id) {
 String _fmt(String? iso) {
   if (iso == null) return '—';
   try {
-    return DateFormat('MMM d, yyyy · h:mm a').format(DateTime.parse(iso).toLocal());
+    return DateFormat('MMM d, yyyy · h:mm a').format((DateTime.parse(iso).toLocal()).toJamaica);
   } catch (_) {
     return '—';
   }

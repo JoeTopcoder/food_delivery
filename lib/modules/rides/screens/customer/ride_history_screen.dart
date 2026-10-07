@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -764,7 +765,7 @@ class _RideListByTab extends StatelessWidget {
     final diff = todayDate.difference(itemDate).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    return DateFormat('MMMM d, yyyy').format(dt);
+    return DateFormat('MMMM d, yyyy').format((dt).toJamaica);
   }
 
   @override
@@ -843,7 +844,7 @@ class _RideTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format(ride.requestedAt);
+    final timeStr = DateFormat('h:mm a').format((ride.requestedAt).toJamaica);
     final fare = ride.finalFare ?? ride.estimatedFare ?? 0.0;
     final fareStr = 'J\$${fare.toStringAsFixed(0)}';
     final fromStr = _shortAddress(ride.pickupAddress);

@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1095,7 +1096,7 @@ class _TransactionTile extends StatelessWidget {
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return DateFormat('d MMM, h:mm a').format(dt);
+    return DateFormat('d MMM, h:mm a').format((dt).toJamaica);
   }
 
   @override
@@ -2597,7 +2598,7 @@ class _TransactionHistorySheetState
                     if (!d.isBefore(yesterday) && d.isBefore(today))
                       return 'Yesterday';
                     if (!d.isBefore(thisWeekStart)) return 'This Week';
-                    return DateFormat('MMMM yyyy').format(dt);
+                    return DateFormat('MMMM yyyy').format((dt).toJamaica);
                   }
 
                   final List<Object> items = [];

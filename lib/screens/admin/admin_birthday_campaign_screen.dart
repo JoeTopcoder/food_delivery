@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -333,7 +334,7 @@ class _BirthdayRow extends StatelessWidget {
     final promo = row['promo_codes'] as Map<String, dynamic>?;
     final name = (user?['name'] as String?) ?? 'Customer';
     final date = row['birthday_date'] != null
-        ? DateFormat('MMM d').format(DateTime.parse(row['birthday_date'] as String))
+        ? DateFormat('MMM d').format((DateTime.parse(row['birthday_date'] as String)).toJamaica)
         : '—';
     final code = promo?['code'] as String?;
     final usageCount = (promo?['usage_count'] as num?)?.toInt() ?? 0;

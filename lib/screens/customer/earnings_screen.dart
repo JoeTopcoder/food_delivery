@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_constants.dart';
 import 'package:flutter/services.dart';
@@ -796,7 +797,7 @@ class _ReferralTile extends StatelessWidget {
     final orderCount = data['order_count'] as int? ?? 0;
     final joinedRaw = data['joined_at'] as String?;
     final joined = joinedRaw != null
-        ? DateFormat.yMMMd().format(DateTime.parse(joinedRaw))
+        ? DateFormat.yMMMd().format((DateTime.parse(joinedRaw)).toJamaica)
         : '';
     final initial = name.isNotEmpty
         ? name[0].toUpperCase()
@@ -876,9 +877,9 @@ class _TransactionTile extends StatelessWidget {
     final isCredit = txn.isCredit;
     final color = isCredit ? const Color(0xFF10B981) : Colors.red;
     final icon = _typeIcon();
-    final date = DateFormat.MMMd().add_jm().format(txn.createdAt.toLocal());
+    final date = DateFormat.MMMd().add_jm().format((txn.createdAt.toLocal()).toJamaica);
     final expiryInfo = txn.expiresAt != null && !txn.isExpired
-        ? ' · Expires ${DateFormat.MMMd().format(txn.expiresAt!)}'
+        ? ' · Expires ${DateFormat.MMMd().format((txn.expiresAt!).toJamaica)}'
         : '';
 
     return Container(

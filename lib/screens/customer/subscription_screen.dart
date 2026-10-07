@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -625,8 +626,8 @@ class _ActiveSubBanner extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 isCancelling
-                    ? 'Cancels ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}'
-                    : 'Renews ${DateFormat('MMM d, y').format(sub.currentPeriodEnd!)}',
+                    ? 'Cancels ${DateFormat('MMM d, y').format((sub.currentPeriodEnd!).toJamaica)}'
+                    : 'Renews ${DateFormat('MMM d, y').format((sub.currentPeriodEnd!).toJamaica)}',
                 style: TextStyle(
                   fontSize: 12,
                   color: isCancelling

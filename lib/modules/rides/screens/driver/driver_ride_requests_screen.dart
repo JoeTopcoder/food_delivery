@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -370,7 +371,7 @@ class _RideTripCard extends StatelessWidget {
     final earning = ride.driverEarning ??
         ((ride.finalFare ?? ride.estimatedFare ?? 0) * 0.8);
     final dateLabel =
-        DateFormat('MMM d, yyyy • h:mm a').format(ride.requestedAt);
+        DateFormat('MMM d, yyyy • h:mm a').format((ride.requestedAt).toJamaica);
 
     return Container(
       padding: const EdgeInsets.all(16),

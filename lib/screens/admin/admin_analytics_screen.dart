@@ -1,5 +1,6 @@
 // ignore_for_file: no_leading_underscores_for_local_identifiers
 
+import '../../utils/est_datetime.dart';
 import 'dart:async';
 import 'dart:math' show max;
 import 'package:flutter/material.dart';
@@ -337,7 +338,7 @@ class _TrendChart extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat('MMMd').format(points.first.date),
+                  DateFormat('MMMd').format((points.first.date).toJamaica),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF9CA3AF),
@@ -345,14 +346,14 @@ class _TrendChart extends StatelessWidget {
                 ),
                 if (points.length > 2)
                   Text(
-                    DateFormat('MMMd').format(points[points.length ~/ 2].date),
+                    DateFormat('MMMd').format((points[points.length ~/ 2].date).toJamaica),
                     style: const TextStyle(
                       fontSize: 10,
                       color: Color(0xFF9CA3AF),
                     ),
                   ),
                 Text(
-                  DateFormat('MMMd').format(points.last.date),
+                  DateFormat('MMMd').format((points.last.date).toJamaica),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF9CA3AF),
@@ -517,7 +518,7 @@ class _RetentionTable extends StatelessWidget {
                 Expanded(
                   flex: 3,
                   child: Text(
-                    DateFormat('MMM d').format(r.cohortDate),
+                    DateFormat('MMM d').format((r.cohortDate).toJamaica),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),

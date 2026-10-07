@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -952,7 +953,7 @@ class _ReviewStep extends ConsumerWidget {
         _Card(children: [
           if (scheduledAt != null)
             _Row(icon: Icons.schedule, label: 'Date & Time',
-              value: DateFormat('EEE, MMM d · h:mm a').format(scheduledAt!)),
+              value: DateFormat('EEE, MMM d · h:mm a').format((scheduledAt!).toJamaica)),
           if (mobileService && address != null)
             _Row(icon: Icons.location_on_rounded, label: address!.label, value: address!.address)
           else

@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -166,7 +167,7 @@ class DriverPriorityScreen extends ConsumerWidget {
 
   Widget _historyRow(BuildContext context, Map<String, dynamic> r) {
     final ts = DateTime.tryParse(r['created_at']?.toString() ?? '');
-    final when = ts != null ? DateFormat('MMM d').format(ts) : '';
+    final when = ts != null ? DateFormat('MMM d').format((ts).toJamaica) : '';
     final change = (r['score_change'] as num?)?.toDouble() ?? 0;
     final prev = (r['previous_score'] as num?)?.toStringAsFixed(0) ?? '';
     final now = (r['new_score'] as num?)?.toStringAsFixed(0) ?? '';

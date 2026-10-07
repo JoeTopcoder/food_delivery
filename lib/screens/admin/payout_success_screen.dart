@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../config/app_constants.dart';
@@ -18,7 +19,7 @@ class PayoutSuccessScreen extends StatelessWidget {
     final payoutId = result['payout_id'] as String? ?? '';
     final requesterType = result['requester_type'] as String? ?? '';
     final fmt = NumberFormat('#,##0.00');
-    final now = DateFormat('MMM d, yyyy · h:mm a').format(DateTime.now());
+    final now = DateFormat('MMM d, yyyy · h:mm a').format((DateTime.now()).toJamaica);
     final maskedAccount = bankAccount.length > 4
         ? '${'•' * (bankAccount.length - 4)}${bankAccount.substring(bankAccount.length - 4)}'
         : bankAccount;

@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -119,7 +120,7 @@ class WebAdminChatsPage extends ConsumerWidget {
                             )),
                             Expanded(flex: 2, child: _RoleBadge(role: role)),
                             Expanded(flex: 2, child: Text(
-                              createdAt != null ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal()) : '-',
+                              createdAt != null ? DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica) : '-',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                             )),
                             SizedBox(width: 60, child: hasIssue

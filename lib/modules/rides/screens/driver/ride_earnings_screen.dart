@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -277,7 +278,7 @@ class _RideEarningsScreenState extends ConsumerState<RideEarningsScreen> {
   Widget _buildRideRow(RideRequest ride) {
     final earning =
         ride.driverEarning ?? ride.finalFare ?? ride.estimatedFare ?? 0.0;
-    final dateLabel = DateFormat('MMM d • h:mm a').format(ride.requestedAt);
+    final dateLabel = DateFormat('MMM d • h:mm a').format((ride.requestedAt).toJamaica);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),

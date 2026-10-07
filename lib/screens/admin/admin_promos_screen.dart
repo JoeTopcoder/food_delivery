@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -236,7 +237,7 @@ class _PromoCard extends ConsumerWidget {
                 ),
               if (promo.expiresAt != null)
                 _InfoPill(
-                  label: 'Exp ${DateFormat('MMM d').format(promo.expiresAt!)}',
+                  label: 'Exp ${DateFormat('MMM d').format((promo.expiresAt!).toJamaica)}',
                   icon: Icons.schedule_rounded,
                   color: isExpired ? Colors.red : const Color(0xFF9CA3AF),
                 ),
@@ -455,7 +456,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                         Text(
                           _expiresAt == null
                               ? 'No expiry date'
-                              : 'Expires: ${DateFormat('MMM d, y').format(_expiresAt!)}',
+                              : 'Expires: ${DateFormat('MMM d, y').format((_expiresAt!).toJamaica)}',
                           style: TextStyle(
                             fontSize: 14,
                             color: Theme.of(context).colorScheme.onSurface,

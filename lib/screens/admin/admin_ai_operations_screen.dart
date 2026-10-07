@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -417,7 +418,7 @@ class _RunTile extends StatelessWidget {
   String _fmt(String? iso) {
     if (iso == null) return '';
     try {
-      return DateFormat('MMM d, h:mm a').format(DateTime.parse(iso).toLocal());
+      return DateFormat('MMM d, h:mm a').format((DateTime.parse(iso).toLocal()).toJamaica);
     } catch (_) {
       return iso;
     }

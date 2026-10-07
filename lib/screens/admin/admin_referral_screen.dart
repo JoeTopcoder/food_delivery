@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -110,7 +111,7 @@ class _AdminReferralScreenState extends ConsumerState<AdminReferralScreen> {
   }
 
   Widget _dateBanner() {
-    final label = '${DateFormat('MMM d, yyyy').format(_range.start)} – ${DateFormat('MMM d, yyyy').format(_range.end)}';
+    final label = '${DateFormat('MMM d, yyyy').format((_range.start).toJamaica)} – ${DateFormat('MMM d, yyyy').format((_range.end).toJamaica)}';
     return Material(
       color: const Color(0xFFFFF1EA),
       borderRadius: BorderRadius.circular(14),

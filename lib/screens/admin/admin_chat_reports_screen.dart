@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -174,7 +175,7 @@ class _AdminChatReportsScreenState extends State<AdminChatReportsScreen> {
 
   String _fmt(String iso) {
     try {
-      return DateFormat('MMM d, y – h:mm a').format(DateTime.parse(iso).toLocal());
+      return DateFormat('MMM d, y – h:mm a').format((DateTime.parse(iso).toLocal()).toJamaica);
     } catch (_) {
       return iso;
     }
