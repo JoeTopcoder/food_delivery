@@ -1259,7 +1259,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   String _orderItemsLabel(Order order) {
     if (order.items.isEmpty) {
-      return 'Order #${(order.receiptNumber ?? order.id).toString()}';
+      return 'Order #${order.id.substring(0, 8).toUpperCase()}';
     }
     final first = order.items.first;
     final name = first.quantity > 1

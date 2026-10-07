@@ -913,7 +913,7 @@ Deno.serve(async (request) => {
     }).catch(() => {});
 
     // ── 7. Notify customer ───────────────────────────────────────────────
-    await notifyUser(userId, '🍽️ Order Placed!', `Your order #${receiptNumber} has been received and is being prepared.`, {
+    await notifyUser(userId, '🍽️ Order Placed!', `Your order #${orderId.substring(0, 8).toUpperCase()} has been received and is being prepared.`, {
       type: 'order_placed', order_id: orderId, receipt_number: receiptNumber,
     });
 
