@@ -215,7 +215,9 @@ class _EarnWithHotBiteScreenState extends ConsumerState<EarnWithHotBiteScreen> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.55,
+      // Slightly taller tiles so the icon + value + label + sub never overflow
+      // the bottom (was 1.55, which clipped by a few px with larger text).
+      childAspectRatio: 1.4,
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       children: cards,
@@ -230,17 +232,29 @@ class _EarnWithHotBiteScreenState extends ConsumerState<EarnWithHotBiteScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        ],
+      // Cap the text scale for these dense tiles so a large system font size
+      // can't push the content past the fixed tile height.
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.15,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ],
+        ),
       ),
     );
   }
