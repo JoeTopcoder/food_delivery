@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -183,7 +184,7 @@ class _DriverScheduleScreenState extends ConsumerState<DriverScheduleScreen> {
 
   Widget _buildRideCard(RideRequest ride) {
     final sf = ride.scheduledFor!.toLocal();
-    final timeStr = DateFormat('h:mm a').format(sf);
+    final timeStr = DateFormat('h:mm a').format((sf).toJamaica);
     final isSoon = sf.difference(DateTime.now()).inHours < 2;
     final isCancelling = _cancellingIds.contains(ride.id);
 
@@ -394,7 +395,7 @@ class _DriverScheduleScreenState extends ConsumerState<DriverScheduleScreen> {
 
   Future<void> _confirmCancel(RideRequest ride) async {
     final sf = ride.scheduledFor!.toLocal();
-    final timeStr = DateFormat('EEE, MMM d · h:mm a').format(sf);
+    final timeStr = DateFormat('EEE, MMM d · h:mm a').format((sf).toJamaica);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -462,7 +463,7 @@ class _DriverScheduleScreenState extends ConsumerState<DriverScheduleScreen> {
 
     if (day == today) return 'Today';
     if (day == tomorrow) return 'Tomorrow';
-    return DateFormat('EEEE, MMM d').format(local);
+    return DateFormat('EEEE, MMM d').format((local).toJamaica);
   }
 }
 

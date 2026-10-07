@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -139,7 +140,7 @@ class _StatusCard extends StatelessWidget {
                     color: Colors.white, fontWeight: FontWeight.w700)),
             if (status?.endDate != null)
               Text(
-                'Active until ${DateFormat('MMM d, yyyy').format(status!.endDate!.toLocal())}',
+                'Active until ${DateFormat('MMM d, yyyy').format((status!.endDate!.toLocal()).toJamaica)}',
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
           ] else ...[

@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -540,7 +541,7 @@ String _formatDate(String? iso) {
   if (iso == null) return '—';
   try {
     final dt = DateTime.parse(iso).toLocal();
-    return DateFormat('MMM d, h:mm a').format(dt);
+    return DateFormat('MMM d, h:mm a').format((dt).toJamaica);
   } catch (_) {
     return '—';
   }

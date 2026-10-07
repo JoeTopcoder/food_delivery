@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,7 +133,7 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.week:
-        chartKeyFmt = (d) => DateFormat('EEE').format(d);
+        chartKeyFmt = (d) => DateFormat('EEE').format((d).toJamaica);
         chartTitle = 'Revenue — Last 7 Days';
         for (int i = 6; i >= 0; i--) {
           final day = now.subtract(Duration(days: i));
@@ -143,7 +144,7 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.month:
-        chartKeyFmt = (d) => DateFormat('d/M').format(d);
+        chartKeyFmt = (d) => DateFormat('d/M').format((d).toJamaica);
         chartTitle = 'Revenue — Last 30 Days (Weekly)';
         // 5 weekly buckets
         for (int w = 4; w >= 0; w--) {
@@ -157,7 +158,7 @@ class _RestaurantAnalyticsScreenState
           dailyRevenue[key] = (dailyRevenue[key] ?? 0) + o.subtotal;
         }
       case _Period.all:
-        chartKeyFmt = (d) => DateFormat('MMM yy').format(d);
+        chartKeyFmt = (d) => DateFormat('MMM yy').format((d).toJamaica);
         chartTitle = 'Revenue — All Time (Monthly)';
         // Group by month
         for (final o in delivered) {

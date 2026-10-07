@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -129,7 +130,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
   List<Widget> _buildGrouped(List<Map<String, dynamic>> rows) {
     String dayKey(Map<String, dynamic> tx) {
       final dt = DateTime.tryParse(tx['created_at']?.toString() ?? '')?.toLocal();
-      return dt != null ? DateFormat('yyyy-MM-dd').format(dt) : '';
+      return dt != null ? DateFormat('yyyy-MM-dd').format((dt).toJamaica) : '';
     }
 
     final widgets = <Widget>[];
@@ -165,7 +166,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
       child: Row(
         children: [
           Text(
-            day != null ? DateFormat('EEE, MMM d').format(day) : 'Earlier',
+            day != null ? DateFormat('EEE, MMM d').format((day).toJamaica) : 'Earlier',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
@@ -234,7 +235,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
                   [
                     if (orderRef != null) orderRef,
                     if (createdAt != null)
-                      DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
+                      DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica)
                     else if (note != null)
                       note,
                   ].join('  ·  '),

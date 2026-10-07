@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import '../../utils/est_datetime.dart';
 import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -366,7 +367,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         .map((e) => (e as Map)['date'].toString())
         .toSet();
     final targetDateStr = _scheduledAt != null
-        ? DateFormat('yyyy-MM-dd').format(_scheduledAt!)
+        ? DateFormat('yyyy-MM-dd').format((_scheduledAt!).toJamaica)
         : (closure['today']?.toString() ?? '');
     final closedForTarget = closedDates.contains(targetDateStr);
     final closureMessage = (closure['message'] as String?)?.trim();
@@ -1924,7 +1925,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         AppSnackbar.info(
           context,
           'Earliest available time is '
-          '${DateFormat('MMM d, h:mm a').format(earliest)}. '
+          '${DateFormat('MMM d, h:mm a').format((earliest).toJamaica)}. '
           'Adjusted automatically.',
         );
       }

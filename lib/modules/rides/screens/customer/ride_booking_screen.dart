@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -949,7 +950,7 @@ class _RideBookingScreenState extends ConsumerState<RideBookingScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Ride scheduled for ${DateFormat("MMM d 'at' h:mm a").format(_scheduledFor!)}',
+                  'Ride scheduled for ${DateFormat("MMM d 'at' h:mm a").format((_scheduledFor!).toJamaica)}',
                 ),
                 duration: const Duration(seconds: 4),
               ),
@@ -1819,7 +1820,7 @@ class _FareContent extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    DateFormat("MMM d 'at' h:mm a").format(scheduledFor!),
+                    DateFormat("MMM d 'at' h:mm a").format((scheduledFor!).toJamaica),
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -475,7 +476,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
         if (scheduledFor != null) {
           // Scheduled ride — don't navigate to active screen yet.
           // Confirm acceptance and invite the driver to view their schedule.
-          final dateStr = DateFormat('EEE, MMM d · h:mm a').format(scheduledFor.toLocal());
+          final dateStr = DateFormat('EEE, MMM d · h:mm a').format((scheduledFor.toLocal()).toJamaica);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -528,7 +529,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(local.year, local.month, local.day);
     final diff = day.difference(today).inDays;
-    if (diff == 0) return 'Today ${DateFormat('h:mm a').format(local)}';
+    if (diff == 0) return 'Today ${DateFormat('h:mm a').format((local).toJamaica)}';
     if (diff == 1) return 'Tomorrow';
     return 'In $diff days';
   }
@@ -1045,7 +1046,7 @@ class _DriverModeScreenState extends ConsumerState<DriverModeScreen>
                             const Icon(Icons.calendar_today, color: Color(0xFF60A5FA), size: 12),
                             const SizedBox(width: 4),
                             Text(
-                              DateFormat('EEE, MMM d · h:mm a').format(ride!.scheduledFor!.toLocal()),
+                              DateFormat('EEE, MMM d · h:mm a').format((ride!.scheduledFor!.toLocal()).toJamaica),
                               style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12),
                             ),
                           ],
@@ -1346,7 +1347,7 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(local.year, local.month, local.day);
     final diff = day.difference(today).inDays;
-    if (diff == 0) return 'Today ${DateFormat('h:mm a').format(local)}';
+    if (diff == 0) return 'Today ${DateFormat('h:mm a').format((local).toJamaica)}';
     if (diff == 1) return 'Tomorrow';
     return 'In $diff days';
   }
@@ -1435,7 +1436,7 @@ class _RideRequestPopupState extends State<_RideRequestPopup> {
                             const Icon(Icons.calendar_today, color: Color(0xFF60A5FA), size: 12),
                             const SizedBox(width: 5),
                             Text(
-                              DateFormat('EEE, MMM d · h:mm a').format(ride!.scheduledFor!.toLocal()),
+                              DateFormat('EEE, MMM d · h:mm a').format((ride!.scheduledFor!.toLocal()).toJamaica),
                               style: const TextStyle(
                                 color: Color(0xFF60A5FA),
                                 fontSize: 12,

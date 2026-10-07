@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -270,7 +271,7 @@ class _NotifCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a · MMM d').format(notification.timestamp);
+    final timeStr = DateFormat('h:mm a · MMM d').format((notification.timestamp).toJamaica);
     return Dismissible(
       key: Key(notification.id),
       direction: DismissDirection.endToStart,

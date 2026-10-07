@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -575,7 +576,7 @@ class _HeroHeader extends StatelessWidget {
     final email = currentUser?.email as String?;
     final photo = currentUser?.profileImageUrl as String?;
     final since = currentUser?.createdAt != null
-        ? DateFormat.yMMM().format(currentUser!.createdAt as DateTime)
+        ? DateFormat.yMMM().format((currentUser!.createdAt as DateTime).toJamaica)
         : null;
 
     return Container(

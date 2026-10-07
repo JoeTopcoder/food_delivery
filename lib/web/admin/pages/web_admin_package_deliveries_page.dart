@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -269,7 +270,7 @@ class _DeliveryRow extends StatelessWidget {
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)))),
           Expanded(flex: 2, child: _StatusBadge(status: status)),
           Expanded(flex: 2, child: Text(
-            createdAt != null ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal()) : '—',
+            createdAt != null ? DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica) : '—',
             style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
           )),
         ]),

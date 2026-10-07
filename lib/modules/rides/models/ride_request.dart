@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:intl/intl.dart';
 
 enum RideStatus {
@@ -460,7 +461,7 @@ class RideRequest {
     } else if (difference.inHours < 24) {
       return '${difference.inHours}h ago';
     } else {
-      return DateFormat('MMM d, yyyy').format(requestedAt);
+      return DateFormat('MMM d, yyyy').format((requestedAt).toJamaica);
     }
   }
 }

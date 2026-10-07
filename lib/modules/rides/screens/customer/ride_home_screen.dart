@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -635,7 +636,7 @@ class _RideTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormat('MMM d, h:mm a').format(ride.requestedAt),
+                    DateFormat('MMM d, h:mm a').format((ride.requestedAt).toJamaica),
                     style: TextStyle(
                         fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
@@ -1021,7 +1022,7 @@ class _NotificationTile extends StatelessWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays == 1) return 'Yesterday';
-    return DateFormat('MMM d').format(time);
+    return DateFormat('MMM d').format((time).toJamaica);
   }
 }
 

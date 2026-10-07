@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -1377,7 +1378,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       if (mounted) {
         AppSnackbar.info(
           context,
-          'Earliest time is ${DateFormat('MMM d, h:mm a').format(earliest)}. Adjusted.',
+          'Earliest time is ${DateFormat('MMM d, h:mm a').format((earliest).toJamaica)}. Adjusted.',
         );
       }
     }
