@@ -263,7 +263,7 @@ class _DetailBodyState extends ConsumerState<_DetailBody> {
                     ),
                   ),
                   Text(
-                    fmt.format(order.createdAt.toJamaica),
+                    fmt.format(toJamaicaOf(order.createdAt)),
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,

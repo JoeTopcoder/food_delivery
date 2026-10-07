@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -961,7 +962,7 @@ String _shortId(String? id) {
 String _relativeTime(String? iso) {
   if (iso == null) return '—';
   try {
-    final dt = DateTime.parse(iso).toLocal();
+    final dt = toJamaicaOf(DateTime.parse(iso));
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
@@ -975,7 +976,7 @@ String _relativeTime(String? iso) {
 String _formatDate(String? iso) {
   if (iso == null) return '—';
   try {
-    final dt = DateTime.parse(iso).toLocal();
+    final dt = toJamaicaOf(DateTime.parse(iso));
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;

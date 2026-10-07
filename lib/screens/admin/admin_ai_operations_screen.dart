@@ -418,7 +418,7 @@ class _RunTile extends StatelessWidget {
   String _fmt(String? iso) {
     if (iso == null) return '';
     try {
-      return DateFormat('MMM d, h:mm a').format((DateTime.parse(iso).toLocal()).toJamaica);
+      return DateFormat('MMM d, h:mm a').format(toJamaicaOf(DateTime.parse(iso).toLocal()));
     } catch (_) {
       return iso;
     }

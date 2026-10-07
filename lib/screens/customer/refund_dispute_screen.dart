@@ -191,7 +191,7 @@ class _RefundCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(refund.createdAt.toJamaica),
+                  DateFormat('MMM d, y').format(toJamaicaOf(refund.createdAt)),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF9CA3AF),
@@ -353,7 +353,7 @@ class _DisputeCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(dispute.createdAt.toJamaica),
+                  DateFormat('MMM d, y').format(toJamaicaOf(dispute.createdAt)),
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

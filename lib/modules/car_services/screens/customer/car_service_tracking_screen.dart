@@ -667,7 +667,7 @@ class _BookingDetailsCard extends StatelessWidget {
             icon: Icons.calendar_today_outlined,
             label: 'Scheduled',
             value: DateFormat('EEE, MMM d · h:mm a')
-                .format(booking.scheduledAt.toJamaica),
+                .format(toJamaicaOf(booking.scheduledAt)),
           ),
           _DetailRow(
             icon: Icons.location_on_outlined,

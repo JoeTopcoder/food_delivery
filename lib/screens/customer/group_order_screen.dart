@@ -241,7 +241,7 @@ class _GroupOrderCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 Text(
-                  fmt.format(group.createdAt.toJamaica),
+                  fmt.format(toJamaicaOf(group.createdAt)),
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

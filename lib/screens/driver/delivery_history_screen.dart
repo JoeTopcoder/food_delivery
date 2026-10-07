@@ -134,7 +134,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        '${delivery.items.length} item(s) · ${fmt.format(delivery.orderedAt.toJamaica)}',
+                                        '${delivery.items.length} item(s) · ${fmt.format(toJamaicaOf(delivery.orderedAt))}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Theme.of(

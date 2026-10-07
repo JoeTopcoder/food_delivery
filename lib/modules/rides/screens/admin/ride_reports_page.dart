@@ -541,7 +541,7 @@ String _formatDate(String? iso) {
   if (iso == null) return '—';
   try {
     final dt = DateTime.parse(iso).toLocal();
-    return DateFormat('MMM d, h:mm a').format((dt).toJamaica);
+    return DateFormat('MMM d, h:mm a').format(toJamaicaOf(dt));
   } catch (_) {
     return '—';
   }

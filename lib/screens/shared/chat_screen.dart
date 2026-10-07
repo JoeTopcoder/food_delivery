@@ -463,7 +463,7 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format(msg.createdAt.toJamaica);
+    final timeStr = DateFormat('h:mm a').format(toJamaicaOf(msg.createdAt));
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

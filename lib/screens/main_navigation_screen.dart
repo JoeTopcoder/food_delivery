@@ -502,7 +502,7 @@ class OrdersScreen extends ConsumerWidget {
                 // Canonical order id, matching the rest of the app / receipts.
                 orderId: '#${order.id.substring(0, 8).toUpperCase()}',
                 status: order.status.replaceAll('_', ' '),
-                date: DateFormat('MMM d, h:mm a').format(order.orderedAt.toJamaica),
+                date: DateFormat('MMM d, h:mm a').format(toJamaicaOf(order.orderedAt)),
                 total:
                     '${AppConstants.currencySymbol}${order.totalAmount.toStringAsFixed(2)}',
                 itemCount: order.items.length,
@@ -533,7 +533,7 @@ class OrdersScreen extends ConsumerWidget {
               (o) => _OrderCard(
                 orderId: '#${(o as dynamic).id.substring(0, 8).toUpperCase()}',
                 status: o.status.replaceAll('_', ' '),
-                date: DateFormat('MMM d, h:mm a').format(o.orderedAt.toJamaica),
+                date: DateFormat('MMM d, h:mm a').format(toJamaicaOf(o.orderedAt)),
                 total:
                     '${AppConstants.currencySymbol}${o.totalAmount.toStringAsFixed(2)}',
                 itemCount: o.items.length,
@@ -839,7 +839,7 @@ class _MasterOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _statusColor;
     final currency = AppConstants.currencySymbol;
-    final date = DateFormat('MMM d, h:mm a').format(masterOrder.createdAt.toJamaica);
+    final date = DateFormat('MMM d, h:mm a').format(toJamaicaOf(masterOrder.createdAt));
     final itemCount =
         masterOrder.restaurantOrders?.fold<int>(
           0,

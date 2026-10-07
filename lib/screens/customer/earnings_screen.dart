@@ -797,7 +797,7 @@ class _ReferralTile extends StatelessWidget {
     final orderCount = data['order_count'] as int? ?? 0;
     final joinedRaw = data['joined_at'] as String?;
     final joined = joinedRaw != null
-        ? DateFormat.yMMMd().format((DateTime.parse(joinedRaw)).toJamaica)
+        ? DateFormat.yMMMd().format(toJamaicaOf(DateTime.parse(joinedRaw)))
         : '';
     final initial = name.isNotEmpty
         ? name[0].toUpperCase()
@@ -877,9 +877,9 @@ class _TransactionTile extends StatelessWidget {
     final isCredit = txn.isCredit;
     final color = isCredit ? const Color(0xFF10B981) : Colors.red;
     final icon = _typeIcon();
-    final date = DateFormat.MMMd().add_jm().format((txn.createdAt.toLocal()).toJamaica);
+    final date = DateFormat.MMMd().add_jm().format(toJamaicaOf(txn.createdAt.toLocal()));
     final expiryInfo = txn.expiresAt != null && !txn.isExpired
-        ? ' · Expires ${DateFormat.MMMd().format((txn.expiresAt!).toJamaica)}'
+        ? ' · Expires ${DateFormat.MMMd().format(toJamaicaOf(txn.expiresAt!))}'
         : '';
 
     return Container(

@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -384,7 +385,7 @@ String _shortId(String? id) {
 String _formatDate(String? iso) {
   if (iso == null) return '—';
   try {
-    final dt = DateTime.parse(iso).toLocal();
+    final dt = toJamaicaOf(DateTime.parse(iso));
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'

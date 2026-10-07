@@ -367,7 +367,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         .map((e) => (e as Map)['date'].toString())
         .toSet();
     final targetDateStr = _scheduledAt != null
-        ? DateFormat('yyyy-MM-dd').format((_scheduledAt!).toJamaica)
+        ? DateFormat('yyyy-MM-dd').format(toJamaicaOf(_scheduledAt!))
         : (closure['today']?.toString() ?? '');
     final closedForTarget = closedDates.contains(targetDateStr);
     final closureMessage = (closure['message'] as String?)?.trim();
@@ -1925,7 +1925,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         AppSnackbar.info(
           context,
           'Earliest available time is '
-          '${DateFormat('MMM d, h:mm a').format((earliest).toJamaica)}. '
+          '${DateFormat('MMM d, h:mm a').format(toJamaicaOf(earliest))}. '
           'Adjusted automatically.',
         );
       }

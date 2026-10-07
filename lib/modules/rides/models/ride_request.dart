@@ -461,7 +461,7 @@ class RideRequest {
     } else if (difference.inHours < 24) {
       return '${difference.inHours}h ago';
     } else {
-      return DateFormat('MMM d, yyyy').format((requestedAt).toJamaica);
+      return DateFormat('MMM d, yyyy').format(toJamaicaOf(requestedAt));
     }
   }
 }

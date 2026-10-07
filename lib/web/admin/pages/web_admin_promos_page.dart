@@ -164,7 +164,7 @@ class _PromoRow extends ConsumerWidget {
           SizedBox(
             width: 130,
             child: Text(
-              promo.expiresAt != null ? DateFormat('MMM d, y').format((promo.expiresAt!).toJamaica) : 'No expiry',
+              promo.expiresAt != null ? DateFormat('MMM d, y').format(toJamaicaOf(promo.expiresAt!)) : 'No expiry',
               style: TextStyle(fontSize: 13, color: isExpired ? Colors.red : const Color(0xFF374151)),
             ),
           ),
@@ -328,7 +328,7 @@ class _CreatePromoDialogState extends ConsumerState<_CreatePromoDialog> {
                     child: Row(children: [
                       const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF64748B)),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(_expiresAt == null ? 'No expiry date' : 'Expires: ${DateFormat('MMM d, y').format((_expiresAt!).toJamaica)}', style: const TextStyle(fontSize: 14))),
+                      Expanded(child: Text(_expiresAt == null ? 'No expiry date' : 'Expires: ${DateFormat('MMM d, y').format(toJamaicaOf(_expiresAt!))}', style: const TextStyle(fontSize: 14))),
                       if (_expiresAt != null)
                         GestureDetector(onTap: () => setState(() => _expiresAt = null), child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF9CA3AF))),
                     ]),

@@ -338,7 +338,7 @@ class _TrendChart extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat('MMMd').format((points.first.date).toJamaica),
+                  DateFormat('MMMd').format(toJamaicaOf(points.first.date)),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF9CA3AF),
@@ -346,14 +346,14 @@ class _TrendChart extends StatelessWidget {
                 ),
                 if (points.length > 2)
                   Text(
-                    DateFormat('MMMd').format((points[points.length ~/ 2].date).toJamaica),
+                    DateFormat('MMMd').format(toJamaicaOf(points[points.length ~/ 2].date)),
                     style: const TextStyle(
                       fontSize: 10,
                       color: Color(0xFF9CA3AF),
                     ),
                   ),
                 Text(
-                  DateFormat('MMMd').format((points.last.date).toJamaica),
+                  DateFormat('MMMd').format(toJamaicaOf(points.last.date)),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF9CA3AF),
@@ -518,7 +518,7 @@ class _RetentionTable extends StatelessWidget {
                 Expanded(
                   flex: 3,
                   child: Text(
-                    DateFormat('MMM d').format((r.cohortDate).toJamaica),
+                    DateFormat('MMM d').format(toJamaicaOf(r.cohortDate)),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),

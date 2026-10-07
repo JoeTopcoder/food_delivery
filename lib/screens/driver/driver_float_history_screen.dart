@@ -130,7 +130,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
   List<Widget> _buildGrouped(List<Map<String, dynamic>> rows) {
     String dayKey(Map<String, dynamic> tx) {
       final dt = DateTime.tryParse(tx['created_at']?.toString() ?? '')?.toLocal();
-      return dt != null ? DateFormat('yyyy-MM-dd').format((dt).toJamaica) : '';
+      return dt != null ? DateFormat('yyyy-MM-dd').format(toJamaicaOf(dt)) : '';
     }
 
     final widgets = <Widget>[];
@@ -166,7 +166,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
       child: Row(
         children: [
           Text(
-            day != null ? DateFormat('EEE, MMM d').format((day).toJamaica) : 'Earlier',
+            day != null ? DateFormat('EEE, MMM d').format(toJamaicaOf(day)) : 'Earlier',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
@@ -235,7 +235,7 @@ class DriverFloatHistoryScreen extends ConsumerWidget {
                   [
                     if (orderRef != null) orderRef,
                     if (createdAt != null)
-                      DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica)
+                      DateFormat('MMM d, h:mm a').format(toJamaicaOf(createdAt.toLocal()))
                     else if (note != null)
                       note,
                   ].join('  ·  '),

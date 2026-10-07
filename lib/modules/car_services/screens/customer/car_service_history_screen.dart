@@ -356,8 +356,8 @@ class _HistoryCard extends StatelessWidget {
     final serviceName = booking.serviceCount > 1
         ? '${booking.serviceCount} services'
         : (booking.offering?.name ?? 'Car Service');
-    final dateStr = DateFormat('EEE, MMM d, y').format(booking.scheduledAt.toJamaica);
-    final timeStr = DateFormat('h:mm a').format(booking.scheduledAt.toJamaica);
+    final dateStr = DateFormat('EEE, MMM d, y').format(toJamaicaOf(booking.scheduledAt));
+    final timeStr = DateFormat('h:mm a').format(toJamaicaOf(booking.scheduledAt));
     final isCompleted = booking.status == CarServiceBookingStatus.completed;
     final (statusColor, statusBg, statusLabel) = _statusStyle(booking.status, context);
 
@@ -534,7 +534,7 @@ class _BookingDetailSheet extends StatelessWidget {
     final serviceName = booking.serviceCount > 1
         ? '${booking.serviceCount} services'
         : (booking.offering?.name ?? 'Car Service');
-    final scheduledStr = DateFormat('EEE, MMM d, y · h:mm a').format(booking.scheduledAt.toJamaica);
+    final scheduledStr = DateFormat('EEE, MMM d, y · h:mm a').format(toJamaicaOf(booking.scheduledAt));
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,

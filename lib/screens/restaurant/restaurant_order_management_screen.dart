@@ -718,7 +718,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
 
             const SizedBox(height: 4),
             Text(
-              '${dateFormat.format(order.orderedAt.toJamaica)} at ${timeFormat.format(order.orderedAt.toJamaica)}',
+              '${dateFormat.format(toJamaicaOf(order.orderedAt))} at ${timeFormat.format(toJamaicaOf(order.orderedAt))}',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
@@ -1509,7 +1509,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       Text(
-                        DateFormat('MMM d · h:mm a').format(ro.createdAt.toJamaica),
+                        DateFormat('MMM d · h:mm a').format(toJamaicaOf(ro.createdAt)),
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

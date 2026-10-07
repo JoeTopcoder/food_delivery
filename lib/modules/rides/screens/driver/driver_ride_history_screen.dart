@@ -239,7 +239,7 @@ class _RideList extends StatelessWidget {
     final diff = todayDate.difference(itemDate).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    return DateFormat('MMMM d, yyyy').format((dt).toJamaica);
+    return DateFormat('MMMM d, yyyy').format(toJamaicaOf(dt));
   }
 
   @override
@@ -404,7 +404,7 @@ class _RideTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format((ride.requestedAt).toJamaica);
+    final timeStr = DateFormat('h:mm a').format(toJamaicaOf(ride.requestedAt));
     final earning = ride.driverEarning ?? ride.finalFare ?? ride.estimatedFare ?? 0.0;
     final earningStr = 'J\$${earning.toStringAsFixed(0)}';
     final from = _short(ride.pickupAddress);

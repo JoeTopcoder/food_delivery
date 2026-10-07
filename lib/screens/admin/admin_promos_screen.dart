@@ -237,7 +237,7 @@ class _PromoCard extends ConsumerWidget {
                 ),
               if (promo.expiresAt != null)
                 _InfoPill(
-                  label: 'Exp ${DateFormat('MMM d').format((promo.expiresAt!).toJamaica)}',
+                  label: 'Exp ${DateFormat('MMM d').format(toJamaicaOf(promo.expiresAt!))}',
                   icon: Icons.schedule_rounded,
                   color: isExpired ? Colors.red : const Color(0xFF9CA3AF),
                 ),
@@ -456,7 +456,7 @@ class _CreatePromoSheetState extends ConsumerState<_CreatePromoSheet> {
                         Text(
                           _expiresAt == null
                               ? 'No expiry date'
-                              : 'Expires: ${DateFormat('MMM d, y').format((_expiresAt!).toJamaica)}',
+                              : 'Expires: ${DateFormat('MMM d, y').format(toJamaicaOf(_expiresAt!))}',
                           style: TextStyle(
                             fontSize: 14,
                             color: Theme.of(context).colorScheme.onSurface,

@@ -300,7 +300,7 @@ class _MasterOrderCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    fmt.format(masterOrder.createdAt.toJamaica),
+                    fmt.format(toJamaicaOf(masterOrder.createdAt)),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -518,7 +518,7 @@ class _OrderCard extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    fmt.format(order.orderedAt.toJamaica),
+                    fmt.format(toJamaicaOf(order.orderedAt)),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1157,7 +1157,7 @@ class _OrderCard extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              DateFormat.yMMMd().add_jm().format(order.orderedAt.toJamaica),
+              DateFormat.yMMMd().add_jm().format(toJamaicaOf(order.orderedAt)),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

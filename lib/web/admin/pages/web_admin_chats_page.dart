@@ -120,7 +120,7 @@ class WebAdminChatsPage extends ConsumerWidget {
                             )),
                             Expanded(flex: 2, child: _RoleBadge(role: role)),
                             Expanded(flex: 2, child: Text(
-                              createdAt != null ? DateFormat('MMM d, h:mm a').format((createdAt.toLocal()).toJamaica) : '-',
+                              createdAt != null ? DateFormat('MMM d, h:mm a').format(toJamaicaOf(createdAt.toLocal())) : '-',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                             )),
                             SizedBox(width: 60, child: hasIssue

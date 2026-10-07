@@ -19,7 +19,7 @@ class PayoutSuccessScreen extends StatelessWidget {
     final payoutId = result['payout_id'] as String? ?? '';
     final requesterType = result['requester_type'] as String? ?? '';
     final fmt = NumberFormat('#,##0.00');
-    final now = DateFormat('MMM d, yyyy · h:mm a').format((DateTime.now()).toJamaica);
+    final now = DateFormat('MMM d, yyyy · h:mm a').format(toJamaicaOf(DateTime.now()));
     final maskedAccount = bankAccount.length > 4
         ? '${'•' * (bankAccount.length - 4)}${bankAccount.substring(bankAccount.length - 4)}'
         : bankAccount;

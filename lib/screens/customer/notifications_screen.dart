@@ -271,7 +271,7 @@ class _NotifCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a · MMM d').format((notification.timestamp).toJamaica);
+    final timeStr = DateFormat('h:mm a · MMM d').format(toJamaicaOf(notification.timestamp));
     return Dismissible(
       key: Key(notification.id),
       direction: DismissDirection.endToStart,

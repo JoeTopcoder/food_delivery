@@ -111,7 +111,7 @@ class _AdminReferralScreenState extends ConsumerState<AdminReferralScreen> {
   }
 
   Widget _dateBanner() {
-    final label = '${DateFormat('MMM d, yyyy').format((_range.start).toJamaica)} – ${DateFormat('MMM d, yyyy').format((_range.end).toJamaica)}';
+    final label = '${DateFormat('MMM d, yyyy').format(toJamaicaOf(_range.start))} – ${DateFormat('MMM d, yyyy').format(toJamaicaOf(_range.end))}';
     return Material(
       color: const Color(0xFFFFF1EA),
       borderRadius: BorderRadius.circular(14),

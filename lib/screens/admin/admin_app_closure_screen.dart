@@ -94,7 +94,7 @@ class _S extends ConsumerState<AdminAppClosureScreen> {
                         onPressed: _busy ? null : () {
                           if (_closedToday) {
                             _run(() => _client.rpc('admin_set_app_closure', params: {
-                                  'p_date': DateFormat('yyyy-MM-dd').format((_todayLocal()).toJamaica),
+                                  'p_date': DateFormat('yyyy-MM-dd').format(toJamaicaOf(_todayLocal())),
                                   'p_active': false,
                                 }), 'Reopened today');
                           } else {
@@ -186,7 +186,7 @@ class _S extends ConsumerState<AdminAppClosureScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Close on ${DateFormat('MMM d, yyyy').format((picked).toJamaica)}'),
+        title: Text('Close on ${DateFormat('MMM d, yyyy').format(toJamaicaOf(picked))}'),
         content: TextField(controller: reasonCtl,
             decoration: const InputDecoration(labelText: 'Reason (optional)')),
         actions: [
@@ -198,7 +198,7 @@ class _S extends ConsumerState<AdminAppClosureScreen> {
     if (ok != true) return;
     await _run(
         () => _client.rpc('admin_set_app_closure', params: {
-              'p_date': DateFormat('yyyy-MM-dd').format((picked).toJamaica),
+              'p_date': DateFormat('yyyy-MM-dd').format(toJamaicaOf(picked)),
               'p_active': true,
               'p_reason': reasonCtl.text.trim(),
             }),
