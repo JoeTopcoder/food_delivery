@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/material.dart';
 import '../../widgets/app_cached_image.dart';
 import '../../widgets/daily_verse.dart';
+import '../../widgets/weather_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/restaurant_model.dart';
@@ -708,6 +709,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               const SizedBox(width: 4),
             ],
           ),
+
+          // Local weather near the selected delivery address. Non-blocking —
+          // loads on its own and never holds up the rest of the home screen.
+          const SliverToBoxAdapter(child: WeatherCard()),
 
           const SliverToBoxAdapter(child: PeakTimeBanner()),
 
