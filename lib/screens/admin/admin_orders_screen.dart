@@ -1429,10 +1429,10 @@ class _OrderDetailSheet extends ConsumerWidget {
   String _money(dynamic v) =>
       '${AppConstants.currencySymbol}${(v ?? 0).toDouble().toStringAsFixed(2)}';
 
-  // Admin can call the customer (in-app Agora) while the order is live.
-  static const _activeStatuses = {
-    'confirmed', 'preparing', 'ready', 'picked_up', 'on_the_way', 'out_for_delivery',
-  };
+  // Admin can call the customer (in-app Agora) while the order is live —
+  // anything that isn't finished/cancelled/draft (includes pending).
+  static const _terminalStatuses = {'delivered', 'cancelled', 'draft'};
+  bool get _orderIsLive => !_terminalStatuses.contains((order['status'] ?? '').toString());
 
   Future<void> _callCustomer(BuildContext context, WidgetRef ref, String name) async {
     final customerId = (order['user_id'] ?? '').toString();
@@ -1540,7 +1540,7 @@ class _OrderDetailSheet extends ConsumerWidget {
           if (user?['phone'] != null)
             _detailRow(context, Icons.phone_rounded, 'Phone',
                 user!['phone'].toString()),
-          if (_activeStatuses.contains(status) && (order['user_id'] ?? '').toString().isNotEmpty)
+          if (_orderIsLive && (order['user_id'] ?? '').toString().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10, bottom: 4),
               child: SizedBox(
