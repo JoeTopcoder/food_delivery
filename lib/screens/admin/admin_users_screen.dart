@@ -7,6 +7,7 @@ import '../../providers/admin_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'admin_wallet_adjust_sheet.dart';
+import 'admin_wallet_history_screen.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -464,6 +465,11 @@ class _UserCard extends StatelessWidget {
                     onDetails();
                   } else if (action == 'wallet') {
                     onWalletAdjust();
+                  } else if (action == 'wallet_history') {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AdminWalletHistoryScreen(
+                        userId: user.id, userName: user.name ?? 'Customer'),
+                    ));
                   } else {
                     onBanToggle();
                   }
@@ -476,6 +482,16 @@ class _UserCard extends StatelessWidget {
                         Icon(Icons.info_outline, size: 18),
                         SizedBox(width: 8),
                         Text('View Details'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'wallet_history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_rounded, size: 18, color: Color(0xFF2563EB)),
+                        SizedBox(width: 8),
+                        Text('Wallet History', style: TextStyle(color: Color(0xFF2563EB))),
                       ],
                     ),
                   ),

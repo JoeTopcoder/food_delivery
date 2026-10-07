@@ -5,6 +5,7 @@ import '../../config/supabase_config.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../providers/chat_provider.dart';
+import 'admin_wallet_history_screen.dart';
 import '../../widgets/order_countdown_timer.dart';
 import '../../widgets/order_status_timeline.dart';
 import '../../utils/app_feedback_widgets.dart';
@@ -1540,22 +1541,37 @@ class _OrderDetailSheet extends ConsumerWidget {
           if (user?['phone'] != null)
             _detailRow(context, Icons.phone_rounded, 'Phone',
                 user!['phone'].toString()),
-          if (_orderIsLive && (order['user_id'] ?? '').toString().isNotEmpty)
+          if ((order['user_id'] ?? '').toString().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _callCustomer(context, ref,
-                      (user?['name'] ?? 'Customer').toString()),
-                  icon: const Icon(Icons.phone_in_talk_rounded),
-                  label: const Text('Call customer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.white,
+              child: Row(children: [
+                if (_orderIsLive)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _callCustomer(context, ref,
+                          (user?['name'] ?? 'Customer').toString()),
+                      icon: const Icon(Icons.phone_in_talk_rounded),
+                      label: const Text('Call customer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                if (_orderIsLive) const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AdminWalletHistoryScreen(
+                        userId: (order['user_id']).toString(),
+                        userName: (user?['name'] ?? 'Customer').toString(),
+                      ),
+                    )),
+                    icon: const Icon(Icons.account_balance_wallet_rounded),
+                    label: const Text('Wallet history'),
                   ),
                 ),
-              ),
+              ]),
             ),
           if (user?['email'] != null)
             _detailRow(context, Icons.email_rounded, 'Email',
