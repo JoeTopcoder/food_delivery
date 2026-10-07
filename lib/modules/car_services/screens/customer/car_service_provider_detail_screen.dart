@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -678,7 +679,7 @@ class _ReviewTile extends StatelessWidget {
               _StarRow(rating: review.rating.toDouble()),
               const Spacer(),
               Text(
-                DateFormat('MMM d, y').format(review.createdAt),
+                DateFormat('MMM d, y').format(review.createdAt.toJamaica),
                 style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],

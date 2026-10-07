@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -552,7 +553,7 @@ class _BookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = DateFormat('EEE, MMM d · h:mm a').format(booking.scheduledAt);
+    final time = DateFormat('EEE, MMM d · h:mm a').format(booking.scheduledAt.toJamaica);
     final color = _statusColor;
 
     return Container(

@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -176,7 +177,7 @@ class _RefundRow extends ConsumerWidget {
             ),
           ),
           SizedBox(width: 200, child: Text(refund.reason, style: const TextStyle(fontSize: 12, color: Color(0xFF374151)), maxLines: 2, overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 140, child: Text(DateFormat('MMM d, y').format(refund.createdAt), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))),
+          SizedBox(width: 140, child: Text(DateFormat('MMM d, y').format(refund.createdAt.toJamaica), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))),
           Expanded(
             child: isPending
                 ? Row(

@@ -1,3 +1,4 @@
+import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -666,7 +667,7 @@ class _BookingDetailsCard extends StatelessWidget {
             icon: Icons.calendar_today_outlined,
             label: 'Scheduled',
             value: DateFormat('EEE, MMM d · h:mm a')
-                .format(booking.scheduledAt),
+                .format(booking.scheduledAt.toJamaica),
           ),
           _DetailRow(
             icon: Icons.location_on_outlined,

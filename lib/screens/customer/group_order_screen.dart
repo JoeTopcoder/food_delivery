@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../utils/est_datetime.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -240,7 +241,7 @@ class _GroupOrderCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 Text(
-                  fmt.format(group.createdAt),
+                  fmt.format(group.createdAt.toJamaica),
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -156,7 +157,7 @@ class _FeedbackCard extends ConsumerWidget {
                 Text('v${feedback.appVersion}', style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
                 const Text(' · ', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
               ],
-              Text(DateFormat.yMMMd().format(feedback.createdAt), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+              Text(DateFormat.yMMMd().format(feedback.createdAt.toJamaica), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
             ],
           ),
 

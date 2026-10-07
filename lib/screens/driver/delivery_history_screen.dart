@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -133,7 +134,7 @@ class DeliveryHistoryScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        '${delivery.items.length} item(s) · ${fmt.format(delivery.orderedAt)}',
+                                        '${delivery.items.length} item(s) · ${fmt.format(delivery.orderedAt.toJamaica)}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Theme.of(

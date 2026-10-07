@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -462,7 +463,7 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format(msg.createdAt);
+    final timeStr = DateFormat('h:mm a').format(msg.createdAt.toJamaica);
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../utils/est_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
@@ -717,7 +718,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
 
             const SizedBox(height: 4),
             Text(
-              '${dateFormat.format(order.orderedAt)} at ${timeFormat.format(order.orderedAt)}',
+              '${dateFormat.format(order.orderedAt.toJamaica)} at ${timeFormat.format(order.orderedAt.toJamaica)}',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
@@ -1508,7 +1509,7 @@ class _GroupOrderCardState extends ConsumerState<_GroupOrderCard> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       Text(
-                        DateFormat('MMM d · h:mm a').format(ro.createdAt),
+                        DateFormat('MMM d · h:mm a').format(ro.createdAt.toJamaica),
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

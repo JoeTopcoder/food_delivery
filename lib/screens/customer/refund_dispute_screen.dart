@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -190,7 +191,7 @@ class _RefundCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(refund.createdAt),
+                  DateFormat('MMM d, y').format(refund.createdAt.toJamaica),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF9CA3AF),
@@ -352,7 +353,7 @@ class _DisputeCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(dispute.createdAt),
+                  DateFormat('MMM d, y').format(dispute.createdAt.toJamaica),
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

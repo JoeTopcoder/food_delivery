@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -132,7 +133,7 @@ class WebDriverEarningsPage extends ConsumerWidget {
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)))),
                           Expanded(flex: 3, child: Text(o.deliveryAddress ?? '—',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), overflow: TextOverflow.ellipsis)),
-                          Expanded(child: Text(DateFormat('MMM d').format(o.orderedAt),
+                          Expanded(child: Text(DateFormat('MMM d').format(o.orderedAt.toJamaica),
                               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
                           Expanded(child: Text('${AppConstants.currencySymbol}${o.totalAmount.toStringAsFixed(2)}',
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)))),

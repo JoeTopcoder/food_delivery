@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -243,7 +244,7 @@ class _PayoutRowState extends ConsumerState<_PayoutRow> {
               ],
             ),
           ),
-          SizedBox(width: 110, child: Text(DateFormat('MMM d, y').format(p.createdAt), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))),
+          SizedBox(width: 110, child: Text(DateFormat('MMM d, y').format(p.createdAt.toJamaica), style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)))),
           SizedBox(
             width: 100,
             child: Container(

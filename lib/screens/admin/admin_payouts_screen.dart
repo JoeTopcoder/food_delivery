@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -292,7 +293,7 @@ class _PayoutCardState extends ConsumerState<_PayoutCard> {
                 ),
                 const Spacer(),
                 Text(
-                  DateFormat('MMM d, y').format(p.createdAt),
+                  DateFormat('MMM d, y').format(p.createdAt.toJamaica),
                   style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                 ),
               ],

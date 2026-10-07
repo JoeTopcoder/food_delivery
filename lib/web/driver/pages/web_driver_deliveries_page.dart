@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -140,7 +141,7 @@ class _DeliveryCardState extends ConsumerState<_DeliveryCard> {
           const SizedBox(width: 5),
           Text('Order #${o.id.substring(0, 8).toUpperCase()}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
           const Spacer(),
-          Text(DateFormat('MMM d, h:mm a').format(o.orderedAt), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+          Text(DateFormat('MMM d, h:mm a').format(o.orderedAt.toJamaica), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
         ]),
         const SizedBox(height: 8),
         // Items

@@ -1,3 +1,4 @@
+import '../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -336,7 +337,7 @@ class LoyaltyScreen extends ConsumerWidget {
                                         Text(
                                           DateFormat(
                                             'MMM d, y',
-                                          ).format(tx.createdAt),
+                                          ).format(tx.createdAt.toJamaica),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: Theme.of(

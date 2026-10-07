@@ -1,3 +1,4 @@
+import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -406,7 +407,7 @@ class _OrderMiniTable extends StatelessWidget {
               ),
               Expanded(
                 flex: 2,
-                child: Text(fmt.format(o.orderedAt), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                child: Text(fmt.format(o.orderedAt.toJamaica), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
               ),
             ],
           ),

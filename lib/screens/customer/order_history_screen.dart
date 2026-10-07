@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../utils/est_datetime.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -299,7 +300,7 @@ class _MasterOrderCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    fmt.format(masterOrder.createdAt),
+                    fmt.format(masterOrder.createdAt.toJamaica),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -517,7 +518,7 @@ class _OrderCard extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    fmt.format(order.orderedAt),
+                    fmt.format(order.orderedAt.toJamaica),
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1156,7 +1157,7 @@ class _OrderCard extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              DateFormat.yMMMd().add_jm().format(order.orderedAt),
+              DateFormat.yMMMd().add_jm().format(order.orderedAt.toJamaica),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
