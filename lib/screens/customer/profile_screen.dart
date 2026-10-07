@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/restaurant_staff_provider.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
@@ -33,6 +34,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
+    // Staff-only entries (My Shift) are hidden from regular customers.
+    final isStaff = ref.watch(isRestaurantStaffProvider).valueOrNull ?? false;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -98,14 +101,16 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                           onTap: () =>
                               Navigator.of(context).pushNamed('/my-company'),
                         ),
-                        _MenuItem(
-                          icon: Icons.point_of_sale_rounded,
-                          color: const Color(0xFF0EA5E9),
-                          title: 'My Shift',
-                          sub: 'Cashier shift & cash reconciliation',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/my-shift'),
-                        ),
+                        // Only restaurant staff see the cashier shift tools.
+                        if (isStaff)
+                          _MenuItem(
+                            icon: Icons.point_of_sale_rounded,
+                            color: const Color(0xFF0EA5E9),
+                            title: 'My Shift',
+                            sub: 'Cashier shift & cash reconciliation',
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/my-shift'),
+                          ),
                         _MenuItem(
                           icon: Icons.mail_outline_rounded,
                           color: const Color(0xFF22C55E),
