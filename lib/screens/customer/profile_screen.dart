@@ -34,8 +34,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
-    // Staff-only entries (My Shift) are hidden from regular customers.
+    // Staff-only entries are hidden from regular customers.
     final isStaff = ref.watch(isRestaurantStaffProvider).valueOrNull ?? false;
+    // "Accept staff invite" shows only to people who actually have a pending
+    // invite (or are already staff) — never to regular customers.
+    final hasPendingInvite =
+        ref.watch(hasPendingStaffInviteProvider).valueOrNull ?? false;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -111,14 +115,17 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                             onTap: () =>
                                 Navigator.of(context).pushNamed('/my-shift'),
                           ),
-                        _MenuItem(
-                          icon: Icons.mail_outline_rounded,
-                          color: const Color(0xFF22C55E),
-                          title: 'Accept staff invite',
-                          sub: 'Join a restaurant as staff',
-                          onTap: () => Navigator.of(context)
-                              .pushNamed('/accept-staff-invite'),
-                        ),
+                        // Shown only to invitees (pending invite) or existing
+                        // staff — hidden from regular customers.
+                        if (hasPendingInvite || isStaff)
+                          _MenuItem(
+                            icon: Icons.mail_outline_rounded,
+                            color: const Color(0xFF22C55E),
+                            title: 'Accept staff invite',
+                            sub: 'Join a restaurant as staff',
+                            onTap: () => Navigator.of(context)
+                                .pushNamed('/accept-staff-invite'),
+                          ),
                         _MenuItem(
                           icon: Icons.workspace_premium_rounded,
                           color: const Color(0xFFFF5A1F),
