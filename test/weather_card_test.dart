@@ -1,0 +1,146 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:food_driver/models/weather_model.dart';
+import 'package:food_driver/providers/weather_provider.dart';
+import 'package:food_driver/services/weather_service.dart';
+import 'package:food_driver/widgets/weather_card.dart';
+
+Weather _sample({bool stale = false}) => Weather.fromJson({
+  'location': {'name': 'Kingston', 'tz_id': 'America/Jamaica'},
+  'current': {
+    'temp_c': 27.0,
+    'feelslike_c': 30.0,
+    'condition_text': 'Light rain',
+    'condition_code': 1183,
+    'is_day': 1,
+    'humidity': 78,
+    'wind_kph': 12.0,
+    'precip_mm': 1.2,
+  },
+  'hourly': const [],
+  'provider_observed_at':
+      DateTime.now().toUtc().toIso8601String(),
+  'retrieved_at': DateTime.now().toUtc().toIso8601String(),
+  'stale': stale,
+  'cell': {'lat': 17.98, 'lon': -76.80},
+});
+
+WeatherQuery _query() => WeatherQuery(
+  lat: 17.9771,
+  lon: -76.7936,
+  source: WeatherSource.deliveryAddress,
+  label: 'Home',
+);
+
+Widget _host(List<Override> overrides) => ProviderScope(
+  overrides: overrides,
+  child: const MaterialApp(
+    home: Scaffold(body: CustomScrollViewOrColumn()),
+  ),
+);
+
+/// WeatherCard is normally a sliver child but renders fine in a Column for test.
+class CustomScrollViewOrColumn extends StatelessWidget {
+  const CustomScrollViewOrColumn({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      const SingleChildScrollView(child: Column(children: [WeatherCard()]));
+}
+
+void main() {
+  group('WeatherQuery', () {
+    test('rounds coordinates to 2dp and is value-equal within a cell', () {
+      final a = WeatherQuery(
+        lat: 17.9760,
+        lon: -76.7940,
+        source: WeatherSource.deliveryAddress,
+        label: 'Home',
+      );
+      final b = WeatherQuery(
+        lat: 17.9795, // same 2dp cell (17.98, -76.79) -> equal
+        lon: -76.7936,
+        source: WeatherSource.deliveryAddress,
+        label: 'Work', // label does not affect identity
+      );
+      expect(a.lat, 17.98);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('different cells are not equal (prevents stale cross-use)', () {
+      final a = WeatherQuery(
+        lat: 18.00,
+        lon: -76.80,
+        source: WeatherSource.deliveryAddress,
+      );
+      final b = WeatherQuery(
+        lat: 18.42,
+        lon: -77.12,
+        source: WeatherSource.deliveryAddress,
+      );
+      expect(a == b, isFalse);
+    });
+
+    test('same coords but different source are distinct', () {
+      final a = WeatherQuery(
+        lat: 18.0,
+        lon: -76.8,
+        source: WeatherSource.deliveryAddress,
+      );
+      final b = WeatherQuery(
+        lat: 18.0,
+        lon: -76.8,
+        source: WeatherSource.currentLocation,
+      );
+      expect(a == b, isFalse);
+    });
+  });
+
+  group('WeatherCard states', () {
+    testWidgets('no-location prompt when there is no query', (tester) async {
+      await tester.pumpWidget(_host([
+        effectiveWeatherQueryProvider.overrideWithValue(null),
+      ]));
+      expect(find.text('Select a location to see the weather.'), findsOneWidget);
+      expect(find.text('Use my location'), findsOneWidget);
+    });
+
+    testWidgets('loaded state shows condition and temperature',
+        (tester) async {
+      final q = _query();
+      await tester.pumpWidget(_host([
+        effectiveWeatherQueryProvider.overrideWithValue(q),
+        weatherProvider.overrideWith((ref, arg) async => _sample()),
+      ]));
+      await tester.pump(); // resolve the future
+      await tester.pump();
+      expect(find.textContaining('Light rain'), findsOneWidget);
+      expect(find.text('27°C'), findsOneWidget);
+    });
+
+    testWidgets('stale weather shows the last-known label', (tester) async {
+      final q = _query();
+      await tester.pumpWidget(_host([
+        effectiveWeatherQueryProvider.overrideWithValue(q),
+        weatherProvider.overrideWith((ref, arg) async => _sample(stale: true)),
+      ]));
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Last known'), findsOneWidget);
+    });
+
+    testWidgets('error state offers retry', (tester) async {
+      final q = _query();
+      await tester.pumpWidget(_host([
+        effectiveWeatherQueryProvider.overrideWithValue(q),
+        weatherProvider.overrideWith(
+          (ref, arg) async => throw WeatherException('weather_unreachable'),
+        ),
+      ]));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+}
