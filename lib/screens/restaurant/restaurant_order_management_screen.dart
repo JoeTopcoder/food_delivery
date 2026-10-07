@@ -554,7 +554,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                     children: [
                       Flexible(
                         child: Text(
-                          'Order #${order.restaurantOrderNumber ?? order.receiptNumber ?? order.id.substring(0, 8).toUpperCase()}',
+                          'Order #${order.id.substring(0, 8).toUpperCase()}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: Responsive.headingSmall(context),
