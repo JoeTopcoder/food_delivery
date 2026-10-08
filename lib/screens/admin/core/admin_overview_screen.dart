@@ -229,6 +229,7 @@ class AdminOverviewScreen extends ConsumerWidget {
     ]),
     _ToolCat('Ads & Marketing', [
       _Tool('Restaurant Ads', Icons.ad_units_rounded, '/admin-ads'),
+      _Tool('Ad Campaigns', Icons.campaign_rounded, '/admin-restaurant-ads'),
       _Tool('Banners', Icons.view_carousel_rounded, '/admin-banners'),
       _Tool('Promos', Icons.local_offer_rounded, '/admin-promos'),
       _Tool('Email Blast', Icons.email_rounded, '/admin-email-notifications'),

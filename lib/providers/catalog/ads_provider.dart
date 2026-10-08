@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/catalog/ad_model.dart';
 import '../../services/ads/ads_service.dart';
 import '../../services/ads/restaurant_ads_service.dart';
+import '../../services/ads/admin_ads_service.dart';
 
 final adsServiceProvider = Provider<AdsService>((ref) => AdsService());
 final restaurantAdsServiceProvider =
@@ -24,6 +25,15 @@ final adQuotesProvider =
 final myAdCampaignsProvider =
     FutureProvider.autoDispose.family<List<AdCampaign>, String>((ref, restaurantId) =>
         ref.watch(restaurantAdsServiceProvider).campaigns(restaurantId));
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+final adminAdsServiceProvider = Provider<AdminAdsService>((ref) => AdminAdsService());
+
+final adminAdRequestsProvider = FutureProvider.autoDispose<List<AdRequest>>(
+    (ref) => ref.watch(adminAdsServiceProvider).allRequests());
+
+final adminAdSettingsProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
+    (ref) => ref.watch(adminAdsServiceProvider).settings());
 
 /// A stable session id for the app run — used to dedupe ad impressions/events
 /// server-side so widget rebuilds and video loops never inflate counts.
