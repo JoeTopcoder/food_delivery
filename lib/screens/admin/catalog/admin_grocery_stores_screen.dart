@@ -5,7 +5,7 @@ import '../../../models/restaurant_model.dart';
 import '../../../providers/grocery_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
-import '../../restaurant/grocery_management_screen.dart';
+import '../../restaurant/menu/grocery_management_screen.dart';
 
 /// Admin: pick a grocery store, then manage its products in the same screen
 /// the store owner uses. menus RLS already permits admins to add / edit / delete
