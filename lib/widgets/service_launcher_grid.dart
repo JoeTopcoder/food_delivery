@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/feature_providers.dart';
 import '../core/utils/responsive.dart';
-import '../screens/customer/grocery_screen.dart';
-import '../screens/customer/restaurants_by_category_screen.dart';
+import '../screens/customer/grocery/grocery_screen.dart';
+import '../screens/customer/home/restaurants_by_category_screen.dart';
 
 /// "What are you ordering today?" — the unified HotBite service launcher.
 ///
