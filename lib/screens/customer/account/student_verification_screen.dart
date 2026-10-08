@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../models/student_verification_model.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/student_verification_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/platform/student_verification_provider.dart';
 import '../../../services/student_id_ocr_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';

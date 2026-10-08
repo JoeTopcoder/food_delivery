@@ -12,8 +12,8 @@ import 'package:food_driver/models/refund_model.dart';
 import 'package:food_driver/models/earning_model.dart';
 import 'package:food_driver/services/social/analytics_service.dart';
 import 'package:food_driver/services/payment/payout_service.dart';
-import 'package:food_driver/providers/auth_provider.dart';
-import 'package:food_driver/providers/admin_provider.dart';
+import 'package:food_driver/providers/auth_user/auth_provider.dart';
+import 'package:food_driver/providers/admin/admin_provider.dart';
 
 // ── Shared mock data ──────────────────────────────────────────────────────────
 

@@ -6,9 +6,9 @@ import 'customer/home/home_screen.dart';
 import 'customer/grocery/grocery_screen.dart';
 import 'customer/account/profile_screen.dart';
 import '../modules/car_services/screens/customer/car_services_home_screen.dart';
-import '../providers/user_provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/wallet_provider.dart';
+import '../providers/auth_user/user_provider.dart';
+import '../providers/auth_user/auth_provider.dart';
+import '../providers/money/wallet_provider.dart';
 import '../models/order_model.dart';
 import '../models/master_order_model.dart';
 import '../utils/app_theme.dart';
@@ -17,7 +17,7 @@ import '../utils/friendly_error.dart';
 import '../widgets/order_countdown_timer.dart';
 import '../widgets/ai_fab.dart';
 import 'package:food_driver/config/app_constants.dart';
-import '../providers/feature_providers.dart';
+import '../providers/platform/feature_providers.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});

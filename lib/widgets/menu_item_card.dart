@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/menu_model.dart';
-import '../providers/membership_provider.dart';
+import '../providers/rewards/membership_provider.dart';
 import '../utils/app_theme.dart';
 import 'app_cached_image.dart';
 import 'package:food_driver/config/app_constants.dart';

@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../providers/feature_providers.dart';
+import '../../../providers/platform/feature_providers.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/payment/payout_service.dart' show StripePayoutService;
-import '../../../providers/driver_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/driver/driver_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/safe_state_mixin.dart';
 

@@ -9,7 +9,7 @@ import '../../../features/auth/providers/onboarding_provider.dart';
 import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
 import '../../../features/auth/widgets/social_auth_panel.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../config/supabase_config.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_logger.dart';

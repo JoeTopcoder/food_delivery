@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../utils/restaurant_brand.dart';
 
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../widgets/restaurant_card.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';

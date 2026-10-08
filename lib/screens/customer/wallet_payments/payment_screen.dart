@@ -7,7 +7,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_constants.dart';
-import '../../../providers/payment_provider.dart';
+import '../../../providers/money/payment_provider.dart';
 import '../../../utils/app_logger.dart';
 import '../../../utils/friendly_error.dart';
 

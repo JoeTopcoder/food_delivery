@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/ai_staff_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/admin/ai_staff_provider.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 /// Redesigned admin Overview — matches the HotBite admin mockup: greeting,

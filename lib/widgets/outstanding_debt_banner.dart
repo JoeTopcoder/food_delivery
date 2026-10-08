@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_constants.dart';
-import '../providers/wallet_provider.dart';
+import '../providers/money/wallet_provider.dart';
 
 /// Reads the current user's outstanding debt from the wallet stream and
 /// exposes it as a [double] provider — 0 when there is no debt.

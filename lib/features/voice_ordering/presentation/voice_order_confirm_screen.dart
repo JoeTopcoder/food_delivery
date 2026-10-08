@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../screens/customer/home/restaurant_detail_screen.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';

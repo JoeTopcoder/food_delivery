@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../models/driver_intelligence_models.dart';
-import '../../../providers/driver_intelligence_provider.dart';
-import '../../../providers/location_provider.dart';
+import '../../../providers/driver/driver_intelligence_provider.dart';
+import '../../../providers/delivery/location_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../widgets/app_map_tiles.dart';
 

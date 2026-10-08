@@ -9,11 +9,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/config/supabase_config.dart';
-import 'package:food_driver/providers/chat_provider.dart';
+import 'package:food_driver/providers/comms/chat_provider.dart';
 import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
-import 'package:food_driver/providers/wallet_provider.dart';
+import 'package:food_driver/providers/money/wallet_provider.dart';
 import '../../../../widgets/app_map_tiles.dart';
 
 // ---------------------------------------------------------------------------

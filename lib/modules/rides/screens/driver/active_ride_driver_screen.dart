@@ -11,8 +11,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
-import 'package:food_driver/providers/auth_provider.dart';
-import 'package:food_driver/providers/chat_provider.dart';
+import 'package:food_driver/providers/auth_user/auth_provider.dart';
+import 'package:food_driver/providers/comms/chat_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
 import 'package:food_driver/utils/app_feedback_widgets.dart';

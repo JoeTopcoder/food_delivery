@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_constants.dart';
 import '../../../models/menu_model.dart';
 import '../../../models/restaurant_model.dart';
-import '../../../providers/user_provider.dart';
-import '../../../providers/grocery_provider.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/address_provider.dart';
-import '../../../providers/feature_providers.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../providers/ordering/grocery_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/auth_user/address_provider.dart';
+import '../../../providers/platform/feature_providers.dart';
 import '../../../utils/app_theme.dart';
 
 class GroceryCartScreen extends ConsumerStatefulWidget {

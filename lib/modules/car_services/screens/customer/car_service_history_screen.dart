@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/modules/car_services/models/car_service_booking.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
 import 'package:food_driver/config/supabase_config.dart';
-import 'package:food_driver/providers/wallet_provider.dart';
+import 'package:food_driver/providers/money/wallet_provider.dart';
 import 'package:intl/intl.dart';
 
 const _kBlue     = Color(0xFF1D4ED8);

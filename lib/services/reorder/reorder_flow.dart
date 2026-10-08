@@ -4,9 +4,9 @@ import '../../config/app_constants.dart';
 import '../../config/supabase_config.dart';
 import '../../models/menu_model.dart';
 import '../../models/order_model.dart';
-import '../../providers/user_provider.dart';
-import '../../providers/promo_provider.dart';
-import '../../providers/loyalty_provider.dart';
+import '../../providers/auth_user/user_provider.dart';
+import '../../providers/rewards/promo_provider.dart';
+import '../../providers/rewards/loyalty_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/app_logger.dart';
 

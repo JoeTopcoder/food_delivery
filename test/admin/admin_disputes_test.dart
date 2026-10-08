@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/screens/admin/operations/admin_disputes_screen.dart';
-import 'package:food_driver/providers/feature_providers.dart';
+import 'package:food_driver/providers/platform/feature_providers.dart';
 import 'package:food_driver/models/refund_model.dart';
 import '../helpers/admin_test_helpers.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/menu_model.dart';
-import '../../../providers/user_provider.dart';
-import '../../../providers/feature_providers.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../providers/platform/feature_providers.dart';
 
 /// What the customer chose when adding an item from a different restaurant
 /// than what's already in their cart.

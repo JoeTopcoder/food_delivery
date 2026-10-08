@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_constants.dart';
 import '../../../models/menu_model.dart';
 import '../../../models/restaurant_model.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 

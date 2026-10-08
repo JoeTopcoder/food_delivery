@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../../../config/app_constants.dart';
-import '../../../providers/peak_time_provider.dart';
+import '../../../providers/delivery/peak_time_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';

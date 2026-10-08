@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../providers/user_provider.dart';
+import '../../../../providers/auth_user/user_provider.dart';
 import '../../../../services/ai/speech_service.dart';
 import '../../../../services/food/menu_service.dart';
 import '../../../../services/food/restaurant_service.dart';

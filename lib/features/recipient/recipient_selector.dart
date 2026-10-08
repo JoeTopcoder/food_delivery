@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_constants.dart';
-import '../../providers/student_verification_provider.dart';
+import '../../providers/platform/student_verification_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import 'recipient_service.dart';

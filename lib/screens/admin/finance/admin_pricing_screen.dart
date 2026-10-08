@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../providers/feature_providers.dart';
+import '../../../providers/platform/feature_providers.dart';
 
 // ── Supported currencies ────────────────────────────────────────────────────
 const _currencies = [

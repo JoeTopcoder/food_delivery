@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/menu_model.dart';
-import '../providers/user_provider.dart';
-import '../providers/feature_providers.dart';
+import '../providers/auth_user/user_provider.dart';
+import '../providers/platform/feature_providers.dart';
 import '../utils/app_feedback_widgets.dart';
 import 'menu_item_detail_sheet.dart';
-import '../providers/membership_provider.dart';
+import '../providers/rewards/membership_provider.dart';
 
 /// Opens the existing menu-item detail sheet and, on confirm, adds the item to
 /// the cart — handling the multi-restaurant conflict flow. Shared by the

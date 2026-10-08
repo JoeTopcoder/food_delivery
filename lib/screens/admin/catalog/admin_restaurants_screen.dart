@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../models/restaurant_model.dart';
-import '../../../providers/admin_provider.dart';
+import '../../../providers/admin/admin_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';

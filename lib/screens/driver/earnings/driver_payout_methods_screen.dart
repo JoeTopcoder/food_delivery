@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import '../../../services/payment/payout_service.dart'
     show StripePayoutService, DriverPayoutMethod;
-import '../../../providers/driver_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/driver/driver_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/safe_state_mixin.dart';
 import '../../../config/app_constants.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../utils/restaurant_brand.dart';
 
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../widgets/restaurant_card.dart';
 import '../../../widgets/search_bar.dart' as search_bar;

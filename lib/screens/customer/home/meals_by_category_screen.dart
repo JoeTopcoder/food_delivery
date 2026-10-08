@@ -3,8 +3,8 @@ import '../../../widgets/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_constants.dart';
-import '../../../providers/user_provider.dart';
-import '../../../providers/membership_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../providers/rewards/membership_provider.dart';
 import '../../../services/food/menu_category_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';

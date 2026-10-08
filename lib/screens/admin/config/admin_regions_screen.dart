@@ -3,7 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../models/delivery_region_model.dart';
-import '../../../providers/delivery_region_provider.dart';
+import '../../../providers/delivery/delivery_region_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';

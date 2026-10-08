@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/theme_provider.dart';
+import '../../providers/platform/theme_provider.dart';
 import '../../utils/app_theme.dart';
 
 /// Dedicated Theme (appearance) screen, reached from the profile screen.

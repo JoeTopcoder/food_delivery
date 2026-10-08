@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../../config/supabase_config.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../providers/chat_provider.dart';
+import '../../../providers/comms/chat_provider.dart';
 import '../finance/admin_wallet_history_screen.dart';
 import '../../../widgets/order_countdown_timer.dart';
 import '../../../widgets/order_status_timeline.dart';

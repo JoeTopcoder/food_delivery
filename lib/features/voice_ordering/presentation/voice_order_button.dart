@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/feature_providers.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/platform/feature_providers.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';
 import 'controllers/voice_order_controller.dart';
 import 'voice_order_processing_sheet.dart';

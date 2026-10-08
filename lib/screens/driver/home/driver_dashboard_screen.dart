@@ -6,11 +6,11 @@ import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/driver_model.dart';
 import '../../../models/order_model.dart';
-import '../../../providers/driver_provider.dart';
-import '../../../providers/notification_provider.dart';
-import '../../../providers/location_provider.dart';
-import '../../../providers/driver_intelligence_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/driver/driver_provider.dart';
+import '../../../providers/comms/notification_provider.dart';
+import '../../../providers/delivery/location_provider.dart';
+import '../../../providers/driver/driver_intelligence_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../services/notification_service.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
@@ -19,7 +19,7 @@ import '../../../widgets/peak_time_banner.dart';
 import '../../../widgets/driver_priority_card.dart';
 import '../../../widgets/driver_order_alert.dart';
 import '../../../widgets/app_map_tiles.dart';
-import '../../../providers/user_provider.dart'
+import '../../../providers/auth_user/user_provider.dart'
     show restaurantServiceProvider, restaurantByIdProvider, orderServiceProvider;
 import '../../../services/driver/delivery_fee_service.dart';
 import '../onboarding/driver_verification_screen.dart';

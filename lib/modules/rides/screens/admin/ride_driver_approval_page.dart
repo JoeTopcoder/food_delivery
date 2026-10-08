@@ -2,8 +2,8 @@ import '../../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../../providers/driver_provider.dart';
-import '../../../../providers/admin_provider.dart';
+import '../../../../providers/driver/driver_provider.dart';
+import '../../../../providers/admin/admin_provider.dart';
 
 const _kPurple = Color(0xFF155EEF);
 

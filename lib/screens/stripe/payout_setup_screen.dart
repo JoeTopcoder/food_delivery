@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/stripe/connected_account_model.dart';
 import '../../providers/stripe/connected_account_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/stripe/stripe_onboarding_status_card.dart';
 

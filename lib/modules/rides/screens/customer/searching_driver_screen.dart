@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/modules/rides/services/ride_service.dart';
-import 'package:food_driver/providers/wallet_provider.dart';
+import 'package:food_driver/providers/money/wallet_provider.dart';
 
 const _kBlue = Color(0xFF2563EB);
 const _kGreen = Color(0xFF22C55E);

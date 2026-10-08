@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/stripe/payout_request_model.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
 import '../../providers/stripe/earnings_provider.dart';
 import '../../providers/stripe/connected_account_provider.dart';
 import '../../utils/app_theme.dart';

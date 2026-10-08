@@ -10,7 +10,7 @@ import '../../../features/auth/models/onboarding_role.dart';
 import '../../../features/auth/providers/onboarding_provider.dart';
 import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../utils/app_logger.dart';
 import '../../../services/notification_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
