@@ -524,23 +524,15 @@ class AppLaunchSplash extends ConsumerStatefulWidget {
   ConsumerState<AppLaunchSplash> createState() => _AppLaunchSplashState();
 }
 
-class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
-    with TickerProviderStateMixin {
-  late final AnimationController _logoController;
-  late final AnimationController _contentController;
-  late final AnimationController _bgController;
-  late final Animation<double> _logoScale;
-  late final Animation<double> _logoOpacity;
-  late final Animation<double> _titleOpacity;
-  late final Animation<double> _titleSlide;
-  late final Animation<double> _shimmer;
-
+class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash> {
   VideoPlayerController? _videoController;
   bool _videoReady = false;
 
-  // Keep the splash (and its background video) visible for at least this long
-  // on cold start, so the video is actually seen before we navigate on.
-  static const _minVisible = Duration(milliseconds: 3200);
+  // Keep the splash visible until the intro video has played through once (the
+  // clip carries the branding). Floor so a very short/failed clip still shows
+  // briefly; cap by the hard fallback so we never hang.
+  static const _minFallback = Duration(milliseconds: 3200);
+  Duration _minVisible = _minFallback;
   final DateTime _startedAt = DateTime.now();
 
   bool _navigated = false;
@@ -556,50 +548,24 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
   void initState() {
     super.initState();
 
-    // Cold-start splash background video (muted, looping). Best-effort: if it
-    // fails to load we simply fall back to the gradient behind the content.
+    // Cold-start intro video: full-screen, plays once, muted. The clip carries
+    // the HotBite branding, so no logo/text overlay is drawn on top. We extend
+    // the min-visible window to the clip's length so it plays through before we
+    // navigate on. Best-effort: if it fails to load we fall back to a plain
+    // background and the normal min-visible floor.
     _videoController = VideoPlayerController.asset('assets/video/splash_bg.mp4')
-      ..setLooping(true)
+      ..setLooping(false)
       ..setVolume(0)
       ..initialize().then((_) {
         if (!mounted) return;
+        final dur = _videoController?.value.duration ?? Duration.zero;
+        // Give the clip its full runtime (+ a small buffer), floored.
+        if (dur > _minVisible) {
+          _minVisible = dur + const Duration(milliseconds: 150);
+        }
         setState(() => _videoReady = true);
         _videoController?.play();
       }).catchError((_) {});
-
-    _bgController = AnimationController(
-      duration: const Duration(milliseconds: 2400),
-      vsync: this,
-    )..repeat();
-
-    _logoController = AnimationController(
-      duration: const Duration(milliseconds: 350),
-      vsync: this,
-    );
-
-    _contentController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-
-    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
-    );
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
-      ),
-    );
-    _titleSlide = Tween<double>(begin: 24.0, end: 0.0).animate(
-      CurvedAnimation(parent: _contentController, curve: Curves.easeOutCubic),
-    );
-    _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _contentController, curve: Curves.easeIn),
-    );
-    _shimmer = Tween<double>(begin: -1.0, end: 2.0).animate(_bgController);
-
-    _logoController.forward().then((_) => _contentController.forward());
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
   }
@@ -759,221 +725,30 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash>
 
   @override
   void dispose() {
-    _logoController.dispose();
-    _contentController.dispose();
-    _bgController.dispose();
     _videoController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Clean full-screen intro video on black. The clip carries the HotBite
+    // branding, so there is no logo/tagline/spinner overlay. Until the video is
+    // ready (or if it fails), a plain black screen is shown briefly.
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background video (full-bleed, cover) once ready; gradient until then.
-          if (_videoReady && _videoController != null)
-            FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _videoController!.value.size.width,
-                height: _videoController!.value.size.height,
-                child: VideoPlayer(_videoController!),
-              ),
-            )
-          else
-            AnimatedBuilder(
-              animation: _shimmer,
-              builder: (_, __) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: const [
-                      Color(0xFF0B1220),
-                      Color(0xFF1743B5),
-                      Color(0xFF0B1220),
-                    ],
-                    stops: [0.0, _shimmer.value.clamp(0.0, 1.0), 1.0],
-                  ),
+      backgroundColor: Colors.black,
+      body: SizedBox.expand(
+        child: (_videoReady && _videoController != null)
+            ? FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: _videoController!.value.size.width,
+                  height: _videoController!.value.size.height,
+                  child: VideoPlayer(_videoController!),
                 ),
-              ),
-            ),
-
-          // Dark scrim over the video so the logo, title and spinner stay legible.
-          if (_videoReady)
-            Container(color: Colors.black.withValues(alpha: 0.5)),
-
-          // Floating decorative circles
-          ..._buildCircles(MediaQuery.of(context).size),
-
-          // Content
-          SafeArea(
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-
-                // Logo
-                AnimatedBuilder(
-                  animation: _logoController,
-                  builder: (_, __) => Transform.scale(
-                    scale: _logoScale.value,
-                    child: Opacity(
-                      opacity: _logoOpacity.value,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 18,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 32,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: const HotBiteMark(size: 168),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 36),
-
-                // Title
-                AnimatedBuilder(
-                  animation: _contentController,
-                  builder: (_, __) => Transform.translate(
-                    offset: Offset(0, _titleSlide.value),
-                    child: Opacity(
-                      opacity: _titleOpacity.value,
-                      child: Column(
-                        children: [
-                          Text(
-                            'HotBite',
-                            style: TextStyle(
-                              fontSize: 38,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Quick to Order. Fast to Deliver.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // The rider: a courier on a scooter with the delivery box on
-                // the back, wheels turning and the road running underneath.
-                // Drawn rather than shipped as an asset, so it stays crisp at
-                // any density and needs no image to load before it can appear.
-                AnimatedBuilder(
-                  animation: _contentController,
-                  builder: (_, __) => Opacity(
-                    opacity: _titleOpacity.value,
-                    child: RidingCourier(
-                      width: (MediaQuery.of(context).size.width * 0.64)
-                          .clamp(190.0, 320.0),
-                      accent: const Color(0xFF0B1220),
-                    ),
-                  ),
-                ),
-
-                const Spacer(flex: 2),
-
-                // Loading spinner
-                AnimatedBuilder(
-                  animation: _contentController,
-                  builder: (_, __) => Opacity(
-                    opacity: _titleOpacity.value,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: 30,
-                          height: 30,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Getting things ready...',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 48),
-              ],
-            ),
-          ),
-        ],
+              )
+            : const SizedBox.shrink(),
       ),
     );
-  }
-
-  List<Widget> _buildCircles(Size size) {
-    final rng = Random(42);
-    return List.generate(6, (i) {
-      final sz = 60.0 + rng.nextDouble() * 140;
-      final l = rng.nextDouble() * size.width;
-      final t = rng.nextDouble() * size.height;
-      return Positioned(
-        left: l - sz / 2,
-        top: t - sz / 2,
-        child: AnimatedBuilder(
-          animation: _bgController,
-          builder: (_, __) {
-            final phase = (_bgController.value + i * 0.15) % 1.0;
-            final scale = 0.8 + sin(phase * pi * 2) * 0.2;
-            return Transform.scale(
-              scale: scale,
-              child: Container(
-                width: sz,
-                height: sz,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(
-                    alpha: 0.03 + rng.nextDouble() * 0.03,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    });
   }
 }
