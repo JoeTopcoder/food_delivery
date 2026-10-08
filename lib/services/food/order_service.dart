@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
 import '../../models/ordering/order_model.dart';
 import '../driver/driver_service.dart';
-import '../earning_service.dart';
+import '../rewards/earning_service.dart';
 import '../../utils/app_logger.dart';
 
 class OrderService {

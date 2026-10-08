@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/notification_service.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../providers/driver/driver_provider.dart';
 import '../../providers/driver/driver_intelligence_provider.dart';
 import '../../providers/auth_user/auth_provider.dart';

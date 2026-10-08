@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/screens/admin/marketing/admin_promos_screen.dart';
 import 'package:food_driver/providers/rewards/promo_provider.dart';
-import 'package:food_driver/services/promo_service.dart';
+import 'package:food_driver/services/rewards/promo_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../helpers/admin_test_helpers.dart';
 

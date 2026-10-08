@@ -12,7 +12,7 @@ import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/comms/chat_provider.dart';
 import '../../../providers/delivery/location_provider.dart';
 import '../../../services/driver/delivery_fee_service.dart';
-import '../../../services/location_service.dart';
+import '../../../services/location/location_service.dart';
 import '../../../widgets/common/sos_button.dart';
 import '../../../widgets/orders/order_countdown_timer.dart';
 import '../deliveries/delivery_proof_screen.dart';

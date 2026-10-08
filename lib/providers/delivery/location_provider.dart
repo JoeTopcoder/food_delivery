@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../services/location_service.dart';
+import '../../services/location/location_service.dart';
 
 final locationServiceProvider = Provider<LocationService>((ref) {
   final s = LocationService(Supabase.instance.client);

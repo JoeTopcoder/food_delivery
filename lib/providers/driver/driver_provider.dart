@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/driver/driver_model.dart';
 import '../../models/ordering/order_model.dart';
 import '../../services/driver/driver_service.dart';
-import '../../services/notification_service.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../config/supabase_config.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_logger.dart';

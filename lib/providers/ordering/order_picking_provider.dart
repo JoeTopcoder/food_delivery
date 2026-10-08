@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/supabase_config.dart';
 import '../../models/ordering/pick_model.dart';
-import '../../services/order_picking_service.dart';
+import '../../services/grocery/order_picking_service.dart';
 
 final orderPickingServiceProvider = Provider<OrderPickingService>((ref) {
   return OrderPickingService(SupabaseConfig.client);

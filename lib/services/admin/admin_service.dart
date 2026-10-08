@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/app_constants.dart';
-import '../models/user/user_model.dart' as user_models;
-import '../models/catalog/restaurant_model.dart';
-import '../models/driver/driver_model.dart';
-import '../utils/app_logger.dart';
+import '../../config/app_constants.dart';
+import '../../models/user/user_model.dart' as user_models;
+import '../../models/catalog/restaurant_model.dart';
+import '../../models/driver/driver_model.dart';
+import '../../utils/app_logger.dart';
 
 /// Admin service for dashboard and management
 class AdminService {

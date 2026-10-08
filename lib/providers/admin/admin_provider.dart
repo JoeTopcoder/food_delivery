@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod_pkg;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/admin_service.dart';
-import '../../services/notification_service.dart';
+import '../../services/admin/admin_service.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_logger.dart';
 import '../../models/user/user_model.dart' as user_models;

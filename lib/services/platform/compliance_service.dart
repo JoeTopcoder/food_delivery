@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/app_constants.dart';
+import '../../config/app_constants.dart';
 
 class ComplianceService {
   final SupabaseClient _client;

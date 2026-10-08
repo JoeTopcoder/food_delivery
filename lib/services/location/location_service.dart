@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/app_logger.dart';
+import '../../utils/app_logger.dart';
 
 class LocationService {
   final SupabaseClient _client;

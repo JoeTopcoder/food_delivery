@@ -13,7 +13,7 @@ import '../../services/food/menu_service.dart';
 import '../../services/food/menu_category_service.dart';
 import '../../services/food/order_service.dart';
 import '../../services/food/order_calculation_service.dart';
-import '../../services/notification_service.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_logger.dart';
 import '../auth_user/address_provider.dart';

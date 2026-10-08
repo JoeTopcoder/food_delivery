@@ -11,7 +11,7 @@ import '../../providers/auth_user/user_provider.dart';
 import '../../services/social/agora_service.dart';
 import '../../services/call/call_fallback_service.dart';
 import '../../providers/platform/feature_providers.dart';
-import '../../services/notification_service.dart';
+import '../../services/notifications/notification_service.dart';
 import '../../utils/app_theme.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_feedback_widgets.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../services/mfa_service.dart';
+import '../../../services/auth/mfa_service.dart';
 import '../../../utils/app_theme.dart';
 
 /// Admin two-step verification (TOTP) setup & management.

@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/index.dart';
 import '../../../utils/app_logger.dart';
-import '../../../services/loyalty_service.dart';
+import '../../../services/rewards/loyalty_service.dart';
 
 class LaundryInsufficientBalanceException implements Exception {
   final double required;
