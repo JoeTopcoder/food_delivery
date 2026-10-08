@@ -357,9 +357,9 @@ class _ProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – scales with card width via aspect ratio. Tap = full screen.
-          AspectRatio(
-            aspectRatio: 1.5,
+          // Image flexes to fill the space left after the text block, so the
+          // card adapts to any tile height / screen size. Tap = full screen.
+          Expanded(
             child: GestureDetector(
               onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                   ? () => FullScreenImage.show(
@@ -443,13 +443,12 @@ class _ProductCard extends ConsumerWidget {
             ),
           ),
 
-          // Info
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
+          // Info — content-sized so the flexible image above absorbs the rest.
+          Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.max,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   if (product.brand != null)
                     Text(
@@ -482,9 +481,8 @@ class _ProductCard extends ConsumerWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  const Spacer(),
-                  Flexible(
-                    child: Row(
+                  const SizedBox(height: 6),
+                  Row(
                       children: [
                         // Price — HotBite+ members see the member price.
                         Expanded(
@@ -649,11 +647,9 @@ class _ProductCard extends ConsumerWidget {
                         ),
                       ],
                     ),
-                  ),
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
