@@ -195,9 +195,10 @@ class _CategoryProductCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – scales with card width via aspect ratio. Tap = full screen.
-          AspectRatio(
-            aspectRatio: 1.5,
+          // Image flexes to fill whatever height is left after the text block,
+          // so the card adapts to any tile height / screen size without the
+          // text ever overflowing. Tap = full screen.
+          Expanded(
             child: GestureDetector(
               onTap: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                   ? () => FullScreenImage.show(
@@ -290,11 +291,12 @@ class _CategoryProductCard extends ConsumerWidget {
             ),
           ),
 
-          // Info
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 12),
+          // Info — content-sized (not Expanded), so it takes exactly the height
+          // it needs and the flexible image above absorbs the rest.
+          Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (product.brand != null)
@@ -329,7 +331,7 @@ class _CategoryProductCard extends ConsumerWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  const Spacer(),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
@@ -444,7 +446,6 @@ class _CategoryProductCard extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
         ],
       ),
       ),

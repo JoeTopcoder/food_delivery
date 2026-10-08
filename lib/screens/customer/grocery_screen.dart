@@ -478,9 +478,9 @@ class _SearchProductCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image – scales with card width via aspect ratio. Tap = full screen.
-            AspectRatio(
-              aspectRatio: 1.5,
+            // Image flexes to fill the space left after the text block, so the
+            // card adapts to any tile height / screen size. Tap = full screen.
+            Expanded(
               child: GestureDetector(
                 onTap:
                     (product.imageUrl != null && product.imageUrl!.isNotEmpty)
@@ -575,12 +575,12 @@ class _SearchProductCard extends ConsumerWidget {
               ),
             ),
 
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            // Info — content-sized so the flexible image above absorbs the rest.
+            Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     if (product.brand != null)
                       Text(
@@ -605,7 +605,7 @@ class _SearchProductCard extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -740,7 +740,6 @@ class _SearchProductCard extends ConsumerWidget {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),
