@@ -215,7 +215,11 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
       media = Container(color: scheme.surfaceContainerHighest);
     }
 
-    return Semantics(
+    // Clamp text scaling so a large system font can't push the overlay past the
+    // fixed carousel height; the media + overlay then flex to the slide size.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.1,
+      child: Semantics(
       label: 'Sponsored ad for ${ad.restaurantName ?? 'a restaurant'}'
           '${ad.headline != null ? ': ${ad.headline}' : ''}',
       button: true,
@@ -315,6 +319,7 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
             ],
           ),
         ),
+      ),
       ),
     );
   }
