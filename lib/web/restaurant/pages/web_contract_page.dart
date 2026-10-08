@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../screens/restaurant/restaurant_contract_screen.dart';
+import '../../../screens/restaurant/home/restaurant_contract_screen.dart';
 
 class WebContractPage extends StatelessWidget {
   const WebContractPage({super.key});

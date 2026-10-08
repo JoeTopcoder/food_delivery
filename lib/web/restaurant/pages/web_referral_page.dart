@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../screens/restaurant/restaurant_referral_screen.dart';
+import '../../../screens/restaurant/marketing/restaurant_referral_screen.dart';
 
 class WebReferralPage extends StatelessWidget {
   const WebReferralPage({super.key});

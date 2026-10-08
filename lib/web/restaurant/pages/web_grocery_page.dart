@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../screens/restaurant/grocery_management_screen.dart';
+import '../../../screens/restaurant/menu/grocery_management_screen.dart';
 
 /// Wraps the existing grocery management screen inside the web layout.
 class WebGroceryPage extends StatelessWidget {

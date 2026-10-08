@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../screens/restaurant/restaurant_offer_screen.dart';
+import '../../../screens/restaurant/marketing/restaurant_offer_screen.dart';
 
 class WebOffersPage extends StatelessWidget {
   const WebOffersPage({super.key});

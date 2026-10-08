@@ -8,7 +8,7 @@ import '../../../providers/admin_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
-import '../../restaurant/menu_management_screen.dart';
+import '../../restaurant/menu/menu_management_screen.dart';
 
 class AdminRestaurantsScreen extends ConsumerStatefulWidget {
   const AdminRestaurantsScreen({super.key});

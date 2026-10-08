@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../screens/restaurant/restaurant_loyalty_screen.dart';
+import '../../../screens/restaurant/marketing/restaurant_loyalty_screen.dart';
 
 /// Wraps the existing loyalty screen inside the web layout.
 class WebLoyaltyPage extends StatelessWidget {
