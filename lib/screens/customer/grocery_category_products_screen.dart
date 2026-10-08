@@ -179,7 +179,11 @@ class _CategoryProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final inStock = product.inStock;
 
-    return Container(
+    // Clamp text scaling for this fixed-height grid tile so a large system font
+    // size can't push the content past the card's bottom.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.1,
+      child: Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
@@ -314,17 +318,9 @@ class _CategoryProductCard extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  if (product.description != null &&
-                      product.description!.trim().isNotEmpty)
-                    Text(
-                      product.description!.trim(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  // Long description is shown in the detail / full-screen view,
+                  // not in the compact grid tile (it overflowed the fixed card
+                  // height). Brand + name + weight + price is enough here.
                   if (product.weight != null)
                     Text(
                       product.weight!,
@@ -450,6 +446,7 @@ class _CategoryProductCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
