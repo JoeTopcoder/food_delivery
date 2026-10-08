@@ -1619,6 +1619,17 @@ class _DynamicBannerCarouselState
   int _currentPage = 0;
   int _bannerCount = 0;
   Timer? _autoScrollTimer;
+  List<Object> _slides = const [];
+
+  void _advance() {
+    if (!mounted || !_pageCtrl.hasClients || _slides.length <= 1) return;
+    final next = (_currentPage + 1) % _slides.length;
+    _pageCtrl.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
 
   void _startAutoScroll(int count) {
     _autoScrollTimer?.cancel();
@@ -1627,12 +1638,13 @@ class _DynamicBannerCarouselState
     if (count <= 1) return;
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_pageCtrl.hasClients) return;
-      final next = (_currentPage + 1) % _bannerCount;
-      _pageCtrl.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+      // A video ad controls its own advance (it waits for two completions), so
+      // the timer skips auto-advancing while a video slide is showing.
+      final cur = (_currentPage >= 0 && _currentPage < _slides.length)
+          ? _slides[_currentPage]
+          : null;
+      if (cur is SponsoredAd && cur.isVideo) return;
+      _advance();
     });
   }
 
@@ -1674,6 +1686,7 @@ class _DynamicBannerCarouselState
         // Combined slide list: sponsored ads first, then banners.
         final slides = <Object>[...ads, ...banners];
         if (slides.isEmpty) return const SizedBox.shrink();
+        _slides = slides;
 
         // ref.listen doesn't fire for the value already available on first
         // build, so kick off the timer here if it hasn't started yet.
@@ -1702,6 +1715,9 @@ class _DynamicBannerCarouselState
                     return SponsoredAdSlide(
                       ad: slide,
                       isActive: _currentPage == index,
+                      onCompletedTwice: () {
+                        if (_currentPage == index) _advance();
+                      },
                     );
                   }
                   return _bannerCard(context, slide as app.Banner);
