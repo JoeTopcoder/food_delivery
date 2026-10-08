@@ -92,8 +92,8 @@ class _CompanyMembersScreenState extends ConsumerState<CompanyMembersScreen> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(m.userName ?? 'Employee', style: const TextStyle(fontWeight: FontWeight.w700)),
-          if (m.userEmail != null) Text(m.userEmail!, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(m.displayName ?? 'Employee', style: const TextStyle(fontWeight: FontWeight.w700)),
+          if (m.displayEmail != null) Text(m.displayEmail!, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(
@@ -121,8 +121,8 @@ class _CompanyMembersScreenState extends ConsumerState<CompanyMembersScreen> {
     final busy = _busy.contains(m.id);
     return Card(
       child: ListTile(
-        title: Text(m.userName ?? 'Employee'),
-        subtitle: Text(m.userEmail ?? ''),
+        title: Text(m.displayName ?? 'Employee'),
+        subtitle: Text(m.displayEmail ?? ''),
         trailing: busy
             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
             : PopupMenuButton<String>(

@@ -49,6 +49,8 @@ class CompanyMembership {
   final String? companyName;
   final String? userName;
   final String? userEmail;
+  final String? applicantName;
+  final String? applicantEmail;
   const CompanyMembership({
     required this.id,
     required this.companyId,
@@ -57,7 +59,17 @@ class CompanyMembership {
     this.companyName,
     this.userName,
     this.userEmail,
+    this.applicantName,
+    this.applicantEmail,
   });
+
+  /// Name/email to display to the reviewer: the applicant-provided value if they
+  /// supplied one when requesting to join, else the account profile value.
+  String? get displayName =>
+      (applicantName?.trim().isNotEmpty ?? false) ? applicantName : userName;
+  String? get displayEmail =>
+      (applicantEmail?.trim().isNotEmpty ?? false) ? applicantEmail : userEmail;
+
   factory CompanyMembership.fromMap(Map<String, dynamic> m) => CompanyMembership(
         id: m['id'] as String,
         companyId: m['company_id'] as String,
@@ -68,6 +80,8 @@ class CompanyMembership {
             : m['company_name'] as String?,
         userName: (m['users'] is Map) ? (m['users']['name'] as String?) : m['user_name'] as String?,
         userEmail: (m['users'] is Map) ? (m['users']['email'] as String?) : m['user_email'] as String?,
+        applicantName: m['applicant_name'] as String?,
+        applicantEmail: m['applicant_email'] as String?,
       );
 }
 
@@ -84,8 +98,12 @@ class CompanyService {
     return (rows as List).map((e) => Company.fromMap(Map<String, dynamic>.from(e))).toList();
   }
 
-  Future<void> apply(String companyId) async {
-    await _c.rpc('company_apply', params: {'p_company_id': companyId});
+  Future<void> apply(String companyId, {String? name, String? email}) async {
+    await _c.rpc('company_apply', params: {
+      'p_company_id': companyId,
+      'p_name': name,
+      'p_email': email,
+    });
   }
 
   Future<List<CompanyMembership>> myMemberships() async {

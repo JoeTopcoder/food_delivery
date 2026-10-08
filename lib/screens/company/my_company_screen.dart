@@ -54,8 +54,12 @@ class _MyCompanyScreenState extends ConsumerState<MyCompanyScreen> {
   }
 
   Future<void> _apply(Company c) async {
+    // Collect the applicant's name + contact email (prefilled from the account)
+    // so the company can see who is requesting to join.
+    final details = await _askApplicantDetails(c);
+    if (details == null) return; // cancelled
     try {
-      await _svc.apply(c.id);
+      await _svc.apply(c.id, name: details.$1, email: details.$2);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Application sent to ${c.name}')));
@@ -67,6 +71,73 @@ class _MyCompanyScreenState extends ConsumerState<MyCompanyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not apply: $e')));
     }
+  }
+
+  /// Prompts for name + email, prefilled from the signed-in account. Returns
+  /// (name, email) or null if cancelled. Both are required and the email must
+  /// look valid.
+  Future<(String, String)?> _askApplicantDetails(Company c) async {
+    final user = ref.read(currentUserProvider);
+    final nameCtrl = TextEditingController(text: user?.name ?? '');
+    final emailCtrl = TextEditingController(text: user?.email ?? '');
+    final formKey = GlobalKey<FormState>();
+    final emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Request to join ${c.name}'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Your name',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Your email',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => (v == null || !emailRe.hasMatch(v.trim()))
+                    ? 'Enter a valid email'
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, (nameCtrl.text.trim(), emailCtrl.text.trim()));
+              }
+            },
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+    );
+    nameCtrl.dispose();
+    emailCtrl.dispose();
+    return result;
   }
 
   Color _statusColor(String s) => switch (s) {
