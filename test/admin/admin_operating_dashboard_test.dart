@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:food_driver/models/admin_metrics_model.dart';
 import 'package:food_driver/providers/admin_metrics_provider.dart';
-import 'package:food_driver/screens/admin/admin_operating_dashboard_screen.dart';
+import 'package:food_driver/screens/admin/core/admin_operating_dashboard_screen.dart';
 
 import '../helpers/admin_test_helpers.dart';
 

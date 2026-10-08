@@ -8,7 +8,7 @@ import '../../../providers/promo_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
-import '../../../screens/admin/admin_broadcast_sheet.dart';
+import '../../../screens/admin/marketing/admin_broadcast_sheet.dart';
 
 class WebAdminPromosPage extends ConsumerWidget {
   const WebAdminPromosPage({super.key});

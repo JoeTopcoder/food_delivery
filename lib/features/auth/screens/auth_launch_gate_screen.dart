@@ -8,7 +8,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../screens/main_navigation_screen.dart';
 import '../../../screens/driver/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/restaurant_dashboard_screen.dart';
-import '../../../screens/admin/admin_gate.dart';
+import '../../../screens/admin/core/admin_gate.dart';
 import '../../../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../../../web/restaurant/restaurant_landing_page.dart';
 import '../../../web/restaurant/restaurant_web_app.dart';

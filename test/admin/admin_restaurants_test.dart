@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_driver/screens/admin/admin_restaurants_screen.dart';
+import 'package:food_driver/screens/admin/catalog/admin_restaurants_screen.dart';
 import '../helpers/admin_test_helpers.dart';
 
 void main() {
