@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/ordering/order_again_provider.dart';
-import '../services/reorder/reorder_flow.dart';
-import '../core/utils/responsive.dart';
-import '../utils/rating_format.dart';
-import 'app_cached_image.dart';
+import '../../providers/ordering/order_again_provider.dart';
+import '../../services/reorder/reorder_flow.dart';
+import '../../core/utils/responsive.dart';
+import '../../utils/rating_format.dart';
+import '../common/app_cached_image.dart';
 
 /// ⭐ Order Again — the customer's usual orders, one tap away.
 ///

@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/notification_service.dart';
-import '../providers/driver/driver_provider.dart';
-import '../providers/driver/driver_intelligence_provider.dart';
-import '../providers/auth_user/auth_provider.dart';
-import '../config/app_constants.dart';
-import '../utils/friendly_error.dart';
-import '../utils/app_feedback_widgets.dart';
+import '../../services/notification_service.dart';
+import '../../providers/driver/driver_provider.dart';
+import '../../providers/driver/driver_intelligence_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
+import '../../config/app_constants.dart';
+import '../../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 /// Uber-Eats-style order alert that pops in over whatever screen the driver is
 /// on (dashboard included) when new orders are available. Shows every order the

@@ -9,7 +9,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../core/utils/responsive.dart';
-import '../../widgets/quickdash_logo.dart';
+import '../../widgets/common/quickdash_logo.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key, this.role});

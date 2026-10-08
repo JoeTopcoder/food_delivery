@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/delivery/weather_model.dart';
-import '../providers/auth_user/user_provider.dart' show currentTabIndexProvider;
-import '../providers/delivery/weather_provider.dart';
-import '../services/weather_service.dart';
-import '../utils/app_theme.dart';
-import '../utils/est_datetime.dart';
-import 'weather_details_sheet.dart';
+import '../../models/delivery/weather_model.dart';
+import '../../providers/auth_user/user_provider.dart' show currentTabIndexProvider;
+import '../../providers/delivery/weather_provider.dart';
+import '../../services/weather_service.dart';
+import '../../utils/app_theme.dart';
+import '../../utils/est_datetime.dart';
+import '../home/weather_details_sheet.dart';
 
 /// Compact weather card for the customer home screen. Sits below the delivery
 /// address. Non-blocking: it watches an autoDispose FutureProvider and renders

@@ -6,7 +6,7 @@ import '../../../models/driver/driver_intelligence_models.dart';
 import '../../../providers/driver/driver_intelligence_provider.dart';
 import '../../../providers/delivery/location_provider.dart';
 import '../../../utils/app_theme.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 class DemandHeatmapScreen extends ConsumerWidget {
   const DemandHeatmapScreen({super.key});

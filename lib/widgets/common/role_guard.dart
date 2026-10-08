@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_user/auth_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
 
 /// Wraps a screen and only shows it if the user's role is in [allowedRoles].
 /// Otherwise redirects to the correct dashboard for their actual role.

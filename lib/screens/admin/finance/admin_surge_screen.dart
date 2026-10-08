@@ -9,7 +9,7 @@ import '../../../providers/delivery/delivery_region_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 class AdminSurgeScreen extends ConsumerStatefulWidget {
   const AdminSurgeScreen({super.key});

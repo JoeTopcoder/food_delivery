@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_theme.dart';
-import '../providers/auth_user/auth_provider.dart';
-import '../providers/rewards/premium_providers.dart';
-import '../utils/app_feedback_widgets.dart';
+import '../../utils/app_theme.dart';
+import '../../providers/auth_user/auth_provider.dart';
+import '../../providers/rewards/premium_providers.dart';
+import '../../utils/app_feedback_widgets.dart';
 
 /// Circular heart button overlaid on a restaurant card image. Reads and writes
 /// the single shared [favoriteRestaurantIdsProvider], so favouriting a

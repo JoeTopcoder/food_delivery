@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/catalog/menu_model.dart';
-import '../utils/app_theme.dart';
+import '../../models/catalog/menu_model.dart';
+import '../../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 /// Result returned when the user taps "Add Item".

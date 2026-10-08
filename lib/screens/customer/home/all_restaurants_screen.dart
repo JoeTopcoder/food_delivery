@@ -5,8 +5,8 @@ import '../../../utils/restaurant_brand.dart';
 
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';
-import '../../../widgets/restaurant_card.dart';
-import '../../../widgets/search_bar.dart' as search_bar;
+import '../../../widgets/menu/restaurant_card.dart';
+import '../../../widgets/common/search_bar.dart' as search_bar;
 import '../../../utils/friendly_error.dart';
 import '../../../utils/context_extensions.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/app_theme.dart';
-import '../screens/shared/ai_voice_screen.dart';
-import '../models/ordering/order_model.dart';
+import '../../utils/app_theme.dart';
+import '../../screens/shared/ai_voice_screen.dart';
+import '../../models/ordering/order_model.dart';
 
 /// Floating AI button. Drop into any Scaffold's [floatingActionButton].
 ///

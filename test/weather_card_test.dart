@@ -6,7 +6,7 @@ import 'package:food_driver/models/delivery/weather_model.dart';
 import 'package:food_driver/providers/delivery/weather_provider.dart';
 import 'package:food_driver/services/weather_service.dart';
 import 'package:food_driver/utils/est_datetime.dart';
-import 'package:food_driver/widgets/weather_card.dart';
+import 'package:food_driver/widgets/home/weather_card.dart';
 
 Weather _sample({bool stale = false}) => Weather.fromJson({
   'location': {'name': 'Kingston', 'tz_id': 'America/Jamaica'},

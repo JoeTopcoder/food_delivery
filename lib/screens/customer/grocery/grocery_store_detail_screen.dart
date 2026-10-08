@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../widgets/app_cached_image.dart';
+import '../../../widgets/common/app_cached_image.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/catalog/restaurant_model.dart';
@@ -11,8 +11,8 @@ import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../widgets/full_screen_image.dart';
-import '../../../widgets/grocery_cart_dialogs.dart';
+import '../../../widgets/common/full_screen_image.dart';
+import '../../../widgets/grocery/grocery_cart_dialogs.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class GroceryStoreDetailScreen extends ConsumerStatefulWidget {

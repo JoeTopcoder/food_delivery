@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/delivery/peak_time_provider.dart';
-import '../config/app_constants.dart';
+import '../../providers/delivery/peak_time_provider.dart';
+import '../../config/app_constants.dart';
 
 /// Customer-facing Peak Time indicator. Renders nothing unless Peak Time is
 /// currently ON, so it adds no clutter during normal volume. Shown on browsing

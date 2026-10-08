@@ -15,10 +15,10 @@ import '../../../services/notification_service.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../config/app_constants.dart';
-import '../../../widgets/peak_time_banner.dart';
-import '../../../widgets/driver_priority_card.dart';
-import '../../../widgets/driver_order_alert.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/home/peak_time_banner.dart';
+import '../../../widgets/driver/driver_priority_card.dart';
+import '../../../widgets/driver/driver_order_alert.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 import '../../../providers/auth_user/user_provider.dart'
     show restaurantServiceProvider, restaurantByIdProvider, orderServiceProvider;
 import '../../../services/driver/delivery_fee_service.dart';

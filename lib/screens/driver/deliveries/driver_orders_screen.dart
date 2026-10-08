@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../deliveries/available_orders_screen.dart';
 import '../deliveries/active_deliveries_screen.dart';
-import '../../../widgets/ai_fab.dart';
-import '../../../widgets/sos_button.dart';
+import '../../../widgets/common/ai_fab.dart';
+import '../../../widgets/common/sos_button.dart';
 
 /// Driver Orders hub: "Get Orders" (available to accept) and "Active Orders"
 /// (in progress). Only the SELECTED screen is mounted — mounting both full

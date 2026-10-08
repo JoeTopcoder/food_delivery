@@ -16,8 +16,8 @@ import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/context_extensions.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../widgets/ai_fab.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/ai_fab.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 class AvailableOrdersScreen extends ConsumerWidget {
   /// When embedded inside the Orders tabs, this screen drops its own app bar.

@@ -17,7 +17,7 @@ import '../../../../utils/friendly_error.dart';
 import '../../../../config/app_constants.dart';
 import '../../../../config/supabase_config.dart';
 import '../../../../utils/app_logger.dart';
-import '../../../../widgets/outstanding_debt_banner.dart';
+import '../../../../widgets/driver/outstanding_debt_banner.dart';
 
 const _kNavy = Color(0xFF0B3D6B);
 const _kBlue = Color(0xFF1565C0);

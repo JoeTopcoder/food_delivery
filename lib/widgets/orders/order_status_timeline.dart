@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../config/supabase_config.dart';
-import '../utils/friendly_error.dart';
+import '../../config/supabase_config.dart';
+import '../../utils/friendly_error.dart';
 
 /// A vertical timeline of an order's lifecycle — placed, accepted by the store,
 /// assigned to a rider, picked up, out for delivery, delivered / cancelled —
