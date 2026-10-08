@@ -57,25 +57,33 @@ Supabase  (Postgres + RLS + Realtime + Edge Functions)
 
 ---
 
-## 3. `screens/` — grouped by role
+## 3. `screens/` — grouped by role, then by feature
 
-| Folder | Count | For |
-|---|---|---|
-| `screens/admin/` | 79 | Admin console: orders, users, wallets, config, AI staff, reports, dashboards. |
-| `screens/customer/` | 44 | The customer app: home, cart, checkout, grocery, wallet, company, earn… |
-| `screens/driver/` | 23 | Driver app: dashboard, delivery flow, earnings, float. |
-| `screens/restaurant/` | 15 | Restaurant portal: orders, menu, grocery mgmt, staff, cashier shifts. |
-| `screens/legal/` | 13 | 17 compliance/legal screens (privacy, terms, deletion…). |
-| `screens/shared/` | 8 | Cross-role screens (call screen, notifications…). |
-| `screens/company/` | 5 | Company-sponsored ordering (My Company, dashboard, members…). |
-| `screens/auth/` | 4 | Login / signup / reset (classic). Newer auth is in `features/auth/`. |
-| `screens/stripe/` | 4 | Stripe Connect / payout onboarding. |
-| `screens/staff/` | 1 | Accept-staff-invite. |
-| `screens/permissions/` | 1 | Runtime permission prompts. |
+The four big role folders are now split into **feature subfolders**:
 
-> `screens/admin/` (79) and `screens/customer/` (44) are the two big flat folders.
-> If they grow further, the next cleanup is to split them into feature subfolders
-> (e.g. `customer/{home,cart,grocery,wallet,company}`) — see §7.
+| Role folder | Feature subfolders |
+|---|---|
+| `screens/customer/` | `home/` `ordering/` `grocery/` `wallet_payments/` `rewards/` `account/` |
+| `screens/admin/` | `core/` `operations/` `people/` `catalog/` `finance/` `marketing/` `ai/` `config/` (+ `ai_staff/`) |
+| `screens/driver/` | `deliveries/` `earnings/` `onboarding/` `performance/` `home/` |
+| `screens/restaurant/` | `home/` `orders/` `menu/` `marketing/` `staff/` |
+
+Smaller role folders stay flat: `legal/` (compliance screens), `shared/`
+(cross-role), `company/` (sponsored ordering), `auth/`, `stripe/`, `staff/`,
+`permissions/`.
+
+Quick guide to the subfolders:
+- **customer**: `home` = browse/discovery/reviews · `ordering` = cart/checkout/order
+  tracking/group orders · `grocery` · `wallet_payments` · `rewards` =
+  referrals/loyalty/membership · `account` = profile/address/notifications.
+- **admin**: `core` = shell/overview/MFA · `operations` = orders/dispatch/support ·
+  `people` = users/drivers · `catalog` = restaurants/menu/grocery · `finance` =
+  payouts/pricing/wallet · `marketing` = promos/banners/campaigns · `ai` =
+  AI/intelligence/analytics · `config` = regions/services/settings.
+- **driver**: `deliveries` · `earnings` · `onboarding` = KYC/verification ·
+  `performance` = priority/leaderboard · `home` = dashboard/profile.
+- **restaurant**: `home` = dashboard/settings · `orders` = order mgmt/picking ·
+  `menu` · `marketing` · `staff`.
 
 ---
 
@@ -153,11 +161,15 @@ Subfolders already exist for most areas:
 
 ## 7. Known tidy-ups (optional, not yet done)
 
-These are safe to do later as **bounded, build-verified** passes — none are required:
+Done so far (incremental, each analyze + build verified):
+- ✅ `screens/customer/`, `screens/admin/`, `screens/driver/`, `screens/restaurant/`
+  split into feature subfolders (§3).
 
-1. Split `screens/admin/` (79) and `screens/customer/` (44) into feature subfolders.
+Still open — safe as **bounded, build-verified** passes:
+
+1. Group `providers/` (45), `models/` (43), `widgets/` (37) by area. (Highest churn —
+   these are imported app-wide.)
 2. Move the 21 loose `services/*.dart` into their domain subfolders (§4 table).
-3. Group `providers/` (45) and `widgets/` (37) by area.
 
 Each involves rewriting imports, so do one at a time and run `flutter analyze`
 (baseline = a few pre-existing issues) before committing.
