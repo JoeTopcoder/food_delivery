@@ -5,7 +5,7 @@ import '../../../providers/admin_provider.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../screens/admin/admin_wallet_adjust_sheet.dart';
+import '../../../screens/admin/finance/admin_wallet_adjust_sheet.dart';
 
 class WebAdminUsersPage extends ConsumerStatefulWidget {
   const WebAdminUsersPage({super.key});
