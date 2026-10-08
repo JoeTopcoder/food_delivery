@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../widgets/common/app_cached_image.dart';
 import '../../../widgets/common/daily_verse.dart';
 import '../../../widgets/home/weather_card.dart';
+import '../../../widgets/home/sponsored_ad_carousel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../../../models/catalog/restaurant_model.dart';
@@ -805,6 +806,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               // Dynamic Promotional Banners
               SliverToBoxAdapter(
                 child: RepaintBoundary(child: _DynamicBannerCarousel()),
+              ),
+
+              // Sponsored restaurant ads (image/video) — hidden when the feature
+              // is off or there are no eligible ads; never blocks the home screen.
+              const SliverToBoxAdapter(
+                child: RepaintBoundary(child: SponsoredAdCarousel()),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 6)),
