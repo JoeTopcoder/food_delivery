@@ -8,6 +8,8 @@ import '../../../widgets/common/app_cached_image.dart';
 import '../../../widgets/common/daily_verse.dart';
 import '../../../widgets/home/weather_card.dart';
 import '../../../widgets/home/sponsored_ad_carousel.dart';
+import '../../../models/catalog/ad_model.dart';
+import '../../../providers/catalog/ads_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../../../models/catalog/restaurant_model.dart';
@@ -806,12 +808,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               // Dynamic Promotional Banners
               SliverToBoxAdapter(
                 child: RepaintBoundary(child: _DynamicBannerCarousel()),
-              ),
-
-              // Sponsored restaurant ads (image/video) — hidden when the feature
-              // is off or there are no eligible ads; never blocks the home screen.
-              const SliverToBoxAdapter(
-                child: RepaintBoundary(child: SponsoredAdCarousel()),
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 6)),
@@ -1663,17 +1659,27 @@ class _DynamicBannerCarouselState
       });
     });
 
+    // Sponsored video/image ads share THIS carousel. They're placed first so
+    // they get prime visibility, then the ordinary banners follow.
+    final addr = ref.watch(selectedAddressProvider);
+    final ads = ref
+            .watch(sponsoredAdsProvider(adQuery(addr?.latitude, addr?.longitude)))
+            .valueOrNull ??
+        const <SponsoredAd>[];
+
     return bannersAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
       data: (banners) {
-        if (banners.isEmpty) return const SizedBox.shrink();
+        // Combined slide list: sponsored ads first, then banners.
+        final slides = <Object>[...ads, ...banners];
+        if (slides.isEmpty) return const SizedBox.shrink();
 
         // ref.listen doesn't fire for the value already available on first
         // build, so kick off the timer here if it hasn't started yet.
-        if (_autoScrollTimer == null) {
+        if (_autoScrollTimer == null || _bannerCount != slides.length) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _startAutoScroll(banners.length);
+            if (mounted) _startAutoScroll(slides.length);
           });
         }
 
@@ -1688,22 +1694,28 @@ class _DynamicBannerCarouselState
               height: bannerHeight,
               child: PageView.builder(
                 controller: _pageCtrl,
-                itemCount: banners.length,
+                itemCount: slides.length,
                 onPageChanged: (i) => setState(() => _currentPage = i),
                 itemBuilder: (context, index) {
-                  final banner = banners[index];
-                  return _bannerCard(context, banner);
+                  final slide = slides[index];
+                  if (slide is SponsoredAd) {
+                    return SponsoredAdSlide(
+                      ad: slide,
+                      isActive: _currentPage == index,
+                    );
+                  }
+                  return _bannerCard(context, slide as app.Banner);
                 },
               ),
             ),
-            if (banners.length > 1) ...[
+            if (slides.length > 1) ...[
               const SizedBox(height: 8),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    banners.length,
+                    slides.length,
                     (i) => AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       margin: const EdgeInsets.symmetric(horizontal: 3),
