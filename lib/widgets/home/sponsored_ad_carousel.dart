@@ -3,75 +3,56 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../config/supabase_config.dart';
-import '../../core/utils/responsive.dart';
 import '../../models/catalog/ad_model.dart';
 import '../../models/catalog/restaurant_model.dart';
 import '../../providers/catalog/ads_provider.dart';
-import '../../providers/auth_user/address_provider.dart';
 import '../../utils/app_theme.dart';
 import '../common/app_cached_image.dart';
 
-/// Sponsored restaurant ads carousel (image + short video creatives). Rendered
-/// below the ordinary promo banners; shows nothing when the feature is off or
-/// there are no eligible ads. Non-blocking: any failure renders nothing.
+/// A single sponsored-ad slide (image or short video) rendered INSIDE the shared
+/// home banner carousel. The parent carousel passes [isActive] = true only for
+/// the currently visible page, so just one video plays at a time; it pauses and
+/// disposes when the page changes, and pauses when the app backgrounds.
 ///
-/// Video behaviour: muted autoplay of only the CURRENTLY visible page, one at a
-/// time; pauses when the page changes, the app backgrounds, or the widget is
-/// disposed; sound requires a tap; falls back to the thumbnail on load/playback
-/// failure. Analytics (impression ≥1s on screen, video start/complete, CTA
-/// click) are reported deduped per session.
-class SponsoredAdCarousel extends ConsumerWidget {
-  const SponsoredAdCarousel({super.key});
+/// Video: muted autoplay, loops, no play/pause button (tap the mute control for
+/// sound). Falls back to the thumbnail on load/playback failure. Analytics
+/// (impression >=1s, video start/complete, CTA) are reported deduped per session.
+class SponsoredAdSlide extends ConsumerStatefulWidget {
+  final SponsoredAd ad;
+  final bool isActive;
+  const SponsoredAdSlide({super.key, required this.ad, required this.isActive});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final addr = ref.watch(selectedAddressProvider);
-    final q = adQuery(addr?.latitude, addr?.longitude);
-    final adsAsync = ref.watch(sponsoredAdsProvider(q));
-    return adsAsync.maybeWhen(
-      data: (ads) => ads.isEmpty ? const SizedBox.shrink() : _AdPager(ads: ads),
-      orElse: () => const SizedBox.shrink(),
-    );
-  }
+  ConsumerState<SponsoredAdSlide> createState() => _SponsoredAdSlideState();
 }
 
-class _AdPager extends ConsumerStatefulWidget {
-  final List<SponsoredAd> ads;
-  const _AdPager({required this.ads});
-  @override
-  ConsumerState<_AdPager> createState() => _AdPagerState();
-}
-
-class _AdPagerState extends ConsumerState<_AdPager>
+class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
     with WidgetsBindingObserver {
-  final _pageCtrl = PageController();
-  int _current = 0;
-  Timer? _advanceTimer;
-  Timer? _impressionTimer;
-  bool _interacting = false; // user turned sound on / touched the video
-  final Set<String> _impressed = {};
-
   VideoPlayerController? _video;
-  int _videoForPage = -1;
   bool _muted = true;
-  bool _startedLogged = false;
-  bool _completeLogged = false;
+  bool _started = false;
+  bool _completed = false;
+  Timer? _impressionTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onPage(0, first: true));
+    if (widget.isActive) _onActivate();
+  }
+
+  @override
+  void didUpdateWidget(SponsoredAdSlide old) {
+    super.didUpdateWidget(old);
+    if (widget.isActive && !old.isActive) _onActivate();
+    if (!widget.isActive && old.isActive) _onDeactivate();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _advanceTimer?.cancel();
     _impressionTimer?.cancel();
-    _video?.removeListener(_videoListener);
-    _video?.dispose();
-    _pageCtrl.dispose();
+    _disposeVideo();
     super.dispose();
   }
 
@@ -79,59 +60,38 @@ class _AdPagerState extends ConsumerState<_AdPager>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) {
       _video?.pause();
-      _advanceTimer?.cancel();
-    } else {
-      if (_videoForPage == _current && _video != null && _video!.value.isInitialized) {
-        _video!.play();
-      }
-      _armAdvance();
+    } else if (widget.isActive && _video != null && _video!.value.isInitialized) {
+      _video!.play();
     }
   }
 
-  SponsoredAd get _cur => widget.ads[_current];
-
-  void _onPage(int i, {bool first = false}) {
-    if (!mounted) return;
-    setState(() => _current = i);
-    _interacting = false;
-    // teardown any previous video
-    _teardownVideo();
-    // impression: count once the page is on screen for 1 continuous second
+  void _onActivate() {
+    // impression after 1 continuous second on screen (server dedupes per session)
     _impressionTimer?.cancel();
     _impressionTimer = Timer(const Duration(seconds: 1), () {
-      if (mounted && _current == i) _logImpression(widget.ads[i]);
+      if (mounted && widget.isActive) _log('impression');
     });
-    // set up video for this page if needed
-    if (widget.ads[i].isVideo && (widget.ads[i].playbackUrl?.isNotEmpty ?? false)) {
-      _initVideo(i);
+    if (widget.ad.isVideo && (widget.ad.playbackUrl?.isNotEmpty ?? false)) {
+      _initVideo();
     }
-    _armAdvance();
   }
 
-  void _teardownVideo() {
-    _advanceTimer?.cancel();
-    if (_video != null) {
-      _video!.removeListener(_videoListener);
-      _video!.pause();
-      _video!.dispose();
-      _video = null;
-      _videoForPage = -1;
-    }
-    _muted = true;
-    _startedLogged = false;
-    _completeLogged = false;
+  void _onDeactivate() {
+    _impressionTimer?.cancel();
+    _disposeVideo();
+    if (mounted) setState(() {});
   }
 
-  Future<void> _initVideo(int page) async {
-    final url = widget.ads[page].playbackUrl!;
-    final c = VideoPlayerController.networkUrl(Uri.parse(url));
+  Future<void> _initVideo() async {
+    final c = VideoPlayerController.networkUrl(Uri.parse(widget.ad.playbackUrl!));
     _video = c;
-    _videoForPage = page;
+    _started = false;
+    _completed = false;
     try {
-      await c.setLooping(false);
+      await c.setLooping(true); // repeat the clip
       await c.setVolume(0);
       await c.initialize();
-      if (!mounted || _videoForPage != page || _current != page) {
+      if (!mounted || !widget.isActive || _video != c) {
         c.dispose();
         if (_video == c) _video = null;
         return;
@@ -140,50 +100,38 @@ class _AdPagerState extends ConsumerState<_AdPager>
       await c.play();
       if (mounted) setState(() {});
     } catch (_) {
-      // playback failed -> fall back to thumbnail (handled in build)
       if (_video == c) {
         c.dispose();
         _video = null;
-        _videoForPage = -1;
       }
       if (mounted) setState(() {});
     }
   }
 
+  void _disposeVideo() {
+    final c = _video;
+    if (c != null) {
+      c.removeListener(_videoListener);
+      c.pause();
+      c.dispose();
+      _video = null;
+    }
+    _muted = true;
+  }
+
   void _videoListener() {
     final c = _video;
     if (c == null || !c.value.isInitialized) return;
-    if (!_startedLogged && c.value.isPlaying) {
-      _startedLogged = true;
-      _logEvent(_cur, 'video_start');
+    if (!_started && c.value.isPlaying) {
+      _started = true;
+      _log('video_start');
     }
     final dur = c.value.duration.inMilliseconds;
     final pos = c.value.position.inMilliseconds;
-    if (!_completeLogged && dur > 0 && pos >= dur * 0.95) {
-      _completeLogged = true;
-      _logEvent(_cur, 'video_complete');
+    if (!_completed && dur > 0 && pos >= dur * 0.95) {
+      _completed = true;
+      _log('video_complete');
     }
-  }
-
-  // Auto-advance: images dwell 6s; videos advance when finished (listener-driven
-  // via the clamped duration), capped at 20s so a stalled video can't trap the
-  // carousel. Never advance while the user is interacting with a video.
-  void _armAdvance() {
-    _advanceTimer?.cancel();
-    if (widget.ads.length < 2 || _interacting) return;
-    Duration dwell = const Duration(seconds: 6);
-    if (_cur.isVideo) {
-      final d = _video?.value.duration ?? const Duration(seconds: 10);
-      dwell = d > const Duration(seconds: 20) ? const Duration(seconds: 20) : d;
-      if (dwell < const Duration(seconds: 4)) dwell = const Duration(seconds: 6);
-      dwell += const Duration(milliseconds: 400);
-    }
-    _advanceTimer = Timer(dwell, () {
-      if (!mounted || _interacting) return;
-      final next = (_current + 1) % widget.ads.length;
-      _pageCtrl.animateToPage(next,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-    });
   }
 
   void _toggleMute() {
@@ -192,90 +140,39 @@ class _AdPagerState extends ConsumerState<_AdPager>
     setState(() {
       _muted = !_muted;
       c.setVolume(_muted ? 0 : 1);
-      _interacting = !_muted; // unmuting = interacting -> stop auto-advance
     });
-    if (_interacting) _advanceTimer?.cancel(); else _armAdvance();
   }
 
-  void _logImpression(SponsoredAd ad) {
-    if (_impressed.contains(ad.creativeId)) return;
-    _impressed.add(ad.creativeId);
-    _logEvent(ad, 'impression');
-  }
-
-  void _logEvent(SponsoredAd ad, String type) {
+  void _log(String type) {
     final session = ref.read(adSessionIdProvider);
     ref.read(adsServiceProvider).recordEvent(
-          campaignId: ad.campaignId,
+          campaignId: widget.ad.campaignId,
           eventType: type,
           sessionId: session,
-          creativeId: ad.creativeId,
-          dedupeKey: '$session:${ad.creativeId}:$type',
+          creativeId: widget.ad.creativeId,
+          dedupeKey: '$session:${widget.ad.creativeId}:$type',
         );
   }
 
-  Future<void> _onCta(SponsoredAd ad) async {
-    _logEvent(ad, 'cta_click');
+  Future<void> _onCta() async {
+    _log('cta_click');
     try {
       final data = await SupabaseConfig.client
           .from('restaurants')
           .select()
-          .eq('id', ad.restaurantId)
+          .eq('id', widget.ad.restaurantId)
           .single();
       final restaurant = Restaurant.fromJson(data);
       if (!mounted) return;
-      // Revalidate: unavailable dish falls back to the restaurant menu.
       Navigator.pushNamed(context, '/restaurant-detail', arguments: restaurant);
-    } catch (_) {
-      // restaurant gone -> silently ignore (no broken navigation)
-    }
+    } catch (_) {/* restaurant gone -> ignore */}
   }
 
   @override
   Widget build(BuildContext context) {
-    final h = (MediaQuery.of(context).size.width * 0.34).clamp(140.0, 200.0);
-    return Column(
-      children: [
-        SizedBox(
-          height: h,
-          child: PageView.builder(
-            controller: _pageCtrl,
-            itemCount: widget.ads.length,
-            onPageChanged: (i) => _onPage(i),
-            itemBuilder: (_, i) => _card(widget.ads[i], i),
-          ),
-        ),
-        if (widget.ads.length > 1) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.ads.length,
-              (i) => AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: _current == i ? 20 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: _current == i
-                      ? AppTheme.primaryColor
-                      : Theme.of(context).colorScheme.outline.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _card(SponsoredAd ad, int index) {
+    final ad = widget.ad;
     final scheme = Theme.of(context).colorScheme;
-    final showVideo = ad.isVideo &&
-        _videoForPage == index &&
-        _video != null &&
-        _video!.value.isInitialized;
+    final showVideo = ad.isVideo && _video != null && _video!.value.isInitialized;
 
     Widget media;
     if (showVideo) {
@@ -303,17 +200,15 @@ class _AdPagerState extends ConsumerState<_AdPager>
           '${ad.headline != null ? ': ${ad.headline}' : ''}',
       button: true,
       child: GestureDetector(
-        onTap: () => _onCta(ad),
+        onTap: _onCta,
         child: Container(
-          margin: EdgeInsets.symmetric(
-              horizontal: Responsive.horizontalPadding(context)),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
           child: Stack(
             fit: StackFit.expand,
             children: [
               media,
-              // Readability overlay
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -326,7 +221,6 @@ class _AdPagerState extends ConsumerState<_AdPager>
                   ),
                 ),
               ),
-              // Sponsored label
               Positioned(
                 top: 8,
                 left: 8,
@@ -340,36 +234,24 @@ class _AdPagerState extends ConsumerState<_AdPager>
                       style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
               ),
-              // Video controls (sound + play/pause) — only for the live video
               if (showVideo)
                 Positioned(
                   top: 6,
                   right: 6,
-                  child: Row(children: [
-                    _ctrlBtn(
-                      icon: _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      label: _muted ? 'Unmute ad' : 'Mute ad',
+                  child: Semantics(
+                    label: _muted ? 'Unmute ad' : 'Mute ad',
+                    button: true,
+                    child: GestureDetector(
                       onTap: _toggleMute,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: Icon(_muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                            color: Colors.white, size: 16),
+                      ),
                     ),
-                    const SizedBox(width: 6),
-                    _ctrlBtn(
-                      icon: _video!.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      label: _video!.value.isPlaying ? 'Pause ad' : 'Play ad',
-                      onTap: () {
-                        setState(() {
-                          if (_video!.value.isPlaying) {
-                            _video!.pause();
-                            _interacting = true;
-                            _advanceTimer?.cancel();
-                          } else {
-                            _video!.play();
-                          }
-                        });
-                      },
-                    ),
-                  ]),
+                  ),
                 ),
-              // Text + CTA
               Positioned(
                 left: 12,
                 right: 12,
@@ -386,20 +268,18 @@ class _AdPagerState extends ConsumerState<_AdPager>
                             Text(ad.restaurantName!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
                           if (ad.headline != null && ad.headline!.trim().isNotEmpty)
                             Text(ad.headline!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9), fontSize: 12)),
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12)),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () => _onCta(ad),
+                      onPressed: _onCta,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
@@ -414,21 +294,6 @@ class _AdPagerState extends ConsumerState<_AdPager>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _ctrlBtn({required IconData icon, required String label, required VoidCallback onTap}) {
-    return Semantics(
-      label: label,
-      button: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(5),
-          decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-          child: Icon(icon, color: Colors.white, size: 16),
         ),
       ),
     );
