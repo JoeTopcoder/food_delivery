@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/address_model.dart';
+import '../models/user/address_model.dart';
 
 class AddressService {
   final SupabaseClient _client;

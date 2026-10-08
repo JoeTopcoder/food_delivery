@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/promo_model.dart';
+import '../../models/rewards/promo_model.dart';
 import '../../services/promo_service.dart';
 
 final promoServiceProvider = Provider<PromoService>((ref) {

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/driver_intelligence_models.dart';
+import '../../models/driver/driver_intelligence_models.dart';
 import '../../utils/app_logger.dart';
 
 /// Client service for the `driver-intelligence` edge function.

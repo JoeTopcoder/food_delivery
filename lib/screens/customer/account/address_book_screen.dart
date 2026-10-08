@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/address_model.dart';
+import '../../../models/user/address_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/auth_user/address_provider.dart';
 import '../account/map_location_picker_screen.dart';

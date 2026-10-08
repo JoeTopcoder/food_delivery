@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_driver/models/peak_time_model.dart';
+import 'package:food_driver/models/delivery/peak_time_model.dart';
 
 /// Unit tests for the client-side Peak Time model. The authoritative activation
 /// rule (`is_peak_time = enabled AND active_order_count > threshold`) lives in

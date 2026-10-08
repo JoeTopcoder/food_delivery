@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:json_annotation/json_annotation.dart';
-import '../utils/est_datetime.dart';
+import '../../utils/est_datetime.dart';
 
 part 'restaurant_model.g.dart';
 

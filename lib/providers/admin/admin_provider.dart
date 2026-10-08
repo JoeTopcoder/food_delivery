@@ -4,9 +4,9 @@ import '../../services/admin_service.dart';
 import '../../services/notification_service.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_logger.dart';
-import '../../models/user_model.dart' as user_models;
-import '../../models/restaurant_model.dart';
-import '../../models/driver_model.dart';
+import '../../models/user/user_model.dart' as user_models;
+import '../../models/catalog/restaurant_model.dart';
+import '../../models/driver/driver_model.dart';
 
 /// Admin service provider
 final adminServiceProvider = riverpod_pkg.Provider<AdminService>((ref) {

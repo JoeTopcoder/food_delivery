@@ -2,7 +2,7 @@
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../models/user_model.dart' as user_models;
+import '../../../models/user/user_model.dart' as user_models;
 import '../../../providers/admin/admin_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';

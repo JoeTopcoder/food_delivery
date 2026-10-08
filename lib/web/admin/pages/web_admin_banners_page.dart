@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/supabase_config.dart';
-import '../../../models/banner_model.dart' as app;
+import '../../../models/comms/banner_model.dart' as app;
 import '../../../providers/admin/banner_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';

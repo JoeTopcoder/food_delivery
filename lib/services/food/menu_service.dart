@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
-import '../../models/menu_model.dart';
+import '../../models/catalog/menu_model.dart';
 import '../../utils/app_logger.dart';
 
 class MenuService {

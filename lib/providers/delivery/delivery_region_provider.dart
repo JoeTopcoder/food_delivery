@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/delivery_region_model.dart';
+import '../../models/delivery/delivery_region_model.dart';
 import '../../services/driver/delivery_region_service.dart';
 
 final deliveryRegionServiceProvider = Provider<DeliveryRegionService>((ref) {

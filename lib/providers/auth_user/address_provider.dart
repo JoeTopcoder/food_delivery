@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/address_model.dart';
+import '../../models/user/address_model.dart';
 import '../../services/address_service.dart';
 import '../auth_user/auth_provider.dart';
 

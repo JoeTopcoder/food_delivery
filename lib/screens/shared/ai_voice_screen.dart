@@ -12,7 +12,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';
 import '../shared/chat_screen.dart';
-import '../../models/order_model.dart';
+import '../../models/ordering/order_model.dart';
 import '../../core/utils/responsive.dart';
 
 /// Full-screen AI Voice Assistant.

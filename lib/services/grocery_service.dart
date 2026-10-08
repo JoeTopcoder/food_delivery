@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/restaurant_model.dart';
-import '../models/menu_model.dart';
-import '../models/grocery_category_model.dart';
-import '../models/inventory_model.dart';
-import '../models/product_image_result.dart';
+import '../models/catalog/restaurant_model.dart';
+import '../models/catalog/menu_model.dart';
+import '../models/catalog/grocery_category_model.dart';
+import '../models/catalog/inventory_model.dart';
+import '../models/platform/product_image_result.dart';
 import '../config/app_constants.dart';
 import '../utils/app_logger.dart';
 

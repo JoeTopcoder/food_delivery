@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/user_event_model.dart';
+import '../../models/user/user_event_model.dart';
 import '../../utils/app_logger.dart';
 
 /// Tracks every meaningful user interaction for the AI engine.

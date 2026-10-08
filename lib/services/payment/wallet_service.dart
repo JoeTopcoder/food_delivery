@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/wallet_model.dart';
+import '../../models/money/wallet_model.dart';
 import '../../utils/app_logger.dart';
 
 class WalletService {

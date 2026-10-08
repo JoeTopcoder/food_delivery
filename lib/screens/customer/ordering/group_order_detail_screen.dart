@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../models/group_order_model.dart';
+import '../../../models/ordering/group_order_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
 import '../../../providers/auth_user/user_provider.dart';

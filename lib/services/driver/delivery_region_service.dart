@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/delivery_region_model.dart';
+import '../../models/delivery/delivery_region_model.dart';
 
 class DeliveryRegionService {
   final SupabaseClient _client;

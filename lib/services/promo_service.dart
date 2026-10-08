@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/promo_model.dart';
+import '../models/rewards/promo_model.dart';
 import '../utils/app_logger.dart';
 
 class PromoService {

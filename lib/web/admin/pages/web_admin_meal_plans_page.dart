@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_constants.dart';
-import '../../../models/subscription_model.dart';
+import '../../../models/rewards/subscription_model.dart';
 import '../../../providers/platform/feature_providers.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

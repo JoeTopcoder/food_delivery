@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_constants.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
-import '../../../models/order_model.dart';
+import '../../../models/ordering/order_model.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 

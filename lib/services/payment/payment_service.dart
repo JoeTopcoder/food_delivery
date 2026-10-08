@@ -2,8 +2,8 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
-import '../../models/order_model.dart';
-import '../../models/saved_card_model.dart';
+import '../../models/ordering/order_model.dart';
+import '../../models/money/saved_card_model.dart';
 import '../../utils/app_logger.dart';
 
 /// Payment method enum

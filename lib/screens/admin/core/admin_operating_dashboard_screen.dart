@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_constants.dart';
-import '../../../models/admin_metrics_model.dart';
+import '../../../models/platform/admin_metrics_model.dart';
 import '../../../providers/admin/admin_metrics_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

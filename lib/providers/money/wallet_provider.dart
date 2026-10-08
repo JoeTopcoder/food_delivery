@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/wallet_model.dart';
+import '../../models/money/wallet_model.dart';
 import '../../services/payment/wallet_service.dart';
 import '../../utils/app_logger.dart';
 import '../auth_user/auth_provider.dart';

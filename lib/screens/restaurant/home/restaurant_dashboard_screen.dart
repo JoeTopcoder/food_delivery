@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
-import '../../../models/order_model.dart';
+import '../../../models/ordering/order_model.dart';
 import '../../../utils/app_theme.dart';
 import '../../../core/utils/responsive.dart';
 import '../../shared/bank_info_screen.dart';
@@ -12,7 +12,7 @@ import '../../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../marketing/restaurant_offer_screen.dart';
 import '../home/restaurant_onboarding_screen.dart';
-import '../../../models/restaurant_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
 
 class RestaurantDashboardScreen extends ConsumerStatefulWidget {
   const RestaurantDashboardScreen({super.key});

@@ -4,7 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_constants.dart';
-import '../../../models/order_model.dart';
+import '../../../models/ordering/order_model.dart';
 import '../../../providers/driver/driver_provider.dart';
 import '../../../providers/driver/driver_intelligence_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';

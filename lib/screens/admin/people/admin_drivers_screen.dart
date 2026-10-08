@@ -2,7 +2,7 @@
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../models/driver_model.dart';
+import '../../../models/driver/driver_model.dart';
 import '../../../providers/admin/admin_provider.dart';
 import '../../../providers/driver/driver_provider.dart';
 import '../../../config/app_constants.dart';

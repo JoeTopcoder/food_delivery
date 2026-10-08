@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/earning_model.dart';
+import '../models/money/earning_model.dart';
 import '../utils/app_logger.dart';
 
 class EarningService {

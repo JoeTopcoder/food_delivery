@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
-import '../../models/recommendation_model.dart';
-import '../../models/user_intelligence_model.dart';
+import '../../models/catalog/recommendation_model.dart';
+import '../../models/user/user_intelligence_model.dart';
 import '../../services/ai/behavior_tracking_service.dart';
 import '../../services/ai/recommendation_service.dart';
 import '../../config/app_constants.dart';

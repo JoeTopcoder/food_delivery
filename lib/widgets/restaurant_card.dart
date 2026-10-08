@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/restaurant_model.dart';
+import '../models/catalog/restaurant_model.dart';
 import '../utils/app_theme.dart';
 import 'app_cached_image.dart';
 import 'favorite_heart_button.dart';

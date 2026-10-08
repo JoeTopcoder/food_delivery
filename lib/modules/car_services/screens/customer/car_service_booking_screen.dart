@@ -8,7 +8,7 @@ import 'package:food_driver/modules/car_services/models/customer_vehicle.dart';
 import 'package:food_driver/modules/car_services/models/service_booking_item.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
 import 'package:food_driver/config/app_constants.dart';
-import 'package:food_driver/models/address_model.dart';
+import 'package:food_driver/models/user/address_model.dart';
 import 'package:food_driver/providers/auth_user/address_provider.dart';
 import 'package:food_driver/providers/auth_user/auth_provider.dart';
 import 'package:food_driver/screens/customer/wallet_payments/payment_screen.dart';

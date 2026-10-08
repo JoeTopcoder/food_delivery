@@ -1,5 +1,5 @@
-import '../../../../models/menu_model.dart';
-import '../../../../models/restaurant_model.dart';
+import '../../../../models/catalog/menu_model.dart';
+import '../../../../models/catalog/restaurant_model.dart';
 
 /// One real menu item resolved from a [ParsedVoiceOrderItem] — always a
 /// real [MenuItem] re-fetched from the database, with real [MenuItemSide]/

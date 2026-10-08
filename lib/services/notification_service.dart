@@ -10,7 +10,7 @@ import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/chat_model.dart';
+import '../models/comms/chat_model.dart';
 import '../utils/app_logger.dart';
 
 /// Tracks call IDs already shown to prevent duplicate call notifications

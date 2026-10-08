@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/supabase_config.dart';
-import '../../models/refund_model.dart';
-import '../../models/group_order_model.dart';
-import '../../models/subscription_model.dart';
-import '../../models/feedback_model.dart';
+import '../../models/money/refund_model.dart';
+import '../../models/ordering/group_order_model.dart';
+import '../../models/rewards/subscription_model.dart';
+import '../../models/platform/feedback_model.dart';
 import '../../services/payment/refund_service.dart';
 import '../../services/group_order_service.dart';
 import '../../services/payment/subscription_service.dart';

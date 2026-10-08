@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
-import '../../models/menu_model.dart';
+import '../../models/catalog/menu_model.dart';
 import '../auth_user/auth_provider.dart';
 import '../platform/feature_providers.dart';
 
