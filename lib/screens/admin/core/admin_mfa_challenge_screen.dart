@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../services/mfa_service.dart';
 import '../../../utils/app_theme.dart';
 import '../core/admin_mfa_setup_screen.dart';

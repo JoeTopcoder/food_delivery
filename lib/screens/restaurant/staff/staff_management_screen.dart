@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/restaurant/staff_service.dart';
 import '../../../utils/app_theme.dart';
-import '../../../providers/user_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 
 final _svc = StaffService();
 String _money(int? cents) => cents == null ? '—' : 'J\$${(cents / 100).toStringAsFixed(2)}';

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_constants.dart';
-import '../providers/hotbite_picks_provider.dart';
-import '../providers/user_provider.dart';
+import '../providers/catalog/hotbite_picks_provider.dart';
+import '../providers/auth_user/user_provider.dart';
 import '../core/utils/responsive.dart';
 import '../utils/rating_format.dart';
 import 'app_cached_image.dart';

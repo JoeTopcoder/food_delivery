@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
 import '../../../models/menu_model.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../services/food/menu_service.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

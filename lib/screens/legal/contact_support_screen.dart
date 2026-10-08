@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
 import '../../services/compliance_service.dart';
 import '../../utils/app_theme.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
 
 class ContactSupportScreen extends ConsumerStatefulWidget {
   const ContactSupportScreen({super.key});

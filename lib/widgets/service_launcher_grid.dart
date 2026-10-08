@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/feature_providers.dart';
+import '../providers/platform/feature_providers.dart';
 import '../core/utils/responsive.dart';
 import '../screens/customer/grocery/grocery_screen.dart';
 import '../screens/customer/home/restaurants_by_category_screen.dart';

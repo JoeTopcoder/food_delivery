@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/core/utils/responsive.dart';
 import 'package:food_driver/modules/car_services/models/car_service_provider_image.dart';
 import 'package:food_driver/modules/car_services/providers/car_services_providers.dart';
-import 'package:food_driver/providers/auth_provider.dart';
+import 'package:food_driver/providers/auth_user/auth_provider.dart';
 import 'package:food_driver/utils/app_logger.dart';
 import 'package:image_picker/image_picker.dart';
 

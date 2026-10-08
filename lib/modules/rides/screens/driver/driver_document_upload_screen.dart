@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../providers/auth_provider.dart';
+import '../../../../providers/auth_user/auth_provider.dart';
 import '../../providers/driver_document_provider.dart';
 import '../../services/driver_document_service.dart';
 import '../../../../utils/friendly_error.dart';

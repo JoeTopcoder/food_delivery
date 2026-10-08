@@ -152,4 +152,4 @@ final laundryProviderSplitsProvider =
 });
 
 // Wallet balance is now served by the unified walletBalanceStreamProvider
-// from lib/providers/wallet_provider.dart — use that everywhere.
+// from lib/providers/money/wallet_provider.dart — use that everywhere.

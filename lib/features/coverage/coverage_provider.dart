@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_constants.dart';
 import '../../config/supabase_config.dart';
-import '../../providers/user_provider.dart';
+import '../../providers/auth_user/user_provider.dart';
 
 /// Whether we can actually deliver to where this customer is.
 class Coverage {

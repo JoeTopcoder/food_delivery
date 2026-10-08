@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
-import 'package:food_driver/providers/auth_provider.dart';
-import 'package:food_driver/providers/feature_providers.dart';
+import 'package:food_driver/providers/auth_user/auth_provider.dart';
+import 'package:food_driver/providers/platform/feature_providers.dart';
 import 'package:intl/intl.dart';
 
 const _kBlue = Color(0xFF2563EB);

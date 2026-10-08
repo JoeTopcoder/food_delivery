@@ -4,8 +4,8 @@ import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../config/app_constants.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/loyalty_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/rewards/loyalty_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/context_extensions.dart';
 

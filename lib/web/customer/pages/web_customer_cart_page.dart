@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_constants.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 
 class WebCustomerCartPage extends ConsumerWidget {
   final VoidCallback onCheckout;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/notification_provider.dart';
+import '../../../providers/comms/notification_provider.dart';
 
 class WebCustomerNotificationsPage extends ConsumerWidget {
   const WebCustomerNotificationsPage({super.key});

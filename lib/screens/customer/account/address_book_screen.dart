@@ -2,8 +2,8 @@
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/address_model.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/address_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/auth_user/address_provider.dart';
 import '../account/map_location_picker_screen.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';

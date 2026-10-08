@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/address_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_user/address_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import 'coverage_provider.dart';

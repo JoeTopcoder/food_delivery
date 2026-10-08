@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/restaurant_model.dart';
-import '../../../providers/user_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
 import '../../../widgets/app_cached_image.dart';
 import '../../../utils/rating_format.dart';
 import '../../../utils/friendly_error.dart';

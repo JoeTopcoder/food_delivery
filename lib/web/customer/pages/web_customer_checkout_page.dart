@@ -5,10 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
 import '../../../models/address_model.dart';
 import '../../../models/order_model.dart';
-import '../../../providers/address_provider.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/user_provider.dart';
-import '../../../providers/wallet_provider.dart';
+import '../../../providers/auth_user/address_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../providers/money/wallet_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 

@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../providers/admin_provider.dart';
+import '../../../providers/admin/admin_provider.dart';
 import '../../../utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../../utils/context_extensions.dart';

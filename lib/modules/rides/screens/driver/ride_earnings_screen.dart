@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:food_driver/modules/rides/models/index.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
-import 'package:food_driver/providers/auth_provider.dart';
+import 'package:food_driver/providers/auth_user/auth_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
 
 // ---------------------------------------------------------------------------

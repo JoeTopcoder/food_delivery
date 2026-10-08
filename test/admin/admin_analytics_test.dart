@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/screens/admin/ai/admin_analytics_screen.dart';
-import 'package:food_driver/providers/analytics_provider.dart';
+import 'package:food_driver/providers/admin/analytics_provider.dart';
 import 'package:food_driver/services/social/analytics_service.dart';
 import '../helpers/admin_test_helpers.dart';
 

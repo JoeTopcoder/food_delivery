@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:food_driver/models/weather_model.dart';
-import 'package:food_driver/providers/weather_provider.dart';
+import 'package:food_driver/providers/delivery/weather_provider.dart';
 import 'package:food_driver/services/weather_service.dart';
 import 'package:food_driver/utils/est_datetime.dart';
 import 'package:food_driver/widgets/weather_card.dart';

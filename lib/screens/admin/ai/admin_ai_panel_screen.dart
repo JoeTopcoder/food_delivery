@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../providers/decision_engine_provider.dart';
+import '../../../providers/admin/decision_engine_provider.dart';
 import '../../../services/ai/decision_engine_service.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/app_feedback_widgets.dart';

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../providers/auth_provider.dart';
+import '../../../providers/auth_user/auth_provider.dart';
 import '../../../screens/main_navigation_screen.dart';
 import '../../../screens/driver/home/driver_dashboard_screen.dart';
 import '../../../screens/restaurant/home/restaurant_dashboard_screen.dart';

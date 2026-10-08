@@ -12,9 +12,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:food_driver/modules/rides/providers/ride_providers.dart';
 import 'package:food_driver/config/supabase_config.dart';
 import 'package:food_driver/config/app_constants.dart';
-import 'package:food_driver/providers/feature_providers.dart';
+import 'package:food_driver/providers/platform/feature_providers.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
-import 'package:food_driver/providers/wallet_provider.dart';
+import 'package:food_driver/providers/money/wallet_provider.dart';
 import '../../../../widgets/app_map_tiles.dart';
 
 const _kBlue = Color(0xFF2563EB);

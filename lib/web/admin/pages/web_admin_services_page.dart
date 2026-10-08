@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
-import '../../../providers/feature_providers.dart';
+import '../../../providers/platform/feature_providers.dart';
 import '../../../services/app_config_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';

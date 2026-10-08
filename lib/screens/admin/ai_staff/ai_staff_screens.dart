@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../providers/ai_staff_provider.dart';
+import '../../../providers/admin/ai_staff_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 
 // ── Provenance labels ───────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../providers/analytics_provider.dart';
+import '../../../providers/admin/analytics_provider.dart';
 import '../../../services/social/analytics_service.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/app_feedback_widgets.dart';

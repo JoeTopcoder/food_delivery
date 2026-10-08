@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/banks_provider.dart';
-import '../../providers/driver_provider.dart';
-import '../../providers/payout_provider.dart';
-import '../../providers/restaurant_provider.dart';
+import '../../providers/auth_user/auth_provider.dart';
+import '../../providers/money/banks_provider.dart';
+import '../../providers/driver/driver_provider.dart';
+import '../../providers/money/payout_provider.dart';
+import '../../providers/catalog/restaurant_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/friendly_error.dart';
 import '../../utils/app_feedback_widgets.dart';

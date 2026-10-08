@@ -7,7 +7,7 @@ import 'package:video_player/video_player.dart';
 import '../features/auth/screens/auth_launch_gate_screen.dart';
 import '../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../modules/laundry/screens/provider/laundry_provider_dashboard_screen.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_user/auth_provider.dart';
 import '../screens/driver/home/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../services/notification_service.dart';

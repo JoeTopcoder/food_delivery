@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:food_driver/screens/admin/finance/admin_earnings_screen.dart';
-import 'package:food_driver/providers/earning_provider.dart';
+import 'package:food_driver/providers/money/earning_provider.dart';
 import '../helpers/admin_test_helpers.dart';
 
 void main() {
