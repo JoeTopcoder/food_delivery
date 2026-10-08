@@ -20,7 +20,17 @@ import '../common/app_cached_image.dart';
 class SponsoredAdSlide extends ConsumerStatefulWidget {
   final SponsoredAd ad;
   final bool isActive;
-  const SponsoredAdSlide({super.key, required this.ad, required this.isActive});
+
+  /// Fired once the video has played through twice — the carousel waits for this
+  /// before advancing off a video slide.
+  final VoidCallback? onCompletedTwice;
+
+  const SponsoredAdSlide({
+    super.key,
+    required this.ad,
+    required this.isActive,
+    this.onCompletedTwice,
+  });
 
   @override
   ConsumerState<SponsoredAdSlide> createState() => _SponsoredAdSlideState();
@@ -29,9 +39,11 @@ class SponsoredAdSlide extends ConsumerStatefulWidget {
 class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
     with WidgetsBindingObserver {
   VideoPlayerController? _video;
-  bool _muted = true;
+  bool _muted = false; // sound on by default
   bool _started = false;
-  bool _completed = false;
+  int _loops = 0;
+  int _lastPosMs = 0;
+  bool _signaledTwice = false;
   Timer? _impressionTimer;
 
   @override
@@ -86,10 +98,12 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
     final c = VideoPlayerController.networkUrl(Uri.parse(widget.ad.playbackUrl!));
     _video = c;
     _started = false;
-    _completed = false;
+    _loops = 0;
+    _lastPosMs = 0;
+    _signaledTwice = false;
     try {
       await c.setLooping(true); // repeat the clip
-      await c.setVolume(0);
+      await c.setVolume(_muted ? 0 : 1); // sound on by default
       await c.initialize();
       if (!mounted || !widget.isActive || _video != c) {
         c.dispose();
@@ -126,12 +140,18 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
       _started = true;
       _log('video_start');
     }
-    final dur = c.value.duration.inMilliseconds;
     final pos = c.value.position.inMilliseconds;
-    if (!_completed && dur > 0 && pos >= dur * 0.95) {
-      _completed = true;
-      _log('video_complete');
+    // With looping on, position jumps back to ~0 at the end of each play — detect
+    // that wrap to count completions. Carousel waits for TWO completions.
+    if (pos < _lastPosMs - 500) {
+      _loops++;
+      if (_loops == 1) _log('video_complete');
+      if (_loops >= 2 && !_signaledTwice) {
+        _signaledTwice = true;
+        widget.onCompletedTwice?.call();
+      }
     }
+    _lastPosMs = pos;
   }
 
   void _toggleMute() {
