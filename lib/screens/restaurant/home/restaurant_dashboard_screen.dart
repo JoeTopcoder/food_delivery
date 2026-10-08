@@ -1391,6 +1391,9 @@ class _RestaurantDashboardScreenState
                 row(Icons.local_fire_department_rounded,
                     const Color(0xFFEF4444), 'Our Offer',
                     () => Navigator.of(context).pushNamed('/restaurant-offer')),
+                row(Icons.campaign_rounded, const Color(0xFFFF5A1F),
+                    'Advertise on HotBite',
+                    () => Navigator.of(context).pushNamed('/restaurant-ads')),
                 row(Icons.description_rounded, const Color(0xFF0891B2),
                     'Contract',
                     () => Navigator.of(context)

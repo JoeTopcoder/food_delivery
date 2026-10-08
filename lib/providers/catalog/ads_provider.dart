@@ -2,8 +2,28 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/catalog/ad_model.dart';
 import '../../services/ads/ads_service.dart';
+import '../../services/ads/restaurant_ads_service.dart';
 
 final adsServiceProvider = Provider<AdsService>((ref) => AdsService());
+final restaurantAdsServiceProvider =
+    Provider<RestaurantAdsService>((ref) => RestaurantAdsService());
+
+/// A restaurant's ad requests (newest first). Refresh via ref.invalidate.
+final myAdRequestsProvider =
+    FutureProvider.autoDispose.family<List<AdRequest>, String>((ref, restaurantId) =>
+        ref.watch(restaurantAdsServiceProvider).myRequests(restaurantId));
+
+final adCreativesProvider =
+    FutureProvider.autoDispose.family<List<AdCreative>, String>((ref, requestId) =>
+        ref.watch(restaurantAdsServiceProvider).creatives(requestId));
+
+final adQuotesProvider =
+    FutureProvider.autoDispose.family<List<AdQuote>, String>((ref, requestId) =>
+        ref.watch(restaurantAdsServiceProvider).quotes(requestId));
+
+final myAdCampaignsProvider =
+    FutureProvider.autoDispose.family<List<AdCampaign>, String>((ref, restaurantId) =>
+        ref.watch(restaurantAdsServiceProvider).campaigns(restaurantId));
 
 /// A stable session id for the app run — used to dedupe ad impressions/events
 /// server-side so widget rebuilds and video loops never inflate counts.

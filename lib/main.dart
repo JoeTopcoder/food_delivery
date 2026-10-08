@@ -157,6 +157,7 @@ import 'screens/admin/people/student_verification_admin_screen.dart';
 import 'screens/customer/account/student_verification_screen.dart';
 import 'screens/restaurant/marketing/restaurant_loyalty_screen.dart';
 import 'screens/restaurant/marketing/restaurant_offer_screen.dart';
+import 'screens/restaurant/marketing/restaurant_ads_screen.dart';
 import 'screens/restaurant/home/restaurant_contract_screen.dart';
 import 'screens/admin/marketing/admin_loyalty_screen.dart';
 import 'screens/admin/finance/admin_earnings_screen.dart';
@@ -1745,6 +1746,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['restaurant'],
                   child: RestaurantOfferScreen(),
+                ),
+              );
+            case '/restaurant-ads':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['restaurant'],
+                  child: RestaurantAdsScreen(),
                 ),
               );
             case '/restaurant-contract':
