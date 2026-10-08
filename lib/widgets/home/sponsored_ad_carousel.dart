@@ -191,8 +191,12 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   @override
   Widget build(BuildContext context) {
     final ad = widget.ad;
-    final scheme = Theme.of(context).colorScheme;
     final showVideo = ad.isVideo && _video != null && _video!.value.isInitialized;
+
+    // The still image to show when there's no live video: the thumbnail for a
+    // video ad, or the image itself for an image ad.
+    final String? still =
+        ad.isVideo ? ad.thumbnailUrl : (ad.playbackUrl ?? ad.thumbnailUrl);
 
     Widget media;
     if (showVideo) {
@@ -204,15 +208,30 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
           child: VideoPlayer(_video!),
         ),
       );
-    } else if ((ad.thumbnailUrl ?? ad.playbackUrl)?.isNotEmpty ?? false) {
+    } else if (still != null && still.isNotEmpty) {
       media = AppCachedImage(
-        url: ad.isVideo ? ad.thumbnailUrl : (ad.playbackUrl ?? ad.thumbnailUrl),
+        url: still,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
       );
     } else {
-      media = Container(color: scheme.surfaceContainerHighest);
+      // Video still loading and no thumbnail: a plain fill (never an image
+      // placeholder, which has a fixed size that overflows the short slide).
+      media = Container(
+        color: const Color(0xFF0B1220),
+        alignment: Alignment.center,
+        child: ad.isVideo
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
+              )
+            : null,
+      );
     }
 
     // Clamp text scaling so a large system font can't push the overlay past the
