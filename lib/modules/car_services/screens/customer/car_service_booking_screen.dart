@@ -11,7 +11,7 @@ import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/models/address_model.dart';
 import 'package:food_driver/providers/address_provider.dart';
 import 'package:food_driver/providers/auth_provider.dart';
-import 'package:food_driver/screens/customer/payment_screen.dart';
+import 'package:food_driver/screens/customer/wallet_payments/payment_screen.dart';
 import 'package:food_driver/providers/wallet_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
 import 'package:food_driver/widgets/outstanding_debt_banner.dart';
