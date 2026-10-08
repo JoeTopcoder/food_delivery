@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/company/company_service.dart';
-import '../../widgets/app_cached_image.dart';
+import '../../widgets/common/app_cached_image.dart';
 
 /// Restaurants within a company's delivery radius (same server distance calc as
 /// checkout validation). Shown when an employee wants to find an eligible place.

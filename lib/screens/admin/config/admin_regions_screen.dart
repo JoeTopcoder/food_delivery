@@ -7,7 +7,7 @@ import '../../../providers/delivery/delivery_region_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 class AdminRegionsScreen extends ConsumerStatefulWidget {
   const AdminRegionsScreen({super.key});

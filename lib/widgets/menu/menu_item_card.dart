@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/catalog/menu_model.dart';
-import '../providers/rewards/membership_provider.dart';
-import '../utils/app_theme.dart';
-import 'app_cached_image.dart';
+import '../../models/catalog/menu_model.dart';
+import '../../providers/rewards/membership_provider.dart';
+import '../../utils/app_theme.dart';
+import '../common/app_cached_image.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 class MenuItemCard extends ConsumerWidget {

@@ -7,7 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../../../utils/safe_state_mixin.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 /// Result returned when a user picks a location on the map.
 class PickedLocation {

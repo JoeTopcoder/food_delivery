@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'app_cached_image.dart';
+import '../common/app_cached_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers/platform/feature_providers.dart';
-import '../../models/catalog/recommendation_model.dart';
-import '../../models/catalog/restaurant_model.dart';
-import '../../providers/catalog/recommendation_provider.dart';
-import '../../providers/auth_user/user_provider.dart';
-import '../../utils/app_theme.dart';
-import '../../widgets/restaurant_card.dart';
-import 'favorite_heart_button.dart';
-import '../utils/rating_format.dart';
+import '../../providers/platform/feature_providers.dart';
+import '../../../models/catalog/recommendation_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
+import '../../../providers/catalog/recommendation_provider.dart';
+import '../../../providers/auth_user/user_provider.dart';
+import '../../../utils/app_theme.dart';
+import '../../../widgets/menu/restaurant_card.dart';
+import '../common/favorite_heart_button.dart';
+import '../../utils/rating_format.dart';
 
 // ════════════════════════════════════════════════════════════════
 // Smart Offer Banner — shows AI-generated coupon at top of screen

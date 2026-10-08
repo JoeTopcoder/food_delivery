@@ -19,7 +19,7 @@ import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
 
 import 'ride_complete_screen.dart';
-import '../../../../widgets/app_map_tiles.dart';
+import '../../../../widgets/common/app_map_tiles.dart';
 
 // ---------------------------------------------------------------------------
 // Enums

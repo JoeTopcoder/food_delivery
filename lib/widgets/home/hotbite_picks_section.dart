@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../config/app_constants.dart';
-import '../providers/catalog/hotbite_picks_provider.dart';
-import '../providers/auth_user/user_provider.dart';
-import '../core/utils/responsive.dart';
-import '../utils/rating_format.dart';
-import 'app_cached_image.dart';
+import '../../config/app_constants.dart';
+import '../../providers/catalog/hotbite_picks_provider.dart';
+import '../../providers/auth_user/user_provider.dart';
+import '../../core/utils/responsive.dart';
+import '../../utils/rating_format.dart';
+import '../common/app_cached_image.dart';
 
 /// 🔥 HotBite Picks — the discovery hub. Composes several real-data rails
 /// (admin-curated Featured, Most Ordered, Top Rated, Hot Deals) plus popular

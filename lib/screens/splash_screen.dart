@@ -16,9 +16,9 @@ import '../screens/admin/core/admin_gate.dart';
 import '../web/restaurant/restaurant_landing_page.dart';
 import '../web/restaurant/restaurant_web_app.dart';
 import '../web/customer/customer_web_app.dart';
-import '../widgets/quickdash_logo.dart';
-import '../widgets/riding_courier.dart';
-import '../widgets/role_guard.dart';
+import '../widgets/common/quickdash_logo.dart';
+import '../widgets/common/riding_courier.dart';
+import '../widgets/common/role_guard.dart';
 
 const _webMode = String.fromEnvironment('WEB_MODE', defaultValue: 'full');
 

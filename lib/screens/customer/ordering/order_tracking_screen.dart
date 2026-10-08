@@ -15,8 +15,8 @@ import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/delivery/location_provider.dart';
 import '../../../providers/comms/chat_provider.dart';
-import '../../../widgets/sos_button.dart';
-import '../../../widgets/order_countdown_timer.dart';
+import '../../../widgets/common/sos_button.dart';
+import '../../../widgets/orders/order_countdown_timer.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../providers/driver/driver_provider.dart';
 import '../../../providers/money/wallet_provider.dart';
@@ -24,7 +24,7 @@ import '../../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../../config/supabase_config.dart';
 import '../../../utils/context_extensions.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String? orderId;

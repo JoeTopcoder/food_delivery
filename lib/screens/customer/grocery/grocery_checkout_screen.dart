@@ -28,7 +28,7 @@ import 'dart:async' show unawaited;
 import '../../../utils/friendly_error.dart';
 import '../../../utils/safe_state_mixin.dart';
 import '../../../utils/app_feedback_widgets.dart';
-import '../../../widgets/outstanding_debt_banner.dart';
+import '../../../widgets/driver/outstanding_debt_banner.dart';
 import '../../../features/recipient/recipient_service.dart';
 import '../../../features/recipient/recipient_selector.dart';
 import '../ordering/order_success_screen.dart';

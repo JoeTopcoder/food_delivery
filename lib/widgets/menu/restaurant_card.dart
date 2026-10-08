@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/catalog/restaurant_model.dart';
-import '../utils/app_theme.dart';
-import 'app_cached_image.dart';
-import 'favorite_heart_button.dart';
-import '../core/utils/responsive.dart';
-import '../utils/rating_format.dart';
+import '../../models/catalog/restaurant_model.dart';
+import '../../utils/app_theme.dart';
+import '../common/app_cached_image.dart';
+import '../common/favorite_heart_button.dart';
+import '../../core/utils/responsive.dart';
+import '../../utils/rating_format.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;

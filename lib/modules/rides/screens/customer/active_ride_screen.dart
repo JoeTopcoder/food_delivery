@@ -14,7 +14,7 @@ import 'package:food_driver/utils/app_feedback_widgets.dart';
 import 'package:food_driver/utils/friendly_error.dart';
 import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/providers/money/wallet_provider.dart';
-import '../../../../widgets/app_map_tiles.dart';
+import '../../../../widgets/common/app_map_tiles.dart';
 
 // ---------------------------------------------------------------------------
 // Constants

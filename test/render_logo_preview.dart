@@ -18,7 +18,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_driver/widgets/quickdash_logo.dart';
+import 'package:food_driver/widgets/common/quickdash_logo.dart';
 
 Future<void> _shoot(
   WidgetTester tester,

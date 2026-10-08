@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_theme.dart';
+import '../../../utils/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../utils/app_feedback_widgets.dart';
-import '../utils/friendly_error.dart';
+import '../../utils/app_feedback_widgets.dart';
+import '../../utils/friendly_error.dart';
 
 /// A reusable Emergency SOS button and dialog.
 /// Shows an SOS icon button that opens a bottom sheet with emergency contacts.

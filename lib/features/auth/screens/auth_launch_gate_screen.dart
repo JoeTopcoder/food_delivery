@@ -12,7 +12,7 @@ import '../../../screens/admin/core/admin_gate.dart';
 import '../../../modules/car_services/screens/provider/car_service_provider_dashboard_screen.dart';
 import '../../../web/restaurant/restaurant_landing_page.dart';
 import '../../../web/restaurant/restaurant_web_app.dart';
-import '../../../widgets/role_guard.dart';
+import '../../../widgets/common/role_guard.dart';
 import '../models/onboarding_role.dart';
 import '../providers/role_provider.dart';
 import 'role_selection_screen.dart';

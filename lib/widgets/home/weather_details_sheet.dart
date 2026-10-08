@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../models/delivery/weather_model.dart';
-import '../providers/delivery/weather_provider.dart';
-import '../services/weather_service.dart';
-import '../utils/app_theme.dart';
-import '../utils/est_datetime.dart';
+import '../../models/delivery/weather_model.dart';
+import '../../providers/delivery/weather_provider.dart';
+import '../../services/weather_service.dart';
+import '../../utils/app_theme.dart';
+import '../../utils/est_datetime.dart';
 
 /// Opens the weather details bottom sheet for [query].
 Future<void> showWeatherDetailsSheet(BuildContext context, WeatherQuery query) {

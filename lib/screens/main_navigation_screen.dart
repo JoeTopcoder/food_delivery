@@ -14,8 +14,8 @@ import '../models/ordering/master_order_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/context_extensions.dart';
 import '../utils/friendly_error.dart';
-import '../widgets/order_countdown_timer.dart';
-import '../widgets/ai_fab.dart';
+import '../widgets/orders/order_countdown_timer.dart';
+import '../widgets/common/ai_fab.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../providers/platform/feature_providers.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/supabase_config.dart';
-import '../utils/app_logger.dart';
+import '../../config/supabase_config.dart';
+import '../../utils/app_logger.dart';
 
 /// A daily Bible verse, chosen server-side per user per day (varied across
 /// users, stable for one user for the day) via the get_daily_verse RPC.

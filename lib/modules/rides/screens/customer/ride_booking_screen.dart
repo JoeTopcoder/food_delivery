@@ -15,7 +15,7 @@ import 'package:food_driver/config/app_constants.dart';
 import 'package:food_driver/providers/platform/feature_providers.dart';
 import 'package:food_driver/modules/rides/services/routing_service.dart';
 import 'package:food_driver/providers/money/wallet_provider.dart';
-import '../../../../widgets/app_map_tiles.dart';
+import '../../../../widgets/common/app_map_tiles.dart';
 
 const _kBlue = Color(0xFF2563EB);
 const _kRed = Color(0xFFEF4444);

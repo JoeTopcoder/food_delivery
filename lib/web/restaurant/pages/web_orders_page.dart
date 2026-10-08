@@ -11,7 +11,7 @@ import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../config/supabase_config.dart';
 import '../../../utils/app_logger.dart';
-import '../../../widgets/order_countdown_timer.dart';
+import '../../../widgets/orders/order_countdown_timer.dart';
 
 class WebOrdersPage extends ConsumerStatefulWidget {
   const WebOrdersPage({super.key});

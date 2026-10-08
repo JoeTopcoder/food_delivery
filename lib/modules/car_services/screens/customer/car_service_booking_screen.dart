@@ -14,7 +14,7 @@ import 'package:food_driver/providers/auth_user/auth_provider.dart';
 import 'package:food_driver/screens/customer/wallet_payments/payment_screen.dart';
 import 'package:food_driver/providers/money/wallet_provider.dart';
 import 'package:food_driver/config/supabase_config.dart';
-import 'package:food_driver/widgets/outstanding_debt_banner.dart';
+import 'package:food_driver/widgets/driver/outstanding_debt_banner.dart';
 import 'package:food_driver/utils/app_logger.dart';
 import 'package:food_driver/services/notification_service.dart';
 import 'package:intl/intl.dart';

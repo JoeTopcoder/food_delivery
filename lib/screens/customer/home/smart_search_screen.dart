@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../../widgets/app_cached_image.dart';
+import '../../../widgets/common/app_cached_image.dart';
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../utils/restaurant_brand.dart';

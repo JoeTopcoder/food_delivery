@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/catalog/hotbite_now_provider.dart';
-import '../providers/auth_user/user_provider.dart';
-import '../core/utils/responsive.dart';
-import '../utils/rating_format.dart';
-import 'app_cached_image.dart';
+import '../../providers/catalog/hotbite_now_provider.dart';
+import '../../providers/auth_user/user_provider.dart';
+import '../../core/utils/responsive.dart';
+import '../../utils/rating_format.dart';
+import '../common/app_cached_image.dart';
 
 /// The premium "HotBite Now" home section — a horizontally scrolling rail of
 /// fast-prep restaurants that have opted in and are currently eligible.

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../widgets/app_cached_image.dart';
+import '../../../widgets/common/app_cached_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../providers/auth_user/auth_provider.dart';

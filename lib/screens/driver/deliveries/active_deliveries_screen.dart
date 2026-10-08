@@ -13,8 +13,8 @@ import '../../../providers/comms/chat_provider.dart';
 import '../../../providers/delivery/location_provider.dart';
 import '../../../services/driver/delivery_fee_service.dart';
 import '../../../services/location_service.dart';
-import '../../../widgets/sos_button.dart';
-import '../../../widgets/order_countdown_timer.dart';
+import '../../../widgets/common/sos_button.dart';
+import '../../../widgets/orders/order_countdown_timer.dart';
 import '../deliveries/delivery_proof_screen.dart';
 import '../deliveries/multi_stop_delivery_screen.dart';
 import '../../../utils/friendly_error.dart';
@@ -22,8 +22,8 @@ import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/context_extensions.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../widgets/ai_fab.dart';
-import '../../../widgets/app_map_tiles.dart';
+import '../../../widgets/common/ai_fab.dart';
+import '../../../widgets/common/app_map_tiles.dart';
 import '../deliveries/student_delivery_confirm.dart';
 
 class ActiveDeliveriesScreen extends ConsumerStatefulWidget {

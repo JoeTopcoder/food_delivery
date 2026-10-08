@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/driver/driver_priority_provider.dart';
-import '../screens/driver/performance/driver_priority_screen.dart';
+import '../../providers/driver/driver_priority_provider.dart';
+import '../../screens/driver/performance/driver_priority_screen.dart';
 
 /// Compact standing chip for the driver dashboard's duty card — emoji, label
 /// and score in a small pill; taps through to the full performance page.

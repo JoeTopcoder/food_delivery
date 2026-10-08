@@ -12,14 +12,14 @@ import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/comms/chat_provider.dart';
 import '../../../providers/money/wallet_provider.dart';
 import '../../../config/supabase_config.dart';
-import '../../../widgets/rate_driver_sheet.dart';
-import '../../../widgets/order_countdown_timer.dart';
+import '../../../widgets/orders/rate_driver_sheet.dart';
+import '../../../widgets/orders/order_countdown_timer.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../utils/context_extensions.dart';
-import '../../../widgets/ai_fab.dart';
+import '../../../widgets/common/ai_fab.dart';
 
 class OrderHistoryScreen extends ConsumerWidget {
   const OrderHistoryScreen({super.key});

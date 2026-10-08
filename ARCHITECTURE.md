@@ -39,11 +39,11 @@ Supabase  (Postgres + RLS + Realtime + Edge Functions)
 | `firebase_options.dart` | Generated Firebase config. Don't hand-edit. |
 | `config/` | `app_constants.dart` (currency, fees, support info), `supabase_config.dart` (client). |
 | `core/` | Cross-cutting primitives. Today: `utils/responsive.dart`. |
-| `models/` | 43 data models. `*.g.dart` are generated (snake_case JSON) — avoid regen. |
-| `providers/` | 45 Riverpod providers — auth, cart, wallet, driver, feature flags, weather… |
+| `models/` | Data models, grouped by domain: `user/ catalog/ ordering/ driver/ money/ rewards/ delivery/ comms/ platform/` (+ `stripe/`). `*.g.dart` are generated (snake_case JSON), live beside their source — avoid regen. |
+| `providers/` | Riverpod providers, grouped by domain: `auth_user/ catalog/ ordering/ driver/ money/ rewards/ delivery/ comms/ admin/ platform/` (+ `stripe/`). |
 | `services/` | Backend-call classes, grouped by area (see §4). |
-| `screens/` | 201 screens, grouped **by role** (see §3). |
-| `widgets/` | 37 shared, reusable widgets (cards, banners, the weather card, logo…). |
+| `screens/` | Screens, grouped **by role then feature** (see §3). |
+| `widgets/` | Shared widgets, grouped: `common/ menu/ orders/ grocery/ driver/ comms/ home/`. |
 | `features/` | Newer **feature-first** slices (ui+state+service+model together): auth, voice_ordering, concierge, coverage, customer, driver, restaurant, car_services, recipient. |
 | `modules/` | 98 files — self-contained verticals: `rides/`, `laundry/`, `car_services/`, `packages/`. |
 | `web/` | 62 files — the separate web UI per role. |
@@ -127,12 +127,12 @@ Subfolders already exist for most areas:
 |---|---|
 | **Add / change a route** | `main.dart` — the `onGenerateRoute` switch. |
 | **Change money / currency / fees** | `config/app_constants.dart` (`currencySymbol`, `currencyCode`, fee calc). Never hardcode a currency. |
-| **Flip or add a feature flag** | `providers/feature_providers.dart` (backed by the `app_config` table; read at app start). |
+| **Flip or add a feature flag** | `providers/platform/feature_providers.dart` (backed by the `app_config` table; read at app start). |
 | **Theme / colours** | `utils/app_theme.dart` (+ `ThemeService`). |
 | **Timestamps (Jamaica time)** | `utils/est_datetime.dart` — use `toJamaicaOf(...)` / `jmFormat(...)`. |
-| **Current user / auth state** | `providers/auth_provider.dart` — `currentUserProvider`, `currentUserIdProvider`. |
-| **Cart** | `providers/user_provider.dart` — `cartProvider` (100% client-side, no cart table). |
-| **Wallet / money movement** | `providers/` wallet providers + audited RPCs (`admin_wallet_adjust`, `wallet_transfer`). |
+| **Current user / auth state** | `providers/auth_user/auth_provider.dart` — `currentUserProvider`, `currentUserIdProvider`. |
+| **Cart** | `providers/auth_user/user_provider.dart` — `cartProvider` (100% client-side, no cart table). |
+| **Wallet / money movement** | `providers/money/` (wallet_provider…) + audited RPCs (`admin_wallet_adjust`, `wallet_transfer`). |
 | **A customer screen** | `screens/customer/` (or `features/customer/`). |
 | **A driver screen** | `screens/driver/` — driver id via `driverProfileProvider(userId)`. |
 | **An admin screen** | `screens/admin/`. |
@@ -161,15 +161,13 @@ Subfolders already exist for most areas:
 
 ## 7. Known tidy-ups (optional, not yet done)
 
-Done so far (incremental, each analyze + build verified):
-- ✅ `screens/customer/`, `screens/admin/`, `screens/driver/`, `screens/restaurant/`
-  split into feature subfolders (§3).
+Done (incremental, each analyze + build verified):
+- ✅ `screens/` (customer, admin, driver, restaurant) → feature subfolders (§3).
+- ✅ `providers/`, `models/`, `widgets/` → domain subfolders (§2).
 
-Still open — safe as **bounded, build-verified** passes:
+Still open — safe as a **bounded, build-verified** pass:
 
-1. Group `providers/` (45), `models/` (43), `widgets/` (37) by area. (Highest churn —
-   these are imported app-wide.)
-2. Move the 21 loose `services/*.dart` into their domain subfolders (§4 table).
+1. Move the 21 loose `services/*.dart` into their domain subfolders (§4 table).
 
 Each involves rewriting imports, so do one at a time and run `flutter analyze`
 (baseline = a few pre-existing issues) before committing.

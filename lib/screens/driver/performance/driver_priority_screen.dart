@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/driver/driver_priority_provider.dart';
-import '../../../widgets/driver_priority_card.dart';
+import '../../../widgets/driver/driver_priority_card.dart';
 
 /// 🔥 Driver Performance — full breakdown, transparent "How Priority Works"
 /// explanation, and the driver's priority history. All figures are the trusted
