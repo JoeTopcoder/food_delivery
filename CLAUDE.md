@@ -17,6 +17,9 @@ restaurant/provider, admin — plus a parallel web build.
 
 ## Layout
 
+> **Navigating the code?** See [`ARCHITECTURE.md`](ARCHITECTURE.md) — a navigation
+> map of `lib/` with an "I want to… where do I go?" index.
+
 ```
 lib/
   main.dart        193 routes in one onGenerateRoute switch — add routes HERE
