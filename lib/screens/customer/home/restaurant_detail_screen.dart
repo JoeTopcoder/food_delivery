@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../models/menu_model.dart';
-import '../../../models/restaurant_model.dart';
+import '../../../models/catalog/menu_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/rewards/premium_providers.dart';
 import '../../../utils/friendly_error.dart';

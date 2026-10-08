@@ -4,7 +4,7 @@ import '../../../utils/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../models/earning_model.dart';
+import '../../../models/money/earning_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/money/earning_provider.dart';
 import '../../../providers/rewards/premium_providers.dart';

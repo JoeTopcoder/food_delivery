@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/weather_model.dart';
+import '../models/delivery/weather_model.dart';
 import '../utils/app_logger.dart';
 
 /// Thrown when the weather backend reports a failure we want to surface as a

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../models/refund_model.dart';
+import '../../../models/money/refund_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
 import '../../../utils/friendly_error.dart';

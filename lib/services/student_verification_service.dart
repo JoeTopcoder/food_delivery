@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/student_verification_model.dart';
+import '../models/platform/student_verification_model.dart';
 import '../utils/app_logger.dart';
 import 'student_id_ocr_service.dart';
 

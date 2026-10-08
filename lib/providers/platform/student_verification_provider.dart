@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
-import '../../models/student_verification_model.dart';
+import '../../models/platform/student_verification_model.dart';
 import '../../services/student_id_ocr_service.dart';
 import '../../services/student_verification_service.dart';
 

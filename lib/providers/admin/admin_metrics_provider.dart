@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/supabase_config.dart';
-import '../../models/admin_metrics_model.dart';
+import '../../models/platform/admin_metrics_model.dart';
 import '../../services/admin/admin_metrics_service.dart';
 
 final adminMetricsServiceProvider = Provider<AdminMetricsService>(

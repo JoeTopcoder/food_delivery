@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/order_model.dart';
+import '../models/ordering/order_model.dart';
 import '../providers/auth_user/user_provider.dart';
 import '../providers/money/payment_provider.dart';
 import '../config/supabase_config.dart';

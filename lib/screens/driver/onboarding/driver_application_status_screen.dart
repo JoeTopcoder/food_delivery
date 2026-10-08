@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/driver_model.dart';
+import '../../../models/driver/driver_model.dart';
 import '../../../providers/driver/driver_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../onboarding/driver_verification_screen.dart';

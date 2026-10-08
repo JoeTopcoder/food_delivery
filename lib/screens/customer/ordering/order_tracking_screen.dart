@@ -10,7 +10,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import '../../../modules/rides/services/routing_service.dart';
-import '../../../models/order_model.dart';
+import '../../../models/ordering/order_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/delivery/location_provider.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/app_constants.dart';
-import '../../models/restaurant_model.dart';
+import '../../models/catalog/restaurant_model.dart';
 import '../../providers/auth_user/user_provider.dart';
 import '../../utils/app_feedback_widgets.dart';
 import '../../utils/friendly_error.dart';

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import '../../../models/menu_model.dart';
-import '../../../models/restaurant_model.dart';
+import '../../../models/catalog/menu_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/auth_user/user_provider.dart' show CartItem;
 import '../../../services/ai/speech_service.dart';
 import '../../../services/food/menu_service.dart';

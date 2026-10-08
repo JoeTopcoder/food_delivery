@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/driver_model.dart';
-import '../../models/order_model.dart';
+import '../../models/driver/driver_model.dart';
+import '../../models/ordering/order_model.dart';
 import '../../services/driver/driver_service.dart';
 import '../../services/notification_service.dart';
 import '../../config/supabase_config.dart';

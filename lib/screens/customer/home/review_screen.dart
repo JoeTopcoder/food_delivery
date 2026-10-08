@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
-import '../../../models/order_model.dart';
+import '../../../models/ordering/order_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/money/payment_provider.dart';
 import '../../../utils/friendly_error.dart';

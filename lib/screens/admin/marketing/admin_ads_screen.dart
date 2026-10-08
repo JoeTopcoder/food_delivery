@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
-import '../../../models/restaurant_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/admin/admin_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

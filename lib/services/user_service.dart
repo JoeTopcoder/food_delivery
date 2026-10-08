@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../config/app_constants.dart';
-import '../models/user_model.dart';
+import '../models/user/user_model.dart';
 import '../utils/app_logger.dart';
 
 class UserService {

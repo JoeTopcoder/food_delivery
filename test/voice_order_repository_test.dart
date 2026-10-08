@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:food_driver/models/menu_model.dart';
+import 'package:food_driver/models/catalog/menu_model.dart';
 import 'package:food_driver/providers/auth_user/user_provider.dart' show CartItem;
 import 'package:food_driver/services/ai/speech_service.dart';
 import 'package:food_driver/services/food/menu_service.dart';

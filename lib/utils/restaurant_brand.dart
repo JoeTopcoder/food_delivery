@@ -1,4 +1,4 @@
-import '../models/restaurant_model.dart';
+import '../models/catalog/restaurant_model.dart';
 
 /// Collapses multi-location brands into a single card. Restaurants that share a
 /// chain (via [Restaurant.chainId]/[Restaurant.chainName], falling back to the

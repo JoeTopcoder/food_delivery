@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../models/student_verification_model.dart';
+import '../../../models/platform/student_verification_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/platform/student_verification_provider.dart';
 import '../../../services/student_id_ocr_service.dart';

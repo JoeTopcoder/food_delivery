@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/chat_model.dart';
+import '../../models/comms/chat_model.dart';
 
 class ChatService {
   final SupabaseClient _client;

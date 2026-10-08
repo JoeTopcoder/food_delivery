@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/feedback_model.dart';
+import '../../models/platform/feedback_model.dart';
 import '../../config/app_constants.dart';
 import '../../utils/app_logger.dart';
 

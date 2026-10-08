@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/menu_model.dart';
+import '../models/catalog/menu_model.dart';
 import '../utils/app_theme.dart';
 import 'package:food_driver/config/app_constants.dart';
 

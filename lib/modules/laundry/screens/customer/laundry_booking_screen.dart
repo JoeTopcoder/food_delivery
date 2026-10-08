@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../models/index.dart';
 import '../../providers/laundry_providers.dart';
-import '../../../../models/address_model.dart';
+import '../../../../models/user/address_model.dart';
 import '../../../../providers/auth_user/address_provider.dart';
 import '../../../../providers/auth_user/auth_provider.dart';
 import '../../../../providers/money/wallet_provider.dart';

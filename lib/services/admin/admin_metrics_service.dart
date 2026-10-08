@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../models/admin_metrics_model.dart';
+import '../../models/platform/admin_metrics_model.dart';
 import '../../utils/app_logger.dart';
 
 /// Data access for the admin operating dashboard.

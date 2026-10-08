@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../config/app_constants.dart';
-import '../../../models/order_model.dart';
-import '../../../models/pick_model.dart';
+import '../../../models/ordering/order_model.dart';
+import '../../../models/ordering/pick_model.dart';
 import '../../../providers/ordering/order_picking_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';

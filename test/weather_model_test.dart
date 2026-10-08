@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_driver/models/weather_model.dart';
+import 'package:food_driver/models/delivery/weather_model.dart';
 
 /// A realistic normalized payload as returned by the get-weather Edge Function.
 Map<String, dynamic> _fixture({bool stale = false}) => {

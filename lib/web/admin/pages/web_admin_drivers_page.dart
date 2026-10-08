@@ -5,7 +5,7 @@ import '../../../config/app_constants.dart';
 import '../../../config/supabase_config.dart';
 import '../../../providers/admin/admin_provider.dart';
 import '../../../providers/driver/driver_provider.dart';
-import '../../../models/driver_model.dart';
+import '../../../models/driver/driver_model.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 

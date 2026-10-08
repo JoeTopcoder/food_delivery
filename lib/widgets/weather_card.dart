@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/weather_model.dart';
+import '../models/delivery/weather_model.dart';
 import '../providers/auth_user/user_provider.dart' show currentTabIndexProvider;
 import '../providers/delivery/weather_provider.dart';
 import '../services/weather_service.dart';

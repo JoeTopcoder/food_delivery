@@ -1,6 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/earning_model.dart';
+import '../../../models/money/earning_model.dart';
 import '../../../providers/money/earning_provider.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

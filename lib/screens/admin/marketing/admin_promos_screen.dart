@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../models/promo_model.dart';
+import '../../../models/rewards/promo_model.dart';
 import '../../../providers/rewards/promo_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';

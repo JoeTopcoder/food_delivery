@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
-import '../../models/restaurant_model.dart';
+import '../../models/catalog/restaurant_model.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/api_retry.dart';
 import '../driver/delivery_fee_service.dart';

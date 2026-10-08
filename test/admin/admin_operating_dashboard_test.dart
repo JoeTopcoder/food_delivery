@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:food_driver/models/admin_metrics_model.dart';
+import 'package:food_driver/models/platform/admin_metrics_model.dart';
 import 'package:food_driver/providers/admin/admin_metrics_provider.dart';
 import 'package:food_driver/screens/admin/core/admin_operating_dashboard_screen.dart';
 

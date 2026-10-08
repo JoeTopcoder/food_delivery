@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/loyalty_model.dart';
+import '../../models/rewards/loyalty_model.dart';
 import '../../services/loyalty_service.dart';
 
 final loyaltyServiceProvider = Provider<LoyaltyService>((ref) {

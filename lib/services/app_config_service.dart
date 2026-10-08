@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
-import '../models/earning_model.dart';
+import '../models/money/earning_model.dart';
 import '../utils/app_logger.dart';
 
 /// Service that loads app_config from the database and updates AppConstants.

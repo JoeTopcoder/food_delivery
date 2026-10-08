@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/menu_model.dart';
+import '../models/catalog/menu_model.dart';
 import '../providers/rewards/membership_provider.dart';
 import '../utils/app_theme.dart';
 import 'app_cached_image.dart';

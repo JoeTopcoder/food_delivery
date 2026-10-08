@@ -5,7 +5,7 @@ import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/catalog/search_provider.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
-import '../../../models/restaurant_model.dart';
+import '../../../models/catalog/restaurant_model.dart';
 
 class WebCustomerHomePage extends ConsumerStatefulWidget {
   final void Function(Restaurant) onRestaurantTapped;

@@ -4,7 +4,7 @@ import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../models/subscription_model.dart';
+import '../../../models/rewards/subscription_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
 import '../../../utils/friendly_error.dart';

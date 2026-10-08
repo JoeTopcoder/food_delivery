@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../models/menu_model.dart';
+import '../../../models/catalog/menu_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
 

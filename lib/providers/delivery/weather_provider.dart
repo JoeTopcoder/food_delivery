@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/weather_model.dart';
+import '../../models/delivery/weather_model.dart';
 import '../../services/weather_service.dart';
 import '../auth_user/address_provider.dart';
 import '../delivery/location_provider.dart';

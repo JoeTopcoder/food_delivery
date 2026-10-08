@@ -1,4 +1,4 @@
-﻿import '../config/app_constants.dart';
+﻿import '../../config/app_constants.dart';
 
 class LoyaltyAccount {
   final String id;

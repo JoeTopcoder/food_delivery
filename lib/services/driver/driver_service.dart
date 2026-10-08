@@ -4,8 +4,8 @@ import 'dart:math' as math;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_constants.dart';
-import '../../models/driver_model.dart';
-import '../../models/order_model.dart';
+import '../../models/driver/driver_model.dart';
+import '../../models/ordering/order_model.dart';
 import '../../utils/app_logger.dart';
 
 class DriverService {

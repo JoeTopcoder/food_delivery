@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_constants.dart';
-import '../models/loyalty_model.dart';
+import '../models/rewards/loyalty_model.dart';
 import '../utils/app_logger.dart';
 
 class LoyaltyService {

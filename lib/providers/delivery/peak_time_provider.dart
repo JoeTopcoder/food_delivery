@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/supabase_config.dart';
-import '../../models/peak_time_model.dart';
+import '../../models/delivery/peak_time_model.dart';
 import '../../utils/app_logger.dart';
 
 /// Backend-authoritative Dynamic Peak Time state, shared across the whole app
