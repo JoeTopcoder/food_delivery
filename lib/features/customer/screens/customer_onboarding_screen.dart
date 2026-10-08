@@ -12,7 +12,7 @@ import '../../../features/auth/providers/role_provider.dart';
 import '../../../features/auth/services/onboarding_service.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../utils/app_logger.dart';
-import '../../../services/notification_service.dart';
+import '../../../services/notifications/notification_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 

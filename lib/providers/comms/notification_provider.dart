@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/notification_service.dart';
-import '../../services/realtime_service.dart';
+import '../../services/notifications/notification_service.dart';
+import '../../services/notifications/realtime_service.dart';
 import '../auth_user/auth_provider.dart';
 
 /// Notification model for displaying in UI

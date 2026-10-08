@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/money/earning_model.dart';
-import '../../services/earning_service.dart';
+import '../../services/rewards/earning_service.dart';
 
 /// Core service provider
 final earningServiceProvider = Provider<EarningService>((ref) {

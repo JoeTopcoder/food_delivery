@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/delivery/weather_model.dart';
 import '../../providers/delivery/weather_provider.dart';
-import '../../services/weather_service.dart';
+import '../../services/location/weather_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/est_datetime.dart';
 

@@ -12,7 +12,7 @@ import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/ordering/grocery_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
-import '../../../services/grocery_service.dart';
+import '../../../services/grocery/grocery_service.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';

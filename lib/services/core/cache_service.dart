@@ -1,5 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import '../utils/app_logger.dart';
+import '../../utils/app_logger.dart';
 
 /// Offline cache backed by Hive. Stores JSON-serialisable data
 /// with optional TTL (time-to-live) expiry.

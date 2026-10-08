@@ -10,14 +10,14 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:flutter/services.dart';
 import 'l10n/app_localizations.dart';
 import 'config/supabase_config.dart';
-import 'services/app_config_service.dart';
+import 'services/platform/app_config_service.dart';
 import 'models/catalog/restaurant_model.dart';
 import 'models/ordering/order_model.dart';
 import 'providers/auth_user/auth_provider.dart'; // includes guestBrowsingProvider
 import 'providers/comms/notification_provider.dart';
 import 'providers/platform/theme_provider.dart';
 import 'providers/platform/locale_provider.dart';
-import 'services/notification_service.dart';
+import 'services/notifications/notification_service.dart';
 import 'config/app_constants.dart';
 import 'utils/theme_service.dart';
 import 'screens/auth/signin_screen.dart';
@@ -237,7 +237,7 @@ import 'screens/stripe/admin_payout_requests_screen.dart';
 
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
-import 'services/cache_service.dart';
+import 'services/core/cache_service.dart';
 import 'providers/platform/feature_providers.dart';
 import 'firebase_options.dart';
 

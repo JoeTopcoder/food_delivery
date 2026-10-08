@@ -5,7 +5,7 @@ import '../../../config/app_constants.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../providers/platform/feature_providers.dart';
-import '../../../services/app_config_service.dart';
+import '../../../services/platform/app_config_service.dart';
 
 // ── Config keys managed by this screen ──────────────────────────────────────
 const _subConfigKeys = [

@@ -98,26 +98,20 @@ Subfolders already exist for most areas:
 | `services/payment/` + `services/stripe/` | Payments, Stripe Connect, payouts. |
 | `services/driver/` | Driver profile, intelligence, float. |
 | `services/social/` | Sharing / social. |
-| `services/company/`, `services/referral/`, `services/reorder/`, `services/restaurant/`, `services/admin/`, `services/call/` | One-area clients. |
+| `services/company/`, `services/referral/`, `services/reorder/`, `services/restaurant/`, `services/call/` | One-area clients. |
+| `services/auth/` | `auth_service`, `mfa_service`. |
+| `services/user/` | `user_service`, `address_service`. |
+| `services/notifications/` | `notification_service`, `realtime_service`. |
+| `services/grocery/` | `grocery_service`, `order_picking_service`. |
+| `services/rewards/` | `earning_service`, `loyalty_service`, `promo_service`. |
+| `services/location/` | `location_service`, `weather_service`. |
+| `services/student/` | `student_id_ocr_service`, `student_verification_service`. |
+| `services/platform/` | `compliance_service`, `app_config_service`. |
+| `services/admin/` | `admin_service` (+ admin clients). |
+| `services/core/` | `api_client`, `cache_service` (infrastructure). |
 
-**Loose files still directly in `services/`** (21) — where each belongs by domain:
-
-| File | Domain |
-|---|---|
-| `auth_service.dart`, `mfa_service.dart` | auth |
-| `user_service.dart`, `address_service.dart` | user/profile |
-| `notification_service.dart`, `realtime_service.dart` | messaging/realtime |
-| `grocery_service.dart`, `order_picking_service.dart` | grocery |
-| `earning_service.dart`, `loyalty_service.dart`, `promo_service.dart` | rewards |
-| `group_order_service.dart` | ordering |
-| `location_service.dart`, `weather_service.dart` | location |
-| `student_id_ocr_service.dart`, `student_verification_service.dart` | student verification |
-| `compliance_service.dart`, `app_config_service.dart`, `admin_service.dart` | platform/admin |
-| `api_client.dart`, `cache_service.dart` | infrastructure |
-
-> These are documented here rather than moved, because a few (`notification_service`
-> especially) are imported in many places and moving them is an import-rewrite job.
-> Group them only as a deliberate, build-verified pass.
+`services/` now has **no loose top-level files** — every service lives in a
+domain subfolder.
 
 ---
 
@@ -164,10 +158,9 @@ Subfolders already exist for most areas:
 Done (incremental, each analyze + build verified):
 - ✅ `screens/` (customer, admin, driver, restaurant) → feature subfolders (§3).
 - ✅ `providers/`, `models/`, `widgets/` → domain subfolders (§2).
+- ✅ `services/` → every file in a domain subfolder (§4); no loose files remain.
 
-Still open — safe as a **bounded, build-verified** pass:
-
-1. Move the 21 loose `services/*.dart` into their domain subfolders (§4 table).
+The feature-first restructure is complete.
 
 Each involves rewriting imports, so do one at a time and run `flutter analyze`
 (baseline = a few pre-existing issues) before committing.

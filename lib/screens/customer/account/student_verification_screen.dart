@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../models/platform/student_verification_model.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/platform/student_verification_provider.dart';
-import '../../../services/student_id_ocr_service.dart';
+import '../../../services/student/student_id_ocr_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/app_theme.dart';
 import '../../../utils/friendly_error.dart';

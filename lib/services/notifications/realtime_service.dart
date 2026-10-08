@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/app_logger.dart';
+import '../../utils/app_logger.dart';
 
 /// Manages real-time order updates via Supabase Realtime
 class RealtimeService {

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/rewards/loyalty_model.dart';
-import '../../services/loyalty_service.dart';
+import '../../services/rewards/loyalty_service.dart';
 
 final loyaltyServiceProvider = Provider<LoyaltyService>((ref) {
   return LoyaltyService(Supabase.instance.client);

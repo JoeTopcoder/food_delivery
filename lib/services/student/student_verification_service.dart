@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/platform/student_verification_model.dart';
-import '../utils/app_logger.dart';
-import 'student_id_ocr_service.dart';
+import '../../models/platform/student_verification_model.dart';
+import '../../utils/app_logger.dart';
+import '../student/student_id_ocr_service.dart';
 
 /// Student-ID verification: schools, submit/finalize, storage, driver
 /// confirmation, and admin review. All privileged writes go through the

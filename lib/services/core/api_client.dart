@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import '../utils/app_logger.dart';
+import '../../utils/app_logger.dart';
 
 class ApiClient {
   late final Dio _dio;

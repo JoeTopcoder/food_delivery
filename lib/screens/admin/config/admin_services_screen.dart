@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../providers/platform/feature_providers.dart';
-import '../../../services/app_config_service.dart';
+import '../../../services/platform/app_config_service.dart';
 import '../../../config/supabase_config.dart';
 
 // ── Provider: live state of the 5 service toggles from DB ───────────────────

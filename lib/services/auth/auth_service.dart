@@ -7,8 +7,8 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/app_constants.dart';
-import '../utils/app_logger.dart';
+import '../../config/app_constants.dart';
+import '../../utils/app_logger.dart';
 
 class AuthService {
   final SupabaseClient _supabaseClient;

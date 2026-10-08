@@ -10,7 +10,7 @@ import '../modules/laundry/screens/provider/laundry_provider_dashboard_screen.da
 import '../providers/auth_user/auth_provider.dart';
 import '../screens/driver/home/driver_dashboard_screen.dart';
 import '../screens/main_navigation_screen.dart';
-import '../services/notification_service.dart';
+import '../services/notifications/notification_service.dart';
 import '../screens/restaurant/home/restaurant_dashboard_screen.dart';
 import '../screens/admin/core/admin_gate.dart';
 import '../web/restaurant/restaurant_landing_page.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
-import '../utils/app_logger.dart';
+import '../../utils/app_logger.dart';
 
 /// Structured output of on-device OCR over a student ID.
 class StudentIdOcrResult {

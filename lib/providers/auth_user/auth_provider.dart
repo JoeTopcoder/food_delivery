@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/supabase_config.dart';
 import '../../models/user/user_model.dart';
-import '../../services/auth_service.dart';
-import '../../services/cache_service.dart';
-import '../../services/notification_service.dart';
-import '../../services/user_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/core/cache_service.dart';
+import '../../services/notifications/notification_service.dart';
+import '../../services/user/user_service.dart';
 import '../../utils/app_logger.dart';
 
 // Auth Service Provider

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../services/mfa_service.dart';
+import '../../../services/auth/mfa_service.dart';
 import '../../../web/admin/admin_web_app.dart';
 import '../core/admin_mfa_challenge_screen.dart';
 import '../core/admin_overview_screen.dart';

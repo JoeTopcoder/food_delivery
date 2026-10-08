@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/delivery/weather_model.dart';
-import '../utils/app_logger.dart';
+import '../../models/delivery/weather_model.dart';
+import '../../utils/app_logger.dart';
 
 /// Thrown when the weather backend reports a failure we want to surface as a
 /// retryable error state in the UI. [code] is the stable machine code from the

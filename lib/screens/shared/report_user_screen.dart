@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_user/auth_provider.dart';
-import '../../services/compliance_service.dart';
+import '../../services/platform/compliance_service.dart';
 import '../../utils/app_theme.dart';
 
 class ReportUserScreen extends ConsumerStatefulWidget {

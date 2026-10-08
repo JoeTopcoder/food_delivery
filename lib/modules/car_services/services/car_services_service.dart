@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
 import '../models/index.dart';
-import '../../../services/loyalty_service.dart';
+import '../../../services/rewards/loyalty_service.dart';
 import '../../../utils/app_logger.dart';
 
 // Re-export so screens only need one service import

@@ -3,7 +3,7 @@ import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../services/compliance_service.dart';
+import '../../../services/platform/compliance_service.dart';
 import '../../../utils/app_theme.dart';
 
 class AdminChatReportsScreen extends StatefulWidget {

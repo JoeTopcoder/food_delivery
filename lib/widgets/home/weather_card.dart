@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/delivery/weather_model.dart';
 import '../../providers/auth_user/user_provider.dart' show currentTabIndexProvider;
 import '../../providers/delivery/weather_provider.dart';
-import '../../services/weather_service.dart';
+import '../../services/location/weather_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/est_datetime.dart';
 import '../home/weather_details_sheet.dart';

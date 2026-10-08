@@ -11,7 +11,7 @@ import '../../../providers/comms/notification_provider.dart';
 import '../../../providers/delivery/location_provider.dart';
 import '../../../providers/driver/driver_intelligence_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';
-import '../../../services/notification_service.dart';
+import '../../../services/notifications/notification_service.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../config/app_constants.dart';

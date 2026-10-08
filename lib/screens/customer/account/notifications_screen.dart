@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/comms/notification_provider.dart';
-import '../../../services/notification_service.dart';
+import '../../../services/notifications/notification_service.dart';
 import '../../../utils/app_feedback_widgets.dart';
 import '../../../utils/context_extensions.dart';
 import '../../../core/utils/responsive.dart';

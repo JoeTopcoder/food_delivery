@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/ordering/pick_model.dart';
-import '../utils/app_logger.dart';
+import '../../models/ordering/pick_model.dart';
+import '../../utils/app_logger.dart';
 
 /// Store-side grocery order fulfilment: read the pick list, mark items picked
 /// (by scan or by hand), and link barcodes to products on the fly.

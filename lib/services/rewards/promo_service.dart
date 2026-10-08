@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/rewards/promo_model.dart';
-import '../utils/app_logger.dart';
+import '../../models/rewards/promo_model.dart';
+import '../../utils/app_logger.dart';
 
 class PromoService {
   final SupabaseClient _client;
