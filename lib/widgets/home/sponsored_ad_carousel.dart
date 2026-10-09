@@ -58,9 +58,14 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Track the enclosing scrollable so we can pause the video when the banner
-    // scrolls out of the viewport.
-    final p = Scrollable.maybeOf(context)?.position;
+    // Track the enclosing VERTICAL scrollable (the home feed) so we can pause the
+    // video when the banner scrolls out of the viewport. The nearest Scrollable
+    // is the banner's own horizontal PageView, so walk up to the vertical one.
+    ScrollableState? s = Scrollable.maybeOf(context);
+    while (s != null && s.position.axis != Axis.vertical) {
+      s = Scrollable.maybeOf(s.context);
+    }
+    final p = s?.position;
     if (p != _scrollPos) {
       _scrollPos?.removeListener(_onScroll);
       _scrollPos = p;
