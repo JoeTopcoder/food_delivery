@@ -45,12 +45,52 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   int _lastPosMs = 0;
   bool _signaledTwice = false;
   Timer? _impressionTimer;
+  ScrollPosition? _scrollPos;
+  bool _onScreen = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (widget.isActive) _onActivate();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Track the enclosing scrollable so we can pause the video when the banner
+    // scrolls out of the viewport.
+    final p = Scrollable.maybeOf(context)?.position;
+    if (p != _scrollPos) {
+      _scrollPos?.removeListener(_onScroll);
+      _scrollPos = p;
+      _scrollPos?.addListener(_onScroll);
+    }
+  }
+
+  /// Pauses the video when the banner is >50% scrolled out of view; resumes when
+  /// it comes back (and is the active page).
+  void _onScroll() {
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    final h = box.size.height;
+    if (h <= 0) return;
+    final top = box.localToGlobal(Offset.zero).dy;
+    final screenH = MediaQuery.of(context).size.height;
+    final visTop = top < 0 ? 0.0 : top;
+    final visBot = (top + h) > screenH ? screenH : (top + h);
+    final onScreen = (visBot - visTop) / h >= 0.5;
+    if (onScreen == _onScreen) return;
+    _onScreen = onScreen;
+    final c = _video;
+    if (c != null && c.value.isInitialized) {
+      if (onScreen && widget.isActive) {
+        c.play();
+      } else {
+        c.pause();
+      }
+    }
   }
 
   @override
@@ -63,6 +103,7 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollPos?.removeListener(_onScroll);
     _impressionTimer?.cancel();
     _disposeVideo();
     super.dispose();
@@ -112,6 +153,7 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
       }
       c.addListener(_videoListener);
       await c.play();
+      if (!_onScreen) await c.pause(); // don't play while scrolled out of view
       if (mounted) setState(() {});
     } catch (_) {
       if (_video == c) {
