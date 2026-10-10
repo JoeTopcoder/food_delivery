@@ -524,19 +524,28 @@ class _OrderCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => _showTimeline(context, id),
-                  child: Row(
+                Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _StatusBadge(status: status),
+                      // Tap the status badge to set the order to any status.
+                      GestureDetector(
+                        onTap: () => showOrderStatusPicker(
+                          context,
+                          orderId: id,
+                          currentStatus: status,
+                          onUpdated: onRefresh,
+                        ),
+                        child: _StatusBadge(status: status),
+                      ),
                       const SizedBox(width: 4),
-                      Icon(Icons.history_rounded,
+                      GestureDetector(
+                        onTap: () => _showTimeline(context, id),
+                        child: Icon(Icons.history_rounded,
                           size: 16,
                           color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
                     ],
                   ),
-                ),
               ],
             ),
 
@@ -956,6 +965,146 @@ class _UpdateStatusButton extends StatelessWidget {
         AppSnackbar.error(context, friendlyError(e));
       }
     }
+  }
+}
+
+// ─── Admin status picker: set an order to ANY status from the card ──────────
+const List<String> _orderStatusFlow = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'picked_up',
+  'out_for_delivery',
+  'delivered',
+  'cancelled',
+];
+
+String _statusDisplay(String s) => switch (s) {
+      'pending' => 'Pending',
+      'confirmed' => 'Confirmed',
+      'preparing' => 'Preparing',
+      'ready' => 'Ready',
+      'picked_up' => 'Picked Up',
+      'out_for_delivery' => 'Out for Delivery',
+      'delivered' => 'Delivered',
+      'cancelled' => 'Cancelled',
+      _ => s,
+    };
+
+/// Bottom sheet letting an admin set the order to any status directly.
+Future<void> showOrderStatusPicker(
+  BuildContext context, {
+  required String orderId,
+  required String currentStatus,
+  required Future<void> Function() onUpdated,
+}) async {
+  final chosen = await showModalBottomSheet<String>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      final bottom = MediaQuery.of(ctx).padding.bottom;
+      return SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8, left: 4),
+                child: Text('Set order status',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              ),
+              ..._orderStatusFlow.map((s) {
+                final isCurrent = s == currentStatus;
+                return ListTile(
+                  dense: true,
+                  leading: Icon(
+                    isCurrent ? Icons.radio_button_checked : Icons.radio_button_off,
+                    color: isCurrent ? AppTheme.primaryColor : null,
+                  ),
+                  title: Text(_statusDisplay(s),
+                      style: TextStyle(
+                          fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                          color: s == 'cancelled' ? Colors.red : null)),
+                  onTap: () => Navigator.pop(ctx, s),
+                );
+              }),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  if (chosen == null || chosen == currentStatus) return;
+  if (context.mounted) {
+    await _applyAdminOrderStatus(context,
+        orderId: orderId, newStatus: chosen, onUpdated: onUpdated);
+  }
+}
+
+/// Confirms + applies an admin status change (delivered routes through the
+/// complete-delivery edge function so payouts/notifications/float fire).
+Future<void> _applyAdminOrderStatus(
+  BuildContext context, {
+  required String orderId,
+  required String newStatus,
+  required Future<void> Function() onUpdated,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(newStatus == 'cancelled' ? 'Cancel order?' : 'Set status?'),
+      content: Text(newStatus == 'cancelled'
+          ? 'Are you sure you want to cancel this order?'
+          : 'Set this order to "${_statusDisplay(newStatus)}"?'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                newStatus == 'cancelled' ? Colors.red : AppTheme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Yes'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    if (newStatus == 'delivered') {
+      final res = await SupabaseConfig.client.functions
+          .invoke('complete-delivery', body: {'order_id': orderId});
+      final data = res.data as Map?;
+      if (res.status != 200 || data?['success'] != true) {
+        throw Exception((data?['error'] ?? 'Delivery completion failed').toString());
+      }
+    } else {
+      final updates = <String, dynamic>{
+        'status': newStatus,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      if (newStatus == 'confirmed') {
+        updates['confirmed_at'] = DateTime.now().toUtc().toIso8601String();
+      } else if (newStatus == 'cancelled') {
+        updates['cancelled_at'] = DateTime.now().toUtc().toIso8601String();
+      }
+      await SupabaseConfig.client.from('orders').update(updates).eq('id', orderId);
+    }
+    await onUpdated();
+    if (context.mounted) {
+      AppSnackbar.success(context, 'Order set to ${_statusDisplay(newStatus)}');
+    }
+  } catch (e) {
+    if (context.mounted) AppSnackbar.error(context, friendlyError(e));
   }
 }
 
