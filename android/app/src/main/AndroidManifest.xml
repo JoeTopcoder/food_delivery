@@ -10,8 +10,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Agora Voice Call Permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Full-screen intent for incoming call screen -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- USE_FULL_SCREEN_INTENT removed per Google Play policy (app is not a
+         default dialer/alarm app). tools:node="remove" also strips the copy the
+         call plugin (flutter_callkit_incoming) merges in. Incoming-call wake now
+         relies on a high-priority notification instead of a full-screen intent. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" tools:node="remove" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
