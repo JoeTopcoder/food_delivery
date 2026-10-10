@@ -16,6 +16,46 @@ import '../../utils/app_logger.dart';
 /// Tracks call IDs already shown to prevent duplicate call notifications
 final Set<String> _shownCallIds = {};
 
+/// Fixed id for the single incoming-call notification (so it can be cancelled).
+const int kCallNotifId = 8888;
+
+/// Android call-notification channel (high importance → heads-up + ring). Used
+/// instead of a full-screen intent, which Google Play disallows for non-dialer
+/// apps (USE_FULL_SCREEN_INTENT was removed).
+const AndroidNotificationChannel _callNotifChannel = AndroidNotificationChannel(
+  'food_hub_calls_v3',
+  'Incoming Calls',
+  description: 'Incoming voice call alerts',
+  importance: Importance.max,
+  playSound: true,
+  enableVibration: true,
+  sound: RawResourceAndroidNotificationSound('call_ringtone'),
+);
+
+/// Heads-up incoming-call notification details: max importance + call category
+/// + Answer/Decline actions. No full-screen intent.
+NotificationDetails _callNotificationDetails() => const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'food_hub_calls_v3',
+        'Incoming Calls',
+        channelDescription: 'Incoming voice call alerts',
+        importance: Importance.max,
+        priority: Priority.high,
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: false,
+        ongoing: true,
+        autoCancel: false,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('call_ringtone'),
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction('answer_call', 'Answer',
+              showsUserInterface: true),
+          AndroidNotificationAction('decline_call', 'Decline',
+              cancelNotification: true),
+        ],
+      ),
+    );
+
 /// Top-level handler for background FCM messages (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,9 +63,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   final type = message.data['type'];
 
-  // Caller cancelled — dismiss any ringing call UI
+  // Caller cancelled — dismiss any ringing call notification
   if (type == 'call_cancelled') {
-    await FlutterCallkitIncoming.endAllCalls();
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.cancel(id: kCallNotifId);
+    } catch (_) {}
     return;
   }
 
@@ -36,51 +79,30 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (_shownCallIds.contains(callId)) return;
     _shownCallIds.add(callId);
     final callerName = message.data['caller_name'] ?? 'Incoming Call';
-    final channelName = message.data['channel_name'] ?? '';
 
-    final params = CallKitParams(
-      id: callId,
-      nameCaller: callerName,
-      appName: 'HotBite',
-      type: 0, // 0 = audio call
-      duration: 60000,
-      textAccept: 'Answer',
-      textDecline: 'Decline',
-      extra: {
-        'call_id': callId,
-        'caller_id': message.data['caller_id'] ?? '',
-        'caller_name': callerName,
-        'order_id': message.data['order_id'] ?? '',
-        'channel_name': channelName,
-        'user_id': message.data['user_id'] ?? '',
-      },
-      android: const AndroidParams(
-        isCustomNotification: true,
-        isShowLogo: false,
-        ringtonePath: 'system_ringtone_default',
-        backgroundColor: '#1B1B2F',
-        actionColor: '#7C3AED',
-        incomingCallNotificationChannelName: 'Incoming Calls',
-        missedCallNotificationChannelName: 'Missed Calls',
-      ),
-      ios: const IOSParams(
-        handleType: 'generic',
-        supportsVideo: false,
-        maximumCallGroups: 1,
-        maximumCallsPerCallGroup: 1,
-        audioSessionMode: 'default',
-        audioSessionActive: true,
-        audioSessionPreferredSampleRate: 44100.0,
-        audioSessionPreferredIOBufferDuration: 0.005,
-        supportsDTMF: false,
-        supportsHolding: false,
-        supportsGrouping: false,
-        supportsUngrouping: false,
-        configureAudioSession: true,
-      ),
-    );
-
-    await FlutterCallkitIncoming.showCallkitIncoming(params);
+    // Show a high-priority heads-up call notification from the background isolate
+    // (its own plugin instance). No full-screen intent (Play-compliant).
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+      );
+      await plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_callNotifChannel);
+      await plugin.show(
+        id: kCallNotifId,
+        title: callerName,
+        body: message.data['body'] ?? 'Incoming call — tap to answer',
+        notificationDetails: _callNotificationDetails(),
+        payload: jsonEncode({...message.data, 'type': 'incoming_call'}),
+      );
+    } catch (e) {
+      // best-effort; nothing else to do in the background isolate
+    }
   }
 }
 
@@ -526,42 +548,15 @@ class NotificationService {
       _shownCallIds.add(callId);
       final callerName = data?['caller_name'] as String? ?? title;
 
-      final params = CallKitParams(
-        id: callId,
-        nameCaller: callerName,
-        appName: 'HotBite',
-        type: 0,
-        duration: 60000,
-        textAccept: 'Answer',
-        textDecline: 'Decline',
-        extra: data ?? {},
-        android: const AndroidParams(
-          isCustomNotification: true,
-          isShowLogo: false,
-          ringtonePath: 'system_ringtone_default',
-          backgroundColor: '#1B1B2F',
-          actionColor: '#7C3AED',
-          incomingCallNotificationChannelName: 'Incoming Calls',
-          missedCallNotificationChannelName: 'Missed Calls',
-        ),
-        ios: const IOSParams(
-          handleType: 'generic',
-          supportsVideo: false,
-          maximumCallGroups: 1,
-          maximumCallsPerCallGroup: 1,
-          audioSessionMode: 'default',
-          audioSessionActive: true,
-          audioSessionPreferredSampleRate: 44100.0,
-          audioSessionPreferredIOBufferDuration: 0.005,
-          supportsDTMF: false,
-          supportsHolding: false,
-          supportsGrouping: false,
-          supportsUngrouping: false,
-          configureAudioSession: true,
-        ),
+      // High-priority heads-up call notification (rings + Answer/Decline, tap
+      // opens the call). No full-screen intent — Play-compliant.
+      await _localNotifications.show(
+        id: kCallNotifId,
+        title: callerName,
+        body: body.isNotEmpty ? body : 'Incoming call — tap to answer',
+        notificationDetails: _callNotificationDetails(),
+        payload: jsonEncode({...?data, 'type': 'incoming_call'}),
       );
-
-      await FlutterCallkitIncoming.showCallkitIncoming(params);
     } catch (e) {
       AppLogger.error('Error showing call notification: $e');
     }
@@ -570,7 +565,7 @@ class NotificationService {
   /// Cancel the call notification (when call is answered/declined)
   Future<void> cancelCallNotification() async {
     _shownCallIds.clear();
-    await FlutterCallkitIncoming.endAllCalls();
+    await _localNotifications.cancel(id: kCallNotifId);
   }
 
   /// Handle notification by type
