@@ -133,6 +133,7 @@ import 'screens/admin/catalog/admin_hotbite_picks_screen.dart';
 import 'screens/admin/people/admin_driver_priority_screen.dart';
 import 'screens/admin/finance/admin_priority_delivery_screen.dart';
 import 'widgets/comms/incoming_call_listener.dart';
+import 'widgets/home/sponsored_ad_carousel.dart' show sponsoredAdRouteObserver;
 import 'screens/splash_screen.dart';
 import 'screens/maintenance_screen.dart';
 import 'widgets/common/role_guard.dart';
@@ -607,6 +608,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
       navigatorKey: _navigatorKey,
       child: MaterialApp(
         navigatorKey: _navigatorKey,
+        navigatorObservers: [sponsoredAdRouteObserver],
         title: 'HotBite',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
