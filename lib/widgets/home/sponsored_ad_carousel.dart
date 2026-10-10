@@ -6,6 +6,7 @@ import '../../config/supabase_config.dart';
 import '../../models/catalog/ad_model.dart';
 import '../../models/catalog/restaurant_model.dart';
 import '../../providers/catalog/ads_provider.dart';
+import '../../providers/auth_user/user_provider.dart' show currentTabIndexProvider;
 import '../../utils/app_theme.dart';
 import '../common/app_cached_image.dart';
 
@@ -54,11 +55,13 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   bool _onScreen = true;
   bool _routeTop = true; // false when another screen is pushed over home
   bool _appResumed = true;
+  bool _onHomeTab = true; // false when a different bottom-nav tab is selected
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _onHomeTab = ref.read(currentTabIndexProvider) == 0;
     if (widget.isActive) _onActivate();
   }
 
@@ -90,8 +93,11 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   void _syncPlayback() {
     final c = _video;
     if (c == null || !c.value.isInitialized) return;
-    final shouldPlay =
-        widget.isActive && _onScreen && _routeTop && _appResumed;
+    final shouldPlay = widget.isActive &&
+        _onScreen &&
+        _routeTop &&
+        _appResumed &&
+        _onHomeTab;
     if (shouldPlay) {
       if (!c.value.isPlaying) c.play();
     } else {
@@ -266,6 +272,12 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   @override
   Widget build(BuildContext context) {
     final ad = widget.ad;
+    // Pause when the user switches away from the home bottom-nav tab (tabs are an
+    // IndexedStack, so home stays mounted — no route change fires).
+    ref.listen<int>(currentTabIndexProvider, (_, next) {
+      _onHomeTab = next == 0;
+      _syncPlayback();
+    });
     final showVideo = ad.isVideo && _video != null && _video!.value.isInitialized;
 
     // The still image to show when there's no live video: the thumbnail for a
