@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.quickdash.app"
+    namespace = "com.sevendash.app"
     compileSdk = flutter.compileSdkVersion
     buildToolsVersion = "35.0.0"
     ndkVersion = flutter.ndkVersion
