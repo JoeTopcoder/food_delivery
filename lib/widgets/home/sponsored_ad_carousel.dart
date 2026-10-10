@@ -9,6 +9,11 @@ import '../../providers/catalog/ads_provider.dart';
 import '../../utils/app_theme.dart';
 import '../common/app_cached_image.dart';
 
+/// Observes route changes so the ad video pauses when another screen is pushed
+/// on top of the home screen. Registered in MaterialApp.navigatorObservers.
+final RouteObserver<PageRoute<dynamic>> sponsoredAdRouteObserver =
+    RouteObserver<PageRoute<dynamic>>();
+
 /// A single sponsored-ad slide (image or short video) rendered INSIDE the shared
 /// home banner carousel. The parent carousel passes [isActive] = true only for
 /// the currently visible page, so just one video plays at a time; it pauses and
@@ -37,7 +42,7 @@ class SponsoredAdSlide extends ConsumerStatefulWidget {
 }
 
 class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   VideoPlayerController? _video;
   bool _muted = false; // sound on by default
   bool _started = false;
@@ -47,6 +52,8 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   Timer? _impressionTimer;
   ScrollPosition? _scrollPos;
   bool _onScreen = true;
+  bool _routeTop = true; // false when another screen is pushed over home
+  bool _appResumed = true;
 
   @override
   void initState() {
@@ -71,10 +78,27 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
       _scrollPos = p;
       _scrollPos?.addListener(_onScroll);
     }
+    // Subscribe to route changes so we pause when leaving the home screen.
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      sponsoredAdRouteObserver.subscribe(this, route);
+    }
   }
 
-  /// Pauses the video when the banner is >50% scrolled out of view; resumes when
-  /// it comes back (and is the active page).
+  /// The video plays ONLY when it's the active page, on-screen, the home route is
+  /// on top, and the app is foregrounded — otherwise it's paused.
+  void _syncPlayback() {
+    final c = _video;
+    if (c == null || !c.value.isInitialized) return;
+    final shouldPlay =
+        widget.isActive && _onScreen && _routeTop && _appResumed;
+    if (shouldPlay) {
+      if (!c.value.isPlaying) c.play();
+    } else {
+      if (c.value.isPlaying) c.pause();
+    }
+  }
+
   void _onScroll() {
     if (!mounted) return;
     final box = context.findRenderObject() as RenderBox?;
@@ -88,14 +112,20 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
     final onScreen = (visBot - visTop) / h >= 0.5;
     if (onScreen == _onScreen) return;
     _onScreen = onScreen;
-    final c = _video;
-    if (c != null && c.value.isInitialized) {
-      if (onScreen && widget.isActive) {
-        c.play();
-      } else {
-        c.pause();
-      }
-    }
+    _syncPlayback();
+  }
+
+  // RouteAware: another screen pushed on top of home → pause; returned → resume.
+  @override
+  void didPushNext() {
+    _routeTop = false;
+    _syncPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    _routeTop = true;
+    _syncPlayback();
   }
 
   @override
@@ -108,6 +138,7 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    sponsoredAdRouteObserver.unsubscribe(this);
     _scrollPos?.removeListener(_onScroll);
     _impressionTimer?.cancel();
     _disposeVideo();
@@ -116,11 +147,8 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) {
-      _video?.pause();
-    } else if (widget.isActive && _video != null && _video!.value.isInitialized) {
-      _video!.play();
-    }
+    _appResumed = state == AppLifecycleState.resumed;
+    _syncPlayback();
   }
 
   void _onActivate() {
@@ -158,7 +186,7 @@ class _SponsoredAdSlideState extends ConsumerState<SponsoredAdSlide>
       }
       c.addListener(_videoListener);
       await c.play();
-      if (!_onScreen) await c.pause(); // don't play while scrolled out of view
+      _syncPlayback(); // only keep playing if on-screen + home on top + resumed
       if (mounted) setState(() {});
     } catch (_) {
       if (_video == c) {
