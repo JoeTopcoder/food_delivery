@@ -41,7 +41,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.quickdash.app"
+        applicationId = "com.sevendash.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
