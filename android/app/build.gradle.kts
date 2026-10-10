@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.sevendash.app"
+    namespace = "sevendash.app"
     compileSdk = flutter.compileSdkVersion
     buildToolsVersion = "35.0.0"
     ndkVersion = flutter.ndkVersion
@@ -41,7 +41,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.sevendash.app"
+        applicationId = "sevendash.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
