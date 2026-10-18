@@ -169,6 +169,34 @@ Deno.serve(async (req: Request) => {
       if (dbName) safeCallerName = firstNameOnly(dbName);
     }
 
+    // Branded, role-based label shown large on the recipient's ringing screen.
+    // A driver is never shown by name to the customer — they see "HotBite Driver"
+    // plus the short order code; a customer is shown to the driver as
+    // "HotBite Customer". Any other role falls back to the masked first name.
+    const shortOrder = (orderId as string | undefined)
+      ? String(orderId).replace(/-/g, "").slice(0, 8).toUpperCase()
+      : "";
+    let displayCaller: string;
+    // Branded ringtone bundled in the app's res/raw/ — chosen by the caller's
+    // role so the recipient can recognise who's calling by sound. The app maps
+    // this to the matching raw resource and falls back to call_ringtone.
+    let ringtone = "call_ringtone";
+    if (callerRole === "driver") {
+      displayCaller = shortOrder
+        ? `HotBite Driver · Order #${shortOrder}`
+        : "HotBite Driver";
+      ringtone = "hotbite_ring_driver";
+    } else if (callerRole === "customer") {
+      displayCaller = "HotBite Customer";
+      ringtone = "hotbite_ring_customer";
+    } else if (callerRole === "restaurant") {
+      displayCaller = "HotBite Restaurant";
+      ringtone = "hotbite_ring_restaurant";
+    } else {
+      displayCaller = safeCallerName;
+    }
+    safeCallerName = displayCaller;
+
     // 2. Build and send a data-only FCM message (high priority)
     //    Data-only ensures the background handler fires on Android even when killed
     const sa = getServiceAccount();
@@ -190,6 +218,7 @@ Deno.serve(async (req: Request) => {
           caller_id: callerId ?? "",
           caller_name: safeCallerName,
           caller_role: callerRole,
+          ringtone: ringtone,
           order_id: orderId ?? "",
           channel_name: channelName,
           user_id: recipientUserId,

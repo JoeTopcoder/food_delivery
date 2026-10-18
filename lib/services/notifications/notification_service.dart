@@ -37,6 +37,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     _shownCallIds.add(callId);
     final callerName = message.data['caller_name'] ?? 'Incoming Call';
     final channelName = message.data['channel_name'] ?? '';
+    // Role-based HotBite ringtone (res/raw/<name>.mp3), chosen server-side.
+    final ringtone = (message.data['ringtone'] as String?)?.trim();
 
     final params = CallKitParams(
       id: callId,
@@ -54,10 +56,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'channel_name': channelName,
         'user_id': message.data['user_id'] ?? '',
       },
-      android: const AndroidParams(
+      android: AndroidParams(
         isCustomNotification: true,
         isShowLogo: false,
-        ringtonePath: 'system_ringtone_default',
+        // Role-based HotBite ringtone bundled under android/app/src/main/res/raw/
+        // (referenced by resource name, no extension), chosen server-side. Falls
+        // back to the generic call_ringtone if none was supplied.
+        ringtonePath: (ringtone == null || ringtone.isEmpty)
+            ? 'call_ringtone'
+            : ringtone,
         backgroundColor: '#1B1B2F',
         actionColor: '#7C3AED',
         incomingCallNotificationChannelName: 'Incoming Calls',
@@ -525,6 +532,7 @@ class NotificationService {
       if (_shownCallIds.contains(callId)) return;
       _shownCallIds.add(callId);
       final callerName = data?['caller_name'] as String? ?? title;
+      final ringtone = (data?['ringtone'] as String?)?.trim();
 
       final params = CallKitParams(
         id: callId,
@@ -535,10 +543,14 @@ class NotificationService {
         textAccept: 'Answer',
         textDecline: 'Decline',
         extra: data ?? {},
-        android: const AndroidParams(
+        android: AndroidParams(
           isCustomNotification: true,
           isShowLogo: false,
-          ringtonePath: 'system_ringtone_default',
+          // Role-based HotBite ringtone (res/raw/<name>.mp3), chosen server-side;
+          // falls back to the generic call_ringtone.
+          ringtonePath: (ringtone == null || ringtone.isEmpty)
+              ? 'call_ringtone'
+              : ringtone,
           backgroundColor: '#1B1B2F',
           actionColor: '#7C3AED',
           incomingCallNotificationChannelName: 'Incoming Calls',

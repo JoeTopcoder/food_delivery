@@ -303,6 +303,7 @@ interface MenuRow {
   name: string | null;
   description: string | null;
   category: string | null;
+  browse_category: string | null;
   tags: string[] | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
@@ -342,7 +343,7 @@ serve(async (req) => {
   while (true) {
     const { data, error } = await admin
       .from("menus")
-      .select("id, name, description, category, tags, is_vegan, is_vegetarian")
+      .select("id, name, description, category, browse_category, tags, is_vegan, is_vegetarian")
       .or("product_type.eq.food,product_type.is.null")
       .range(from, from + PAGE - 1);
     if (error) {
@@ -354,9 +355,13 @@ serve(async (req) => {
     for (const row of rows) {
       scanned++;
 
-      const currentLower = (row.category ?? "").toLowerCase().trim();
-      const alreadyCanonical = CANONICAL_LOWER.has(currentLower);
-      if (alreadyCanonical && !force) {
+      // We write the canonical HOME-BROWSE taxonomy to browse_category and never
+      // touch `category` (the restaurant's own menu section like "Chicken
+      // Combos" / "Sandwiches"). Only fill items whose browse_category is still
+      // empty; { "force": true } re-tags everything on demand.
+      const currentLower = (row.browse_category ?? "").toLowerCase().trim();
+      const alreadySet = currentLower.length > 0;
+      if (alreadySet && !force) {
         skipped++;
         continue;
       }
@@ -402,7 +407,7 @@ serve(async (req) => {
       for (const [cat, ids] of grouped) {
         const { error } = await admin
           .from("menus")
-          .update({ category: cat })
+          .update({ browse_category: cat })
           .in("id", ids);
         if (error) {
           console.error("update error", cat, error.message);
