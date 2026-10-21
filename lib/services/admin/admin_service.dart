@@ -195,6 +195,7 @@ class AdminService {
           .from(AppConstants.tableRestaurants)
           .select()
           .eq('is_verified', false)
+          .eq('is_active', true) // deactivated stores aren't "pending"
           .neq('status', 'rejected')
           .order('created_at', ascending: true)
           .limit(200);
@@ -278,6 +279,27 @@ class AdminService {
     }
 
     AppLogger.info('Restaurant verification updated via Edge Function');
+  }
+
+  /// Open/Closed switch. is_open=false just shows a "Closed" badge to customers;
+  /// the restaurant stays listed.
+  Future<void> setRestaurantOpen(String restaurantId, bool isOpen) async {
+    AppLogger.info('setRestaurantOpen: $restaurantId -> $isOpen');
+    await _supabaseClient
+        .from(AppConstants.tableRestaurants)
+        .update({'is_open': isOpen})
+        .eq('id', restaurantId);
+  }
+
+  /// Active/Deactivated master switch. Deactivating also clears is_verified so
+  /// the restaurant disappears from EVERY customer surface (all discovery
+  /// queries/RPCs gate on is_verified); reactivating restores both.
+  Future<void> setRestaurantActive(String restaurantId, bool isActive) async {
+    AppLogger.info('setRestaurantActive: $restaurantId -> $isActive');
+    await _supabaseClient
+        .from(AppConstants.tableRestaurants)
+        .update({'is_active': isActive, 'is_verified': isActive})
+        .eq('id', restaurantId);
   }
 
   /// Update commission rate for a restaurant

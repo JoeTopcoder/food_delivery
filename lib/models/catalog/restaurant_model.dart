@@ -26,6 +26,8 @@ class Restaurant {
   final String? closingTime;
   final List<String>? tags;
   final bool isVerified;
+  /// Admin master switch. false = hidden from every customer surface.
+  final bool isActive;
   final String? bankName;
   final String? bankBranch;
   final String? bankAccountNumber;
@@ -97,6 +99,7 @@ class Restaurant {
     this.closingTime,
     this.tags,
     this.isVerified = false,
+    this.isActive = true,
     this.bankName,
     this.bankBranch,
     this.bankAccountNumber,
@@ -153,6 +156,7 @@ class Restaurant {
     String? closingTime,
     List<String>? tags,
     bool? isVerified,
+    bool? isActive,
     String? bankName,
     String? bankBranch,
     String? bankAccountNumber,
@@ -199,6 +203,7 @@ class Restaurant {
       closingTime: closingTime ?? this.closingTime,
       tags: tags ?? this.tags,
       isVerified: isVerified ?? this.isVerified,
+      isActive: isActive ?? this.isActive,
       bankName: bankName ?? this.bankName,
       bankBranch: bankBranch ?? this.bankBranch,
       bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,

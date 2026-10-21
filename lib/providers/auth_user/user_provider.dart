@@ -8,6 +8,7 @@ import '../../models/catalog/menu_model.dart';
 import '../../models/ordering/order_model.dart';
 import '../../models/ordering/master_order_model.dart';
 import '../../models/catalog/cart_recommendation_model.dart';
+import '../../services/catalog/catalog_cache.dart';
 import '../../services/food/restaurant_service.dart';
 import '../../services/food/menu_service.dart';
 import '../../services/food/menu_category_service.dart';
@@ -90,7 +91,9 @@ final allRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>((
 ) async {
   ref.keepAlive();
   final restaurantService = ref.watch(restaurantServiceProvider);
-  return restaurantService.getAllRestaurants();
+  final list = await restaurantService.getAllRestaurants();
+  await CatalogCache.saveRestaurants('all', list);
+  return list;
 });
 
 /// Admin-only: every food restaurant, uncollapsed (each chain branch visible)
@@ -106,7 +109,9 @@ final topRatedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       ref.keepAlive();
       final restaurantService = ref.watch(restaurantServiceProvider);
-      return restaurantService.getTopRatedRestaurants();
+      final list = await restaurantService.getTopRatedRestaurants();
+      await CatalogCache.saveRestaurants('top_rated', list);
+      return list;
     });
 
 final restaurantSearchProvider = FutureProvider.family
@@ -169,19 +174,28 @@ final restaurantsByCuisineProvider = FutureProvider.family
 final newlyAddedRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       ref.keepAlive();
-      return ref.watch(restaurantServiceProvider).getNewlyAddedRestaurants();
+      final list =
+          await ref.watch(restaurantServiceProvider).getNewlyAddedRestaurants();
+      await CatalogCache.saveRestaurants('newly_added', list);
+      return list;
     });
 
 final breakfastRestaurantsProvider =
     FutureProvider.autoDispose<List<Restaurant>>((ref) async {
       ref.keepAlive();
-      return ref.watch(restaurantServiceProvider).getBreakfastRestaurants();
+      final list =
+          await ref.watch(restaurantServiceProvider).getBreakfastRestaurants();
+      await CatalogCache.saveRestaurants('breakfast', list);
+      return list;
     });
 
 final mustTryRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>(
   (ref) async {
     ref.keepAlive();
-    return ref.watch(restaurantServiceProvider).getMustTryRestaurants();
+    final list =
+        await ref.watch(restaurantServiceProvider).getMustTryRestaurants();
+    await CatalogCache.saveRestaurants('must_try', list);
+    return list;
   },
 );
 
@@ -190,7 +204,9 @@ final restaurantMenuProvider = FutureProvider.family
     .autoDispose<List<MenuItem>, String>((ref, restaurantId) async {
       ref.keepAlive();
       final menuService = ref.watch(menuServiceProvider);
-      return menuService.getMenuByRestaurant(restaurantId);
+      final items = await menuService.getMenuByRestaurant(restaurantId);
+      await CatalogCache.saveMenu(restaurantId, items);
+      return items;
     });
 
 // Used by the restaurant owner's management screen — returns ALL menu items

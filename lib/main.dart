@@ -241,6 +241,7 @@ import 'screens/stripe/admin_payout_requests_screen.dart';
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/core/cache_service.dart';
+import 'services/catalog/catalog_cache.dart';
 import 'providers/platform/feature_providers.dart';
 import 'firebase_options.dart';
 
@@ -271,6 +272,9 @@ void main() {
         ),
         SupabaseConfig.initialize(),
         CacheService.init(),
+        // Load the disk-backed catalogue cache so the home grid and menus can
+        // paint instantly on a cold launch while fresh data loads behind them.
+        CatalogCache.init(),
       ]);
 
       // Initialize Stripe with the compiled-in key as a bootstrap value.

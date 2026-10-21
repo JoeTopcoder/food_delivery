@@ -425,6 +425,76 @@ class _RestaurantList extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(height: 8),
+                      // Admin switches: Open/Closed (shows a "Closed" badge) and
+                      // Active/Deactivated (hides the restaurant from customers).
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _toggleOpen(
+                                context,
+                                restaurant.id,
+                                restaurant.name,
+                                !restaurant.isOpen,
+                              ),
+                              icon: Icon(
+                                restaurant.isOpen
+                                    ? Icons.toggle_on
+                                    : Icons.toggle_off,
+                                size: 18,
+                              ),
+                              label: Text(restaurant.isOpen ? 'Open' : 'Closed'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: restaurant.isOpen
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF59E0B),
+                                side: BorderSide(
+                                  color: restaurant.isOpen
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFF59E0B),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _toggleActive(
+                                context,
+                                restaurant.id,
+                                restaurant.name,
+                                !restaurant.isActive,
+                              ),
+                              icon: Icon(
+                                restaurant.isActive
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                size: 18,
+                              ),
+                              label: Text(
+                                restaurant.isActive ? 'Active' : 'Deactivated',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: restaurant.isActive
+                                    ? const Color(0xFF6366F1)
+                                    : Colors.red,
+                                side: BorderSide(
+                                  color: restaurant.isActive
+                                      ? const Color(0xFF6366F1)
+                                      : Colors.red,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -903,6 +973,108 @@ class _RestaurantList extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// Toggle a restaurant Open/Closed (is_open). Closed just shows a badge.
+  Future<void> _toggleOpen(
+    BuildContext context,
+    String restaurantId,
+    String restaurantName,
+    bool open,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(adminServiceProvider).setRestaurantOpen(restaurantId, open);
+      ref.invalidate(allRestaurantsAdminProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '"$restaurantName" is now ${open ? 'Open' : 'Closed'}',
+          ),
+          backgroundColor: open
+              ? const Color(0xFF10B981)
+              : const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(friendlyError(e)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Activate/Deactivate a restaurant. Deactivating hides it from every
+  /// customer surface; confirm first because it's disruptive.
+  void _toggleActive(
+    BuildContext context,
+    String restaurantId,
+    String restaurantName,
+    bool activate,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(activate ? 'Activate Restaurant?' : 'Deactivate Restaurant?'),
+        content: Text(
+          activate
+              ? 'Activate "$restaurantName"? It will be shown to customers again.'
+              : 'Deactivate "$restaurantName"? It will be hidden from customers everywhere until reactivated.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: activate ? const Color(0xFF10B981) : Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.of(context).pop();
+              try {
+                await ref
+                    .read(adminServiceProvider)
+                    .setRestaurantActive(restaurantId, activate);
+                ref.invalidate(allRestaurantsAdminProvider);
+                ref.invalidate(pendingRestaurantsProvider);
+                ref.invalidate(restaurantStatisticsProvider);
+                ref.invalidate(dashboardSummaryProvider);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      activate
+                          ? '"$restaurantName" activated'
+                          : '"$restaurantName" deactivated (hidden from customers)',
+                    ),
+                    backgroundColor: activate
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(friendlyError(e)),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text(activate ? 'Activate' : 'Deactivate'),
+          ),
+        ],
       ),
     );
   }

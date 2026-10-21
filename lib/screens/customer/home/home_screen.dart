@@ -18,6 +18,7 @@ import '../../../models/catalog/restaurant_ad_model.dart';
 import '../../../models/user/user_event_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../providers/auth_user/auth_provider.dart';
+import '../../../services/catalog/catalog_cache.dart';
 import '../../../providers/auth_user/address_provider.dart';
 import '../../../providers/admin/banner_provider.dart';
 import '../../../providers/rewards/promo_provider.dart';
@@ -970,21 +971,25 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             _buildHorizontalSection(
               title: 'You might love these \u{2764}\u{FE0F}',
               asyncValue: topRatedAsync,
+              cacheKey: 'top_rated',
             ),
 
             _buildHorizontalSection(
               title: 'Newly Added \u{1F195}',
               asyncValue: newlyAddedAsync,
+              cacheKey: 'newly_added',
             ),
 
             _buildHorizontalSection(
               title: 'Breakfast \u{1F373}',
               asyncValue: breakfastAsync,
+              cacheKey: 'breakfast',
             ),
 
             _buildHorizontalSection(
               title: 'Must Try \u{1F525}',
               asyncValue: mustTryAsync,
+              cacheKey: 'must_try',
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -1007,8 +1012,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               ),
             ),
 
-            allRestaurantsAsync.when(
-              data: (rawRestaurants) {
+            Builder(
+              builder: (_) {
+                // Seed the first frame from the disk cache so a cold launch
+                // shows restaurants instantly; the live provider swaps in fresh
+                // data silently when it resolves.
+                final rawRestaurants = allRestaurantsAsync.valueOrNull ??
+                    CatalogCache.restaurants('all');
+                if (rawRestaurants == null) {
+                  return allRestaurantsAsync.when(
+                    data: (_) => const SliverToBoxAdapter(),
+                    loading: () =>
+                        SliverToBoxAdapter(child: _loadingIndicator()),
+                    error: (err, _) => SliverToBoxAdapter(
+                      child: _emptyPlaceholder(friendlyError(err)),
+                    ),
+                  );
+                }
                 final restaurants = collapseRestaurantsByBrand(rawRestaurants);
                 final display = restaurants.take(15).toList();
                 return SliverPadding(
@@ -1032,10 +1052,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 );
               },
-              loading: () => SliverToBoxAdapter(child: _loadingIndicator()),
-              error: (err, _) => SliverToBoxAdapter(
-                child: _emptyPlaceholder(friendlyError(err)),
-              ),
             ),
 
             SliverToBoxAdapter(
@@ -1241,28 +1257,28 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   Widget _buildHorizontalSection({
     required String title,
     required AsyncValue<List<Restaurant>> asyncValue,
+    required String cacheKey,
   }) {
+    // Seed from the disk cache so the row paints instantly on a cold launch;
+    // the live provider replaces it silently once it resolves.
+    final rawRestaurants =
+        asyncValue.valueOrNull ?? CatalogCache.restaurants(cacheKey);
+    if (rawRestaurants == null) return const SliverToBoxAdapter();
+    final restaurants = collapseRestaurantsByBrand(rawRestaurants);
+    if (restaurants.isEmpty) return const SliverToBoxAdapter();
     return SliverToBoxAdapter(
-      child: asyncValue.when(
-        data: (rawRestaurants) {
-          final restaurants = collapseRestaurantsByBrand(rawRestaurants);
-          if (restaurants.isEmpty) return const SizedBox.shrink();
-          return _HorizontalRestaurantRow(
-            title: title,
-            restaurants: restaurants,
-            onViewAll: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _RestaurantSectionViewAllScreen(
-                  title: title,
-                  restaurants: restaurants,
-                ),
-              ),
+      child: _HorizontalRestaurantRow(
+        title: title,
+        restaurants: restaurants,
+        onViewAll: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => _RestaurantSectionViewAllScreen(
+              title: title,
+              restaurants: restaurants,
             ),
-          );
-        },
-        loading: () => const SizedBox.shrink(),
-        error: (_, _) => const SizedBox.shrink(),
+          ),
+        ),
       ),
     );
   }

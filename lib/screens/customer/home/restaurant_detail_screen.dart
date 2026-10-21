@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../models/catalog/menu_model.dart';
 import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/auth_user/user_provider.dart';
+import '../../../services/catalog/catalog_cache.dart';
 import '../../../providers/rewards/premium_providers.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../providers/auth_user/auth_provider.dart';
@@ -338,11 +339,20 @@ class _RestaurantDetailScreenState
                 ),
               ),
               actions: [
+                IconButton(
+                  icon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  onPressed: _openMenuSearch,
+                ),
+                // Cart button (replaces the favourite button here) — always
+                // visible, with a count badge when the cart has items.
                 Consumer(
                   builder: (context, ref, _) {
                     final cartItems = ref.watch(cartProvider);
-                    if (cartItems.isEmpty) return const SizedBox.shrink();
                     return Stack(
+                      alignment: Alignment.center,
                       children: [
                         IconButton(
                           icon: Icon(
@@ -352,49 +362,34 @@ class _RestaurantDetailScreenState
                           onPressed: () =>
                               Navigator.pushNamed(context, '/cart'),
                         ),
-                        Positioned(
-                          right: 6,
-                          top: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentColor,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${cartItems.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                        if (cartItems.isNotEmpty)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor,
+                                shape: BoxShape.circle,
                               ),
-                              textAlign: TextAlign.center,
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '${cartItems.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     );
                   },
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.search_rounded,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  onPressed: _openMenuSearch,
-                ),
-                IconButton(
-                  icon: Icon(
-                    isFav ? Icons.favorite : Icons.favorite_outline,
-                    color: isFav
-                        ? AppTheme.accentColor
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
-                  onPressed: _toggleFav,
                 ),
                 IconButton(
                   icon: Icon(
@@ -968,8 +963,28 @@ class _RestaurantDetailScreenState
                     ),
                   ),
                 // Menu Items
-                menuItemsAsync.when(
-                  data: (menuItems) {
+                Builder(
+                  builder: (context) {
+                    // Seed from the disk cache so the menu paints instantly on
+                    // a cold launch; the live provider swaps in fresh items
+                    // silently once it resolves.
+                    final menuItems = menuItemsAsync.valueOrNull ??
+                        CatalogCache.menu(widget.restaurant.id);
+                    if (menuItems == null) {
+                      if (menuItemsAsync.hasError) {
+                        return AppErrorState(
+                          message: friendlyError(menuItemsAsync.error),
+                        );
+                      }
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: AppLoadingIndicator(
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      );
+                    }
                     // Group items by category
                     final grouped = <String, List<MenuItem>>{};
                     for (final item in menuItems) {
@@ -1091,14 +1106,6 @@ class _RestaurantDetailScreenState
                       ],
                     );
                   },
-                  loading: () => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: AppLoadingIndicator(color: AppTheme.primaryColor),
-                    ),
-                  ),
-                  error: (err, stack) =>
-                      AppErrorState(message: friendlyError(err)),
                 ),
                 const SizedBox(height: 140),
               ],
