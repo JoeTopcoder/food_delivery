@@ -48,24 +48,35 @@ const _reorderableStatuses = {'delivered', 'completed'};
 /// Ranking: most frequently ordered first, then most recent. One entry per
 /// restaurant (its latest reorderable order). Capped so the home screen never
 /// walks the customer's entire lifetime history.
-/// Maps each restaurant id in the customer's history to a chain grouping key
-/// (chain_id when set, else the id itself). Lets "Order Again" collapse a chain
-/// that the customer has ordered from at more than one location into one card.
-final _historyChainKeysProvider =
-    FutureProvider.autoDispose.family<Map<String, String>, List<String>>(
-        (ref, ids) async {
-  if (ids.isEmpty) return const {};
+/// One authoritative "Order Again" row from the server: which order to re-order,
+/// its store, and how often ordered. Sourced from the `get_order_again` RPC,
+/// which enforces the rules in the database — caller-scoped, completed-only, and
+/// **grocery stores excluded** — so grocery can never appear on the food home
+/// regardless of the client.
+typedef _OrderAgainRow = ({
+  String orderId,
+  String restaurantId,
+  int times,
+  DateTime at,
+});
+
+final _orderAgainRpcProvider =
+    FutureProvider.autoDispose<List<_OrderAgainRow>>((ref) async {
+  final uid = ref.watch(currentUserIdProvider);
+  if (uid == null) return const [];
+  // Re-run whenever the customer's orders change (new delivery completes).
+  ref.watch(userOrdersProvider(uid));
   final rows = await SupabaseConfig.client
-      .from('restaurants')
-      .select('id, chain_id')
-      .inFilter('id', ids);
-  final out = <String, String>{};
-  for (final r in (rows as List)) {
-    final id = r['id'] as String;
-    final chain = (r['chain_id'] as String?)?.trim();
-    out[id] = (chain != null && chain.isNotEmpty) ? 'c:$chain' : id;
-  }
-  return out;
+      .rpc('get_order_again', params: {'p_limit': 8});
+  return (rows as List).map((r) {
+    final m = Map<String, dynamic>.from(r as Map);
+    return (
+      orderId: m['order_id'] as String,
+      restaurantId: m['restaurant_id'] as String,
+      times: (m['times_ordered'] as num).toInt(),
+      at: DateTime.parse(m['last_ordered_at'] as String),
+    );
+  }).toList();
 });
 
 final orderAgainProvider =
@@ -73,46 +84,27 @@ final orderAgainProvider =
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const [];
 
-  final ordersAsync = ref.watch(userOrdersProvider(uid));
-  final orders = ordersAsync.valueOrNull ?? const <Order>[];
+  // The server decides which entries belong (grocery already excluded there).
+  final rows = ref.watch(_orderAgainRpcProvider).valueOrNull ?? const [];
+  if (rows.isEmpty) return const [];
 
-  final reorderable = orders
-      .where((o) => _reorderableStatuses.contains(o.status))
-      .toList()
-    ..sort((a, b) => b.orderedAt.compareTo(a.orderedAt)); // most recent first
+  // Resolve each allowed order's full detail from the loaded history so the card
+  // can show its items and re-order it. Orders not in the loaded page are
+  // skipped rather than guessed.
+  final orders = ref.watch(userOrdersProvider(uid)).valueOrNull ?? const <Order>[];
+  final byId = {for (final o in orders) o.id: o};
 
-  // Chain keys for the restaurants in this history (resolved async, once).
-  final ids = reorderable.map((o) => o.restaurantId).toSet().toList();
-  final chainKeys =
-      ref.watch(_historyChainKeysProvider(ids)).valueOrNull ?? const {};
-
-  // Group by chain (falling back to restaurant id): keep the most recent order
-  // (first seen) as the reorder target + a count across all locations.
-  final byChain = <String, ({Order order, int count})>{};
-  for (final o in reorderable) {
-    final key = chainKeys[o.restaurantId] ?? o.restaurantId;
-    final existing = byChain[key];
-    if (existing == null) {
-      byChain[key] = (order: o, count: 1);
-    } else {
-      byChain[key] = (order: existing.order, count: existing.count + 1);
-    }
+  final entries = <OrderAgainEntry>[];
+  for (final row in rows) {
+    final order = byId[row.orderId];
+    if (order == null || !_reorderableStatuses.contains(order.status)) continue;
+    entries.add(OrderAgainEntry(
+      restaurantId: row.restaurantId,
+      order: order,
+      timesOrdered: row.times,
+    ));
   }
-
-  final entries = byChain.values
-      .map((e) => OrderAgainEntry(
-            restaurantId: e.order.restaurantId,
-            order: e.order,
-            timesOrdered: e.count,
-          ))
-      .toList()
-    ..sort((a, b) {
-      final byFreq = b.timesOrdered.compareTo(a.timesOrdered);
-      if (byFreq != 0) return byFreq;
-      return b.order.orderedAt.compareTo(a.order.orderedAt);
-    });
-
-  return entries.take(8).toList();
+  return entries;
 });
 
 /// Resolves a restaurant/store for an Order Again card. Grocery partners are

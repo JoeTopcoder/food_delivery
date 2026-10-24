@@ -11,7 +11,8 @@ import '../common/app_cached_image.dart';
 /// Built entirely from real completed order history ([orderAgainProvider]);
 /// self-hides when the customer has no meaningful history. Each card re-orders
 /// through the shared [ReorderFlow], which re-checks live price/availability
-/// before touching the cart. Works for both food and grocery orders.
+/// before touching the cart. Food only — grocery stores are excluded server-side
+/// by the `get_order_again` RPC (groceries have their own rail/flow).
 class OrderAgainSection extends ConsumerWidget {
   const OrderAgainSection({super.key});
 
