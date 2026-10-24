@@ -183,9 +183,15 @@ final adminOverviewStatsProvider =
   Future<T> guarded<T>(Future<T> f, T fallback) =>
       f.timeout(const Duration(seconds: 12)).catchError((_) => fallback);
 
-  // Orders placed in window
+  // Orders placed in window — excluding cancelled/rejected/failed, which aren't
+  // real orders and shouldn't inflate the count.
   final ordersRows = await guarded(() {
-    var q = client.from('orders').select('id');
+    var q = client
+        .from('orders')
+        .select('id')
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
+        .neq('status', 'failed');
     if (from != null) q = q.gte('ordered_at', from.toIso8601String());
     return q;
   }(), const <dynamic>[]);
@@ -242,8 +248,16 @@ final adminOverviewStatsProvider =
 
   final riderRows = await guarded(
       client.from('drivers').select('id').eq('is_online', true), const <dynamic>[]);
+  // Active stores = verified, not deactivated, and currently open (operating) —
+  // not merely enabled partners. A closed store isn't "active" for the day.
   final storeRows = await guarded(
-      client.from('restaurants').select('id').eq('is_verified', true), const <dynamic>[]);
+      client
+          .from('restaurants')
+          .select('id')
+          .eq('is_verified', true)
+          .eq('is_active', true)
+          .eq('is_open', true),
+      const <dynamic>[]);
 
   return {
     'total_sales': totalSales,

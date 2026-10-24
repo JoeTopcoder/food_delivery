@@ -25,6 +25,31 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // App-bundle size reduction. SAFE: these never touch the call audio path —
+    // the core Agora RTC engine, JNI wrapper, video encoder, audio codecs and AI
+    // noise/echo-suppression libraries are all KEPT. Only optional feature
+    // extensions the app never enables are stripped, plus the emulator-only
+    // x86/x86_64 architectures (no shipping phone uses them).
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "**/x86/**",
+                "**/x86_64/**",
+                "**/libagora_lip_sync_extension.so",          // lip-sync avatar
+                "**/libagora_clear_vision_extension.so",      // low-light enhance
+                "**/libagora_content_inspect_extension.so",   // content moderation
+                "**/libagora_face_capture_extension.so",      // face capture
+                "**/libagora_face_detection_extension.so",    // face detection
+                "**/libagora_segmentation_extension.so",      // virtual background
+                "**/libagora_spatial_audio_extension.so",     // spatial audio
+                "**/libagora_audio_beauty_extension.so",      // voice beautifier
+                "**/libagora_video_av1_encoder_extension.so", // AV1 (H264/VP8 used)
+                "**/libagora_video_quality_analyzer_extension.so",
+                "**/libagora_screen_capture_extension.so"     // screen sharing
+            )
+        }
+    }
+
     kotlin {
         compilerOptions {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
