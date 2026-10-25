@@ -45,6 +45,14 @@ class _RestaurantDetailScreenState
   bool _startingGroupOrder = false;
   bool _savingToGroup = false;
 
+  // Menu is rendered as one continuous, scrollable list of all categories. The
+  // category chips jump to a section; as the customer scrolls, the chip of the
+  // section currently at the top stays highlighted. These track that.
+  final Map<String, GlobalKey> _categoryKeys = {};
+  List<String> _orderedCategories = const [];
+  final ScrollController _chipsController = ScrollController();
+  bool _chipJumpInProgress = false;
+
   void _openReviews() {
     Navigator.push(
       context,
@@ -303,12 +311,74 @@ class _RestaurantDetailScreenState
   @override
   void dispose() {
     _scrollController.dispose();
+    _chipsController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     final show = _scrollController.offset > 200;
     if (show != _showAppBar) setState(() => _showAppBar = show);
+    if (!_chipJumpInProgress) _syncActiveCategoryToScroll();
+  }
+
+  /// Highlights the chip of the menu section currently at the top of the
+  /// viewport as the customer scrolls the continuous menu list.
+  void _syncActiveCategoryToScroll() {
+    if (_orderedCategories.isEmpty) return;
+    // Anchor just below the sticky app bar area.
+    const anchor = 160.0;
+    String? current;
+    for (final cat in _orderedCategories) {
+      final ctx = _categoryKeys[cat]?.currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      final dy = box.localToGlobal(Offset.zero).dy;
+      if (dy <= anchor) {
+        current = cat; // last section whose header has passed the anchor
+      } else {
+        break;
+      }
+    }
+    current ??= _orderedCategories.first;
+    if (current != _selectedCategory) {
+      setState(() => _selectedCategory = current);
+      _ensureChipVisible(current);
+    }
+  }
+
+  /// Scrolls the menu list to a category's section (chip tap).
+  Future<void> _jumpToCategory(String cat) async {
+    setState(() => _selectedCategory = cat);
+    _ensureChipVisible(cat);
+    final ctx = _categoryKeys[cat]?.currentContext;
+    if (ctx == null) return;
+    _chipJumpInProgress = true;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+      alignment: 0.0, // bring the section header to the top
+      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+    );
+    _chipJumpInProgress = false;
+  }
+
+  /// Keeps the active chip visible in the horizontal chip row.
+  void _ensureChipVisible(String cat) {
+    if (!_chipsController.hasClients) return;
+    final i = _orderedCategories.indexOf(cat);
+    if (i < 0) return;
+    const chipApprox = 110.0; // average pill width + gap
+    final target = (i * chipApprox - 60).clamp(
+      0.0,
+      _chipsController.position.maxScrollExtent,
+    );
+    _chipsController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -998,21 +1068,26 @@ class _RestaurantDetailScreenState
                       );
                     }
 
-                    // Default to first category
+                    // Track the section order + a stable key per section so the
+                    // chips can jump to a section and the scroll listener can
+                    // highlight the section currently in view.
+                    _orderedCategories = categories;
+                    for (final cat in categories) {
+                      _categoryKeys.putIfAbsent(cat, () => GlobalKey());
+                    }
                     final activeCategory =
                         _selectedCategory ?? categories.first;
-                    final activeItems = grouped[activeCategory] ?? [];
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Menu section chips. Pills rather than underlines:
-                        // with many sections the selected one stays legible at
-                        // a glance, and the row reads as filters instead of a
-                        // second navigation bar competing with the app's tabs.
+                        // Menu section chips. Tapping one jumps to that section;
+                        // the whole menu is one scrollable list, so a customer
+                        // can also just scroll through every category in order.
                         SizedBox(
                           height: 52,
                           child: ListView.separated(
+                            controller: _chipsController,
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             itemCount: categories.length,
@@ -1022,8 +1097,7 @@ class _RestaurantDetailScreenState
                               final cat = categories[index];
                               final isActive = cat == activeCategory;
                               return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedCategory = cat),
+                                onTap: () => _jumpToCategory(cat),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
                                   padding: const EdgeInsets.symmetric(
@@ -1065,44 +1139,48 @@ class _RestaurantDetailScreenState
                           ),
                         ),
 
-                        // Section heading — tells the customer which part of
-                        // the menu they're looking at once the chip row has
-                        // scrolled the active pill off screen.
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                          child: Row(
-                            children: [
-                              Text(
-                                activeCategory,
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
+                        // Every category rendered in order: a section header
+                        // (keyed, so chips can scroll to it) followed by its
+                        // items. The customer can scroll straight through all of
+                        // them, or jump via the chips above.
+                        for (final cat in categories) ...[
+                          Padding(
+                            key: _categoryKeys[cat],
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  cat,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${activeItems.length} item${activeItems.length == 1 ? '' : 's'}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${grouped[cat]!.length} item${grouped[cat]!.length == 1 ? '' : 's'}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        // Items under selected category
-                        ...activeItems.map(
-                          (item) => MenuItemCard(
-                            item: item,
-                            onTap: () => _showMenuItemDetail(context, item),
-                            onAddTap: () => _showMenuItemDetail(context, item),
+                          ...grouped[cat]!.map(
+                            (item) => MenuItemCard(
+                              item: item,
+                              onTap: () => _showMenuItemDetail(context, item),
+                              onAddTap: () => _showMenuItemDetail(context, item),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     );
                   },
