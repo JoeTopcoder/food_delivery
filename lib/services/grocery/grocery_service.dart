@@ -823,6 +823,10 @@ class GroceryService {
     /// When set, the order goes to this linked student's school. The edge
     /// function re-checks the link and re-derives school and fee.
     String? studentId,
+
+    /// Host Rewards: the registered host property this order is delivered to
+    /// (honoured server-side only if the customer has an active referral to it).
+    String? hostPropertyId,
   }) async {
     try {
       AppLogger.info('Placing grocery order via edge function');
@@ -841,6 +845,8 @@ class GroceryService {
         if (specialInstructions != null)
           'special_instructions': specialInstructions,
         if (promoCode != null) 'promo_code': promoCode,
+        if (hostPropertyId != null && hostPropertyId.isNotEmpty)
+          'host_property_id': hostPropertyId,
         if (savedCardPaymentMethodId != null &&
             savedCardPaymentMethodId.isNotEmpty)
           'saved_card_payment_method_id': savedCardPaymentMethodId,

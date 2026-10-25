@@ -510,6 +510,28 @@ export async function handle(request: Request): Promise<Response> {
       commission_amount: commissionAmount,
     };
 
+    // Host Rewards: tag grocery orders delivered to a registered host property,
+    // but only if the customer has an active referral to it (server-authoritative;
+    // the commission engine does the final check on delivery).
+    const hostPropertyId = (body.host_property_id as string | undefined) || null;
+    if (hostPropertyId && !isPickup) {
+      const { data: hostRef } = await admin
+        .from("host_referrals")
+        .select("id")
+        .eq("customer_id", userId)
+        .eq("property_id", hostPropertyId)
+        .eq("status", "active")
+        .maybeSingle();
+      const { data: hostProp } = await admin
+        .from("host_properties")
+        .select("status")
+        .eq("id", hostPropertyId)
+        .maybeSingle();
+      if (hostRef && hostProp?.status === "active") {
+        orderData.host_property_id = hostPropertyId;
+      }
+    }
+
     const { data: order, error: orderErr } = await admin
       .from("orders")
       .insert(orderData)

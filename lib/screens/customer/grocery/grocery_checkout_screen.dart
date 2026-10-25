@@ -1527,6 +1527,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
           promoCode: !promoApplied ? appliedPromo?.code : null,
           paymentIntentId: savedCardPaymentIntentId,
           studentId: studentId,
+          // Host Rewards: attribute grocery orders delivered to a host property.
+          hostPropertyId: isPickup ? null : selectedAddress?.hostPropertyId,
         );
 
         final orderId =
