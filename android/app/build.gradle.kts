@@ -25,6 +25,19 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // App-bundle size reduction — ONLY the emulator-only x86/x86_64 architectures
+    // are stripped (no shipping phone uses them). All Agora native libraries,
+    // including every extension, are kept untouched so in-app calling is never
+    // affected.
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "**/x86/**",
+                "**/x86_64/**"
+            )
+        }
+    }
+
     kotlin {
         compilerOptions {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

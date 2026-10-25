@@ -84,7 +84,7 @@ class MenuCategoryService {
             '*, restaurants(id, name, image_url, rating, delivery_fee, '
             'estimated_delivery_time, is_open, latitude, longitude)',
           )
-          .ilike('category', category)
+          .ilike('browse_category', category)
           .eq('is_available', true)
           .order('rating', ascending: false)
           .limit(limit);

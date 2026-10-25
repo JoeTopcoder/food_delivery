@@ -1,11 +1,8 @@
-// grocery/identify-product — AI product identification from a photo.
-//
-// Admin (or a store owner) sends a product photo; GPT-4o-mini vision returns a
-// structured guess: full name, brand, size, dimensions, category, unit and a
-// short description. No DB writes — the app shows the result in an editable
-// form where the admin sets price + quantity and creates the product, using the
-// captured photo as the image. (There is no web image-search key configured, so
-// the product image is the admin's own photo, not a fetched catalogue image.)
+// grocery/identify-product — read the product straight off the package using
+// Google Gemini vision. It returns ONLY what is printed on the label (brand,
+// flavour/variant, size), so the name matches the actual bottle rather than a
+// visually-similar web product. SerpAPI (grocery/product-images) still supplies
+// the catalogue image separately. No DB writes.
 
 // deno-lint-ignore-file
 declare const Deno: { env: { get(key: string): string | undefined } };
@@ -15,7 +12,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+// Tried in order. The newest preview models frequently return 503 "high
+// demand", so we fall through to stabler ones rather than failing the whole
+// identify. An env override (GEMINI_MODEL) is prepended if set.
+const GEMINI_MODELS = [
+  Deno.env.get("GEMINI_MODEL"),
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+].filter((m): m is string => !!m && m.trim().length > 0);
 const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 const corsHeaders = {
@@ -30,8 +36,7 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-// Allow platform admins and anyone who owns a store (store owners can stock
-// their own catalogue too). Never open to customers — it spends OpenAI credit.
+// Platform admins and store owners only — never customers (spends API credit).
 async function requireStaff(request: Request): Promise<Response | null> {
   const authHeader = request.headers.get("Authorization") ?? "";
   const token = authHeader.toLowerCase().startsWith("bearer ")
@@ -53,27 +58,44 @@ async function requireStaff(request: Request): Promise<Response | null> {
   return json({ error: "Forbidden" }, 403);
 }
 
-const SYSTEM_PROMPT =
-  "You identify retail grocery products from a single photo for a store " +
-  "catalogue. Read any visible packaging text (brand, product name, net " +
-  "weight/volume/count). Prefer what is printed on the package over guessing. " +
-  "If the photo is not a clear single grocery product, set identified=false " +
-  "and explain in notes. Respond ONLY with valid JSON — no markdown.";
-
-const USER_PROMPT =
-  "Identify this grocery product and respond with JSON exactly in this shape:\n" +
+const PROMPT =
+  "You read a single retail grocery product from this photo for a store " +
+  "catalogue. Use ONLY the text and facts printed on the package itself — " +
+  "brand, product/flavour name, net weight/volume/count. Never guess a brand, " +
+  "flavour or size that is not visibly printed, and never substitute a similar " +
+  "product. If the label is unreadable or it is not a single grocery product, " +
+  'set identified=false. Respond with JSON exactly in this shape:\n' +
   "{\n" +
   '  "identified": true/false,\n' +
-  '  "name": "full product name including brand and size, e.g. \\"Grace Coconut Milk 400ml\\"",\n' +
-  '  "brand": "brand only, or null",\n' +
-  '  "size": "net weight / volume / count as printed, e.g. \\"400 ml\\", \\"1 lb\\", \\"12 pack\\", or null",\n' +
-  '  "dimensions": "physical package dimensions if determinable, e.g. \\"7 x 7 x 12 cm\\", else null",\n' +
-  '  "category": "a short grocery category, e.g. \\"Canned Goods\\", \\"Beverages\\", \\"Snacks\\", \\"Produce\\", \\"Dairy\\"",\n' +
+  '  "name": "brand + flavour/variant exactly as printed, e.g. \\"Gatorade Berry Blue\\" — do NOT append size or extra words",\n' +
+  '  "brand": "brand exactly as printed, or null",\n' +
+  '  "flavour": "flavour/variant exactly as printed, or null",\n' +
+  '  "size": "net volume/weight/count exactly as printed, e.g. \\"600 ml\\", or null",\n' +
+  '  "category": "a short grocery category, e.g. \\"Beverages\\", \\"Snacks\\", \\"Dairy & Eggs\\", \\"Pantry\\"",\n' +
   '  "unit": "one of: each, pack, bottle, can, bag, lb, kg, oz",\n' +
-  '  "description": "one or two factual sentences a shopper would find useful",\n' +
+  '  "description": "the product descriptor as printed on the label",\n' +
   '  "confidence": 0.0-1.0,\n' +
-  '  "notes": "brief note if not identified or uncertain, else empty string"\n' +
+  '  "notes": "brief note if unreadable/uncertain, else empty string"\n' +
   "}";
+
+// Gemini needs the image inline as base64. For an http URL, fetch + encode.
+async function toBase64(rawB64: string | undefined, directUrl: string | undefined, mime: string):
+  Promise<{ data: string; mime: string } | null> {
+  if (rawB64) {
+    const clean = rawB64.includes(",") ? rawB64.split(",").pop()! : rawB64;
+    return { data: clean, mime };
+  }
+  if (directUrl && directUrl.startsWith("http")) {
+    const r = await fetch(directUrl);
+    if (!r.ok) return null;
+    const ct = r.headers.get("content-type") || "image/jpeg";
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    return { data: btoa(bin), mime: ct };
+  }
+  return null;
+}
 
 export async function handle(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") {
@@ -82,7 +104,7 @@ export async function handle(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return json({ error: "AI identification is not configured" }, 503);
   }
 
@@ -96,71 +118,82 @@ export async function handle(request: Request): Promise<Response> {
     return json({ error: "Invalid JSON" }, 400);
   }
 
-  // Accept either a base64 payload (+ mime) or a direct https image URL.
-  const rawB64 = (body.image_base64 as string | undefined)?.trim();
-  const mime = (body.mime as string | undefined) || "image/jpeg";
-  const directUrl = (body.image_url as string | undefined)?.trim();
-  let imageUrl: string;
-  if (rawB64) {
-    const clean = rawB64.startsWith("data:") ? rawB64 : `data:${mime};base64,${rawB64}`;
-    imageUrl = clean;
-  } else if (directUrl && directUrl.startsWith("http")) {
-    imageUrl = directUrl;
-  } else {
-    return json({ error: "image_base64 or image_url is required" }, 400);
-  }
+  const img = await toBase64(
+    (body.image_base64 as string | undefined)?.trim(),
+    (body.image_url as string | undefined)?.trim(),
+    (body.mime as string | undefined) || "image/jpeg",
+  );
+  if (!img) return json({ error: "image_base64 or image_url is required" }, 400);
+
+  const reqBody = JSON.stringify({
+    contents: [{
+      parts: [
+        { text: PROMPT },
+        { inline_data: { mime_type: img.mime, data: img.data } },
+      ],
+    }],
+    generationConfig: { temperature: 0, responseMimeType: "application/json" },
+  });
 
   try {
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: USER_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
-            ],
-          },
-        ],
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        max_tokens: 500,
-      }),
-    });
-
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error(`[grocery/identify-product] OpenAI ${openaiRes.status}: ${errText}`);
-      return json({ error: "Could not identify the product. Please try again." }, 502);
+    // Try each model until one answers. 503/429/500 = overloaded or transient,
+    // so move on to the next model; any other error is a real failure.
+    let geminiRes: Response | null = null;
+    let lastStatus = 0;
+    let lastErr = "";
+    for (const model of GEMINI_MODELS) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: reqBody,
+        },
+      );
+      if (res.ok) {
+        geminiRes = res;
+        break;
+      }
+      lastStatus = res.status;
+      lastErr = await res.text();
+      console.error(`[grocery/identify-product] ${model} ${res.status}: ${lastErr.slice(0, 200)}`);
+      // Only keep trying on overload/transient statuses.
+      if (res.status !== 503 && res.status !== 429 && res.status !== 500) break;
     }
 
-    const data = await openaiRes.json();
-    const content = data.choices?.[0]?.message?.content ?? "{}";
+    if (!geminiRes) {
+      const busy = lastStatus === 503 || lastStatus === 429;
+      return json({
+        error: busy
+          ? "The AI is busy right now. Please try again in a moment."
+          : "Could not identify the product. Please try again.",
+      }, 502);
+    }
+
+    const data = await geminiRes.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const content = parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(content);
     } catch {
+      console.error(`[grocery/identify-product] parse fail: ${content.slice(0, 200)}`);
       return json({ error: "Could not read the identification result." }, 502);
     }
 
     return json({
       identified: parsed.identified === true,
-      name: (parsed.name as string) ?? "",
+      name: ((parsed.name as string) ?? "").trim(),
       brand: (parsed.brand as string) ?? null,
+      flavour: (parsed.flavour as string) ?? null,
       size: (parsed.size as string) ?? null,
-      dimensions: (parsed.dimensions as string) ?? null,
-      category: (parsed.category as string) ?? "",
+      dimensions: null,
+      category: ((parsed.category as string) ?? "").trim(),
       unit: (parsed.unit as string) ?? "each",
-      description: (parsed.description as string) ?? "",
+      description: ((parsed.description as string) ?? "").trim(),
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : null,
       notes: (parsed.notes as string) ?? "",
+      images: [],
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

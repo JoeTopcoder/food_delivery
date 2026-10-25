@@ -323,6 +323,11 @@ Deno.serve(async (request) => {
     // ── 5. Send via Resend ───────────────────────────────────────────────
     const emailResult = await sendEmail({
       to: [customer.email],
+      // Customer receipt emails send from the HotBite sales address.
+      // NOTE: thehotbite.com must be a VERIFIED domain in Resend or the send
+      // is rejected. This overrides the default RESEND_FROM_EMAIL sender for
+      // receipts only.
+      from: "HotBite <sales@thehotbite.com>",
       subject: `Your HotBite Receipt — ${receiptNumber} from ${restName}`,
       html,
     });

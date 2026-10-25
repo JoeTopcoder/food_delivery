@@ -128,6 +128,24 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     ref.invalidate(_adminAllOrdersProvider);
   }
 
+  // Completed/closed orders — excluded from the "All" tab so it shows only
+  // active, in-progress orders.
+  static const _terminalStatuses = {
+    'delivered', 'completed', 'cancelled', 'rejected', 'declined',
+    'failed', 'refunded', 'expired',
+  };
+
+  /// Whether [ts] falls on today, by the device's local clock. Used so the
+  /// Delivered/Cancelled tabs reset to 0 at local midnight (12 AM) each day.
+  static bool _isToday(dynamic ts) {
+    if (ts == null) return false;
+    final dt = DateTime.tryParse(ts.toString())?.toLocal();
+    if (dt == null) return false;
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day); // local 12 AM
+    return !dt.isBefore(startOfToday);
+  }
+
   List<String> _statusesForTab(int index) {
     switch (index) {
       case 1:
@@ -160,6 +178,25 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     final statuses = _statusesForTab(tabIndex);
     if (statuses.isNotEmpty) {
       filtered = filtered.where((o) => statuses.contains(o['status'])).toList();
+    } else if (tabIndex == 0) {
+      // "All" shows only active (in-progress) orders — everything except the
+      // terminal statuses. Excluding (rather than listing active statuses) keeps
+      // any intermediate status visible without needing to enumerate them.
+      filtered = filtered
+          .where((o) => !_terminalStatuses.contains((o['status'] ?? '').toString()))
+          .toList();
+    }
+
+    // Delivered / Cancelled tabs reset daily: only show orders that reached that
+    // state during the current Jamaica day, so both read 0 at the start of a day.
+    if (tabIndex == 3) {
+      filtered = filtered
+          .where((o) => _isToday(o['delivered_at'] ?? o['ordered_at']))
+          .toList();
+    } else if (tabIndex == 4) {
+      filtered = filtered
+          .where((o) => _isToday(o['cancelled_at'] ?? o['ordered_at']))
+          .toList();
     }
 
     // Search filter

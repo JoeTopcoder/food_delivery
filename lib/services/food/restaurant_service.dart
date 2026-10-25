@@ -207,7 +207,7 @@ class RestaurantService {
       final response = await _supabaseClient
           .from(AppConstants.tableRestaurants)
           .select('$_kRestaurantListCols, menus!inner(id)')
-          .ilike('menus.category', category)
+          .ilike('menus.browse_category', category)
           .eq('menus.is_available', true)
           .eq('is_open', true)
           .eq('is_verified', true)
