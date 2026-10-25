@@ -1,8 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../providers/host_rewards/host_rewards_provider.dart';
 import '../../../services/host_rewards/host_rewards_service.dart';
@@ -252,33 +258,47 @@ class _PropertiesTab extends ConsumerWidget {
   void _showQr(BuildContext context, WidgetRef ref, Map<String, dynamic> p) {
     final svc = ref.read(hostRewardsServiceProvider);
     final code = p['referral_code'] as String;
+    final name = (p['property_name'] as String?) ?? 'Property';
     final url = svc.referralUrl(code);
+    final cardKey = GlobalKey();
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(p['property_name'] ?? 'Property'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(12),
-            child: QrImageView(data: url, size: 220, version: QrVersions.auto),
-          ),
-          const SizedBox(height: 12),
-          SelectableText(code,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          SelectableText(url,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        ]),
+        title: Text(name),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // The printable card (captured to PNG on "Save card").
+            RepaintBoundary(
+              key: cardKey,
+              child: _HostQrCard(propertyName: name, code: code, url: url),
+            ),
+            const SizedBox(height: 10),
+            SelectableText(url,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 4, alignment: WrapAlignment.center, children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.image_rounded, size: 18),
+                label: const Text('Save QR (PNG)'),
+                onPressed: () => _saveQrPng(context, url, code),
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.badge_rounded, size: 18),
+                label: const Text('Save card'),
+                onPressed: () => _saveBoundaryPng(context, cardKey, 'HotBite-Host-$code'),
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: const Text('Copy link'),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: url));
+                  _toast(context, 'Referral link copied');
+                },
+              ),
+            ]),
+          ]),
+        ),
         actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 18),
-            label: const Text('Copy link'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: url));
-              _toast(context, 'Referral link copied');
-            },
-          ),
           TextButton.icon(
             icon: const Icon(Icons.autorenew_rounded, size: 18),
             label: const Text('Rotate code'),
@@ -650,4 +670,109 @@ void _toast(BuildContext context, String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
   }
+}
+
+/// A printable, branded QR card for a host property. Captured to PNG via a
+/// RepaintBoundary (no PDF dependency needed — a PNG prints cleanly).
+class _HostQrCard extends StatelessWidget {
+  final String propertyName;
+  final String code;
+  final String url;
+  const _HostQrCard(
+      {required this.propertyName, required this.code, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 300,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.local_fire_department_rounded,
+              color: Color(0xFFE64A19)),
+          const SizedBox(width: 6),
+          const Text('HotBite',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1A1A1A))),
+        ]),
+        const SizedBox(height: 2),
+        const Text('Order food & groceries, delivered',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 16),
+        QrImageView(
+            data: url,
+            size: 200,
+            version: QrVersions.auto,
+            backgroundColor: Colors.white),
+        const SizedBox(height: 14),
+        Text(propertyName,
+            textAlign: TextAlign.center,
+            style:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text('Scan to order to this stay',
+            style: TextStyle(fontSize: 12, color: Colors.black54)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF1F1F1),
+              borderRadius: BorderRadius.circular(6)),
+          child: Text(code,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1)),
+        ),
+      ]),
+    );
+  }
+}
+
+Future<void> _saveQrPng(BuildContext context, String url, String code) async {
+  try {
+    final painter = QrPainter(
+      data: url,
+      version: QrVersions.auto,
+      gapless: true,
+      eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square, color: Color(0xFF000000)),
+      dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square, color: Color(0xFF000000)),
+    );
+    final data = await painter.toImageData(1024, format: ui.ImageByteFormat.png);
+    if (data == null) throw 'render failed';
+    await _sharePng(context, data.buffer.asUint8List(), 'HotBite-QR-$code');
+  } catch (e) {
+    _toast(context, 'Could not export QR: $e');
+  }
+}
+
+Future<void> _saveBoundaryPng(
+    BuildContext context, GlobalKey key, String filename) async {
+  try {
+    final boundary =
+        key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) throw 'not ready';
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (data == null) throw 'render failed';
+    await _sharePng(context, data.buffer.asUint8List(), filename);
+  } catch (e) {
+    _toast(context, 'Could not export card: $e');
+  }
+}
+
+Future<void> _sharePng(
+    BuildContext context, Uint8List bytes, String filename) async {
+  final dir = await getTemporaryDirectory();
+  final file = File('${dir.path}/$filename.png');
+  await file.writeAsBytes(bytes);
+  await SharePlus.instance.share(ShareParams(
+    files: [XFile(file.path)],
+    subject: 'HotBite Host QR',
+  ));
 }
