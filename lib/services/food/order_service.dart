@@ -96,6 +96,10 @@ class OrderService {
     // absorbs. The edge function revalidates and charges the employee food-only.
     String? companyReservationId,
     double? companyServiceFee,
+    // Host Rewards: the registered host property this order is delivered to
+    // (set when the chosen delivery address references one). The server only
+    // honours it if the customer has an active referral to that property.
+    String? hostPropertyId,
   }) async {
     // Generate idempotency key here if the caller didn't supply one.
     // Using a stable key derived from user+cart ensures the same order isn't
@@ -176,6 +180,9 @@ class OrderService {
       }
       if (paymentIntentId != null && paymentIntentId.isNotEmpty) {
         body['payment_intent_id'] = paymentIntentId;
+      }
+      if (hostPropertyId != null && hostPropertyId.isNotEmpty) {
+        body['host_property_id'] = hostPropertyId;
       }
 
       AppLogger.info('Sending request to place-order: ${body.keys.join(", ")}');

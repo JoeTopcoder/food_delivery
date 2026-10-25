@@ -243,6 +243,7 @@ import 'utils/app_theme.dart';
 import 'services/core/cache_service.dart';
 import 'services/catalog/catalog_cache.dart';
 import 'screens/admin/host_rewards/admin_host_rewards_screen.dart';
+import 'screens/customer/host_rewards/host_referral_scan_screen.dart';
 import 'providers/platform/feature_providers.dart';
 import 'firebase_options.dart';
 
@@ -839,6 +840,16 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminHostRewardsScreen(),
+                ),
+              );
+            case '/host-referral-scan':
+              // Customer: scan/enter a host QR code. Optional String arg = a
+              // code from a deep link to claim immediately.
+              return MaterialPageRoute(
+                builder: (context) => HostReferralScanScreen(
+                  initialCode: settings.arguments is String
+                      ? settings.arguments as String
+                      : null,
                 ),
               );
             case '/admin-drivers':

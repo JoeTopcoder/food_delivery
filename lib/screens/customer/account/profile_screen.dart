@@ -159,6 +159,14 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                               Navigator.of(context).pushNamed('/referrals'),
                         ),
                         _MenuItem(
+                          icon: Icons.qr_code_scanner_rounded,
+                          color: const Color(0xFF7C3AED),
+                          title: 'Host stay',
+                          sub: 'Scan your accommodation\'s HotBite QR code',
+                          onTap: () => Navigator.of(context)
+                              .pushNamed('/host-referral-scan'),
+                        ),
+                        _MenuItem(
                           icon: Icons.group_rounded,
                           color: const Color(0xFF6366F1),
                           title: context.l10n.groupOrders,

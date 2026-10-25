@@ -2192,6 +2192,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         studentId: studentId,
         companyReservationId: companyReservationId,
         companyServiceFee: companyServiceFee,
+        // Host Rewards: if delivering to a saved host-property address (and not
+        // a company-sponsored order), attribute the order to that property.
+        hostPropertyId: companyReservationId == null
+            ? selectedAddress?.hostPropertyId
+            : null,
       );
 
       // Clear active ad after order placed

@@ -768,6 +768,29 @@ Deno.serve(async (request) => {
     if (distanceKm !== null) orderData.distance_km = distanceKm;
     if (notes) orderData.notes = notes;
     if (discount > 0) orderData.discount = discount;
+
+    // Host Rewards: tag the order with the registered property it's delivered to,
+    // but ONLY if the customer genuinely has an active referral to that property
+    // (server-authoritative — a spoofed id earns nothing). The commission engine
+    // does the final eligibility check on delivery.
+    const hostPropertyId = (body.host_property_id as string | undefined) || null;
+    if (hostPropertyId) {
+      const { data: hostRef } = await admin
+        .from("host_referrals")
+        .select("id")
+        .eq("customer_id", userId)
+        .eq("property_id", hostPropertyId)
+        .eq("status", "active")
+        .maybeSingle();
+      const { data: hostProp } = await admin
+        .from("host_properties")
+        .select("status")
+        .eq("id", hostPropertyId)
+        .maybeSingle();
+      if (hostRef && hostProp?.status === "active") {
+        orderData.host_property_id = hostPropertyId;
+      }
+    }
     if (driverTip > 0) orderData.driver_tip = driverTip;
     if (scheduledFor) {
       orderData.scheduled_for = scheduledFor;

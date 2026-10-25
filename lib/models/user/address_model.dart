@@ -7,6 +7,9 @@ class UserAddress {
   final double? longitude;
   final bool isDefault;
   final DateTime createdAt;
+  // Host Rewards: set when this address is a registered host property, so an
+  // order delivered here can be attributed to the host.
+  final String? hostPropertyId;
 
   const UserAddress({
     required this.id,
@@ -17,6 +20,7 @@ class UserAddress {
     this.longitude,
     required this.isDefault,
     required this.createdAt,
+    this.hostPropertyId,
   });
 
   factory UserAddress.fromJson(Map<String, dynamic> json) => UserAddress(
@@ -28,6 +32,7 @@ class UserAddress {
     longitude: (json['longitude'] as num?)?.toDouble(),
     isDefault: json['is_default'] as bool? ?? false,
     createdAt: DateTime.parse(json['created_at'] as String),
+    hostPropertyId: json['host_property_id'] as String?,
   );
 
   Map<String, dynamic> toJson() => {
