@@ -147,7 +147,19 @@ class _HostsTab extends ConsumerWidget {
                                 const TextStyle(fontWeight: FontWeight.w700)),
                         subtitle: Text(
                             '${h['email'] ?? ''}  ${h['phone'] ?? ''}'.trim()),
-                        trailing: _statusChip(h['status']),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          _statusChip(h['status']),
+                          IconButton(
+                            tooltip: h['user_id'] == null
+                                ? 'Link login'
+                                : 'Login linked',
+                            icon: Icon(h['user_id'] == null
+                                ? Icons.link_off_rounded
+                                : Icons.link_rounded),
+                            onPressed: () =>
+                                _linkLogin(context, ref, h['id'] as String),
+                          ),
+                        ]),
                       ),
                     );
                   },
@@ -194,6 +206,46 @@ class _HostsTab extends ConsumerWidget {
           );
       ref.invalidate(hostsListProvider);
       ref.invalidate(hostRewardsOverviewProvider);
+    } catch (e) {
+      _toast(context, 'Failed: $e');
+    }
+  }
+
+  Future<void> _linkLogin(
+      BuildContext context, WidgetRef ref, String hostId) async {
+    final email = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Link host login'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+              'Enter the email of an existing HotBite account. It becomes a host '
+              'login that can sign in to the host portal.'),
+          const SizedBox(height: 8),
+          _tf(email, 'Account email'),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Link')),
+        ],
+      ),
+    );
+    if (ok != true || email.text.trim().isEmpty) return;
+    try {
+      final res = await ref
+          .read(hostRewardsServiceProvider)
+          .linkHostLogin(hostId, email.text.trim());
+      if (res['ok'] == true) {
+        ref.invalidate(hostsListProvider);
+        _toast(context, 'Login linked — they can now sign in as a host.');
+      } else {
+        _toast(context, 'No HotBite account with that email.');
+      }
     } catch (e) {
       _toast(context, 'Failed: $e');
     }

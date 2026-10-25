@@ -79,6 +79,14 @@ class HostRewardsService {
     await _client.from('hosts').update({'status': status}).eq('id', hostId);
   }
 
+  /// Links a host record to an existing login (by email) + grants the host role,
+  /// so they can sign in to the host portal.
+  Future<Map<String, dynamic>> linkHostLogin(String hostId, String email) async {
+    final res = await _client.rpc('host_admin_link_user',
+        params: {'p_host_id': hostId, 'p_email': email});
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   // ── Properties ─────────────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> properties({String? hostId}) async {
     var q = _client.from('host_properties').select();

@@ -68,6 +68,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         return '/admin-dashboard';
       case 'service_provider':
         return '/car-services/provider';
+      case 'host':
+        return '/host-dashboard';
       default:
         return '/home';
     }

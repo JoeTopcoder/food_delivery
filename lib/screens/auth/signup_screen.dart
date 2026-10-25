@@ -71,6 +71,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           case 'service_provider':
             route = '/car-services/provider';
             break;
+          case 'host':
+            route = '/host-dashboard';
+            break;
           default:
             route = '/home';
         }

@@ -244,6 +244,7 @@ import 'services/core/cache_service.dart';
 import 'services/catalog/catalog_cache.dart';
 import 'screens/admin/host_rewards/admin_host_rewards_screen.dart';
 import 'screens/customer/host_rewards/host_referral_scan_screen.dart';
+import 'screens/host/host_dashboard_screen.dart';
 import 'providers/platform/feature_providers.dart';
 import 'firebase_options.dart';
 
@@ -580,6 +581,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         return const CarServiceProviderDashboardScreen();
       case 'laundry_provider':
         return const LaundryProviderDashboardScreen();
+      case 'host':
+        return const HostDashboardScreen();
       default:
         // Unknown/null role must never silently show the customer screen.
         // Return the gate — AuthLaunchGateScreen will sign them out.
@@ -850,6 +853,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                   initialCode: settings.arguments is String
                       ? settings.arguments as String
                       : null,
+                ),
+              );
+            case '/host-dashboard':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['host', 'admin'],
+                  child: HostDashboardScreen(),
                 ),
               );
             case '/admin-drivers':
