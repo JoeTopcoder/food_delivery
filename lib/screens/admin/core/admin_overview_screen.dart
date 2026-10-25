@@ -213,6 +213,7 @@ class AdminOverviewScreen extends ConsumerWidget {
       _Tool('Driver Priority', Icons.star_rounded, '/admin-driver-priority'),
       _Tool('Priority Delivery', Icons.bolt_rounded, '/admin-priority-delivery'),
       _Tool('Shipping Cos', Icons.local_shipping_rounded, '/admin-shipping-companies'),
+      _Tool('Host Rewards', Icons.qr_code_2_rounded, '/admin-host-rewards'),
     ]),
     _ToolCat('Rides / Taxi', [
       _Tool('Rides Hub', Icons.local_taxi_rounded, '/admin-rides'),
