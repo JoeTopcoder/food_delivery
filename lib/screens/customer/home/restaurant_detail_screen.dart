@@ -598,7 +598,7 @@ class _RestaurantDetailScreenState
                         if (cartItems.isEmpty) return const SizedBox.shrink();
                         return Positioned(
                           top: 40,
-                          right: 68,
+                          right: 112,
                           child: GestureDetector(
                             onTap: () => Navigator.pushNamed(context, '/cart'),
                             child: Stack(
