@@ -299,9 +299,10 @@ class _PlanCard extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: Text('Subscribe to HotBite+ — ${plan.name}'),
         content: Text(
-          'Pay $sym${plan.price.toStringAsFixed(0)} now for your first month. '
-          'It then auto-renews at $sym${plan.price.toStringAsFixed(0)}/month on '
-          'the card you pay with, until you cancel.',
+          'Pay $sym${plan.price.toStringAsFixed(0)} now for your first month '
+          '— choose a saved card or add a new one on the next screen. It then '
+          'auto-renews at $sym${plan.price.toStringAsFixed(0)}/month on that '
+          'card, until you cancel.',
         ),
         actions: [
           TextButton(
