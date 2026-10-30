@@ -1665,28 +1665,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         color: Theme.of(context).colorScheme.outlineVariant,
                         height: 16,
                       ),
-                      _SummaryRow(
-                        'Total',
-                        '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
-                        isBold: true,
-                      ),
-                      if (_selectedPayment == 'stripe') ...[
-                        const SizedBox(height: 8),
-                        Builder(builder: (context) {
-                          final rate =
-                              ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
-                          final usd = grandTotal / rate;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _SummaryRow(
-                                'Charged to card (USD)',
-                                '\$${usd.toStringAsFixed(2)}',
-                                isBold: true,
-                              ),
+                      Builder(builder: (context) {
+                        final isCard = _selectedPayment == 'stripe';
+                        final rate =
+                            ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
+                        final usd = (grandTotal / rate).toStringAsFixed(2);
+                        final totalVal =
+                            '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}'
+                            '${isCard ? ' (US\$$usd)' : ''}';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SummaryRow('Total', totalVal, isBold: true),
+                            if (isCard) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Your card will be charged US\$${usd.toStringAsFixed(2)} '
+                                'Your card will be charged US\$$usd '
                                 '(at J\$${rate.toStringAsFixed(0)} = US\$1). Prices are shown '
                                 "in JMD; your bank's exchange rate and any fees may affect "
                                 'the final amount.',
@@ -1699,9 +1693,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 ),
                               ),
                             ],
-                          );
-                        }),
-                      ],
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),
