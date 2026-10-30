@@ -299,8 +299,9 @@ class _PlanCard extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: Text('Subscribe to HotBite+ — ${plan.name}'),
         content: Text(
-          'Subscribe for $sym${plan.price.toStringAsFixed(0)}/month, '
-          'auto-renewing until you cancel. Charged to your saved card.',
+          'Pay $sym${plan.price.toStringAsFixed(0)} now for your first month. '
+          'It then auto-renews at $sym${plan.price.toStringAsFixed(0)}/month on '
+          'the card you pay with, until you cancel.',
         ),
         actions: [
           TextButton(
@@ -322,6 +323,14 @@ class _PlanCard extends ConsumerWidget {
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
+    var spinnerOpen = true;
+    void closeSpinner() {
+      if (spinnerOpen && context.mounted) {
+        spinnerOpen = false;
+        Navigator.pop(context);
+      }
+    }
+
     try {
       final res = await Supabase.instance.client.functions.invoke(
         'stripe/subscription',
@@ -331,37 +340,53 @@ class _PlanCard extends ConsumerWidget {
         },
       );
       final data = res.data as Map?;
+      closeSpinner();
       if (res.status != 200 || data?['success'] != true) {
-        if (context.mounted) Navigator.pop(context);
         final msg = (data?['error'] as String?) ??
             'Could not start your subscription.';
         if (context.mounted) AppSnackbar.error(context, msg);
         return;
       }
-      // Complete 3-D Secure if the issuer requires it for the first charge.
-      if (data?['requires_action'] == true &&
-          data?['client_secret'] is String) {
-        try {
-          await Stripe.instance
-              .handleNextAction(data!['client_secret'] as String);
-        } catch (_) {
-          if (context.mounted) Navigator.pop(context);
-          if (context.mounted) {
-            AppSnackbar.error(
-                context, 'Card authentication was not completed.');
-          }
-          return;
+      final clientSecret = data?['client_secret'] as String?;
+      if (clientSecret == null) {
+        if (context.mounted) {
+          AppSnackbar.error(context, 'Could not start the first payment.');
         }
+        return;
       }
-      if (context.mounted) Navigator.pop(context); // close spinner
+
+      // First payment is collected interactively via the Stripe Payment Sheet.
+      // The card used is saved, so Stripe auto-charges it every 30 days.
+      if (Stripe.publishableKey.isEmpty) {
+        Stripe.publishableKey = AppConstants.stripePublishableKey;
+        Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+        await Stripe.instance.applySettings();
+      }
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: AppConstants.cardMerchantName,
+          customerId: data?['customer_id'] as String?,
+          customerEphemeralKeySecret: data?['ephemeral_key'] as String?,
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
       ref.invalidate(membershipStatusProvider);
       if (context.mounted) {
         AppSnackbar.success(
             context, "You're subscribed to HotBite+! It auto-renews monthly.");
       }
-    } catch (e) {
+    } on StripeException catch (e) {
+      closeSpinner();
+      // User cancelled the sheet or the card was declined.
       if (context.mounted) {
-        Navigator.pop(context);
+        AppSnackbar.error(
+            context, e.error.localizedMessage ?? 'Payment was not completed.');
+      }
+    } catch (e) {
+      closeSpinner();
+      if (context.mounted) {
         AppSnackbar.error(context, friendlyError(e));
       }
     }

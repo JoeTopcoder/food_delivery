@@ -615,32 +615,24 @@ export async function handle(request: Request): Promise<Response> {
       .maybeSingle();
     if (!plan || !plan.is_active) return json({ error: "Plan not available" }, 404);
 
-    // Block if the user already has a live membership.
+    // Clear any stale pending membership from an unfinished attempt so the user
+    // can retry; block only if they already have an ACTIVE membership.
+    await admin.from("customer_memberships").delete()
+      .eq("user_id", user.id).eq("status", "pending");
     const { data: live } = await admin
-      .from("customer_memberships")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .in("status", ["active", "pending"])
-      .maybeSingle();
+      .from("customer_memberships").select("id")
+      .eq("user_id", user.id).eq("status", "active").maybeSingle();
     if (live) return json({ error: "You already have an active HotBite+ membership." }, 409);
 
-    // Need a verified saved card (its Stripe customer + payment method).
+    // Resolve / create the Stripe customer (reuse one from a saved card if any).
     const { data: card } = await admin
       .from("saved_cards")
-      .select("stripe_customer_id, stripe_payment_method_id")
+      .select("stripe_customer_id")
       .eq("user_id", user.id)
-      .eq("status", "verified")
-      .not("stripe_payment_method_id", "is", null)
-      .order("is_default", { ascending: false })
+      .not("stripe_customer_id", "is", null)
       .limit(1)
       .maybeSingle();
-    if (!card?.stripe_payment_method_id) {
-      return json({ error: "Add and verify a payment card first to subscribe." }, 400);
-    }
-    const pmId = card.stripe_payment_method_id as string;
-
-    // Resolve / create the Stripe customer and make sure the card is attached.
-    let customerId = card.stripe_customer_id as string | null;
+    let customerId = (card?.stripe_customer_id as string | null) ?? null;
     if (!customerId) {
       const cust = await stripePost("/customers", {
         email: user.email ?? "",
@@ -649,10 +641,6 @@ export async function handle(request: Request): Promise<Response> {
       });
       if (cust.error) return json({ error: "Failed to create Stripe customer" }, 400);
       customerId = cust.id as string;
-      await stripePost(`/payment_methods/${pmId}/attach`, { customer: customerId });
-      await admin.from("saved_cards")
-        .update({ stripe_customer_id: customerId })
-        .eq("user_id", user.id).eq("stripe_payment_method_id", pmId);
     }
 
     // Lazily create the recurring Stripe Price for this plan (one-time).
@@ -676,22 +664,21 @@ export async function handle(request: Request): Promise<Response> {
         .eq("id", planId);
     }
 
-    // Make the saved card the customer's default for invoices.
-    await stripePost(`/customers/${customerId}`, {
-      "invoice_settings[default_payment_method]": pmId,
-    });
-
-    // Create the subscription. Stripe charges the card now and every month;
-    // if 3-D Secure is needed, the first invoice's PaymentIntent needs action.
+    // Create the subscription with default_incomplete so the FIRST payment is
+    // collected interactively via the Stripe Payment Sheet. The card the
+    // customer pays with is saved as the subscription's default payment method
+    // (save_default_payment_method=on_subscription), so Stripe auto-charges it
+    // at the end of each 30-day period.
     const sub = await stripePost("/subscriptions", {
       customer: customerId,
       "items[0][price]": priceId,
-      default_payment_method: pmId,
-      "payment_behavior": "allow_incomplete",
+      "payment_behavior": "default_incomplete",
+      "payment_settings[save_default_payment_method]": "on_subscription",
       "metadata[plan_type]": "hotbite_plus",
       "metadata[user_id]": user.id,
       "metadata[membership_plan_id]": planId,
-      "expand[0]": "latest_invoice.payment_intent",
+      "expand[0]": "latest_invoice.confirmation_secret",
+      "expand[1]": "latest_invoice.payment_intent",
     });
     if (sub.error) {
       const err = sub.error as Record<string, unknown>;
@@ -699,19 +686,51 @@ export async function handle(request: Request): Promise<Response> {
     }
 
     const subId = sub.id as string;
-    const subStatus = String(sub.status ?? "incomplete");
     const periodEnd = new Date(((sub.current_period_end as number) ?? 0) * 1000);
-    const latestInvoice = (sub.latest_invoice ?? {}) as Record<string, unknown>;
-    const pi = (latestInvoice.payment_intent ?? {}) as Record<string, unknown>;
-    const piStatus = String(pi.status ?? "");
-    const clientSecret = pi.client_secret as string | undefined;
 
-    // Record the membership. The webhook flips it to active on payment success;
-    // mark active immediately if Stripe already settled the first invoice.
+    // Pull the first invoice's PaymentIntent client secret for the Payment Sheet,
+    // handling both the expanded object and the id-only form.
+    const li = sub.latest_invoice;
+    const invoiceObj = (li && typeof li === "object")
+      ? (li as Record<string, unknown>) : null;
+    const invoiceId = invoiceObj
+      ? (invoiceObj.id as string)
+      : (typeof li === "string" ? li : null);
+    const secretOf = (obj: unknown): string | null => {
+      if (obj && typeof obj === "object") {
+        const cs = (obj as Record<string, unknown>).client_secret;
+        if (typeof cs === "string") return cs;
+      }
+      return null;
+    };
+    let clientSecret: string | null =
+      secretOf(invoiceObj?.confirmation_secret) ??
+      secretOf(invoiceObj?.payment_intent);
+    if (!clientSecret && invoiceId) {
+      // Newer Stripe API: the first-payment client secret lives on the invoice's
+      // confirmation_secret (must be expanded).
+      const inv = await stripeGet(
+        `/invoices/${invoiceId}?expand[]=confirmation_secret`);
+      clientSecret = secretOf(inv.confirmation_secret);
+      if (!clientSecret) {
+        const piId = inv.payment_intent as string | undefined;
+        if (piId) {
+          const piFull = await stripeGet(`/payment_intents/${piId}`);
+          clientSecret = secretOf(piFull);
+        }
+      }
+    }
+    if (!clientSecret) {
+      return json({ error: "Could not start the first payment." }, 500);
+    }
+    const ephemeralKey = await stripeEphemeralKey(customerId);
+
+    // Record the membership as pending; the subscription webhook flips it to
+    // active once the first invoice is paid via the Payment Sheet.
     await admin.from("customer_memberships").insert({
       user_id: user.id,
       membership_plan_id: planId,
-      status: subStatus === "active" ? "active" : "pending",
+      status: "pending",
       start_date: new Date().toISOString(),
       end_date: periodEnd.toISOString(),
       current_period_end: periodEnd.toISOString(),
@@ -725,9 +744,9 @@ export async function handle(request: Request): Promise<Response> {
     return json({
       success: true,
       subscription_id: subId,
-      status: subStatus,
-      requires_action: piStatus === "requires_action" || piStatus === "requires_confirmation",
-      client_secret: clientSecret ?? null,
+      client_secret: clientSecret,
+      customer_id: customerId,
+      ephemeral_key: ephemeralKey,
     });
   }
 
