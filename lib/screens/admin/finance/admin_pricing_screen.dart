@@ -46,6 +46,9 @@ const _cardVerificationConfigKeys = [
   'card_verification_charge_max',
 ];
 
+// Card payments display in JMD but charge in USD at this rate (JMD per US$1).
+const _fxConfigKeys = ['usd_jmd_rate'];
+
 // Currency keys stored in app_config.
 const _currencyConfigKeys = [
   'currency_code',
@@ -64,6 +67,7 @@ final _deliveryConfigProvider =
             ..._deliveryConfigKeys,
             ..._taxConfigKeys,
             ..._cardVerificationConfigKeys,
+            ..._fxConfigKeys,
             ..._currencyConfigKeys,
           ])
           .order('key');
@@ -103,6 +107,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'peak_hours_end': 'Peak Hours End (Lunch)',
     'peak_hours_start_2': 'Peak Hours Start (Dinner)',
     'peak_hours_end_2': 'Peak Hours End (Dinner)',
+    'usd_jmd_rate': 'JMD per US\$1 (card charge rate)',
   };
 
   static Map<String, String> get _hints => {
@@ -122,6 +127,8 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     'peak_hours_end': '24h format (e.g. 14 = 2 PM)',
     'peak_hours_start_2': '24h format (e.g. 18 = 6 PM)',
     'peak_hours_end_2': '24h format (e.g. 21 = 9 PM)',
+    'usd_jmd_rate':
+        'e.g. 160 → J\$4000 charges US\$25.00; 140 → US\$28.57',
   };
 
   static const _icons = <String, IconData>{
@@ -183,7 +190,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
     _taxInitialized = true;
     _currencyInitialized = true;
     // Ensure all keys exist even if missing from DB
-    for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys]) {
+    for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys, ..._fxConfigKeys]) {
       _controllers.putIfAbsent(key, () => TextEditingController(text: ''));
     }
   }
@@ -194,7 +201,7 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
 
     try {
       final client = Supabase.instance.client;
-      for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys]) {
+      for (final key in [..._deliveryConfigKeys, ..._cardVerificationConfigKeys, ..._fxConfigKeys]) {
         final value = _controllers[key]?.text.trim() ?? '';
         if (value.isEmpty) continue;
         // Update existing row (all keys are pre-seeded via migrations)
@@ -442,6 +449,13 @@ class _AdminPricingScreenState extends ConsumerState<AdminPricingScreen> {
 
                 const SizedBox(height: 12),
                 _currencySection(context),
+
+                const SizedBox(height: 16),
+                const Text('Card Charge Rate (JMD → USD)',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                ..._fxConfigKeys.map((key) => _configField(context, key)),
 
                 const SizedBox(height: 24),
                 FilledButton.icon(

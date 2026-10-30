@@ -41,6 +41,22 @@ import '../../../providers/catalog/recommendation_provider.dart';
 import '../../../providers/admin/decision_engine_provider.dart';
 import '../home/home_screen.dart' show activeAdForOrderProvider, clearActiveAd;
 
+/// Admin-set JMD-per-USD rate. Prices show in JMD; card payments are charged in
+/// USD at this rate (usd = jmd / rate). Falls back to 160 if unset.
+final usdJmdRateProvider = FutureProvider.autoDispose<double>((ref) async {
+  try {
+    final row = await SupabaseConfig.client
+        .from('app_config')
+        .select('value')
+        .eq('key', 'usd_jmd_rate')
+        .maybeSingle();
+    final v = double.tryParse((row?['value'] as String?) ?? '');
+    return (v != null && v > 0) ? v : 160.0;
+  } catch (_) {
+    return 160.0;
+  }
+});
+
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -1654,6 +1670,38 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}',
                         isBold: true,
                       ),
+                      if (_selectedPayment == 'stripe') ...[
+                        const SizedBox(height: 8),
+                        Builder(builder: (context) {
+                          final rate =
+                              ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
+                          final usd = grandTotal / rate;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _SummaryRow(
+                                'Charged to card (USD)',
+                                '\$${usd.toStringAsFixed(2)}',
+                                isBold: true,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Your card will be charged US\$${usd.toStringAsFixed(2)} '
+                                '(at J\$${rate.toStringAsFixed(0)} = US\$1). Prices are shown '
+                                "in JMD; your bank's exchange rate and any fees may affect "
+                                'the final amount.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
                     ],
                   ),
                 ),

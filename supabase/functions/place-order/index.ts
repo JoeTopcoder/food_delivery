@@ -674,15 +674,26 @@ Deno.serve(async (request) => {
     // This prevents ghost 'draft' orders when the Stripe charge fails.
     // Saved card: create + confirm a PaymentIntent off-session right now.
     // Payment Sheet: Flutter already confirmed the PI — verify it server-side.
+    let chargedCurrency: string | null = null;
+    let chargedUsd: number | null = null;
+    let chargedFxRate: number | null = null;
     if (isCardPayment) {
       if (!stripeKey) {
         return json({ error: "Payment provider not configured." }, 500);
       }
+      // Prices display in JMD but cards are charged in USD, converted at the
+      // admin-set rate (JMD per USD). usd = jmd_total / rate.
+      const fxRate = await getConfig("usd_jmd_rate", 160);
+      const usdAmount = Math.round((totalAmount / (fxRate > 0 ? fxRate : 160)) * 100) / 100;
+      const usdCents = Math.max(50, Math.round(usdAmount * 100)); // Stripe min US$0.50
+      chargedCurrency = "usd";
+      chargedUsd = usdCents / 100;
+      chargedFxRate = fxRate;
       if (savedCardPaymentMethodId) {
         const custId = await getStripeCustomerId(userId);
         const pi = await stripePost("/payment_intents", {
-          amount:              String(Math.round(totalAmount * 100)),
-          currency:            "jmd",
+          amount:              String(usdCents),
+          currency:            "usd",
           payment_method:      savedCardPaymentMethodId,
           ...(custId ? { customer: custId } : {}),
           off_session:         "true",
@@ -690,6 +701,8 @@ Deno.serve(async (request) => {
           description:         "Food Order",
           "metadata[type]":    "food_order",
           "metadata[user_id]": userId,
+          "metadata[jmd_total]": String(totalAmount),
+          "metadata[fx_rate]":   String(fxRate),
         });
         const piStatus = pi.status as string;
         if (pi.error || (piStatus !== "succeeded" && piStatus !== "requires_capture")) {
@@ -746,6 +759,9 @@ Deno.serve(async (request) => {
       commission_rate: commissionRate,
       commission_amount: commissionAmount,
       stripe_fee_amount: processorFee,
+      charged_currency: chargedCurrency,
+      charged_amount_usd: chargedUsd,
+      fx_rate_jmd_per_usd: chargedFxRate,
       is_pickup: isPickup,
       peak_fee: peakFee,
       is_priority: isPriority,
