@@ -24,11 +24,16 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   String? _buildCustomizationSummary(CartItem cartItem) {
     final parts = <String>[];
+    // Skip any option/side whose text is already part of the item name, so a
+    // choice like "Fricassee" isn't repeated under a "Curry/Fricassee …" item.
+    final nameLc = cartItem.menuItem.name.toLowerCase();
     for (final side in cartItem.selectedSides) {
+      if (nameLc.contains(side.name.toLowerCase())) continue;
       parts.add(side.name);
     }
     for (final choices in cartItem.selectedOptions.values) {
       for (final c in choices) {
+        if (nameLc.contains(c.name.toLowerCase())) continue;
         parts.add(c.name);
       }
     }
