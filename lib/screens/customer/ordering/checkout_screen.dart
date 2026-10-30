@@ -582,7 +582,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final usdRate = ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
     final showUsd = _selectedPayment == 'stripe';
     String money(double jmd) => showUsd
-        ? 'US\$${(jmd / usdRate).toStringAsFixed(2)}'
+        ? '\$${(jmd / usdRate).toStringAsFixed(2)}'
         : '${AppConstants.currencySymbol}${jmd.toStringAsFixed(2)}';
 
     // The school wins over every saved address when the order is for a student:
@@ -1683,8 +1683,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             if (isCard) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Your card will be charged US\$$usd '
-                                '(at J\$${rate.toStringAsFixed(0)} = US\$1). Prices are shown '
+                                'Your card will be charged \$$usd '
+                                '(at J\$${rate.toStringAsFixed(0)} = \$1). Prices are shown '
                                 "in JMD; your bank's exchange rate and any fees may affect "
                                 'the final amount.',
                                 style: TextStyle(
@@ -1906,7 +1906,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                           160.0;
                                       final usd =
                                           (grandTotal / rate).toStringAsFixed(2);
-                                      return 'Pay Now \u2014 US\$$usd';
+                                      return 'Pay Now \u2014 \$$usd';
                                     }
                                     return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 $amt';
                                   }(),
