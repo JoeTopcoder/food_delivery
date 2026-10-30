@@ -599,5 +599,174 @@ export async function handle(request: Request): Promise<Response> {
     });
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ACTION: membership_subscribe — true RECURRING HotBite+ via a Stripe Subscription
+  // Charges the customer's saved card monthly; invoice.payment_succeeded (handled
+  // in stripe-subscription-webhook) activates/renews customer_memberships.
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === "membership_subscribe") {
+    const planId = String(body.membership_plan_id ?? "").trim();
+    if (!planId) return json({ error: "membership_plan_id required" }, 400);
+
+    const { data: plan } = await admin
+      .from("membership_plans")
+      .select("id, name, price, currency, is_active, stripe_price_id, stripe_product_id")
+      .eq("id", planId)
+      .maybeSingle();
+    if (!plan || !plan.is_active) return json({ error: "Plan not available" }, 404);
+
+    // Block if the user already has a live membership.
+    const { data: live } = await admin
+      .from("customer_memberships")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .in("status", ["active", "pending"])
+      .maybeSingle();
+    if (live) return json({ error: "You already have an active HotBite+ membership." }, 409);
+
+    // Need a verified saved card (its Stripe customer + payment method).
+    const { data: card } = await admin
+      .from("saved_cards")
+      .select("stripe_customer_id, stripe_payment_method_id")
+      .eq("user_id", user.id)
+      .eq("status", "verified")
+      .not("stripe_payment_method_id", "is", null)
+      .order("is_default", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!card?.stripe_payment_method_id) {
+      return json({ error: "Add and verify a payment card first to subscribe." }, 400);
+    }
+    const pmId = card.stripe_payment_method_id as string;
+
+    // Resolve / create the Stripe customer and make sure the card is attached.
+    let customerId = card.stripe_customer_id as string | null;
+    if (!customerId) {
+      const cust = await stripePost("/customers", {
+        email: user.email ?? "",
+        name: (user.user_metadata?.name as string) ?? (user.email ?? "Customer"),
+        "metadata[user_id]": user.id,
+      });
+      if (cust.error) return json({ error: "Failed to create Stripe customer" }, 400);
+      customerId = cust.id as string;
+      await stripePost(`/payment_methods/${pmId}/attach`, { customer: customerId });
+      await admin.from("saved_cards")
+        .update({ stripe_customer_id: customerId })
+        .eq("user_id", user.id).eq("stripe_payment_method_id", pmId);
+    }
+
+    // Lazily create the recurring Stripe Price for this plan (one-time).
+    let priceId = plan.stripe_price_id as string | null;
+    if (!priceId) {
+      const product = await stripePost("/products", {
+        name: `HotBite+ ${plan.name}`,
+        "metadata[membership_plan_id]": planId,
+      });
+      if (product.error) return json({ error: "Failed to create product" }, 400);
+      const price = await stripePost("/prices", {
+        product: product.id as string,
+        currency: String(plan.currency ?? "jmd").toLowerCase(),
+        unit_amount: String(Math.round(parseFloat(String(plan.price)) * 100)),
+        "recurring[interval]": "month",
+      });
+      if (price.error) return json({ error: "Failed to create price" }, 400);
+      priceId = price.id as string;
+      await admin.from("membership_plans")
+        .update({ stripe_product_id: product.id, stripe_price_id: priceId })
+        .eq("id", planId);
+    }
+
+    // Make the saved card the customer's default for invoices.
+    await stripePost(`/customers/${customerId}`, {
+      "invoice_settings[default_payment_method]": pmId,
+    });
+
+    // Create the subscription. Stripe charges the card now and every month;
+    // if 3-D Secure is needed, the first invoice's PaymentIntent needs action.
+    const sub = await stripePost("/subscriptions", {
+      customer: customerId,
+      "items[0][price]": priceId,
+      default_payment_method: pmId,
+      "payment_behavior": "allow_incomplete",
+      "metadata[plan_type]": "hotbite_plus",
+      "metadata[user_id]": user.id,
+      "metadata[membership_plan_id]": planId,
+      "expand[0]": "latest_invoice.payment_intent",
+    });
+    if (sub.error) {
+      const err = sub.error as Record<string, unknown>;
+      return json({ error: err.message ?? "Failed to create subscription" }, 400);
+    }
+
+    const subId = sub.id as string;
+    const subStatus = String(sub.status ?? "incomplete");
+    const periodEnd = new Date(((sub.current_period_end as number) ?? 0) * 1000);
+    const latestInvoice = (sub.latest_invoice ?? {}) as Record<string, unknown>;
+    const pi = (latestInvoice.payment_intent ?? {}) as Record<string, unknown>;
+    const piStatus = String(pi.status ?? "");
+    const clientSecret = pi.client_secret as string | undefined;
+
+    // Record the membership. The webhook flips it to active on payment success;
+    // mark active immediately if Stripe already settled the first invoice.
+    await admin.from("customer_memberships").insert({
+      user_id: user.id,
+      membership_plan_id: planId,
+      status: subStatus === "active" ? "active" : "pending",
+      start_date: new Date().toISOString(),
+      end_date: periodEnd.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+      auto_renew: true,
+      price_paid: plan.price,
+      payment_reference: subId,
+      stripe_subscription_id: subId,
+      stripe_customer_id: customerId,
+    });
+
+    return json({
+      success: true,
+      subscription_id: subId,
+      status: subStatus,
+      requires_action: piStatus === "requires_action" || piStatus === "requires_confirmation",
+      client_secret: clientSecret ?? null,
+    });
+  }
+
+  // ACTION: membership_cancel — stop auto-renew (cancel at period end)
+  if (action === "membership_cancel") {
+    const { data: mem } = await admin
+      .from("customer_memberships")
+      .select("id, stripe_subscription_id")
+      .eq("user_id", user.id)
+      .in("status", ["active", "pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!mem) return json({ error: "No active membership to cancel." }, 404);
+
+    if (mem.stripe_subscription_id) {
+      await stripePost(`/subscriptions/${mem.stripe_subscription_id}`, {
+        cancel_at_period_end: "true",
+      });
+    }
+    await admin.from("customer_memberships")
+      .update({ auto_renew: false, updated_at: new Date().toISOString() })
+      .eq("id", mem.id);
+
+    return json({ success: true, cancels_at_period_end: true });
+  }
+
+  // ACTION: membership_status — current HotBite+ membership for the user
+  if (action === "membership_status") {
+    const { data: mem } = await admin
+      .from("customer_memberships")
+      .select("status, auto_renew, end_date, current_period_end, membership_plan_id")
+      .eq("user_id", user.id)
+      .in("status", ["active", "pending"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return json({ membership: mem ?? null });
+  }
+
   return json({ error: `Unknown action: ${action}` }, 400);
 }

@@ -1,6 +1,7 @@
 import '../../../utils/est_datetime.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_constants.dart';
@@ -31,6 +32,14 @@ class HotBitePlusScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 _StatusCard(status: statusAsync.valueOrNull),
+                if (statusAsync.valueOrNull?.isActive == true)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => _cancelMembership(context, ref),
+                      child: const Text('Cancel auto-renewal'),
+                    ),
+                  ),
                 const SizedBox(height: 20),
                 const Text('Member benefits',
                     style:
@@ -81,6 +90,47 @@ class HotBitePlusScreen extends ConsumerWidget {
               ],
             ),
     );
+  }
+}
+
+Future<void> _cancelMembership(BuildContext context, WidgetRef ref) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Cancel auto-renewal?'),
+      content: const Text(
+        'Your HotBite+ stays active until the end of the current billing '
+        'period, then it will not renew.',
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel renewal')),
+      ],
+    ),
+  );
+  if (confirm != true || !context.mounted) return;
+  try {
+    final res = await Supabase.instance.client.functions.invoke(
+      'stripe/subscription',
+      body: {'action': 'membership_cancel'},
+    );
+    final data = res.data as Map?;
+    if (res.status == 200 && data?['success'] == true) {
+      ref.invalidate(membershipStatusProvider);
+      if (context.mounted) {
+        AppSnackbar.success(
+            context, 'Auto-renewal cancelled. You keep HotBite+ until the period ends.');
+      }
+    } else if (context.mounted) {
+      AppSnackbar.error(
+          context, (data?['error'] as String?) ?? 'Could not cancel.');
+    }
+  } catch (e) {
+    if (context.mounted) AppSnackbar.error(context, friendlyError(e));
   }
 }
 
@@ -241,16 +291,16 @@ class _PlanCard extends ConsumerWidget {
 
   Future<void> _subscribe(BuildContext context, WidgetRef ref) async {
     final sym = AppConstants.currencySymbol;
-    // Confirm the purchase (paid from the customer's HotBite wallet). Payment +
-    // activation happen server-side in the activate-membership edge function;
-    // the client never activates a membership on its own.
+    // Recurring subscription: Stripe charges the customer's saved card now and
+    // every month. Activation/renewal is server-side (membership_subscribe +
+    // the subscription webhook); the client never grants membership itself.
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Join HotBite+ — ${plan.name}'),
+        title: Text('Subscribe to HotBite+ — ${plan.name}'),
         content: Text(
-          'Pay $sym${plan.price.toStringAsFixed(0)} from your HotBite wallet for '
-          '${plan.durationDays} days of HotBite+?',
+          'Subscribe for $sym${plan.price.toStringAsFixed(0)}/month, '
+          'auto-renewing until you cancel. Charged to your saved card.',
         ),
         actions: [
           TextButton(
@@ -260,7 +310,7 @@ class _PlanCard extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
                 backgroundColor: HotBitePlusScreen._flame),
-            child: Text('Pay $sym${plan.price.toStringAsFixed(0)}'),
+            child: Text('Subscribe $sym${plan.price.toStringAsFixed(0)}/mo'),
           ),
         ],
       ),
@@ -274,19 +324,40 @@ class _PlanCard extends ConsumerWidget {
     );
     try {
       final res = await Supabase.instance.client.functions.invoke(
-        'activate-membership',
-        body: {'plan_id': plan.id, 'payment_method': 'wallet'},
+        'stripe/subscription',
+        body: {
+          'action': 'membership_subscribe',
+          'membership_plan_id': plan.id,
+        },
       );
-      if (context.mounted) Navigator.pop(context); // close spinner
       final data = res.data as Map?;
-      if (res.status == 200 && data?['success'] == true) {
-        ref.invalidate(membershipStatusProvider);
-        if (context.mounted) {
-          AppSnackbar.success(context, 'Welcome to HotBite+! Your membership is active.');
-        }
-      } else {
-        final msg = (data?['error'] as String?) ?? 'Could not complete your purchase.';
+      if (res.status != 200 || data?['success'] != true) {
+        if (context.mounted) Navigator.pop(context);
+        final msg = (data?['error'] as String?) ??
+            'Could not start your subscription.';
         if (context.mounted) AppSnackbar.error(context, msg);
+        return;
+      }
+      // Complete 3-D Secure if the issuer requires it for the first charge.
+      if (data?['requires_action'] == true &&
+          data?['client_secret'] is String) {
+        try {
+          await Stripe.instance
+              .handleNextAction(data!['client_secret'] as String);
+        } catch (_) {
+          if (context.mounted) Navigator.pop(context);
+          if (context.mounted) {
+            AppSnackbar.error(
+                context, 'Card authentication was not completed.');
+          }
+          return;
+        }
+      }
+      if (context.mounted) Navigator.pop(context); // close spinner
+      ref.invalidate(membershipStatusProvider);
+      if (context.mounted) {
+        AppSnackbar.success(
+            context, "You're subscribed to HotBite+! It auto-renews monthly.");
       }
     } catch (e) {
       if (context.mounted) {

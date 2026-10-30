@@ -141,6 +141,29 @@ Deno.serve(async (request) => {
       ((stripeSub.current_period_end as number) ?? 0) * 1000
     );
 
+    // HotBite+ recurring membership — activate/renew customer_memberships.
+    if (planType === "hotbite_plus") {
+      const { data: mem } = await admin
+        .from("customer_memberships")
+        .select("id")
+        .eq("stripe_subscription_id", subscriptionId)
+        .maybeSingle();
+      if (mem) {
+        await admin
+          .from("customer_memberships")
+          .update({
+            status: "active",
+            end_date: periodEnd.toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            auto_renew: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", mem.id);
+        console.log(`[subscription-webhook] HotBite+ membership active/renewed ${mem.id}`);
+      }
+      return json({ received: true });
+    }
+
     // Get deliveries for this plan from config
     const deliveries =
       planType === "basic"
@@ -223,6 +246,25 @@ Deno.serve(async (request) => {
   if (eventType === "customer.subscription.deleted") {
     const subscriptionId = dataObject.id as string;
     if (!subscriptionId) return json({ received: true });
+
+    // HotBite+ recurring membership — expire it when the Stripe sub ends.
+    const { data: mem } = await admin
+      .from("customer_memberships")
+      .select("id")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    if (mem) {
+      await admin
+        .from("customer_memberships")
+        .update({
+          status: "expired",
+          auto_renew: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", mem.id);
+      console.log(`[subscription-webhook] HotBite+ membership expired ${mem.id}`);
+      return json({ received: true });
+    }
 
     const { data: existingSub } = await admin
       .from("user_subscriptions")
