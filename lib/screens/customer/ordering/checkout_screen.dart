@@ -1670,9 +1670,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         final rate =
                             ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
                         final usd = (grandTotal / rate).toStringAsFixed(2);
-                        final totalVal =
-                            '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}'
-                            '${isCard ? ' (US\$$usd)' : ''}';
+                        final totalVal = isCard
+                            ? 'US\$$usd'
+                            : '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}';
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1903,7 +1903,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                           160.0;
                                       final usd =
                                           (grandTotal / rate).toStringAsFixed(2);
-                                      return 'Pay Now \u2014 $amt (US\$$usd)';
+                                      return 'Pay Now \u2014 US\$$usd';
                                     }
                                     return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 $amt';
                                   }(),
