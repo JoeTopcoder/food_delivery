@@ -1903,7 +1903,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                         '${AppConstants.currencySymbol}'
                                         '${grandTotal.toStringAsFixed(2)}';
                                     if (_selectedPayment == 'stripe') {
-                                      return 'Pay Now \u2014 $amt';
+                                      final rate = ref
+                                              .watch(usdJmdRateProvider)
+                                              .valueOrNull ??
+                                          160.0;
+                                      final usd =
+                                          (grandTotal / rate).toStringAsFixed(2);
+                                      return 'Pay Now \u2014 $amt (US\$$usd)';
                                     }
                                     return '${isPickup ? "Place Pickup Order" : "Place Order"} \u2014 $amt';
                                   }(),
