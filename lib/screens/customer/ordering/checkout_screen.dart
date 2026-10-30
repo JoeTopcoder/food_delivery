@@ -577,6 +577,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final outstandingDebt = ref.watch(outstandingDebtProvider);
     final grandTotal = total + outstandingDebt;
 
+    // Card payments are charged in USD, so when card is selected the whole
+    // breakdown is shown in USD (converted at the admin rate); otherwise JMD.
+    final usdRate = ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
+    final showUsd = _selectedPayment == 'stripe';
+    String money(double jmd) => showUsd
+        ? 'US\$${(jmd / usdRate).toStringAsFixed(2)}'
+        : '${AppConstants.currencySymbol}${jmd.toStringAsFixed(2)}';
+
     // The school wins over every saved address when the order is for a student:
     // it is the destination, not a suggestion the parent can override.
     final deliveryAddress = isStudentOrder
@@ -1552,24 +1560,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                       // reference. Non-members see the normal Subtotal line.
                       _SummaryRow(
                         context.l10n.subtotal,
-                        '${AppConstants.currencySymbol}${subtotal.toStringAsFixed(2)}',
+                        money(subtotal),
                       ),
                       if (memberSavings > 0)
                         _SummaryRow(
                           '⭐ HotBite+ Member Savings',
-                          '−${AppConstants.currencySymbol}${memberSavings.toStringAsFixed(2)}',
+                          '−${money(memberSavings)}',
                           valueColor: const Color(0xFFFF5A1F),
                         ),
                       if (promoDiscount > 0)
                         _SummaryRow(
                           'Promo (${appliedPromo!.code})',
-                          '−\$${promoDiscount.toStringAsFixed(2)}',
+                          '−${money(promoDiscount)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       if (loyaltyDiscount > 0)
                         _SummaryRow(
                           'Loyalty points',
-                          '−\$${loyaltyDiscount.toStringAsFixed(2)}',
+                          '−${money(loyaltyDiscount)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
                       // Company-sponsored: show delivery + service as covered by
@@ -1594,7 +1602,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                   subServiceDiscount > 0
                                       ? 'Pickup Fee (HotBite+ ${(activeSub!.serviceFeeDiscount * 100).toInt()}% off)'
                                       : 'Pickup Fee',
-                                  '${AppConstants.currencySymbol}${rawFee.toStringAsFixed(2)}',
+                                  money(rawFee),
                                   valueColor: subServiceDiscount > 0
                                       ? const Color(0xFF528BFF)
                                       : const Color(0xFF10B981),
@@ -1603,9 +1611,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         else if (isGroupOrder)
                           _SummaryRow(
                             'Delivery (Group 40% off – $groupParticipantCount members)',
-                            feeLoading
-                                ? 'Calculating…'
-                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                            feeLoading ? 'Calculating…' : money(deliveryFee),
                             valueColor: const Color(0xFF10B981),
                           )
                         else
@@ -1624,8 +1630,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             feeLoading
                                 ? 'Calculating…'
                                 : subDeliveryFree
-                                ? '\$0.00'
-                                : '${AppConstants.currencySymbol}${deliveryFee.toStringAsFixed(2)}',
+                                ? money(0)
+                                : money(deliveryFee),
                             valueColor: subDeliveryFree
                                 ? const Color(0xFF528BFF)
                                 : null,
@@ -1635,30 +1641,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         if (priorityFee > 0)
                           _SummaryRow(
                             '⚡ Priority Fee',
-                            '${AppConstants.currencySymbol}${priorityFee.toStringAsFixed(2)}',
+                            money(priorityFee),
                             valueColor: const Color(0xFFFF5A1F),
                           ),
                         // Peak Time surcharge is folded into the Service Fee line.
                         _SummaryRow(
                           'Service Fee',
-                          '${AppConstants.currencySymbol}${(platformServiceFee + peakFee).toStringAsFixed(2)}',
+                          money(platformServiceFee + peakFee),
                         ),
                       ],
                       if (tax > 0)
                         _SummaryRow(
                           'Tax (${(effectiveTaxRate * 100).toStringAsFixed(0)}%)',
-                          '${AppConstants.currencySymbol}${tax.toStringAsFixed(2)}',
+                          money(tax),
                         ),
                       if (_driverTip > 0)
                         _SummaryRow(
                           'Driver Tip',
-                          '${AppConstants.currencySymbol}${_driverTip.toStringAsFixed(2)}',
+                          money(_driverTip),
                           valueColor: const Color(0xFF10B981),
                         ),
                       if (outstandingDebt > 0)
                         _SummaryRow(
                           'Outstanding Balance',
-                          '+${AppConstants.currencySymbol}${outstandingDebt.toStringAsFixed(2)}',
+                          '+${money(outstandingDebt)}',
                           valueColor: const Color(0xFFEA580C),
                         ),
                       Divider(
@@ -1666,13 +1672,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                         height: 16,
                       ),
                       Builder(builder: (context) {
-                        final isCard = _selectedPayment == 'stripe';
-                        final rate =
-                            ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
+                        final isCard = showUsd;
+                        final rate = usdRate;
                         final usd = (grandTotal / rate).toStringAsFixed(2);
-                        final totalVal = isCard
-                            ? 'US\$$usd'
-                            : '${AppConstants.currencySymbol}${grandTotal.toStringAsFixed(2)}';
+                        final totalVal = money(grandTotal);
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
