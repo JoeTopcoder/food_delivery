@@ -242,6 +242,8 @@ Deno.serve(async (request) => {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description:
           txnType === "wallet_topup"
@@ -644,40 +646,22 @@ Deno.serve(async (request) => {
 
       const customerId = siData.customer as string;
 
-      // Generate random verification amount ($0.50 – $1.50)
-      const verifyAmount = Number((Math.random() * 1.0 + 0.50).toFixed(2));
-      const amountCents = Math.round(verifyAmount * 100);
-
-      // Charge the card server-side (user never sees the amount)
-      const pi = await stripeRequest("/payment_intents", {
-        amount: String(amountCents),
-        currency: "jmd",
-        customer: customerId,
-        payment_method: paymentMethodId,
-        off_session: "true",
-        confirm: "true",
-        "metadata[type]": "card_verification",
-        "metadata[user_id]": userData.user.id,
-        description: "Card verification charge",
-      });
-
-      if (pi.error) {
-        const err = pi.error as Record<string, unknown>;
-        return json({ error: err.message ?? "Verification charge failed" }, 400);
-      }
-
-      // Retrieve payment method details for the saved card.
+      // No verification charge: the SetupIntent already succeeded, which means
+      // Stripe validated the card (including any SCA/3DS) and attached it to the
+      // customer for off-session reuse. A micro-charge is both unnecessary and
+      // impossible in JMD (any few-cent amount falls under Stripe's ~US$0.50
+      // minimum). We simply save the attached card.
       const paymentMethod = await stripeGet(`/payment_methods/${paymentMethodId}`);
       const card = paymentMethod.card as Record<string, unknown> | undefined;
       const returnedBrand = String(card?.brand ?? cardBrand).toLowerCase();
       const returnedLast4 = String(card?.last4 ?? lastFour);
 
-      // Record in card_verifications table
+      // Record the setup (no charge) for audit.
       await adminClient.from("card_verifications").insert({
-        id: pi.id as string,
+        id: setupIntentId,
         user_id: userData.user.id,
-        amount: verifyAmount,
-        transaction_id: pi.id as string,
+        amount: 0,
+        transaction_id: setupIntentId,
         status: "completed",
         card_last4: returnedLast4,
         card_brand: returnedBrand,
@@ -688,7 +672,7 @@ Deno.serve(async (request) => {
 
       return json({
         success: true,
-        verificationId: pi.id,
+        verificationId: setupIntentId,
         paymentMethodId,
         cardBrand: returnedBrand,
         lastFour: returnedLast4,
@@ -768,6 +752,8 @@ Deno.serve(async (request) => {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description,
       });
@@ -870,6 +856,8 @@ Deno.serve(async (request) => {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description,
       });

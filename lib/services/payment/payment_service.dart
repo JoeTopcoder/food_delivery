@@ -263,7 +263,7 @@ class PaymentService {
           paymentIntentClientSecret: session.clientSecret,
           customerId: session.customerId,
           customerEphemeralKeySecret: session.ephemeralKey,
-          merchantDisplayName: AppConstants.appName,
+          merchantDisplayName: AppConstants.cardMerchantName,
           style: ThemeMode.system,
           billingDetails: BillingDetails(
             email: customerEmail,
@@ -437,7 +437,7 @@ class PaymentService {
           paymentIntentClientSecret: session.clientSecret,
           customerId: session.customerId,
           customerEphemeralKeySecret: session.ephemeralKey,
-          merchantDisplayName: AppConstants.appName,
+          merchantDisplayName: AppConstants.cardMerchantName,
           style: ThemeMode.system,
           billingDetails: BillingDetails(
             email: customerEmail,
@@ -696,7 +696,7 @@ class PaymentService {
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           setupIntentClientSecret: clientSecret,
-          merchantDisplayName: AppConstants.appName,
+          merchantDisplayName: AppConstants.cardMerchantName,
           style: ThemeMode.system,
           billingDetails: BillingDetails(
             email: customerEmail,
@@ -1011,20 +1011,12 @@ class PaymentService {
                 'status': 'verified',
               })
               .eq('id', matchRows[0]['id']);
-        } else {
-          // Insert new
-          await _supabaseClient.from('saved_cards').insert({
-            'user_id': userId,
-            'card_brand': brand,
-            'last_four': last4,
-            'exp_month': sc['exp_month'],
-            'exp_year': sc['exp_year'],
-            'stripe_payment_method_id': pmId,
-            'stripe_customer_id': customerId,
-            'status': 'verified',
-            'is_default': false,
-          });
         }
+        // NOTE: do NOT auto-insert Stripe-attached payment methods as new
+        // verified cards. A card must go through the add-card + verification
+        // flow (savePendingCard → confirm charged amount) to be saved. Auto-
+        // inserting here bypassed verification and created duplicate rows when
+        // multiple payment methods were attached across add attempts.
       }
 
       // Remove DB rows that no longer exist in Stripe
@@ -1112,6 +1104,8 @@ class PaymentService {
             'email': email,
             'phone': phone,
             'is_default': isFirst,
+            // Saved as pending — the customer must confirm the verification
+            // amount charged to the card before it becomes usable.
             'status': 'pending',
             'verification_id': verificationId,
             'verification_expires_at': expiresAt.toUtc().toIso8601String(),

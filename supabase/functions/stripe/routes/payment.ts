@@ -247,6 +247,8 @@ export async function handle(request: Request): Promise<Response> {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description:
           txnType === "wallet_topup"
@@ -649,21 +651,44 @@ export async function handle(request: Request): Promise<Response> {
 
       const customerId = siData.customer as string;
 
-      // Generate random verification amount ($0.50 – $1.50)
-      const verifyAmount = Number((Math.random() * 1.0 + 0.50).toFixed(2));
-      const amountCents = Math.round(verifyAmount * 100);
+      // Fetch the card first so we can charge the verification in the card's OWN
+      // currency. Charging in the same currency the card settles in means the
+      // customer's bank does NO conversion, so the amount they see on their
+      // statement is EXACTLY what we charged — which is what they then enter to
+      // verify. (Charging JMD on a USD card showed them a converted ~US$0.95 that
+      // could never match the stored J$148.)
+      const paymentMethod = await stripeGet(`/payment_methods/${paymentMethodId}`);
+      const card = paymentMethod.card as Record<string, unknown> | undefined;
+      const returnedBrand = String(card?.brand ?? cardBrand).toLowerCase();
+      const returnedLast4 = String(card?.last4 ?? lastFour);
+      const country = String(card?.country ?? "").toUpperCase();
 
-      // Charge the card server-side (user never sees the amount)
+      // Currency from the issuing country: Jamaican cards → JMD, everything else
+      // → USD (both kept above Stripe's ~US$0.50 minimum).
+      let vCurrency: string;
+      let amountMinor: number; // smallest currency unit for Stripe
+      let vDisplay: number;    // human amount we store + the customer enters
+      if (country === "JM") {
+        vCurrency = "jmd";
+        vDisplay = Math.floor(Math.random() * 50) + 100; // J$100–149
+        amountMinor = vDisplay * 100;
+      } else {
+        vCurrency = "usd";
+        const cents = Math.floor(Math.random() * 50) + 50; // $0.50–0.99
+        amountMinor = cents;
+        vDisplay = cents / 100;
+      }
+
       const pi = await stripeRequest("/payment_intents", {
-        amount: String(amountCents),
-        currency: "jmd",
+        amount: String(amountMinor),
+        currency: vCurrency,
         customer: customerId,
         payment_method: paymentMethodId,
         off_session: "true",
         confirm: "true",
         "metadata[type]": "card_verification",
         "metadata[user_id]": userData.user.id,
-        description: "Card verification charge",
+        description: "Card verification charge (refundable)",
       });
 
       if (pi.error) {
@@ -671,17 +696,11 @@ export async function handle(request: Request): Promise<Response> {
         return json({ error: err.message ?? "Verification charge failed" }, 400);
       }
 
-      // Retrieve payment method details for the saved card.
-      const paymentMethod = await stripeGet(`/payment_methods/${paymentMethodId}`);
-      const card = paymentMethod.card as Record<string, unknown> | undefined;
-      const returnedBrand = String(card?.brand ?? cardBrand).toLowerCase();
-      const returnedLast4 = String(card?.last4 ?? lastFour);
-
-      // Record in card_verifications table
       await adminClient.from("card_verifications").insert({
         id: pi.id as string,
         user_id: userData.user.id,
-        amount: verifyAmount,
+        amount: vDisplay,
+        currency: vCurrency,
         transaction_id: pi.id as string,
         status: "completed",
         card_last4: returnedLast4,
@@ -698,6 +717,8 @@ export async function handle(request: Request): Promise<Response> {
         cardBrand: returnedBrand,
         lastFour: returnedLast4,
         stripeCustomerId: customerId,
+        verifyCurrency: vCurrency,
+        verifyAmount: vDisplay,
       });
     } catch (e) {
       return json({ error: `Verification charge error: ${(e as Error).message}` }, 500);
@@ -773,6 +794,8 @@ export async function handle(request: Request): Promise<Response> {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description,
       });
@@ -875,6 +898,8 @@ export async function handle(request: Request): Promise<Response> {
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        // What the customer sees on their card statement (5–22 chars).
+        statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
         description,
       });

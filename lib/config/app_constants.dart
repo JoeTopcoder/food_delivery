@@ -2,6 +2,9 @@
   // App Info
   static const String appName = 'HotBite';
   static const String appVersion = '1.0.0';
+  // Name shown to customers in the Stripe Payment Sheet and on their card
+  // statement (statement descriptor) for card payments.
+  static const String cardMerchantName = 'HotBite Tech';
 
   // Supabase Configuration (override via --dart-define at build time)
   static const String supabaseUrl = String.fromEnvironment(

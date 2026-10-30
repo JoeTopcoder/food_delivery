@@ -1065,6 +1065,7 @@ class _RestaurantDetailScreenState
                     // within each group so the original order is otherwise kept.
                     int sectionRank(String c) {
                       final l = c.toLowerCase();
+                      if (l.contains('lunch')) return -1; // lunch menu always first
                       if (l.contains('beverage') || l.contains('drink')) return 3;
                       if (l.contains('side')) return 2;
                       if (l.contains('soup')) return 1;

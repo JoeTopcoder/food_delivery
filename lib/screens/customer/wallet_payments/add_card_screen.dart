@@ -76,7 +76,15 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
   void _onCardChanged(CardFieldInputDetails? details) {
     setState(() {
       _cardDetails = details;
-      _cardComplete = details?.complete == true;
+      // CardFormField's `complete` flag is unreliable on Android (often never
+      // flips to true even when the card is fully entered), which left the Save
+      // button permanently disabled. Treat the card as ready when the number +
+      // expiry are present; Stripe validates the CVC/number on confirmSetupIntent
+      // and any problem surfaces as a handled error.
+      final hasNumber = (details?.last4 ?? '').isNotEmpty;
+      final hasExpiry =
+          details?.expiryMonth != null && details?.expiryYear != null;
+      _cardComplete = details?.complete == true || (hasNumber && hasExpiry);
       if (details != null) {
         final last4 = details.last4;
         _previewNumber = (last4 != null && last4.isNotEmpty)
@@ -614,7 +622,8 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       ref.invalidate(savedCardsProvider(userId));
       AppSnackbar.success(
         context,
-        'Card added. Enter the small verification amount in your wallet to complete setup.',
+        'Card added. A small refundable amount was charged — enter it in your '
+        'Wallet to verify the card.',
       );
       Navigator.of(context).pop(true);
     } on StripeException catch (e) {
