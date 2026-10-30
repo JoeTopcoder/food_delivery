@@ -114,6 +114,10 @@ class MenuItem {
   final List<MenuItemSide>? sides;
   @JsonKey(includeFromJson: false, includeToJson: false)
   final List<OptionGroup> optionGroups;
+  // Weekdays this item is available on (Postgres DOW: Sun=0..Sat=6). Empty = every
+  // day. Parsed manually in fromJson so the .g.dart does not need regenerating.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final List<int> availableWeekdays;
   final String? unit; // e.g. 'lb', 'kg', 'each', 'pack'
   final String? brand;
   final String? weight; // e.g. '16 oz', '500g'
@@ -138,6 +142,7 @@ class MenuItem {
     this.preparationTime,
     this.sides,
     this.optionGroups = const [],
+    this.availableWeekdays = const [],
     this.unit,
     this.brand,
     this.weight,
@@ -156,7 +161,12 @@ class MenuItem {
             .map((g) => OptionGroup.fromJson(g as Map<String, dynamic>))
             .toList()
           ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return item.copyWith(optionGroups: groups);
+    final weekdays =
+        (json['available_weekdays'] as List?)
+            ?.map((e) => (e as num).toInt())
+            .toList() ??
+        const <int>[];
+    return item.copyWith(optionGroups: groups, availableWeekdays: weekdays);
   }
 
   Map<String, dynamic> toJson() => _$MenuItemToJson(this);
@@ -178,6 +188,7 @@ class MenuItem {
     int? preparationTime,
     List<MenuItemSide>? sides,
     List<OptionGroup>? optionGroups,
+    List<int>? availableWeekdays,
     String? unit,
     String? brand,
     String? weight,
@@ -202,6 +213,7 @@ class MenuItem {
       preparationTime: preparationTime ?? this.preparationTime,
       sides: sides ?? this.sides,
       optionGroups: optionGroups ?? this.optionGroups,
+      availableWeekdays: availableWeekdays ?? this.availableWeekdays,
       unit: unit ?? this.unit,
       brand: brand ?? this.brand,
       weight: weight ?? this.weight,

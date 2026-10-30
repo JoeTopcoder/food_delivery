@@ -163,6 +163,12 @@ class MenuService {
     }
   }
 
+  // Current weekday in Jamaica (UTC-5, no DST) as Postgres DOW: Sun=0..Sat=6.
+  int _jamaicaDow() {
+    final jam = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    return jam.weekday % 7; // Dart: Mon=1..Sun=7 -> Sun=0..Sat=6
+  }
+
   // Add menu item (for restaurant owners)
   Future<MenuItem?> addMenuItem({
     required String restaurantId,
@@ -175,9 +181,14 @@ class MenuService {
     double? hotBitePlusPrice,
     List<String>? tags,
     int? preparationTime,
+    List<int>? availableWeekdays,
   }) async {
     try {
       AppLogger.info('Adding menu item: $name');
+
+      final days = (availableWeekdays == null || availableWeekdays.isEmpty)
+          ? null
+          : availableWeekdays;
 
       final response = await _supabaseClient
           .from(AppConstants.tableMenus)
@@ -188,11 +199,14 @@ class MenuService {
             'category': category,
             'description': description,
             'image_url': imageUrl,
-            'is_available': true,
+            // When scheduled, reflect today's availability right away; the daily
+            // cron keeps it in sync afterwards.
+            'is_available': days == null ? true : days.contains(_jamaicaDow()),
             'discount': discount,
             'hotbite_plus_price': hotBitePlusPrice,
             'tags': tags,
             'preparation_time': preparationTime,
+            'available_weekdays': days,
             'created_at': DateTime.now().toIso8601String(),
           })
           .select()
@@ -219,6 +233,8 @@ class MenuService {
     int? preparationTime,
     double? hotBitePlusPrice,
     bool clearHotBitePlusPrice = false,
+    List<int>? availableWeekdays,
+    bool updateWeekdays = false,
   }) async {
     try {
       AppLogger.info('Updating menu item: $menuItemId');
@@ -226,6 +242,16 @@ class MenuService {
       final updateData = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
       };
+
+      if (updateWeekdays) {
+        final days = (availableWeekdays == null || availableWeekdays.isEmpty)
+            ? null
+            : availableWeekdays;
+        updateData['available_weekdays'] = days;
+        // Reflect today's availability immediately; cron maintains it daily.
+        updateData['is_available'] =
+            days == null ? true : days.contains(_jamaicaDow());
+      }
 
       if (name != null) updateData['name'] = name;
       if (price != null) updateData['price'] = price;

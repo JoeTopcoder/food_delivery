@@ -1060,7 +1060,28 @@ class _RestaurantDetailScreenState
                     for (final item in menuItems) {
                       grouped.putIfAbsent(item.category, () => []).add(item);
                     }
+                    // Order sections so the main menu (food dishes) always shows
+                    // first; push Soup, Sides and Beverages to the end. Stable
+                    // within each group so the original order is otherwise kept.
+                    int sectionRank(String c) {
+                      final l = c.toLowerCase();
+                      if (l.contains('beverage') || l.contains('drink')) return 3;
+                      if (l.contains('side')) return 2;
+                      if (l.contains('soup')) return 1;
+                      return 0; // main menu
+                    }
+
                     final categories = grouped.keys.toList();
+                    final indexed = categories.asMap().entries.toList()
+                      ..sort((a, b) {
+                        final r = sectionRank(a.value).compareTo(
+                          sectionRank(b.value),
+                        );
+                        return r != 0 ? r : a.key.compareTo(b.key);
+                      });
+                    categories
+                      ..clear()
+                      ..addAll(indexed.map((e) => e.value));
                     if (categories.isEmpty) {
                       return const Padding(
                         padding: EdgeInsets.all(32.0),

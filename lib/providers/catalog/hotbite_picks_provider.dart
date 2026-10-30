@@ -86,7 +86,9 @@ final curatedPicksProvider =
     return rows
         .where((r) => r['entity_type'] == 'restaurant' ||
             r['entity_type'] == 'grocery_store')
-        .map(PickRestaurant.fromRow)
+        // get_hotbite_picks returns the restaurant id as `entity_id` (not `id`),
+        // so map it across before building the card.
+        .map((r) => PickRestaurant.fromRow({...r, 'id': r['entity_id']}))
         .toList();
   } catch (_) {
     return const [];

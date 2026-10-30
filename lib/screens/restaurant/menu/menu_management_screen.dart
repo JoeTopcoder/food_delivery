@@ -622,11 +622,12 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
           : '',
     );
     final formKey = GlobalKey<FormState>();
+    final days = {...item.availableWeekdays};
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Edit Prices — ${item.name}'),
+        title: Text('Edit — ${item.name}'),
         content: StatefulBuilder(builder: (ctx, setD) => SingleChildScrollView(
           child: Form(
             key: formKey,
@@ -692,6 +693,16 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                   },
                 ),
                 _memberSplitPreview(priceCtl.text, discountCtl.text, memberCtl.text),
+                const SizedBox(height: 12),
+                const Divider(),
+                _WeekdaySelector(
+                  selected: days,
+                  onChanged: (s) => setD(() {
+                    days
+                      ..clear()
+                      ..addAll(s);
+                  }),
+                ),
               ],
             ),
           ),
@@ -727,6 +738,8 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
         hotBitePlusPrice:
             memberText.isNotEmpty ? double.tryParse(memberText) : null,
         clearHotBitePlusPrice: memberText.isEmpty,
+        availableWeekdays: days.toList()..sort(),
+        updateWeekdays: true,
       );
       ref.invalidate(restaurantMenuManagementProvider(restaurantId));
       if (context.mounted) {
@@ -773,6 +786,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
   double _discount = 0;
   bool _isAdding = false;
   File? _pickedImage;
+  final Set<int> _availableWeekdays = {};
 
   @override
   void initState() {
@@ -891,6 +905,7 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
             ? double.tryParse(_memberPriceController.text.trim())
             : null,
         imageUrl: imageUrl,
+        availableWeekdays: _availableWeekdays.toList()..sort(),
       );
 
       widget.onItemAdded();
@@ -1133,6 +1148,15 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                     Text('${_discount.toStringAsFixed(0)}%'),
                   ],
                 ),
+                const SizedBox(height: 8),
+                _WeekdaySelector(
+                  selected: _availableWeekdays,
+                  onChanged: (s) => setState(() {
+                    _availableWeekdays
+                      ..clear()
+                      ..addAll(s);
+                  }),
+                ),
               ],
             ),
           ),
@@ -1153,6 +1177,70 @@ class _AddMenuItemDialogState extends State<_AddMenuItemDialog> {
                 )
               : const Text('Add'),
         ),
+      ],
+    );
+  }
+}
+
+/// Day-of-week availability selector. Postgres DOW: Sun=0..Sat=6.
+/// No days selected = available every day.
+class _WeekdaySelector extends StatelessWidget {
+  final Set<int> selected;
+  final ValueChanged<Set<int>> onChanged;
+
+  const _WeekdaySelector({required this.selected, required this.onChanged});
+
+  static const _labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Available days',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                selected.isEmpty ? '(every day)' : '',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: List.generate(7, (i) {
+            final on = selected.contains(i);
+            return FilterChip(
+              label: Text(_labels[i]),
+              selected: on,
+              onSelected: (v) {
+                final next = {...selected};
+                if (v) {
+                  next.add(i);
+                } else {
+                  next.remove(i);
+                }
+                onChanged(next);
+              },
+            );
+          }),
+        ),
+        if (selected.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Only shown to customers on the selected days.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+            ),
+          ),
       ],
     );
   }
