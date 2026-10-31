@@ -1005,10 +1005,11 @@ class _CartItemWidget extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor, width: 0.7),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: Responsive.cartItemImageSize(context),
-            height: Responsive.cartItemImageSize(context),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(
@@ -1021,21 +1022,41 @@ class _CartItemWidget extends StatelessWidget {
               ),
               child: AppCachedImage(
                 url: imageUrl?.isNotEmpty == true ? imageUrl : null,
-                decodeWidth: 160,
+                decodeWidth: 120,
               ),
             ),
           ),
           const SizedBox(width: 12),
+          // Name spans the full remaining width; price + controls sit below it.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.bodyText(context),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: Responsive.bodyText(context),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 32,
+                      width: 32,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                        onPressed: onRemove,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ),
+                  ],
                 ),
                 if (customizationSummary != null) ...[
                   const SizedBox(height: 2),
@@ -1049,71 +1070,72 @@ class _CartItemWidget extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: 4),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 2,
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    // Slashed original line total first, when discounted.
-                    if (originalPrice != null && originalPrice! > price)
-                      Text(
-                        '${AppConstants.currencySymbol}${(originalPrice! * quantity).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: Responsive.smallText(context),
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          if (originalPrice != null && originalPrice! > price)
+                            Text(
+                              '${AppConstants.currencySymbol}${(originalPrice! * quantity).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: Responsive.smallText(context),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          Text(
+                            '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: AppTheme.priceColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                    Text(
-                      '${AppConstants.currencySymbol}${(price * quantity).toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: AppTheme.priceColor,
-                        fontWeight: FontWeight.w700,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).dividerColor),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove, size: 16),
+                            onPressed: () => onQuantityChanged(quantity - 1),
+                            constraints: const BoxConstraints(
+                              minHeight: 28,
+                              minWidth: 28,
+                            ),
+                            padding: EdgeInsets.zero,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('$quantity'),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add, size: 16),
+                            onPressed: () => onQuantityChanged(quantity + 1),
+                            constraints: const BoxConstraints(
+                              minHeight: 28,
+                              minWidth: 28,
+                            ),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove, size: 16),
-                  onPressed: () => onQuantityChanged(quantity - 1),
-                  constraints: const BoxConstraints(
-                    minHeight: 30,
-                    minWidth: 30,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('$quantity'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add, size: 16),
-                  onPressed: () => onQuantityChanged(quantity + 1),
-                  constraints: const BoxConstraints(
-                    minHeight: 30,
-                    minWidth: 30,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20, color: Colors.red),
-            onPressed: onRemove,
-            constraints: const BoxConstraints(minHeight: 40, minWidth: 40),
           ),
         ],
       ),
