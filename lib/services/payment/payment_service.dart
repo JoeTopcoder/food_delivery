@@ -334,6 +334,57 @@ class PaymentService {
     }
   }
 
+  /// Pay for an order with a SAVED card while re-collecting the CVC: creates an
+  /// unconfirmed PaymentIntent (require_cvc_recollection) and presents the Stripe
+  /// Payment Sheet so the customer re-enters their card's CVC. Charged in USD at
+  /// the admin rate (the amount passed is the JMD total). Returns the confirmed
+  /// PaymentIntent id to hand to place-order.
+  Future<String> payOrderWithSavedCardCvc({
+    required String orderId,
+    required double jmdAmount,
+    required String paymentMethodId,
+    String type = 'food_pre_charge',
+  }) async {
+    final response = await _invokeStripeFunction(
+      AppConstants.stripePaymentFunction,
+      body: {
+        'action': 'prepare_saved_card_payment',
+        'orderId': orderId,
+        'amount': jmdAmount,
+        'paymentMethodId': paymentMethodId,
+        'type': type,
+        'currency': AppConstants.currencyCode.toLowerCase(),
+      },
+    );
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Payment setup failed. Please try again.');
+    }
+    if (data['error'] != null) {
+      throw Exception(_stripeErrorMessage(data['error']));
+    }
+    final clientSecret = data['clientSecret'] as String?;
+    final paymentIntentId = data['paymentIntentId'] as String?;
+    if (clientSecret == null || paymentIntentId == null) {
+      throw Exception('Payment setup incomplete. Please try again.');
+    }
+    if (Stripe.publishableKey.isEmpty) {
+      Stripe.publishableKey = AppConstants.stripePublishableKey;
+      Stripe.merchantIdentifier = AppConstants.stripeMerchantId;
+      await Stripe.instance.applySettings();
+    }
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: AppConstants.cardMerchantName,
+        customerId: data['customerId'] as String?,
+        customerEphemeralKeySecret: data['ephemeralKey'] as String?,
+      ),
+    );
+    await Stripe.instance.presentPaymentSheet();
+    return paymentIntentId;
+  }
+
   /// Charge a verified saved card off-session (no Stripe UI shown).
   /// Uses the same server-side approach as the card verification charge.
   /// Pass [type] = 'wallet_topup' for wallet deposits so the edge function

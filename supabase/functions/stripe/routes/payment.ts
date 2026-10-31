@@ -772,7 +772,6 @@ export async function handle(request: Request): Promise<Response> {
       const email = userData.user.email ?? "";
       const name = (userData.user.user_metadata?.name as string) ?? email;
       const customerId = await getOrCreateStripeCustomer(adminClient, userData.user.id, email, name);
-      const amountInCents = Math.round(amount * 100);
       const description = txnType === "wallet_topup"
         ? "Wallet Top-Up"
         : txnType === "ride"
@@ -783,17 +782,31 @@ export async function handle(request: Request): Promise<Response> {
         ? "Food & Grocery Order"
         : "Order";
 
-      // Create PI with payment method attached but NOT confirmed —
-      // Flutter SDK will confirm it client-side so CVC can be collected.
+      // Food/order card payments are charged in USD at the admin rate, like
+      // place-order. The amount passed in is the JMD total.
+      let chargeCurrency = currency;
+      let chargeMinor = Math.round(amount * 100);
+      if (txnType === "order" || txnType === "food_pre_charge" || txnType === "multi_restaurant_order") {
+        const { data: rateRow } = await adminClient
+          .from("app_config").select("value").eq("key", "usd_jmd_rate").maybeSingle();
+        const rate = parseFloat(String(rateRow?.value ?? "160")) || 160;
+        chargeCurrency = "usd";
+        chargeMinor = Math.max(50, Math.round((amount / rate) * 100));
+      }
+
+      // Create PI with the saved card attached but NOT confirmed, and REQUIRE
+      // the CVC to be re-entered — the Payment Sheet collects it client-side.
       const pi = await stripeRequest("/payment_intents", {
-        amount: String(amountInCents),
-        currency,
+        amount: String(chargeMinor),
+        currency: chargeCurrency,
         customer: customerId,
         payment_method: paymentMethodId,
         "payment_method_types[]": "card",
+        "payment_method_options[card][require_cvc_recollection]": "true",
         "metadata[order_id]": orderId,
         "metadata[user_id]": userData.user.id,
         "metadata[type]": txnType,
+        "metadata[jmd_amount]": String(amount),
         // What the customer sees on their card statement (5–22 chars).
         statement_descriptor_suffix: "HotBite Tech",
         receipt_email: email,
@@ -805,12 +818,29 @@ export async function handle(request: Request): Promise<Response> {
         return json({ error: err.message ?? "Failed to create payment intent." }, 400);
       }
 
+      // Ephemeral key lets the Payment Sheet show the saved card and prompt CVC.
+      let ephemeralKey: string | null = null;
+      try {
+        const ephRes = await fetch("https://api.stripe.com/v1/ephemeral_keys", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Stripe-Version": "2024-06-20",
+          },
+          body: new URLSearchParams({ customer: customerId }).toString(),
+        });
+        const ephData = await ephRes.json();
+        ephemeralKey = ephData.secret ?? null;
+      } catch (_) { /* sheet still works for card-only confirm */ }
+
       return json({
         clientSecret: pi.client_secret,
         paymentIntentId: pi.id,
         customerId,
-        amount,
-        currency,
+        ephemeralKey,
+        amount: chargeMinor / 100,
+        currency: chargeCurrency,
       });
     } catch (e) {
       return json({ error: `Payment intent error: ${(e as Error).message}` }, 500);

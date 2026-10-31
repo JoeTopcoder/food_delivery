@@ -4,6 +4,7 @@ import '../../../utils/est_datetime.dart';
 import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' show StripeException;
 import 'package:intl/intl.dart';
 import '../../../widgets/common/smart_home_widgets.dart' show appClosureProvider;
 import '../../../core/utils/responsive.dart';
@@ -2205,6 +2206,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         }
       }
 
+      // ── Card: re-collect the CVC and charge via the Payment Sheet BEFORE the
+      // order is created (no charge-on-file off-session). The confirmed
+      // PaymentIntent id is handed to place-order, which only verifies it.
+      String? cardPaymentIntentId;
+      if (_selectedPayment == 'stripe' && savedCardPmId != null) {
+        try {
+          cardPaymentIntentId = await ref
+              .read(paymentServiceProvider)
+              .payOrderWithSavedCardCvc(
+                orderId: 'pre_${DateTime.now().millisecondsSinceEpoch}',
+                jmdAmount: verifiedTotal,
+                paymentMethodId: savedCardPmId,
+              );
+        } on StripeException catch (e) {
+          setState(() => _placingOrder = false);
+          if (mounted) {
+            AppSnackbar.error(
+                context, e.error.localizedMessage ?? 'Payment was not completed.');
+          }
+          return;
+        } catch (e) {
+          setState(() => _placingOrder = false);
+          if (mounted) AppSnackbar.error(context, friendlyError(e));
+          return;
+        }
+      }
+
       // ── Create the order in the DB (payment gated inside edge function) ────
       // For card payments, savedCardPmId is passed so place-order charges Stripe
       // first; the order row is only inserted after the charge succeeds.
@@ -2239,7 +2267,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         fromAd: isFromAd,
         adId: isFromAd ? activeAd.id : null,
         promoCode: appliedPromo?.code,
-        savedCardPaymentMethodId: savedCardPmId,
+        // CVC was collected + charged above; place-order only verifies the PI.
+        savedCardPaymentMethodId:
+            cardPaymentIntentId != null ? null : savedCardPmId,
+        paymentIntentId: cardPaymentIntentId,
         studentId: studentId,
         companyReservationId: companyReservationId,
         companyServiceFee: companyServiceFee,
