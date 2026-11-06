@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/food/search_service.dart';
+import '../../utils/menu_filter.dart';
 import '../auth_user/auth_provider.dart';
+import '../platform/feature_providers.dart';
 
 final searchServiceProvider = Provider<SearchService>((ref) {
   return SearchService(Supabase.instance.client);
@@ -61,12 +63,20 @@ final menuSearchResultsProvider = FutureProvider.autoDispose<List<MenuSearchResu
     return [];
   }
 
-  return service.searchMenuItems(
+  final results = await service.searchMenuItems(
     query: query.isNotEmpty ? query : null,
     cuisine: cuisine,
     maxPrice: maxPrice,
     minRating: minRating,
   );
+  // Hide admin-filtered (e.g. alcohol) items from customer search.
+  final words = await ref.watch(menuFilterWordsProvider.future);
+  if (words.isEmpty) return results;
+  return results
+      .where((r) => !isTextFiltered(
+          '${r.itemName} ${r.itemCategory ?? ''} ${r.itemDescription ?? ''}',
+          words))
+      .toList();
 });
 
 /// Personalized recommendations

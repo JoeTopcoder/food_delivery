@@ -10,6 +10,7 @@ import '../../../utils/friendly_error.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/catalog/recommendation_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
+import '../../../utils/menu_filter.dart';
 import '../../../utils/app_theme.dart';
 import '../../../widgets/menu/menu_item_card.dart';
 import '../../../widgets/menu/menu_item_actions.dart';
@@ -287,6 +288,10 @@ class _RestaurantDetailScreenState
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
 
+    // Warm the option cache for this restaurant so tapping an item to add to
+    // cart opens instantly (no per-item options round-trip). Fire-and-forget.
+    ref.read(menuServiceProvider).prefetchMenuOptions(widget.restaurant.id);
+
     // Track restaurant view for AI engine
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userId = ref.read(currentUserIdProvider);
@@ -386,6 +391,9 @@ class _RestaurantDetailScreenState
     final menuItemsAsync = ref.watch(
       restaurantMenuProvider(widget.restaurant.id),
     );
+    // Admin word filter: hide alcohol/other flagged items from customers.
+    final menuFilterWords = ref.watch(menuFilterWordsProvider).valueOrNull ??
+        const <String>[];
     final currentUserId = ref.watch(currentUserIdProvider);
     final isFav = currentUserId != null &&
         ref.watch(favoriteRestaurantIdsProvider).contains(widget.restaurant.id);
@@ -1038,8 +1046,11 @@ class _RestaurantDetailScreenState
                     // Seed from the disk cache so the menu paints instantly on
                     // a cold launch; the live provider swaps in fresh items
                     // silently once it resolves.
-                    final menuItems = menuItemsAsync.valueOrNull ??
+                    final rawMenuItems = menuItemsAsync.valueOrNull ??
                         CatalogCache.menu(widget.restaurant.id);
+                    final menuItems = rawMenuItems == null
+                        ? null
+                        : applyMenuFilter(rawMenuItems, menuFilterWords);
                     if (menuItems == null) {
                       if (menuItemsAsync.hasError) {
                         return AppErrorState(
@@ -1172,14 +1183,18 @@ class _RestaurantDetailScreenState
                                 const EdgeInsets.fromLTRB(16, 12, 16, 8),
                             child: Row(
                               children: [
-                                Text(
-                                  cat,
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
+                                Flexible(
+                                  child: Text(
+                                    cat,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),

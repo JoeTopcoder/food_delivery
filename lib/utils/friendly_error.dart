@@ -150,6 +150,21 @@ String friendlyError(Object? error) {
     }
   }
 
+  // Unmapped Supabase/PostgREST errors (e.g. PostgrestException) carry a useful
+  // `message:` — surface it instead of a vague fallback, so admin-side failures
+  // like a schema-cache miss or a constraint are actually actionable. Append the
+  // error code when present (e.g. PGRST202, 23514) to aid support.
+  final pgMsg = RegExp(r'message:\s*(.+?)(?:,\s*(?:code|details|hint):|\)$|$)',
+          dotAll: true)
+      .firstMatch(errorStr)
+      ?.group(1)
+      ?.trim();
+  if (pgMsg != null && pgMsg.isNotEmpty && pgMsg.length < 160) {
+    final code = RegExp(r'code:\s*([A-Za-z0-9]+)').firstMatch(errorStr)?.group(1);
+    final pretty = pgMsg[0].toUpperCase() + pgMsg.substring(1);
+    return code != null && code.isNotEmpty ? '$pretty ($code)' : pretty;
+  }
+
   // Generic fallback
   return 'Something went wrong. Please try again.';
 }

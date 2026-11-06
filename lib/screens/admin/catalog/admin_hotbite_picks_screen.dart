@@ -68,7 +68,7 @@ class _AdminHotBitePicksScreenState
         'p_display_order': p['display_order'],
         'p_starts_at': p['starts_at'],
         'p_ends_at': p['ends_at'],
-        'p_is_active': !(p['is_active'] as bool),
+        'p_is_active': !((p['is_active'] as bool?) ?? false),
       });
       _refresh();
     } catch (e) {

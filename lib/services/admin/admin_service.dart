@@ -74,10 +74,16 @@ class AdminService {
     try {
       AppLogger.info('Fetching users by role: $role');
 
-      final response = await _supabaseClient
-          .from(AppConstants.tableUsers)
-          .select()
-          .eq('role', role)
+      // Customers are stored under both 'customer' and 'user' roles (legacy
+      // drift), so the Customers tab must match either, not just one.
+      final isCustomer = role == 'customer' || role == 'user';
+
+      var query = _supabaseClient.from(AppConstants.tableUsers).select();
+      query = isCustomer
+          ? query.inFilter('role', ['customer', 'user'])
+          : query.eq('role', role);
+
+      final response = await query
           .order('created_at', ascending: false)
           .limit(500);
 

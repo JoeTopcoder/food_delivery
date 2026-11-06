@@ -184,17 +184,30 @@ class GroceryService {
   Future<List<MenuItem>> getGroceryProducts(String storeId) async {
     try {
       AppLogger.info('Fetching grocery products for store: $storeId');
-      final response = await _client
-          .from(AppConstants.tableMenus)
-          .select(
-            '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
-          )
-          .eq('restaurant_id', storeId)
-          .eq('product_type', 'grocery')
-          .eq('is_available', true)
-          .order('category');
+      // Page through the rows. PostgREST caps a single response (default 1000
+      // rows), and a large supermarket has thousands of products; without
+      // paging, everything after the first ~1000 (alphabetically by category)
+      // silently vanishes — whole categories like Meat/Produce/Frozen never
+      // show. Keep requesting the next window until a short page comes back.
+      const pageSize = 1000;
+      final rows = <dynamic>[];
+      for (var offset = 0;; offset += pageSize) {
+        final batch = await _client
+            .from(AppConstants.tableMenus)
+            .select(
+              '*, menu_item_sides(*), menu_option_groups(*, menu_option_choices(*))',
+            )
+            .eq('restaurant_id', storeId)
+            .eq('product_type', 'grocery')
+            .eq('is_available', true)
+            .order('category')
+            .order('name')
+            .range(offset, offset + pageSize - 1);
+        rows.addAll(batch as List);
+        if ((batch).length < pageSize) break;
+      }
 
-      return (response as List).map((row) {
+      return rows.map((row) {
         final sidesJson = row['menu_item_sides'] as List? ?? [];
         return MenuItem.fromJson({...row, 'sides': sidesJson});
       }).toList();
@@ -238,41 +251,78 @@ class GroceryService {
           .eq('is_active', true)
           .order('sort_order');
 
-      final categories = (catResponse as List)
+      final curated = (catResponse as List)
           .map((r) => GroceryCategory.fromJson(r))
           .toList();
 
-      final knownNames = categories.map((c) => c.name).toSet();
-
-      // 2. Fetch distinct category names from actual grocery products
-      final menuResponse = await _client
-          .from(AppConstants.tableMenus)
-          .select('category')
-          .eq('product_type', 'grocery')
-          .eq('is_available', true);
-
+      // 2. Fetch the distinct category names that ACTUALLY have products, plus a
+      // representative product image per category (the first product with an
+      // image). Page through the rows: PostgREST caps a single response (~1000
+      // rows) and a supermarket has thousands of products, so without paging
+      // whole categories near the alphabetical end would be missed.
+      const pageSize = 1000;
       final productCategories = <String>{};
-      for (final row in (menuResponse as List)) {
-        final cat = row['category'] as String?;
-        if (cat != null && cat.isNotEmpty) {
+      final categoryImage = <String, String>{};
+      for (var offset = 0;; offset += pageSize) {
+        final batch = await _client
+            .from(AppConstants.tableMenus)
+            .select('category, image_url')
+            .eq('product_type', 'grocery')
+            .eq('is_available', true)
+            .order('category')
+            .range(offset, offset + pageSize - 1);
+        for (final row in (batch as List)) {
+          final cat = (row['category'] as String?)?.trim();
+          if (cat == null || cat.isEmpty) continue;
           productCategories.add(cat);
+          final img = (row['image_url'] as String?)?.trim();
+          if (img != null && img.isNotEmpty && !categoryImage.containsKey(cat)) {
+            categoryImage[cat] = img;
+          }
         }
+        if (batch.length < pageSize) break;
       }
 
-      // 3. Merge: add any product categories not already in the curated list
+      // 3a. Keep only curated categories that actually return products (drop the
+      // empty ones so they don't show a category tile that leads to nothing).
+      // Give a curated category without its own image a representative product
+      // image as a fallback.
+      final categories = <GroceryCategory>[];
+      final knownNames = <String>{};
+      for (final c in curated) {
+        if (!productCategories.contains(c.name)) continue;
+        knownNames.add(c.name);
+        final img = (c.imageUrl != null && c.imageUrl!.isNotEmpty)
+            ? c.imageUrl
+            : categoryImage[c.name];
+        categories.add(
+          GroceryCategory(
+            id: c.id,
+            name: c.name,
+            icon: c.icon,
+            imageUrl: img,
+            sortOrder: c.sortOrder,
+            isActive: c.isActive,
+            createdAt: c.createdAt,
+          ),
+        );
+      }
+
+      // 3b. Add product-derived categories (not curated) with a real product
+      // image instead of the generic box icon.
       for (final name in productCategories) {
-        if (!knownNames.contains(name)) {
-          categories.add(
-            GroceryCategory(
-              id: 'custom_$name',
-              name: name,
-              icon: '📦',
-              sortOrder: 999,
-              isActive: true,
-              createdAt: DateTime.now(),
-            ),
-          );
-        }
+        if (knownNames.contains(name)) continue;
+        categories.add(
+          GroceryCategory(
+            id: 'custom_$name',
+            name: name,
+            icon: '📦',
+            imageUrl: categoryImage[name],
+            sortOrder: 999,
+            isActive: true,
+            createdAt: DateTime.now(),
+          ),
+        );
       }
 
       // Sort: curated first (by sort_order), custom at end alphabetically

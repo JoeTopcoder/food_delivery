@@ -750,6 +750,61 @@ export async function handle(request: Request): Promise<Response> {
     });
   }
 
+  // ACTION: membership_confirm — verify the FIRST payment actually cleared in
+  // Stripe before activating the membership in our DB. The client calls this
+  // right after the Payment Sheet returns. We never mark a membership active on
+  // the client's word alone — we re-read the live subscription + its invoice /
+  // PaymentIntent from Stripe and only flip pending→active when Stripe itself
+  // says the money was collected. (The webhook remains the path for renewals.)
+  if (action === "membership_confirm") {
+    const { data: mem } = await admin
+      .from("customer_memberships")
+      .select("id, stripe_subscription_id, status")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!mem || !mem.stripe_subscription_id) {
+      return json({ error: "No pending membership to confirm." }, 404);
+    }
+
+    const sub = await stripeGet(
+      `/subscriptions/${mem.stripe_subscription_id}?expand[]=latest_invoice.payment_intent`);
+    if (sub.error) return json({ error: "Could not verify subscription." }, 400);
+
+    const li = (sub.latest_invoice && typeof sub.latest_invoice === "object")
+      ? sub.latest_invoice as Record<string, unknown> : null;
+    const pi = (li?.payment_intent && typeof li.payment_intent === "object")
+      ? li.payment_intent as Record<string, unknown> : null;
+    const subStatus = String(sub.status ?? "");
+    const invoicePaid = li ? (li.status === "paid" || li.paid === true) : false;
+    const piSucceeded = pi ? pi.status === "succeeded" : false;
+    // Must be a live subscription AND the first invoice/PI actually collected.
+    const paid = (subStatus === "active" || subStatus === "trialing") &&
+      (invoicePaid || piSucceeded);
+
+    if (!paid) {
+      return json({
+        success: false,
+        active: false,
+        status: subStatus,
+        message: "Payment not confirmed yet.",
+      });
+    }
+
+    const periodEnd = new Date(((sub.current_period_end as number) ?? 0) * 1000);
+    await admin.from("customer_memberships").update({
+      status: "active",
+      end_date: periodEnd.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+      auto_renew: true,
+      updated_at: new Date().toISOString(),
+    }).eq("id", mem.id);
+
+    return json({ success: true, active: true });
+  }
+
   // ACTION: membership_cancel — stop auto-renew (cancel at period end)
   if (action === "membership_cancel") {
     const { data: mem } = await admin

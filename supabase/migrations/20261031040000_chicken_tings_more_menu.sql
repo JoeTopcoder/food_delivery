@@ -1,0 +1,88 @@
+-- Chicken & Tings: additional lunch/dinner items (fish, jerk, steak, stew peas, chicken & fries).
+BEGIN;
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('7a9fd95f-f1a4-43f9-ac89-16c739c448e2','a223daee-5b35-426a-9d05-ba3479a97c46','Brown Stew Fish','Fish simmered in a rich Jamaican brown stew gravy with okra, carrots and peppers, served with rice and salad.',1600,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('fecb5e41-7560-41d4-94d4-9f005a683fea','7a9fd95f-f1a4-43f9-ac89-16c739c448e2','Sides',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b05b5022-6324-4e80-aca1-13cbd6542384','fecb5e41-7560-41d4-94d4-9f005a683fea','Rice & Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('eda8a23c-7287-4de1-aeec-7d2c1677f081','fecb5e41-7560-41d4-94d4-9f005a683fea','White Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('cf43cfb3-f719-462a-9a01-78fc2f78e454','fecb5e41-7560-41d4-94d4-9f005a683fea','No Rice',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b36e662e-193c-468a-9951-b62aa5ad9e24','fecb5e41-7560-41d4-94d4-9f005a683fea','Fries',500,false,true,3);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('f795fa07-a6ec-4b43-90fc-324bc9315629','7a9fd95f-f1a4-43f9-ac89-16c739c448e2','Extras',false,4,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('bd228789-9963-4455-9a9e-8229dc067c4f','f795fa07-a6ec-4b43-90fc-324bc9315629','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e833ca42-672a-43a2-93df-7f150c25b7e0','f795fa07-a6ec-4b43-90fc-324bc9315629','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f387c149-bb49-4609-8d0d-bd6bd1f34095','f795fa07-a6ec-4b43-90fc-324bc9315629','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('4c2d94ec-d727-48b3-8496-78d16dd69da0','f795fa07-a6ec-4b43-90fc-324bc9315629','Extra Rice',500,false,true,3);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('691ecc15-6763-46a3-8b9d-d9e3aa326845','a223daee-5b35-426a-9d05-ba3479a97c46','Escoveitch Fish','Crispy fried fish topped with tangy escoveitch pickle of onions, carrots and scotch bonnet peppers, served with festival, plantain and salad.',1600,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('fd7f168c-df06-4815-9b7f-ad6319d77565','691ecc15-6763-46a3-8b9d-d9e3aa326845','Sides',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('abe3be98-5fae-47ca-be47-3b50456a04b0','fd7f168c-df06-4815-9b7f-ad6319d77565','Rice & Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('10d7e280-545d-4ad8-8d31-0a38a6907bff','fd7f168c-df06-4815-9b7f-ad6319d77565','White Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('688a0312-f5c1-4bb2-aca1-e340b1ffd9a9','fd7f168c-df06-4815-9b7f-ad6319d77565','No Rice',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d95508be-2c16-469c-ac12-40d67e0c9747','fd7f168c-df06-4815-9b7f-ad6319d77565','Fries',500,false,true,3);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('76ad2de5-4f60-4e50-9ffa-723d7d2fe977','691ecc15-6763-46a3-8b9d-d9e3aa326845','Extras',false,4,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('92c1aebc-effe-4f68-8446-17a1ba3b5ec1','76ad2de5-4f60-4e50-9ffa-723d7d2fe977','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('887fa277-1099-407d-a4bc-fe32fa28a22f','76ad2de5-4f60-4e50-9ffa-723d7d2fe977','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('267d6e2e-f89c-4409-9b29-c16f88ebf3ea','76ad2de5-4f60-4e50-9ffa-723d7d2fe977','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b47af1e1-b869-4fe0-96e2-fc7a915ddea4','76ad2de5-4f60-4e50-9ffa-723d7d2fe977','Extra Rice',500,false,true,3);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('8ee9c0dc-27e4-4a3d-89bd-c4f3f3654f7f','a223daee-5b35-426a-9d05-ba3479a97c46','Jerk Chicken','Smoky, spicy Jamaican jerk chicken served with rice and fresh salad.',1200,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('d1501cff-198e-4740-bd52-a7cd370dc2c4','8ee9c0dc-27e4-4a3d-89bd-c4f3f3654f7f','Part',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('968e6999-80d5-4a87-a5e7-0e58653068ae','d1501cff-198e-4740-bd52-a7cd370dc2c4','Breast, Leg & Wing',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c38fe8ee-1db2-4362-84f4-3001a7baf004','d1501cff-198e-4740-bd52-a7cd370dc2c4','Leg, Thigh & Wing',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('a5f4b84c-25a2-4a0a-9f73-d37bb18f239e','d1501cff-198e-4740-bd52-a7cd370dc2c4','Rib, Leg & Wing',0,false,true,2);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('47be0f5d-5079-43db-9a68-f6a139fe4dde','8ee9c0dc-27e4-4a3d-89bd-c4f3f3654f7f','Sides',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('9877f3c7-3beb-4558-8b5a-542bf93c5661','47be0f5d-5079-43db-9a68-f6a139fe4dde','Rice & Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('eb8c9f0e-4484-4313-9f69-675244204afc','47be0f5d-5079-43db-9a68-f6a139fe4dde','White Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('42fd01de-ccec-40f6-be61-28c91333ec18','47be0f5d-5079-43db-9a68-f6a139fe4dde','No Rice',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f62e5a1e-c7ac-4b61-bdc9-def0ff40b14f','47be0f5d-5079-43db-9a68-f6a139fe4dde','Fries',500,false,true,3);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('7d18bd84-36ed-4f3b-93e5-5f8d87b9eebb','8ee9c0dc-27e4-4a3d-89bd-c4f3f3654f7f','Extras',false,4,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1e273544-c906-48d9-8533-d25b3dae22fa','7d18bd84-36ed-4f3b-93e5-5f8d87b9eebb','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f83b957c-fed4-434b-a8f7-b37c8c9f220a','7d18bd84-36ed-4f3b-93e5-5f8d87b9eebb','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('9288159a-15e0-40d9-947b-de6293768802','7d18bd84-36ed-4f3b-93e5-5f8d87b9eebb','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('3199b88c-620d-487b-a9be-be0fca6e332c','7d18bd84-36ed-4f3b-93e5-5f8d87b9eebb','Extra Rice',500,false,true,3);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('01fa4e93-28b3-4ac5-a361-b344f6f9e9a2','a223daee-5b35-426a-9d05-ba3479a97c46','Chicken Steak','Seasoned grilled chicken steak served with rice and fresh salad.',1200,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('7f29668a-4a8b-4a0e-abd7-039eb658a528','01fa4e93-28b3-4ac5-a361-b344f6f9e9a2','Mix Meal',false,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('287cd080-4855-4e04-8c9f-f175be7a33ba','7f29668a-4a8b-4a0e-abd7-039eb658a528','Mix Fry Chicken',500,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c1876edf-8d3c-484b-abcb-a72a3cf88170','7f29668a-4a8b-4a0e-abd7-039eb658a528','Mix Bar-B-Fry',500,false,true,1);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('329fc9d2-a64c-4a3a-8f86-78ef22a2d5b1','01fa4e93-28b3-4ac5-a361-b344f6f9e9a2','Sides',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('2ce09c69-1711-45f5-8e60-9e0e662687d5','329fc9d2-a64c-4a3a-8f86-78ef22a2d5b1','Rice & Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('da8ff9ab-d922-4bba-9bb3-0bd6a5ac658d','329fc9d2-a64c-4a3a-8f86-78ef22a2d5b1','White Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ab508d81-8fe6-46ff-8a64-aed8dd522107','329fc9d2-a64c-4a3a-8f86-78ef22a2d5b1','No Rice',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('0f4d42c2-eaee-4e5c-85e9-56d8aecb5f64','329fc9d2-a64c-4a3a-8f86-78ef22a2d5b1','Fries',500,false,true,3);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('597e13cd-64ef-49c7-8954-861a2f9d8b63','01fa4e93-28b3-4ac5-a361-b344f6f9e9a2','Extras',false,4,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ed6fce4f-c0aa-4497-9631-c071b27fdaf4','597e13cd-64ef-49c7-8954-861a2f9d8b63','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('71f33e6c-be3b-40d8-847b-a3f271c8ab41','597e13cd-64ef-49c7-8954-861a2f9d8b63','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('16e27af5-4166-402b-9d95-9c9328cd48d7','597e13cd-64ef-49c7-8954-861a2f9d8b63','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('7f86c85a-e71f-4a00-844d-72cf32e55590','597e13cd-64ef-49c7-8954-861a2f9d8b63','Extra Rice',500,false,true,3);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('82b90f2d-0790-4ee7-9c5a-ee29e3b143e3','a223daee-5b35-426a-9d05-ba3479a97c46','Stew Peas','Hearty red peas stew cooked with meat in a thick savoury gravy, served over rice with salad.',1500,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('256f041e-74dd-4e97-8550-f329b86f08c7','82b90f2d-0790-4ee7-9c5a-ee29e3b143e3','Mix Meal',false,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d0ea74b7-d291-4c86-b3a3-cfccb94dcde1','256f041e-74dd-4e97-8550-f329b86f08c7','Mix Fry Chicken',500,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('33621c2f-20b4-443d-a668-ff362b9e8f0c','256f041e-74dd-4e97-8550-f329b86f08c7','Mix Bar-B-Fry',500,false,true,1);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('3c33d34b-90d9-4042-bcc5-a01c26bef47e','82b90f2d-0790-4ee7-9c5a-ee29e3b143e3','Sides',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('6a09f584-a156-4459-840a-d87bea6e0347','3c33d34b-90d9-4042-bcc5-a01c26bef47e','Rice & Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e207bcb5-ea34-4493-b158-5c4e1c1e3a30','3c33d34b-90d9-4042-bcc5-a01c26bef47e','White Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('44bd4513-8154-4964-86f8-06005d929e54','3c33d34b-90d9-4042-bcc5-a01c26bef47e','No Rice',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('2a034fe2-b4eb-4cc7-aa78-d09b1d5d4ac5','3c33d34b-90d9-4042-bcc5-a01c26bef47e','Fries',500,false,true,3);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('a760c195-205d-41d7-a6ab-932dbe5f1858','82b90f2d-0790-4ee7-9c5a-ee29e3b143e3','Extras',false,4,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8f49153c-d92d-44e0-8511-80a730264db7','a760c195-205d-41d7-a6ab-932dbe5f1858','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1ed02867-072f-42ce-969d-c34f8c023dda','a760c195-205d-41d7-a6ab-932dbe5f1858','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('3db4e7dc-935b-4784-9f84-b36c1d355977','a760c195-205d-41d7-a6ab-932dbe5f1858','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('6e3cf742-3924-4f5d-a717-41f1c442c13d','a760c195-205d-41d7-a6ab-932dbe5f1858','Extra Rice',500,false,true,3);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('f85c6943-b3ff-456c-9714-86145a5d6f18','a223daee-5b35-426a-9d05-ba3479a97c46','Chicken and Fries','Your choice of fried or bar-b-fry chicken served with a generous portion of crispy fries.',1500,'Lunch / Dinner','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('19d268be-079e-4aed-9334-f8990a3378b4','f85c6943-b3ff-456c-9714-86145a5d6f18','Meat Style',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d3cbc08a-27e9-49c2-b185-a6d0af58a836','19d268be-079e-4aed-9334-f8990a3378b4','Bar-B-Fry',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('7583942c-bef5-42ad-b01d-9abafe4f1270','19d268be-079e-4aed-9334-f8990a3378b4','Fry Chicken',0,false,true,1);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('7934a07c-7b72-4ae1-a42f-414016111dc9','f85c6943-b3ff-456c-9714-86145a5d6f18','Part',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1d208173-28ed-4783-b5eb-a146d850ad1a','7934a07c-7b72-4ae1-a42f-414016111dc9','Breast, Leg & Wing',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('86257dee-799e-4299-8ff6-35213cb236b5','7934a07c-7b72-4ae1-a42f-414016111dc9','Leg, Thigh & Wing',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('149e4df2-f7ad-44a6-9b4a-8e1cab32b4ac','7934a07c-7b72-4ae1-a42f-414016111dc9','Rib, Leg & Wing',0,false,true,2);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('50bd72e6-8748-4143-9442-1461ab31cf05','f85c6943-b3ff-456c-9714-86145a5d6f18','Extras',false,4,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('34ada00f-65a9-4f8d-bfca-fd14bf5aabf2','50bd72e6-8748-4143-9442-1461ab31cf05','Bammy',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('46206246-8449-4713-a16e-e6696bc77fc9','50bd72e6-8748-4143-9442-1461ab31cf05','Extra Fries',500,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('55d9a735-00f7-4cb5-9622-c2ad8c2c599b','50bd72e6-8748-4143-9442-1461ab31cf05','Plantain',250,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('26470f2b-ae8b-432a-a536-d64e120c9afc','50bd72e6-8748-4143-9442-1461ab31cf05','Extra Rice',500,false,true,3);
+
+NOTIFY pgrst, 'reload schema';
+COMMIT;

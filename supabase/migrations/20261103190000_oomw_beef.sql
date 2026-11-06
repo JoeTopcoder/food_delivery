@@ -1,0 +1,18 @@
+BEGIN;
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('1f58f523-fed9-40d3-b03e-8dd7ecc9a117','485a9ace-b5a0-4aa6-ab40-d91513a50d06','Peppered Steak','Peppered steak served with white rice.',1600,'Beef Dishes','food',true,false,true,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('adf63513-21b3-4b57-954d-c03516ee7949','1f58f523-fed9-40d3-b03e-8dd7ecc9a117','Select Option',false,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('aaca9df4-7264-4ce1-9141-66525ec3fb19','adf63513-21b3-4b57-954d-c03516ee7949','White Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8e5f048a-c202-4d52-94b8-f1344cf0cc98','adf63513-21b3-4b57-954d-c03516ee7949','Fried Rice',100,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ec13d127-a489-4b3e-887c-1afdc57a7fe4','adf63513-21b3-4b57-954d-c03516ee7949','Noodles',500,false,true,2);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('814c4ca7-c594-4847-a7f4-7e2b3336b405','1f58f523-fed9-40d3-b03e-8dd7ecc9a117','Side Order',false,9,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('73d37de7-f002-44ee-b4e6-f3b487bbb112','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Fried Rice',400,false,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ebb97bce-47eb-4f16-9359-f435fa25611d','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra White Rice',350,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('115b07df-626c-4934-b32c-b32bbf86dec7','814c4ca7-c594-4847-a7f4-7e2b3336b405','Substitute Rice with Vegetables',650,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('17efcd30-cf45-44c1-b62d-ec86dff31bf2','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Pepper',200,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('a33e1ffd-7365-48b0-973b-9ab194e9e31d','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Garlic',200,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('aa859c7b-c602-4004-9688-8fed48fcaef4','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Carrot',200,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ce273e58-07da-4c8b-a5b9-fc0eac86b0f3','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Onion',200,false,true,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8deeb229-c72f-49b0-a463-bd1dac2c6529','814c4ca7-c594-4847-a7f4-7e2b3336b405','Extra Pak Choy',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('696348c5-af44-4832-a3a4-fb56e7d436a8','814c4ca7-c594-4847-a7f4-7e2b3336b405','Noodles',500,false,true,8);
+NOTIFY pgrst, 'reload schema';
+COMMIT;

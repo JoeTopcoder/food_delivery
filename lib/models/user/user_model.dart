@@ -20,6 +20,7 @@ class User {
   final DateTime? birthday;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? devicePlatform; // 'android' | 'ios' | 'web' | 'other'
 
   User({
     required this.id,
@@ -38,6 +39,7 @@ class User {
     this.birthday,
     required this.createdAt,
     this.updatedAt,
+    this.devicePlatform,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
@@ -60,6 +62,7 @@ class User {
     DateTime? birthday,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? devicePlatform,
   }) {
     return User(
       id: id ?? this.id,
@@ -78,6 +81,7 @@ class User {
       birthday: birthday ?? this.birthday,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      devicePlatform: devicePlatform ?? this.devicePlatform,
     );
   }
 }

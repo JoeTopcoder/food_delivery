@@ -105,7 +105,7 @@ class AdminOverviewScreen extends ConsumerWidget {
               ]),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: _kpi('Orders', orderCount, Icons.shopping_cart_rounded, _orange, loading, () => Navigator.pushNamed(context, '/admin-orders'))),
+                Expanded(child: _kpi('Active orders', orderCount, Icons.shopping_cart_rounded, _orange, loading, () => Navigator.pushNamed(context, '/admin-orders'))),
                 const SizedBox(width: 12),
                 Expanded(child: _kpi('Online riders', onlineRiders, Icons.groups_rounded, const Color(0xFF2563EB), loading, () => Navigator.pushNamed(context, '/admin-drivers'))),
               ]),
@@ -208,6 +208,7 @@ class AdminOverviewScreen extends ConsumerWidget {
       _Tool('Close App / Holidays', Icons.power_settings_new_rounded, '/admin-app-closure'),
       _Tool('Manage Services', Icons.tune_rounded, '/admin-services'),
       _Tool('HotBite Picks', Icons.local_fire_department_rounded, '/admin-hotbite-picks'),
+      _Tool('Menu Word Filter', Icons.filter_alt_rounded, '/admin-menu-filters'),
       _Tool('HotBite+', Icons.workspace_premium_rounded, '/admin-mealhub'),
       _Tool('Meal Plans', Icons.lunch_dining_rounded, '/admin-meal-plans'),
       _Tool('Driver Priority', Icons.star_rounded, '/admin-driver-priority'),
