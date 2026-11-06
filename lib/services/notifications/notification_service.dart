@@ -328,25 +328,36 @@ class NotificationService {
   /// Save FCM token to Supabase — call this after login to ensure the token
   /// is persisted for the authenticated user (initialize() runs before auth).
   Future<void> saveFCMToken() async {
+    // Always runs on login/app-start; token may be null (e.g. iOS notification
+    // permission denied), but we still record the device platform.
     final token = await getFCMToken();
-    if (token != null) {
-      await _saveTokenToSupabase(token);
-    }
+    await _saveTokenToSupabase(token);
   }
 
-  /// Store token in the user's profile row
-  Future<void> _saveTokenToSupabase(String token) async {
+  /// The platform this app instance is running on, for the admin customer view.
+  String get _devicePlatform {
+    if (kIsWeb) return 'web';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
+    return 'other';
+  }
+
+  /// Store the FCM token (when available) and the device platform on the user's
+  /// profile row. Platform is written on every login so admins can see Android
+  /// vs iOS; the token is only included when we actually have one.
+  Future<void> _saveTokenToSupabase(String? token) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        await Supabase.instance.client
-            .from('users')
-            .update({'fcm_token': token})
-            .eq('id', user.id);
-        AppLogger.info('FCM token saved to Supabase');
-      }
+      if (user == null) return;
+      final data = <String, dynamic>{'device_platform': _devicePlatform};
+      if (token != null) data['fcm_token'] = token;
+      await Supabase.instance.client
+          .from('users')
+          .update(data)
+          .eq('id', user.id);
+      AppLogger.info('Device platform ($_devicePlatform) + FCM token saved');
     } catch (e) {
-      AppLogger.error('Error saving FCM token: $e');
+      AppLogger.error('Error saving FCM token / platform: $e');
     }
   }
 

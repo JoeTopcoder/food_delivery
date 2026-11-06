@@ -11,7 +11,7 @@ import '../driver/delivery_fee_service.dart';
 const _kRestaurantListCols = 'id, name, image_url, cuisine_type, rating, '
     'review_count, delivery_fee, estimated_delivery_time, is_open, '
     'is_verified, address, latitude, longitude, store_type, tags, '
-    'opening_time, closing_time, commission_rate, owner_id, created_at, updated_at, '
+    'opening_time, closing_time, operating_hours, commission_rate, owner_id, created_at, updated_at, '
     'chain_id, chain_name';
 
 class RestaurantService {

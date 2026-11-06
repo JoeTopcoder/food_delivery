@@ -250,7 +250,12 @@
   /// This is a BROWSE limit, separate from `delivery_max_km`, which is what
   /// actually refuses an order. Set it above the delivery radius and customers
   /// will find stores that reject them at checkout.
-  static double browseMaxKm = 50.0;
+  // Customers only see stores within this many km of their location; stores
+  // farther away are hidden from browse (delivery feasibility/fee is still
+  // handled per-order at checkout). Matches `delivery_max_km` so the browse
+  // list and what we'll actually deliver stay in step. Set to 0 to disable the
+  // filter entirely. Overwritten from app_config (`browse_max_km`) at startup.
+  static double browseMaxKm = 25;
 
   /// Where to measure from when we do not know where the customer is — a fresh
   /// account with no address, or location permission refused.

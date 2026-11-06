@@ -373,10 +373,24 @@ class _PlanCard extends ConsumerWidget {
       );
       await Stripe.instance.presentPaymentSheet();
 
+      // The Payment Sheet closing is NOT proof the money cleared. Verify the
+      // payment server-side (re-reads the live Stripe subscription/invoice) and
+      // only treat the membership as active when Stripe confirms it was paid.
+      final confirm = await Supabase.instance.client.functions.invoke(
+        'stripe/subscription',
+        body: {'action': 'membership_confirm'},
+      );
+      final confirmed = (confirm.data as Map?)?['active'] == true;
       ref.invalidate(membershipStatusProvider);
       if (context.mounted) {
-        AppSnackbar.success(
-            context, "You're subscribed to HotBite+! It auto-renews monthly.");
+        if (confirmed) {
+          AppSnackbar.success(
+              context, "You're subscribed to HotBite+! It auto-renews monthly.");
+        } else {
+          AppSnackbar.error(context,
+              "We couldn't confirm your payment. If you were charged it will "
+              "activate shortly — otherwise please try again.");
+        }
       }
     } on StripeException catch (e) {
       closeSpinner();

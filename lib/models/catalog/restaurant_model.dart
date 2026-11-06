@@ -278,9 +278,14 @@ class Restaurant {
 
   /// The earliest DateTime (EST) the customer can schedule an order when
   /// the restaurant is currently closed.
-  /// Rule: next day, 1 hour after opening time.
+  /// Rule: the restaurant's opening time. Starts with TODAY — so a customer can
+  /// still place a same-day order in the morning before the restaurant opens —
+  /// and only rolls forward to the next open day once today's opening has passed.
   DateTime? get nextSchedulableTime {
     final now = EstDateTime.now();
+    // Compare in the same (Jamaica wall-clock) frame as the candidates below.
+    final nowNaive =
+        DateTime(now.year, now.month, now.day, now.hour, now.minute);
     final days = [
       'monday',
       'tuesday',
@@ -292,8 +297,9 @@ class Restaurant {
     ];
     final todayIdx = now.weekday - 1; // DateTime.weekday: 1=Mon
 
-    // Look up to 7 days ahead for the next open day
-    for (int offset = 1; offset <= 7; offset++) {
+    // Look from today up to 7 days ahead for the next open day whose slot is
+    // still in the future.
+    for (int offset = 0; offset <= 7; offset++) {
       final idx = (todayIdx + offset) % 7;
       final dayName = days[idx];
 
@@ -312,28 +318,43 @@ class Restaurant {
       final openHour = int.parse(parts[0]);
       final openMinute = int.parse(parts[1]);
 
-      // Build the date for that future day
+      // Build the date for that day at the opening time.
       final targetDate = now.add(Duration(days: offset));
-      // 1 hour after opening
-      return DateTime(
+      final candidate = DateTime(
         targetDate.year,
         targetDate.month,
         targetDate.day,
-        openHour + 1,
+        openHour,
         openMinute,
       );
+
+      // Only offer a slot that's still ahead of now. For today this means the
+      // restaurant hasn't opened yet; once today's opening is past we fall
+      // through to the next open day.
+      if (candidate.isAfter(nowNaive)) return candidate;
     }
     return null;
   }
 
   /// Formatted string describing when the restaurant next opens (EST).
+  /// Uses "today"/"tomorrow" for the near days so a same-day opening doesn't
+  /// read as a weekday a week away.
   String get nextOpenLabel {
-    final t = nextSchedulableTime;
+    final t = nextSchedulableTime; // already the opening time
     if (t == null) return 'Unavailable';
-    // Subtract the 1-hour buffer to show actual opening time
-    final openTime = t.subtract(const Duration(hours: 1));
-    return 'Opens ${DateFormat('EEEE').format(toJamaicaOf(openTime))} at '
-        '${DateFormat('h:mm a').format(toJamaicaOf(openTime))}';
+    final now = EstDateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final openDay = DateTime(t.year, t.month, t.day);
+    final diffDays = openDay.difference(today).inDays;
+    final String when;
+    if (diffDays == 0) {
+      when = 'today';
+    } else if (diffDays == 1) {
+      when = 'tomorrow';
+    } else {
+      when = DateFormat('EEEE').format(t);
+    }
+    return 'Opens $when at ${DateFormat('h:mm a').format(t)}';
   }
 
   /// Today's hours formatted as "8:00 AM - 10:00 PM" or null.

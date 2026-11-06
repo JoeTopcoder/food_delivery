@@ -50,11 +50,20 @@ class AiStaffReport {
         j['report_date'].toString(),
         (j['status'] as String?) ?? 'completed',
         j['summary'] as String?,
-        Map<String, dynamic>.from((j['metrics'] as Map?) ?? const {}),
-        Map<String, dynamic>.from((j['evidence'] as Map?) ?? const {}),
+        _asMap(j['metrics']),
+        // Some staff (e.g. the security assessment) store evidence as a bare
+        // findings array ([]) rather than an object. Normalise both shapes.
+        _asEvidence(j['evidence']),
         j['error'] as String?,
         j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
       );
+  static Map<String, dynamic> _asMap(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+  static Map<String, dynamic> _asEvidence(dynamic v) {
+    if (v is Map) return Map<String, dynamic>.from(v);
+    if (v is List) return {'findings': v}; // bare array → {findings:[...]}
+    return <String, dynamic>{};
+  }
   List<dynamic> get findings => (evidence['findings'] as List?) ?? const [];
   String get dataLimitations => (evidence['data_limitations'] as String?) ?? '';
 }
@@ -89,12 +98,12 @@ class AiSuggestion {
         j['reviewed_at'] != null ? DateTime.tryParse(j['reviewed_at'].toString()) : null,
         j['assigned_at'] != null ? DateTime.tryParse(j['assigned_at'].toString()) : null,
         j['completed_at'] != null ? DateTime.tryParse(j['completed_at'].toString()) : null,
-        Map<String, dynamic>.from((j['evidence'] as Map?) ?? const {}),
+        AiStaffReport._asEvidence(j['evidence']),
         j['action_type'] as String?,
         j['action_status'] as String?,
         (j['requires_manual_admin'] as bool?) ?? false,
         (j['has_external_effect'] as bool?) ?? false,
-        j['action_payload'] != null ? Map<String, dynamic>.from(j['action_payload'] as Map) : null,
+        j['action_payload'] is Map ? Map<String, dynamic>.from(j['action_payload'] as Map) : null,
       );
   bool get isExecutable => actionType != null && actionPayload != null && !requiresManualAdmin;
 }
@@ -132,7 +141,7 @@ class AiAlert {
         j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
         j['acknowledged_at'] != null ? DateTime.tryParse(j['acknowledged_at'].toString()) : null,
         j['resolved_at'] != null ? DateTime.tryParse(j['resolved_at'].toString()) : null,
-        Map<String, dynamic>.from((j['evidence'] as Map?) ?? const {}),
+        AiStaffReport._asEvidence(j['evidence']),
       );
 }
 
@@ -148,8 +157,8 @@ class AiBriefing {
         j['briefing_date'].toString(),
         j['headline'] as String?,
         j['summary'] as String?,
-        Map<String, dynamic>.from((j['highlights'] as Map?) ?? const {}),
-        Map<String, dynamic>.from((j['metrics'] as Map?) ?? const {}),
+        AiStaffReport._asMap(j['highlights']),
+        AiStaffReport._asMap(j['metrics']),
         (j['roles_reported'] as num?)?.toInt() ?? 0,
         (j['suggestions_count'] as num?)?.toInt() ?? 0,
         (j['urgent_count'] as num?)?.toInt() ?? 0,
@@ -183,15 +192,19 @@ final adminOverviewStatsProvider =
   Future<T> guarded<T>(Future<T> f, T fallback) =>
       f.timeout(const Duration(seconds: 12)).catchError((_) => fallback);
 
-  // Orders placed in window — excluding cancelled/rejected/failed, which aren't
-  // real orders and shouldn't inflate the count.
+  // Active (in-progress) orders — everything that isn't in a terminal status.
+  // This mirrors the Order Management screen's "Active"/"All" view so the
+  // Overview count matches what the admin sees there (a delivered order is done,
+  // not active, so it must not inflate this number).
   final ordersRows = await guarded(() {
     var q = client
         .from('orders')
         .select('id')
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
-        .neq('status', 'failed');
+        .not(
+          'status',
+          'in',
+          '(delivered,completed,cancelled,rejected,declined,failed,refunded,expired)',
+        );
     if (from != null) q = q.gte('ordered_at', from.toIso8601String());
     return q;
   }(), const <dynamic>[]);
@@ -208,11 +221,32 @@ final adminOverviewStatsProvider =
     var q = client
         .from('orders')
         .select('total_amount, subtotal, commission_rate, commission_amount, '
-            'platform_service_fee, delivery_fee, peak_fee, priority_fee, pickup_fee')
+            'platform_service_fee, delivery_fee, peak_fee, priority_fee, pickup_fee, '
+            'promo_code, discount')
         .eq('status', 'delivered');
     if (from != null) q = q.gte('delivered_at', from.toIso8601String());
     return q;
   }(), const <dynamic>[]);
+
+  // The platform keeps only (1 − driver_pay_percent) of the delivery fee — the
+  // driver gets the rest — and nothing of a delivery fee that a FREEDELIVERY-
+  // style coupon waived. Mirror record_platform_revenue() exactly so the
+  // dashboard can't show more platform revenue than the ledger (which was the
+  // bug: the whole gross delivery_fee, incl. the driver's cut and the waived
+  // amount, was being counted as platform income).
+  final driverPctRaw = await guarded(
+      client.from('app_config').select('value').eq('key', 'driver_pay_percent').maybeSingle(),
+      null);
+  final driverPct =
+      double.tryParse('${(driverPctRaw as Map?)?['value'] ?? ''}') ?? 0.80;
+  // Codes whose discount applies to the delivery fee (e.g. FREEDELIVERY).
+  final deliveryPromoRows = await guarded(
+      client.from('promo_codes').select('code').eq('applies_to', 'delivery_fee'),
+      const <dynamic>[]);
+  final deliveryPromoCodes = {
+    for (final p in deliveryPromoRows) ((p as Map)['code'] as String?)?.toUpperCase()
+  };
+
   double totalSales = 0;
   double platformRevenue = 0;
   double d(Map m, String k) => (m[k] as num?)?.toDouble() ?? 0;
@@ -223,10 +257,19 @@ final adminOverviewStatsProvider =
     final commissionAmt = (r['commission_amount'] as num?)?.toDouble();
     final commission =
         commissionAmt ?? (d(r, 'subtotal') * d(r, 'commission_rate'));
-    // Platform revenue = commission + service fee + delivery fee + surcharges.
+    // Net delivery fee the platform actually collected (gross minus the part of
+    // the promo discount that waived delivery), then the platform's share of it.
+    final grossDelivery = d(r, 'delivery_fee');
+    final code = (r['promo_code'] as String?)?.toUpperCase();
+    final deliveryDiscount = (code != null && deliveryPromoCodes.contains(code))
+        ? (d(r, 'discount') < grossDelivery ? d(r, 'discount') : grossDelivery)
+        : 0.0;
+    final netDelivery = grossDelivery - deliveryDiscount;
+    final deliveryShare = (netDelivery > 0 ? netDelivery : 0) * (1 - driverPct);
+    // Platform revenue = commission + service fee + platform delivery share + surcharges.
     platformRevenue += commission +
         d(r, 'platform_service_fee') +
-        d(r, 'delivery_fee') +
+        deliveryShare +
         d(r, 'peak_fee') +
         d(r, 'priority_fee') +
         d(r, 'pickup_fee');
@@ -234,8 +277,14 @@ final adminOverviewStatsProvider =
 
   // Membership fees (HotBite+) are sales the company made AND 100% platform
   // revenue — add to both. Windowed by when the membership was purchased.
+  // Only count memberships whose payment actually confirmed: a row is created
+  // 'pending' and the Stripe webhook flips it to 'active' on a successful first
+  // invoice. A 'pending' row (payment never went through) must NOT be counted.
   final memRows = await guarded(() {
-    var q = client.from('customer_memberships').select('price_paid');
+    var q = client
+        .from('customer_memberships')
+        .select('price_paid')
+        .eq('status', 'active');
     if (from != null) q = q.gte('created_at', from.toIso8601String());
     return q;
   }(), const <dynamic>[]);

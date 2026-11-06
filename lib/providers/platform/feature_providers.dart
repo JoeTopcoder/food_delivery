@@ -589,3 +589,23 @@ final voiceOrderingEnabledProvider =
     return true;
   }
 });
+
+/// Admin-configurable list of words. Customer-facing menus hide any item whose
+/// name/category/description contains one of these (case-insensitive, whole
+/// word). Managed in the admin "Menu Word Filter" screen via app_config
+/// `menu_filter_words`. Empty list = nothing hidden.
+final menuFilterWordsProvider = FutureProvider<List<String>>((ref) async {
+  ref.watch(configVersionProvider);
+  final client = SupabaseConfig.client;
+  final row = await client
+      .from('app_config')
+      .select('value')
+      .eq('key', 'menu_filter_words')
+      .maybeSingle();
+  final raw = (row?['value'] as String?) ?? '';
+  return raw
+      .split(',')
+      .map((w) => w.trim().toLowerCase())
+      .where((w) => w.isNotEmpty)
+      .toList();
+});

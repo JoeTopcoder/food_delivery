@@ -1,0 +1,122 @@
+-- Potwah Diner & Bar: 'Done to Order' lunch section.
+BEGIN;
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('796afccd-f471-4a34-b939-7d9e3fb5c28f','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Corned Beef','Corned beef cooked Jamaican style with onions and peppers.',1100,'Done to Order','food',true,false,true,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('7dec10dc-2648-4fab-8e71-113fc45aa519','796afccd-f471-4a34-b939-7d9e3fb5c28f','Choose Your Starch',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('eb6fff30-8e60-4b03-b68f-43121467509f','7dec10dc-2648-4fab-8e71-113fc45aa519','Plain Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1dffc736-bbc0-426c-b13f-95ab723aed12','7dec10dc-2648-4fab-8e71-113fc45aa519','Rice and Peas',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b805cde2-10d6-4075-8875-7fe323f11916','7dec10dc-2648-4fab-8e71-113fc45aa519','Boiled Food',400,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('08e96654-d9f3-46c0-9125-682a18ff24a2','7dec10dc-2648-4fab-8e71-113fc45aa519','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('93ee4b40-2d91-48d3-8191-ed1b7ced7de5','7dec10dc-2648-4fab-8e71-113fc45aa519','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('17ea9337-30f1-4402-961f-a3fbcc8d8bed','7dec10dc-2648-4fab-8e71-113fc45aa519','Festival',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('06af2eb1-11dc-4577-abe5-da3f6d1f730b','7dec10dc-2648-4fab-8e71-113fc45aa519','Roasted Breadfruit (4)',0,false,false,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('26201f00-de1c-4d43-a620-1316cbe85084','7dec10dc-2648-4fab-8e71-113fc45aa519','Bammy & Festival (5)',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('5dd9975c-53df-49d7-99bf-835226d3b15c','7dec10dc-2648-4fab-8e71-113fc45aa519','Fried Green Plantain',400,false,true,8);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('b88c3d28-5e9c-4f97-a52b-470ef09713cd','796afccd-f471-4a34-b939-7d9e3fb5c28f','Choose Veg',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('daa07058-bb9f-4e6e-9b0b-589c7bdd1fad','b88c3d28-5e9c-4f97-a52b-470ef09713cd','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('06e6aee6-c03e-47e0-9aaa-0aee97e1bc12','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('9f73617d-121b-4d03-a97e-7d3c150c32a8','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('9cb2f623-b15d-45b4-b390-93dcf89841ce','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('768e0639-6de2-4987-adda-6885355b6684','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c5b93fd2-9613-4cb4-8788-af33c1df8d21','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('92bf73df-4b07-4871-9bbe-05be16766ab4','b88c3d28-5e9c-4f97-a52b-470ef09713cd','Vegetable Only',400,false,true,6);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('0dd17ae8-9919-4786-836e-9349751e24a5','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Chicken Alfredo','Creamy alfredo pasta with seasoned chicken.',2750,'Done to Order','food',true,false,false,false);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('bd64c204-44e2-4399-8d08-69dc7c521f32','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Curried Shrimp','Shrimp curried in rich Jamaican spices.',2750,'Done to Order','food',true,false,false,true);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','bd64c204-44e2-4399-8d08-69dc7c521f32','Choose Your Starch',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('fc1caae6-0b87-4ef3-af3c-197bdfd039ee','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Plain Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('5ff30167-c527-4dcb-a9c4-c5e231ed46f1','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Rice and Peas',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('25477ac1-0cbc-4c38-a700-26195da4957f','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Boiled Food',400,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8cafe3e5-2de7-4ade-be10-5962f4176ba7','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('39e3801b-033c-424b-97e5-c57427ef5908','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('270cabb0-893b-4584-a58a-af539a8bef6b','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Festival',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e23fa04f-2e60-4d0d-b5c7-6adfcbc82b68','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Roasted Breadfruit (4)',0,false,false,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('746f0afe-f5a9-4d41-a939-58fd075e4ba9','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Bammy & Festival (5)',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('139ca6d4-26ba-48fb-810e-5b3a5e9f5f57','2a9a4c1a-9bce-4536-b24f-2d4ddbcac8e8','Fried Green Plantain',400,false,true,8);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('8bf41092-17fb-4db1-8d38-019f99766b62','bd64c204-44e2-4399-8d08-69dc7c521f32','Choose Veg',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e87ed827-2999-47ca-a233-1e6f8f00f0df','8bf41092-17fb-4db1-8d38-019f99766b62','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('9f25685c-1659-403d-9ecd-90e2c557f122','8bf41092-17fb-4db1-8d38-019f99766b62','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('5e53b436-ff00-42bf-9050-ad09a94a8297','8bf41092-17fb-4db1-8d38-019f99766b62','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('aebbc219-fe9f-4e52-b833-44608c49aa3e','8bf41092-17fb-4db1-8d38-019f99766b62','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8adae6ea-ab88-402a-8a1f-04994e9007a4','8bf41092-17fb-4db1-8d38-019f99766b62','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('a0be907d-e597-4581-8dca-a205006d7e33','8bf41092-17fb-4db1-8d38-019f99766b62','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b2f399a1-2ef9-41a4-bccb-d0248fe93ced','8bf41092-17fb-4db1-8d38-019f99766b62','Vegetable Only',400,false,true,6);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('0e25f858-298b-4784-a55c-cfe7164e3e86','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Garlic Shrimp','Shrimp sauteed in a buttery garlic sauce.',2750,'Done to Order','food',true,false,false,true);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('2372e4e2-4bc7-4716-8d9a-511f7494fbfa','0e25f858-298b-4784-a55c-cfe7164e3e86','Choose Your Starch',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1fccd5c9-3757-4db4-89b1-5700e8be7aa9','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Plain Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('92d1cc9c-2aaa-4b1e-910e-fb78fa3504f3','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Rice and Peas',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1a358855-15f3-4524-af80-0391af7c96a4','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Boiled Food',400,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('aa9f9f09-1f71-4240-ac8d-e5f101b82a45','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f8ed0acc-8a26-4de9-a08a-84212133037f','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b3f03a7c-99ef-4e24-bf67-3b379d822cad','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Festival',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c923dd69-8936-4157-bc3a-d123f3982664','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Roasted Breadfruit (4)',0,false,false,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('2582fc03-ef1c-4bab-9c2d-3659ec64231c','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Bammy & Festival (5)',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d94e5782-eec7-4b0d-9dd5-930ba2e135c5','2372e4e2-4bc7-4716-8d9a-511f7494fbfa','Fried Green Plantain',400,false,true,8);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('7b559c40-5ac2-47e4-8109-c1ba864cc466','0e25f858-298b-4784-a55c-cfe7164e3e86','Choose Veg',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('97a855b1-cf82-4c99-9932-6f8fabb2ee51','7b559c40-5ac2-47e4-8109-c1ba864cc466','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e4e00429-f911-4646-948b-b314f652049f','7b559c40-5ac2-47e4-8109-c1ba864cc466','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e4ae22c7-f232-4a57-b3d4-183fd4cd7924','7b559c40-5ac2-47e4-8109-c1ba864cc466','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('86f52efd-033c-451f-a89d-ae0cb0f3ebf7','7b559c40-5ac2-47e4-8109-c1ba864cc466','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('315c25e4-65ca-44c3-8db5-e2f26f80e372','7b559c40-5ac2-47e4-8109-c1ba864cc466','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f6cb876f-9637-42d4-acd7-d02142f42649','7b559c40-5ac2-47e4-8109-c1ba864cc466','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('edb02b54-428b-495e-8a66-9d980aaa703d','7b559c40-5ac2-47e4-8109-c1ba864cc466','Vegetable Only',400,false,true,6);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('3538dd43-ae67-402e-a6d0-ca7f8833ca60','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Shrimp Alfredo','Creamy alfredo pasta with shrimp.',2950,'Done to Order','food',true,false,false,true);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('d86d9458-260e-41d1-9202-baace251aec3','3538dd43-ae67-402e-a6d0-ca7f8833ca60','Choose Veg',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('891d3be4-0150-4b0f-addd-d3b9e9c1aaf0','d86d9458-260e-41d1-9202-baace251aec3','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('56fd8ef2-1294-4562-9ba4-6df0fec4939a','d86d9458-260e-41d1-9202-baace251aec3','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('3fe28c3c-902f-40eb-882b-4deaba0fa766','d86d9458-260e-41d1-9202-baace251aec3','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('79d6497f-97f1-40c0-b5d2-14ce7010364d','d86d9458-260e-41d1-9202-baace251aec3','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('754f88ed-7a3b-45c8-a0c0-d9bea17b936a','d86d9458-260e-41d1-9202-baace251aec3','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ecf4d859-1cb6-4e2c-bc2e-c44fecfbab2b','d86d9458-260e-41d1-9202-baace251aec3','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('fb7e0df2-12ec-4664-bb8a-5261e6c18ef4','d86d9458-260e-41d1-9202-baace251aec3','Vegetable Only',400,false,true,6);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('a8c5315b-1ba2-433e-bc4c-6b8b302b394b','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Tin Mackerel','Tin mackerel run-down, Jamaican style.',900,'Done to Order','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('f6786e26-0bbd-46b3-9e1a-b2eca196037a','a8c5315b-1ba2-433e-bc4c-6b8b302b394b','Choose Your Starch',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d6c3e55e-a530-4f27-bd88-6d7d65e25b97','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Plain Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('cd53b4c6-22d5-44c8-9b5a-0edf3adae37c','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Rice and Peas',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ee50d77e-36b6-42d5-9219-757218fe7bf6','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Boiled Food',400,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('1ac9b67b-5f4d-4bc7-9e1c-13d05d54c43f','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('4a23e5ce-40b3-4c58-aa58-2d98f0a120da','f6786e26-0bbd-46b3-9e1a-b2eca196037a','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('0462c278-41c5-4798-8a6a-df679f9b9bc9','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Festival',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('5dae8a9b-1425-4939-9b32-c069d5556afc','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Roasted Breadfruit (4)',0,false,false,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('6814400f-da79-472e-a4c9-8f6bdbb6a060','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Bammy & Festival (5)',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('92edbbc4-ff15-4c25-b7d2-1bd2970c03d3','f6786e26-0bbd-46b3-9e1a-b2eca196037a','Fried Green Plantain',400,false,true,8);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('a98e0f91-055b-4e0d-b03f-3339a9273cd5','a8c5315b-1ba2-433e-bc4c-6b8b302b394b','Choose Veg',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('736bec95-b28b-4fbd-b69d-3121da16ae73','a98e0f91-055b-4e0d-b03f-3339a9273cd5','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('359f3ae9-48d9-4114-8aa6-8b6bc07fde04','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b637ddcf-bca5-4401-99c1-baaa16ae5170','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('4e7ef4a0-52f9-4171-8848-887df121d1c7','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f4b1ccef-acdd-4cdf-be32-b54c15cf8298','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c339d20c-4cd6-40b7-ba4a-5c8f469d043a','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e1e5a4f9-9a19-478a-80e5-427945080990','a98e0f91-055b-4e0d-b03f-3339a9273cd5','Vegetable Only',400,false,true,6);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('d8688aac-6f8d-4a0e-8321-c813bbd53d89','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Pan Seared Salmon','Pan-seared salmon fillet.',4400,'Done to Order','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('2a7c28b3-6560-44ee-bc2b-0830ab722acc','d8688aac-6f8d-4a0e-8321-c813bbd53d89','Choose Veg',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('60bfe286-780d-4b64-bd0d-cd1f0d237648','2a7c28b3-6560-44ee-bc2b-0830ab722acc','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ac86c57c-a151-48e6-9b2f-c8ea3c493366','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('21771223-a36f-4be0-a0fd-7a1b67c31afd','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('36bd4489-fd2f-4745-a055-43cb14b016de','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('926304ad-3c42-4c98-ba34-e299b2d5d4fe','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('08bf2227-c158-436a-a50e-6b4b2c273871','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('3b3b8dd9-5a38-48ef-9725-9b1653fac4a4','2a7c28b3-6560-44ee-bc2b-0830ab722acc','Vegetable Only',400,false,true,6);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('eabfc023-a4bc-4886-8105-dbc974599716','d8688aac-6f8d-4a0e-8321-c813bbd53d89','Choose Your Starch',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('ff60bb73-a329-462c-8d02-5c59600b1332','eabfc023-a4bc-4886-8105-dbc974599716','Plain Rice',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('be7d72bc-840c-4b8c-bd6e-fab44778b986','eabfc023-a4bc-4886-8105-dbc974599716','Rice and Peas',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('2dbfe93c-4131-4555-a597-7b5d07021cc2','eabfc023-a4bc-4886-8105-dbc974599716','Boiled Food',400,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('e8fb73da-f43d-4388-9b4b-1125e48abae1','eabfc023-a4bc-4886-8105-dbc974599716','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d5bd59b4-dbec-4a70-afe6-2fc0a5648b12','eabfc023-a4bc-4886-8105-dbc974599716','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('6a1c9cc0-504d-4ac7-97fa-7272d7d8401c','eabfc023-a4bc-4886-8105-dbc974599716','Festival',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('f16c2404-282a-4463-9da4-9124163eb438','eabfc023-a4bc-4886-8105-dbc974599716','Roasted Breadfruit (4)',0,false,false,6);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('09603e60-54ee-4cc6-b4dc-9e1458fc6f3b','eabfc023-a4bc-4886-8105-dbc974599716','Bammy & Festival (5)',350,false,true,7);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('36d2dc67-a4d3-4ad4-8a4e-04951e62023a','eabfc023-a4bc-4886-8105-dbc974599716','Fried Green Plantain',400,false,true,8);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('b005c005-0df7-42d5-9ab1-ab19de802581','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Chicken Wrap','Seasoned chicken wrap, served with fries.',1850,'Done to Order','food',true,false,false,false);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('31c4a470-f088-410c-9205-b036e597ced7','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Shrimp Wrap','Shrimp wrap, served with fries.',2200,'Done to Order','food',true,false,false,true);
+
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('f1084c11-03ab-4706-ae7b-2d1e0e41067d','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Shrimp & Chicken Alfredo','Creamy alfredo pasta with shrimp and chicken.',3500,'Done to Order','food',true,false,false,true);
+
+NOTIFY pgrst, 'reload schema';
+COMMIT;

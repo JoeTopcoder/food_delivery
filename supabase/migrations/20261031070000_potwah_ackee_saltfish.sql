@@ -1,0 +1,21 @@
+-- Potwah: Ackee & Saltfish ($1,350, matches the other mains).
+BEGIN;
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('ac5c5b98-5250-4533-b220-aec6f5e6181c','2a614cb0-9eb6-4af4-bb8e-71d95a84fe6c','Ackee & Saltfish','Jamaica''s national dish — ackee and saltfish, served with your choice of sides.',1350,'Lunch','food',true,false,false,false);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('ed49891e-2572-4ae7-96d0-31fcfab4b30b','ac5c5b98-5250-4533-b220-aec6f5e6181c','Sides',true,1,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('b8217833-5f3c-4c45-ae4b-dd19106a4e50','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Rice and Peas',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('26c99a06-42b1-48bc-9fda-58b081a9dc90','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Plain Rice',0,false,true,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('d831cdd2-e682-4e85-a112-c8e55fe4a5bf','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Boiled Food',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('8e497867-5d32-491c-bc92-e65f162d9f28','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Fried Bammy',400,false,true,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('a74eef95-b27d-4fa8-bf42-002f229e166d','ed49891e-2572-4ae7-96d0-31fcfab4b30b','French Fries',250,false,true,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('eedf98f1-135f-460b-bb32-5abf4ce44409','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Festival (5)',300,false,true,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('67b24064-53f7-4a61-af1f-68e2f0e55782','ed49891e-2572-4ae7-96d0-31fcfab4b30b','Bammy & Festival',350,false,true,6);
+INSERT INTO menu_option_groups (id,menu_item_id,name,is_required,max_selections,sort_order) VALUES ('fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','ac5c5b98-5250-4533-b220-aec6f5e6181c','Choose Veg',true,1,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('7d25b2de-f8a4-451b-9452-eeb84f2e03a4','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','No Veg',0,true,true,0);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('32653757-be54-4cdf-b90a-fd9fd8dc8057','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Steamed Veg',0,false,false,1);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('703ac56d-ecb6-4059-9c66-7b3f562948dd','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Raw Veg',0,false,true,2);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('c253c452-b74a-476d-9c06-62b1b18480fc','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Sweet Potato Salad',0,false,false,3);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('12a8621d-93a3-4511-b1f7-51681b3deeff','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Pasta',0,false,false,4);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('a1306232-52a9-49c8-8e6b-449bcf757541','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Fried Plantain',0,false,false,5);
+INSERT INTO menu_option_choices (id,group_id,name,price,is_default,is_available,sort_order) VALUES ('dd16a87b-ab6d-4944-8475-7789e0512c0f','fb156c04-8ef4-45eb-aa13-4bd3d1001ac7','Vegetable Only',400,false,true,6);
+NOTIFY pgrst, 'reload schema';
+COMMIT;

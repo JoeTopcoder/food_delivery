@@ -82,6 +82,15 @@ class _GroceryStoreDetailScreenState
           .toList();
     }
 
+    // On the "All" view, mix products across categories (round-robin) so the
+    // grid reads as a varied assortment — milk next to bread next to snacks —
+    // instead of long clusters of one category (the products arrive grouped by
+    // category from the query). Deterministic, so it doesn't reshuffle on every
+    // rebuild/scroll. A selected category keeps its natural name order.
+    if (_selectedCategory == null) {
+      filtered = _mixAcrossCategories(filtered);
+    }
+
     final cartItems = ref.watch(groceryCartProvider);
     cartItems.fold(0, (sum, c) => sum + c.quantity);
 
@@ -314,6 +323,35 @@ class _GroceryStoreDetailScreenState
               ),
       ],
     );
+  }
+
+  /// Interleave products across their categories so the "All" view is a mixed
+  /// assortment rather than long runs of one category. Round-robin: take one
+  /// item from each category in turn until all are placed. Category order (and
+  /// the item order within each) comes from the already category→name sorted
+  /// input, so the result is stable across rebuilds.
+  List<MenuItem> _mixAcrossCategories(List<MenuItem> items) {
+    if (items.length < 3) return items;
+    final buckets = <String, List<MenuItem>>{};
+    for (final p in items) {
+      (buckets[p.category] ??= <MenuItem>[]).add(p);
+    }
+    if (buckets.length < 2) return items;
+    final lists = buckets.values.toList();
+    final cursors = List<int>.filled(lists.length, 0);
+    final result = <MenuItem>[];
+    var remaining = items.length;
+    while (remaining > 0) {
+      for (var i = 0; i < lists.length; i++) {
+        final c = cursors[i];
+        if (c < lists[i].length) {
+          result.add(lists[i][c]);
+          cursors[i] = c + 1;
+          remaining--;
+        }
+      }
+    }
+    return result;
   }
 
   Widget _storePlaceholder() => Container(

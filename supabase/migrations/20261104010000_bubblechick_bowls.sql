@@ -1,0 +1,8 @@
+BEGIN;
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('d5a95646-06ee-4043-9455-4b22f3795611','4ec0727e-94b0-4c6e-a90f-437a7fb8974c','Sweet & Spicy Noodle Bowl','Sweet, fiery & full of flavor.',1550,'Noodle Bowls','food',true,false,false,false);
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('601dcd8b-8e41-4cab-96a5-5dcc403777da','4ec0727e-94b0-4c6e-a90f-437a7fb8974c','Sweet & Sour Noodle Bowl','Sweet & tangy.',1550,'Noodle Bowls','food',true,false,false,false);
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('3054820b-bfc6-4734-8118-715dfe034ce0','4ec0727e-94b0-4c6e-a90f-437a7fb8974c','Orange Chicken Noodle Bowl','Sweet citrus flavor.',1550,'Noodle Bowls','food',true,false,false,false);
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('113fa659-37f0-4779-bc21-3bc9c1de909c','4ec0727e-94b0-4c6e-a90f-437a7fb8974c','Korean Barbeque Noodle Bowl','Smokey hickory BBQ flavor.',1550,'Noodle Bowls','food',true,false,false,false);
+INSERT INTO menus (id,restaurant_id,name,description,price,category,product_type,is_available,contains_pork,contains_beef,contains_shellfish) VALUES ('87a75d84-8854-4d3b-9076-79e42ef80cac','4ec0727e-94b0-4c6e-a90f-437a7fb8974c','Bubble Chicken Bowl','Popcorn chicken with 2 fried wontons and a dipping sauce.',1500,'Bowls','food',true,false,false,false);
+NOTIFY pgrst,'reload schema';
+COMMIT;

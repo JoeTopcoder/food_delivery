@@ -416,6 +416,10 @@ class _UserCard extends StatelessWidget {
                     Row(
                       children: [
                         _badge(_roleLabel, _roleColor, small: true),
+                        if (user.devicePlatform != null) ...[
+                          const SizedBox(width: 6),
+                          _platformChip(user.devicePlatform!),
+                        ],
                         if (user.phone != null) ...[
                           const SizedBox(width: 6),
                           const Icon(
@@ -531,6 +535,39 @@ class _UserCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Small chip showing the platform the customer last opened the app on.
+  /// Null (never recorded yet) renders nothing.
+  Widget _platformChip(String platform) {
+    final (IconData icon, String label, Color color) = switch (platform) {
+      'ios' => (Icons.apple, 'iOS', const Color(0xFF111827)),
+      'android' => (Icons.android, 'Android', const Color(0xFF3DDC84)),
+      'web' => (Icons.language, 'Web', const Color(0xFF2563EB)),
+      _ => (Icons.devices_other, 'Other', const Color(0xFF9CA3AF)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

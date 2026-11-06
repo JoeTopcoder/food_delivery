@@ -44,6 +44,8 @@ class AdminFinancialsScreen extends ConsumerWidget {
             final platformServiceFeesCollected =
                 (data['platform_service_fees_collected'] ?? 0).toDouble();
             final netRevenue = (data['net_revenue'] ?? (grossRevenue - stripeFeesCollected)).toDouble();
+            final totalDiscounts = (data['total_discounts'] ?? 0).toDouble();
+            final operatingExpenses = (data['operating_expenses'] ?? 0).toDouble();
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -203,7 +205,7 @@ class AdminFinancialsScreen extends ConsumerWidget {
                   icon: Icons.account_balance_rounded,
                   color: const Color(0xFF10B981),
                   mainValue: netRevenue,
-                  subLabel: 'Gross revenue after Stripe processing costs',
+                  subLabel: 'Gross revenue less restaurant & driver payouts, Stripe fees & expenses',
                   subValue: null,
                 ),
 
@@ -250,6 +252,12 @@ class AdminFinancialsScreen extends ConsumerWidget {
                         value: stripeFeesCollected,
                         color: const Color(0xFF6366F1),
                       ),
+                      if (totalDiscounts > 0)
+                        _BreakdownRow(
+                          label: 'Coupon Discounts',
+                          value: -totalDiscounts,
+                          color: const Color(0xFFEF4444),
+                        ),
                       _BreakdownRow(
                         label: 'Platform Commission',
                         value: totalCommission,
@@ -265,6 +273,12 @@ class AdminFinancialsScreen extends ConsumerWidget {
                         value: totalDriverPayout,
                         color: const Color(0xFF3B82F6),
                       ),
+                      if (operatingExpenses > 0)
+                        _BreakdownRow(
+                          label: 'Operating Expenses',
+                          value: -operatingExpenses,
+                          color: const Color(0xFFEF4444),
+                        ),
                       const Divider(height: 20),
                       _BreakdownRow(
                         label: 'Net Revenue',

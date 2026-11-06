@@ -780,6 +780,33 @@ class _SuggestedItems extends ConsumerWidget {
 
   const _SuggestedItems({required this.storeIds, required this.cartItemIds});
 
+  /// Interleave items across their categories (round-robin) so a capped list
+  /// reads as a varied mix rather than a run of one category. Deterministic:
+  /// category order and item order come from the input.
+  static List<MenuItem> _mixByCategory(List<MenuItem> items) {
+    if (items.length < 3) return items;
+    final buckets = <String, List<MenuItem>>{};
+    for (final p in items) {
+      (buckets[p.category] ??= <MenuItem>[]).add(p);
+    }
+    if (buckets.length < 2) return items;
+    final lists = buckets.values.toList();
+    final cursors = List<int>.filled(lists.length, 0);
+    final result = <MenuItem>[];
+    var remaining = items.length;
+    while (remaining > 0) {
+      for (var i = 0; i < lists.length; i++) {
+        final c = cursors[i];
+        if (c < lists[i].length) {
+          result.add(lists[i][c]);
+          cursors[i] = c + 1;
+          remaining--;
+        }
+      }
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final List<MenuItem> suggestions = [];
@@ -795,7 +822,10 @@ class _SuggestedItems extends ConsumerWidget {
     }
     if (suggestions.isEmpty) return const SizedBox.shrink();
 
-    final shown = suggestions.take(10).toList();
+    // Mix across categories before taking the top 10, so the picks are a varied
+    // assortment (snack, drink, household…) instead of 10 items from whichever
+    // category happens to come first in menu order.
+    final shown = _mixByCategory(suggestions).take(500).toList();
 
     // Card width = 42 % of screen, clamped for tiny → tablet
     final cardW = (MediaQuery.of(context).size.width * 0.42).clamp(

@@ -17,6 +17,8 @@ import '../../services/food/order_calculation_service.dart';
 import '../../services/notifications/notification_service.dart';
 import '../../config/supabase_config.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/menu_filter.dart';
+import '../platform/feature_providers.dart';
 import '../auth_user/address_provider.dart';
 import '../auth_user/auth_provider.dart';
 
@@ -91,7 +93,8 @@ final allRestaurantsProvider = FutureProvider.autoDispose<List<Restaurant>>((
 ) async {
   ref.keepAlive();
   final restaurantService = ref.watch(restaurantServiceProvider);
-  final list = await restaurantService.getAllRestaurants();
+  // "View all" should show every restaurant, not just the first page.
+  final list = await restaurantService.getAllRestaurants(limit: 1000);
   await CatalogCache.saveRestaurants('all', list);
   return list;
 });
@@ -230,7 +233,10 @@ final menuSearchProvider = FutureProvider.family
       if (query.isEmpty) {
         return [];
       }
-      return menuService.searchMenuItems(query);
+      final results = await menuService.searchMenuItems(query);
+      // Hide admin-filtered (e.g. alcohol) items from customer search.
+      final words = await ref.watch(menuFilterWordsProvider.future);
+      return applyMenuFilter(results, words);
     });
 
 final menuByCategoryProvider = FutureProvider.family

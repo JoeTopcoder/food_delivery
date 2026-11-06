@@ -89,7 +89,14 @@ String? groceryStoreDistanceLabel({
 /// fall back to the default order (rating). Distance is straight-line metres.
 Future<List<Restaurant>> _groceryStoresSortedByDistance(Ref ref) async {
   final stores = await ref.watch(groceryServiceProvider).getGroceryStores();
+  return _sortStoresByDistance(ref, stores);
+}
 
+/// Order [stores] nearest-first relative to the customer's selected delivery
+/// address (falling back to their saved profile location). Stores without
+/// coordinates sort to the end; with no customer location we keep the given
+/// order (rating). Distance is straight-line metres.
+List<Restaurant> _sortStoresByDistance(Ref ref, List<Restaurant> stores) {
   final origin = ref.watch(groceryCustomerOriginProvider);
   final oLat = origin.lat;
   final oLng = origin.lng;
@@ -100,17 +107,18 @@ Future<List<Restaurant>> _groceryStoresSortedByDistance(Ref ref) async {
     return Geolocator.distanceBetween(oLat, oLng, s.latitude!, s.longitude!);
   }
 
-  final sorted = [...stores]
+  return [...stores]
     ..sort((a, b) => distanceMeters(a).compareTo(distanceMeters(b)));
-  return sorted;
 }
 
 final groceryStoreSearchProvider = FutureProvider.family
-    .autoDispose<List<Restaurant>, String>((ref, query) {
-      if (query.isEmpty) {
-        return ref.watch(groceryServiceProvider).getGroceryStores();
-      }
-      return ref.watch(groceryServiceProvider).searchGroceryStores(query);
+    .autoDispose<List<Restaurant>, String>((ref, query) async {
+      // Search results are ordered nearest-first too, so the closest matching
+      // store to the customer's address is shown first (same as the main list).
+      final stores = query.isEmpty
+          ? await ref.watch(groceryServiceProvider).getGroceryStores()
+          : await ref.watch(groceryServiceProvider).searchGroceryStores(query);
+      return _sortStoresByDistance(ref, stores);
     });
 
 /// Fetch a single grocery store by ID (used by banner tap).

@@ -60,9 +60,27 @@ class MenuService {
     }
   }
 
+  // Session cache of items WITH their full options, keyed by item id. Populated
+  // either lazily (first tap) or in bulk via [prefetchMenuOptions], so opening
+  // the detail sheet is instant instead of a per-tap network round-trip.
+  static final Map<String, MenuItem> _optionsCache = {};
+
+  /// Clear the options cache for one restaurant (or all). Call after an edit so
+  /// customers don't keep a stale option set in the same session.
+  static void clearOptionsCache({String? restaurantId}) {
+    if (restaurantId == null) {
+      _optionsCache.clear();
+    } else {
+      _optionsCache
+          .removeWhere((_, item) => item.restaurantId == restaurantId);
+    }
+  }
+
   // Full menu item WITH its sides + option groups + choices — used when the
   // detail sheet opens, so the menu list query can stay lightweight.
   Future<MenuItem?> getMenuItemWithOptions(String menuItemId) async {
+    final cached = _optionsCache[menuItemId];
+    if (cached != null) return cached;
     try {
       final res = await _supabaseClient
           .from(AppConstants.tableMenus)
@@ -73,10 +91,37 @@ class MenuService {
           .maybeSingle();
       if (res == null) return null;
       final sidesJson = res[AppConstants.tableMenuItemSides] as List? ?? [];
-      return MenuItem.fromJson({...res, 'sides': sidesJson});
+      final item = MenuItem.fromJson({...res, 'sides': sidesJson});
+      _optionsCache[item.id] = item;
+      return item;
     } catch (e) {
       AppLogger.error('Error fetching menu item with options: $e');
       return null;
+    }
+  }
+
+  /// Prefetch every available item (with full options) for a restaurant in ONE
+  /// request and cache them by id, so tapping any item opens the detail sheet
+  /// instantly. Fire-and-forget: call it when the menu screen opens. Safe to
+  /// call repeatedly — it's a no-op cost once cached (cheap vs. per-tap waits).
+  Future<void> prefetchMenuOptions(String restaurantId) async {
+    try {
+      final rows = await _supabaseClient
+          .from(AppConstants.tableMenus)
+          .select(
+            '*, ${AppConstants.tableMenuItemSides}(*), menu_option_groups(*, menu_option_choices(*))',
+          )
+          .eq('restaurant_id', restaurantId)
+          .eq('is_available', true);
+      for (final row in (rows as List)) {
+        final sidesJson =
+            (row as Map)[AppConstants.tableMenuItemSides] as List? ?? [];
+        final item = MenuItem.fromJson({...row, 'sides': sidesJson});
+        _optionsCache[item.id] = item;
+      }
+      AppLogger.info('Prefetched options for ${(rows).length} items');
+    } catch (e) {
+      AppLogger.error('Error prefetching menu options: $e');
     }
   }
 

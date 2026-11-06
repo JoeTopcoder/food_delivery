@@ -289,29 +289,39 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
             storesAsync.when(
               data: (stores) {
                 if (stores.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.storefront_outlined,
-                            size: 64,
-                            color: Colors.grey[300],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchQuery.isEmpty
-                                ? 'No grocery stores available yet'
-                                : 'No stores found for "$_searchQuery"',
-                            style: TextStyle(
-                              fontSize: Responsive.headingSmall(context),
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                  // Content-sized (not SliverFillRemaining): when search results
+                  // already fill the viewport above, the leftover sliver space
+                  // is smaller than this column — a fixed fill would overflow it.
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.storefront_outlined,
+                              size: 64,
+                              color: Colors.grey[300],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchQuery.isEmpty
+                                  ? 'No grocery stores available yet'
+                                  : 'No stores found for "$_searchQuery"',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: Responsive.headingSmall(context),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -423,7 +433,7 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                 (context, index) => RepaintBoundary(
                   child: _SearchProductCard(product: products[index]),
                 ),
-                childCount: products.length > 10 ? 10 : products.length,
+                childCount: products.length,
               ),
             ),
           );

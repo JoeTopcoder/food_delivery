@@ -58,12 +58,19 @@ class _GroceryCategoryProductsScreenState
                   style: const TextStyle(fontSize: 22),
                 ),
               ),
-            Text(
-              widget.categoryName,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
+            // Flexible + ellipsis so a long category name (e.g. "Baby Diaper
+            // Baby Products") fits inside the app bar instead of overflowing
+            // into the cart action.
+            Flexible(
+              child: Text(
+                widget.categoryName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
               ),
             ),
           ],
