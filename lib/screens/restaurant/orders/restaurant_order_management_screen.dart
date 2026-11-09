@@ -95,10 +95,36 @@ class RestaurantOrderManagementScreen extends ConsumerStatefulWidget {
 
 class _RestaurantOrderManagementScreenState
     extends ConsumerState<RestaurantOrderManagementScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   TabController? _topTabController;
   TabController? _foodStatusTabController;
   TabController? _groceryStatusTabController;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Opening this screen (incl. from a push notification tap) should always
+    // show the freshest orders. autoDispose means a cold mount refetches, but
+    // when the screen is already alive (app was here and got backgrounded) the
+    // cached list can be stale — so force a refetch once the first frame is up.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshOrders());
+  }
+
+  void _refreshOrders() {
+    final uid = ref.read(currentUserIdProvider);
+    if (uid != null && uid.isNotEmpty) {
+      ref.invalidate(ownerAllOrdersProvider(uid));
+      ref.invalidate(ownerGroupOrdersProvider(uid));
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning to the app (e.g. after tapping a new-order notification from
+    // the background) refetches so new orders appear without leaving the screen.
+    if (state == AppLifecycleState.resumed) _refreshOrders();
+  }
 
   TabController get topTabController =>
       _topTabController ??= TabController(length: 3, vsync: this);
@@ -123,6 +149,7 @@ class _RestaurantOrderManagementScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _topTabController?.dispose();
     _foodStatusTabController?.dispose();
     _groceryStatusTabController?.dispose();
@@ -173,6 +200,11 @@ class _RestaurantOrderManagementScreenState
   }
 
   Widget _buildOrderManagementScaffold(String ownerId) {
+    // Keep the live orders subscription alive WHILE this screen is open so a new
+    // order (incl. one opened straight from a push notification, when the
+    // dashboard isn't mounted) refreshes the list immediately instead of only
+    // after the user leaves and returns.
+    ref.watch(ownerOrderRealtimeProvider(ownerId));
     final ordersAsync = ref.watch(ownerAllOrdersProvider(ownerId));
     final restaurantsAsync = ref.watch(restaurantsByOwnerProvider(ownerId));
 

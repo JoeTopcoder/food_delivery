@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/driver/driver_model.dart';
@@ -75,6 +77,15 @@ final availableOrdersProvider = FutureProvider.autoDispose
       ref,
       params,
     ) async {
+      // Periodically re-fetch while a driver is viewing available orders so an
+      // order this driver declined (hidden for a 60s cooldown) cycles back onto
+      // their list on its own, without needing a manual pull-to-refresh.
+      final timer = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => ref.invalidateSelf(),
+      );
+      ref.onDispose(timer.cancel);
+
       final driverService = ref.watch(driverServiceProvider);
       return driverService.getAvailableOrders(
         driverId: params.driverId,

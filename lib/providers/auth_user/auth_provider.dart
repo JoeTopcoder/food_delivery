@@ -116,6 +116,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Subscribe to FCM topics based on user role (all in parallel).
   Future<void> _subscribeToUserTopics(User user) async {
+    // A session RESTORE (cached login, no fresh sign-in) still needs the current
+    // device FCM token written to the profile — e.g. after an app reinstall the
+    // token changes but no login runs, leaving a stale token that token-based
+    // pushes (restaurant new-order alerts) would miss. Refresh it here.
+    // ignore: discarded_futures
+    _notificationService.saveFCMToken();
     try {
       final futures = <Future<void>>[
         _notificationService.subscribeToTopic('customer_${user.id}'),
@@ -127,9 +133,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
           break;
         case 'restaurant':
+          // Legacy owner-id topic (kept for backward compatibility).
           futures.add(
             _notificationService.subscribeToTopic('restaurant_${user.id}'),
           );
+          // The new-order DB trigger publishes to `restaurant_<restaurant_id>`
+          // (one topic per restaurant/branch, NOT the owner's user id), so the
+          // owner device must subscribe to every restaurant it owns or no push
+          // ever arrives. Handles multi-branch owners (e.g. Island Grill).
+          futures.add(_subscribeToOwnedRestaurantTopics(user.id));
           break;
         case 'admin':
           futures.add(_notificationService.subscribeToTopic('admins'));
@@ -156,9 +168,60 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Subscribe the restaurant owner device to one FCM topic per restaurant it
+  /// owns (`restaurant_<restaurant_id>`), matching the new-order DB trigger.
+  Future<void> _subscribeToOwnedRestaurantTopics(String ownerId) async {
+    try {
+      final rows = await SupabaseConfig.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_id', ownerId);
+      final futures = <Future<void>>[];
+      for (final row in (rows as List)) {
+        final rid = row['id']?.toString();
+        if (rid != null && rid.isNotEmpty) {
+          futures.add(
+            _notificationService.subscribeToTopic('restaurant_$rid'),
+          );
+        }
+      }
+      await Future.wait(futures);
+      AppLogger.info(
+        'Subscribed to ${futures.length} owned-restaurant FCM topic(s)',
+      );
+    } catch (e) {
+      AppLogger.error('Error subscribing to owned-restaurant topics: $e');
+    }
+  }
+
+  /// Unsubscribe the restaurant owner device from every owned-restaurant topic.
+  Future<void> _unsubscribeFromOwnedRestaurantTopics(String ownerId) async {
+    try {
+      final rows = await SupabaseConfig.client
+          .from('restaurants')
+          .select('id')
+          .eq('owner_id', ownerId);
+      final futures = <Future<void>>[];
+      for (final row in (rows as List)) {
+        final rid = row['id']?.toString();
+        if (rid != null && rid.isNotEmpty) {
+          futures.add(
+            _notificationService.unsubscribeFromTopic('restaurant_$rid'),
+          );
+        }
+      }
+      await Future.wait(futures);
+    } catch (e) {
+      AppLogger.error('Error unsubscribing owned-restaurant topics: $e');
+    }
+  }
+
   /// Unsubscribe from all FCM topics on logout (all in parallel).
   Future<void> _unsubscribeFromAllTopics(User user) async {
     try {
+      if (user.role == 'restaurant') {
+        await _unsubscribeFromOwnedRestaurantTopics(user.id);
+      }
       await Future.wait([
         _notificationService.unsubscribeFromTopic('customer_${user.id}'),
         _notificationService.unsubscribeFromTopic('driver_${user.id}'),

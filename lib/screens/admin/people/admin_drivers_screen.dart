@@ -525,6 +525,22 @@ class _DriverList extends StatelessWidget {
                             child: const Text('Revoke Verification'),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _assignStore(context, driver),
+                            icon: const Icon(
+                                Icons.store_mall_directory_outlined, size: 18),
+                            label: const Text('Assign to Store'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              side: BorderSide(color: AppTheme.primaryColor),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -1044,6 +1060,18 @@ class _DriverList extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _assignStore(BuildContext context, Driver driver) {
+    showDialog(
+      context: context,
+      builder: (_) => _AssignStoreDialog(
+        driverId: driver.id,
+        driverName: driver.fullName?.isNotEmpty == true
+            ? driver.fullName!
+            : (driver.vehicleNumber ?? 'Driver'),
       ),
     );
   }
@@ -2605,6 +2633,147 @@ class _DriverDocumentsSheetState extends State<_DriverDocumentsSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Assign a driver to a specific store (dedicated driver) ───────────────────
+
+class _AssignStoreDialog extends StatefulWidget {
+  final String driverId;
+  final String driverName;
+  const _AssignStoreDialog({required this.driverId, required this.driverName});
+
+  @override
+  State<_AssignStoreDialog> createState() => _AssignStoreDialogState();
+}
+
+class _AssignStoreDialogState extends State<_AssignStoreDialog> {
+  bool _loading = true;
+  bool _saving = false;
+  String? _selectedId; // null = general pool
+  List<Map<String, dynamic>> _stores = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final stores = await SupabaseConfig.client
+          .from('restaurants')
+          .select('id, name')
+          .order('name');
+      final driver = await SupabaseConfig.client
+          .from('drivers')
+          .select('assigned_restaurant_id')
+          .eq('id', widget.driverId)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _stores = (stores as List).cast<Map<String, dynamic>>();
+        _selectedId = driver?['assigned_restaurant_id'] as String?;
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await SupabaseConfig.client
+          .from('drivers')
+          .update({'assigned_restaurant_id': _selectedId})
+          .eq('id', widget.driverId);
+      if (mounted) {
+        Navigator.pop(context);
+        AppSnackbar.success(
+          context,
+          _selectedId == null
+              ? '${widget.driverName} → general pool'
+              : '${widget.driverName} assigned to store',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Assign to Store'),
+      content: _loading
+          ? const SizedBox(
+              height: 80, child: Center(child: CircularProgressIndicator()))
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A dedicated driver only gets this store\u2019s orders. '
+                  '\u201CGeneral pool\u201D keeps the default radius dispatch.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Store',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('General pool (no store)'),
+                    ),
+                    ..._stores.map((s) => DropdownMenuItem<String?>(
+                          value: s['id'] as String,
+                          child: Text('${s['name']}',
+                              overflow: TextOverflow.ellipsis),
+                        )),
+                  ],
+                  onChanged: (v) => setState(() => _selectedId = v),
+                ),
+              ],
+            ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: (_loading || _saving) ? null : _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
+          child: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Text('Save'),
+        ),
+      ],
     );
   }
 }

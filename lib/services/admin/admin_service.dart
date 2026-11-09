@@ -968,4 +968,48 @@ class AdminService {
       return null;
     }
   }
+
+  /// Aggregated profile stats for a single customer, for the admin
+  /// user-details view: current wallet balance, lifetime order count, number
+  /// and value of delivered orders, and the most recent order date.
+  Future<Map<String, dynamic>> getCustomerProfile(String userId) async {
+    try {
+      // Current wallet balance (null if the customer has no wallet row yet).
+      final wallet = await _supabaseClient
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      // One customer's orders — small enough to total in app. Newest first so
+      // the first row is the most recent order.
+      final orders = await _supabaseClient
+          .from(AppConstants.tableOrders)
+          .select('total_amount, status, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      final orderList = orders as List;
+      double totalSpent = 0;
+      int deliveredCount = 0;
+      for (final o in orderList) {
+        if (o['status'] == 'delivered') {
+          totalSpent += (o['total_amount'] as num?)?.toDouble() ?? 0;
+          deliveredCount++;
+        }
+      }
+
+      return {
+        'wallet_balance': (wallet?['balance'] as num?)?.toDouble() ?? 0.0,
+        'order_count': orderList.length,
+        'delivered_count': deliveredCount,
+        'total_spent': totalSpent,
+        'last_order_at':
+            orderList.isNotEmpty ? orderList.first['created_at'] as String? : null,
+      };
+    } catch (e) {
+      AppLogger.error('Error fetching customer profile: $e');
+      rethrow;
+    }
+  }
 }

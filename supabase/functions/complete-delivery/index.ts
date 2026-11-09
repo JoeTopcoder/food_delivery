@@ -140,7 +140,20 @@ Deno.serve(async (request) => {
       {
         const orderDeliveryFee = Number(order.delivery_fee) || 0;
         const orderTip = Number(order.driver_tip) || 0;
-        const basePay = round2(orderDeliveryFee * driverPayPercent);
+        // Distance-tiered driver pay (admin-configured flat/percent ranges),
+        // falling back to the global percent if the resolver is unavailable.
+        let basePay = round2(orderDeliveryFee * driverPayPercent);
+        try {
+          const { data: resolvedPay, error: payErr } = await admin.rpc(
+            "resolve_driver_pay",
+            {
+              p_distance_km:
+                order.distance_km != null ? Number(order.distance_km) : null,
+              p_delivery_fee: orderDeliveryFee,
+            },
+          );
+          if (!payErr && resolvedPay != null) basePay = round2(Number(resolvedPay));
+        } catch (_) { /* keep percent fallback */ }
         await admin
           .from("orders")
           .update({
@@ -156,7 +169,7 @@ Deno.serve(async (request) => {
       // Fetch all delivered orders for this driver
       const { data: deliveries } = await admin
         .from("orders")
-        .select("id, driver_rating, driver_tip, delivery_fee, payment_method, total_amount")
+        .select("id, driver_rating, driver_tip, delivery_fee, payment_method, total_amount, driver_base_pay")
         .eq("driver_id", driverId)
         .eq("status", "delivered");
 
@@ -185,9 +198,15 @@ Deno.serve(async (request) => {
         0
       );
 
-      // Total driver pay (driverPayPercent of each delivery fee + tips + bonus)
+      // Total driver pay: use each order's stored tiered base pay when present
+      // (written above on completion); fall back to the percent model for any
+      // older row that predates the base-pay write-back.
       const totalDriverPay = deliveryList.reduce(
-        (s, d) => s + (Number(d.delivery_fee) || 5) * driverPayPercent,
+        (s, d) =>
+          s +
+          (d.driver_base_pay != null
+            ? Number(d.driver_base_pay)
+            : (Number(d.delivery_fee) || 5) * driverPayPercent),
         0
       );
       const totalBonus = bonusPerOrder > 0 ? completedCount * bonusPerOrder : 0;

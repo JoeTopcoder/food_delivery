@@ -284,7 +284,9 @@ class _RestaurantDashboardScreenState
       }
       if (o.status != 'cancelled') totalSales += o.subtotal;
     }
-    final totalOrders = orders.length;
+    // Total Orders excludes cancelled orders (they aren't real completed
+    // business, same as totalSales which already skips cancelled).
+    final totalOrders = orders.length - cCancelled;
 
     // Avg prep/turnaround for delivered orders with timestamps.
     final durations = <int>[];

@@ -408,6 +408,13 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.place-order]
 verify_jwt = false
 
+# Called by DB triggers (new order → restaurant/driver/admin, status changes).
+# Triggers may pass an empty/legacy Bearer, so JWT pre-validation must be off or
+# the FCM push is rejected at the gateway and never sent. The function uses the
+# FCM service account, not the caller's JWT.
+[functions.send-fcm-notification]
+verify_jwt = false
+
 [functions.activate-membership]
 verify_jwt = false
 

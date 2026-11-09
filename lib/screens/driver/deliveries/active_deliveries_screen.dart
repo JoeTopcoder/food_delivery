@@ -659,6 +659,7 @@ class _DeliveryCard extends ConsumerWidget {
 
     final restLat = restaurant?.latitude;
     final restLng = restaurant?.longitude;
+    final restAddress = (restaurant?.address ?? '').trim();
     final dropLat = delivery.deliveryLatitude;
     final dropLng = delivery.deliveryLongitude;
 
@@ -863,9 +864,17 @@ class _DeliveryCard extends ConsumerWidget {
                   icon: Icons.store_rounded,
                   iconColor: const Color(0xFF22C55E),
                   label: restaurant?.name ?? 'Restaurant',
-                  subtitle: driverToRestKm != null
-                      ? '${driverToRestKm.toStringAsFixed(1)} km from you'
-                      : null,
+                  subtitle: [
+                    if (restAddress.isNotEmpty) restAddress,
+                    if (driverToRestKm != null)
+                      '${driverToRestKm.toStringAsFixed(1)} km from you',
+                  ].join(' • ').isEmpty
+                      ? null
+                      : [
+                          if (restAddress.isNotEmpty) restAddress,
+                          if (driverToRestKm != null)
+                            '${driverToRestKm.toStringAsFixed(1)} km from you',
+                        ].join(' • '),
                   onNavigate: restLat != null && restLng != null
                       ? () => _openNav(restLat, restLng)
                       : null,

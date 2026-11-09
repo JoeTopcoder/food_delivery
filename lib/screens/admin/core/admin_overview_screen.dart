@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/admin/ai_staff_provider.dart';
+import '../../../providers/admin/admin_provider.dart';
 import 'package:food_driver/config/app_constants.dart';
 
 /// Redesigned admin Overview — matches the HotBite admin mockup: greeting,
@@ -32,6 +33,13 @@ class AdminOverviewScreen extends ConsumerWidget {
     final name = fullName.isNotEmpty ? fullName.split(' ').first : 'Admin';
     final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
 
+    // Regular (non-super) admins get a restricted dashboard: only Orders,
+    // Riders, Restaurants and Stores. Super admins get the full dashboard.
+    final isSuper = ref.watch(adminIsSuperAdminProvider).valueOrNull;
+    if (isSuper == false) {
+      return _limitedDashboard(context, ref, name, initials);
+    }
+
     final s = stats.valueOrNull ?? const {};
     final totalSales = ((s['total_sales'] ?? s['revenue'] ?? 0) as num).toDouble();
     final platformRevenue = ((s['platform_revenue'] ?? 0) as num).toDouble();
@@ -55,7 +63,7 @@ class AdminOverviewScreen extends ConsumerWidget {
               Row(children: [
                 const Icon(Icons.local_fire_department_rounded, color: _orange, size: 28),
                 const SizedBox(width: 6),
-                const Text('HotBite', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+                Text('HotBite', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: const Color(0xFF101828))),
                 const SizedBox(width: 6),
                 Text('ADMIN', style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w700, letterSpacing: 1, fontSize: 12)),
                 const Spacer(),
@@ -72,7 +80,7 @@ class AdminOverviewScreen extends ConsumerWidget {
               // ── Greeting ──
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${_greeting()}, $name', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.1)),
+                  Text('${_greeting()}, $name', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.1, color: const Color(0xFF101828))),
                   const SizedBox(height: 4),
                   Text("Here's how HotBite is doing ${period == 'today' ? 'today' : _periodLabels[period]!.toLowerCase()}.",
                       style: TextStyle(color: Colors.grey[600], fontSize: 14)),
@@ -126,7 +134,7 @@ class AdminOverviewScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Needs attention', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  Text('Needs attention', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF101828))),
                   const Divider(height: 20),
                   _attentionRow(context, Icons.access_time_rounded, const Color(0xFFF59E0B),
                       'Orders awaiting riders', 'Assign riders to keep things moving.', '/admin-orders'),
@@ -138,7 +146,7 @@ class AdminOverviewScreen extends ConsumerWidget {
               const SizedBox(height: 20),
 
               // ── Manage your business ──
-              const Text('Manage your business', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('Manage your business', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: const Color(0xFF101828))),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: _manageTile(context, Icons.receipt_long_rounded, 'Orders', 'View and manage orders', '/admin-orders')),
@@ -160,7 +168,7 @@ class AdminOverviewScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // ── All admin tools (every function from the classic dashboard) ──
-              const Text('All admin tools', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text('All admin tools', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: const Color(0xFF101828))),
               const SizedBox(height: 4),
               Text('Everything from the classic dashboard.', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
               const SizedBox(height: 12),
@@ -189,6 +197,7 @@ class AdminOverviewScreen extends ConsumerWidget {
       _Tool('Phone Fallback', Icons.phone_forwarded_rounded, '/admin-call-fallback-log'),
       _Tool('AI Decision Room', Icons.psychology_rounded, '/admin-ai-decision-room'),
       _Tool('Pricing', Icons.sell_rounded, '/admin-pricing'),
+      _Tool('Driver Pay', Icons.payments_rounded, '/admin-driver-pay'),
       _Tool('Loyalty', Icons.card_giftcard_rounded, '/admin-loyalty'),
       _Tool('Contracts', Icons.description_rounded, '/admin-contract'),
     ]),
@@ -277,7 +286,7 @@ class AdminOverviewScreen extends ConsumerWidget {
                       child: Row(children: [
                         Icon(t.icon, size: 18, color: _orange),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(t.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Expanded(child: Text(t.label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF101828)), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey[400]),
                       ]),
                     ),
@@ -321,7 +330,7 @@ class AdminOverviewScreen extends ConsumerWidget {
             loading
                 ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-                    child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
+                    child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: Color(0xFF111827)))),
           ])),
         ]),
       ),
@@ -372,13 +381,81 @@ class AdminOverviewScreen extends ConsumerWidget {
     );
   }
 
+  /// Restricted dashboard for regular (non-super) admins: only Orders, Riders,
+  /// Restaurants and Stores.
+  Widget _limitedDashboard(
+      BuildContext context, WidgetRef ref, String name, String initials) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F5F7),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Row(children: [
+              const Icon(Icons.local_fire_department_rounded,
+                  color: _orange, size: 28),
+              const SizedBox(width: 6),
+              const Text('HotBite',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      color: Color(0xFF101828))),
+              const SizedBox(width: 6),
+              Text('ADMIN',
+                  style: TextStyle(
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                      fontSize: 12)),
+              const Spacer(),
+              _NotificationBell(),
+              GestureDetector(
+                onTap: () => _showAccountMenu(context, ref, name),
+                child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: _orange.withValues(alpha: 0.15),
+                    child: Text(initials,
+                        style: const TextStyle(
+                            color: _orange,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13))),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            Text('Good day, $name',
+                style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF101828))),
+            const SizedBox(height: 4),
+            Text('Manage orders, riders, restaurants and stores.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+            const SizedBox(height: 20),
+            _manageTile(context, Icons.receipt_long_rounded, 'Orders',
+                'View and manage orders', '/admin-orders'),
+            const SizedBox(height: 12),
+            _manageTile(context, Icons.pedal_bike_rounded, 'Riders',
+                'Track and manage riders', '/admin-drivers'),
+            const SizedBox(height: 12),
+            _manageTile(context, Icons.restaurant_rounded, 'Restaurants',
+                'Manage restaurants', '/admin-restaurants'),
+            const SizedBox(height: 12),
+            _manageTile(context, Icons.storefront_rounded, 'Stores',
+                'Manage grocery stores', '/admin-grocery-products'),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _bottomNav(context),
+    );
+  }
+
   Widget _attentionRow(BuildContext context, IconData icon, Color color, String title, String sub, String route) => InkWell(
         onTap: () => Navigator.pushNamed(context, route),
         child: Row(children: [
           Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle), child: Icon(icon, color: color, size: 20)),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: const Color(0xFF101828))),
             Text(sub, style: TextStyle(color: Colors.grey[600], fontSize: 12.5)),
           ])),
           Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
@@ -395,7 +472,7 @@ class AdminOverviewScreen extends ConsumerWidget {
             Icon(icon, color: _orange, size: 22),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: const Color(0xFF101828))),
               Text(sub, style: TextStyle(color: Colors.grey[600], fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
             Icon(Icons.chevron_right_rounded, color: Colors.grey[400], size: 18),

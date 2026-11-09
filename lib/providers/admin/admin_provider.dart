@@ -54,6 +54,29 @@ final userStatisticsProvider =
       return adminService.getUserStatistics();
     });
 
+/// Whether the signed-in admin is a SUPER admin (full dashboard) vs a regular
+/// admin (restricted dashboard: orders, riders, restaurants, stores only).
+final adminIsSuperAdminProvider =
+    riverpod_pkg.FutureProvider.autoDispose<bool>((ref) async {
+  try {
+    final res = await Supabase.instance.client
+        .rpc('current_user_is_super_admin');
+    return res == true;
+  } catch (_) {
+    // On any error, fail closed to the restricted dashboard.
+    return false;
+  }
+});
+
+/// Per-customer profile stats (wallet balance, order count/spend, last order)
+/// for the admin user-details view.
+final customerProfileProvider =
+    riverpod_pkg.FutureProvider.autoDispose
+        .family<Map<String, dynamic>, String>((ref, userId) async {
+      final adminService = ref.watch(adminServiceProvider);
+      return adminService.getCustomerProfile(userId);
+    });
+
 // ==================== RESTAURANT PROVIDERS ====================
 
 /// All restaurants provider

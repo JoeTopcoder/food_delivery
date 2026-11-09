@@ -279,7 +279,7 @@ class DriverService {
 
   // Get available orders for delivery
   // Shows: all "ready" orders + "pending" orders older than 30 minutes (no driver assigned)
-  // Excludes orders declined by this driver within the last 5 minutes
+  // Excludes orders declined by this driver within the last 60 seconds
   Future<List<Order>> getAvailableOrders({
     String? driverId,
     double? driverLat,
@@ -299,15 +299,17 @@ class DriverService {
       // Fetch recently declined order IDs for this driver
       Set<String> declinedOrderIds = {};
       if (driverId != null) {
-        final fiveMinAgo = DateTime.now()
-            .subtract(const Duration(minutes: 5))
+        // Short decline cooldown: a declined order re-displays to this driver
+        // after 60s (was 5 min) so unclaimed orders cycle back to riders fast.
+        final cooldownAgo = DateTime.now()
+            .subtract(const Duration(seconds: 60))
             .toUtc()
             .toIso8601String();
         final declinedRows = await _supabaseClient
             .from('driver_declined_orders')
             .select('order_id')
             .eq('driver_id', driverId)
-            .gte('declined_at', fiveMinAgo);
+            .gte('declined_at', cooldownAgo);
         declinedOrderIds = (declinedRows as List)
             .map((r) => r['order_id'] as String)
             .toSet();
@@ -341,15 +343,24 @@ class DriverService {
       // low standing never locks a driver out of ordinary work.
       String driverStanding = 'STANDARD';
       Map<String, dynamic> classMinStanding = const {};
+      // Store dedication: this driver's assigned store (dedicated driver), and —
+      // when this driver is NOT dedicated — the set of stores that DO have a
+      // dedicated driver, plus the grace window after which their unclaimed
+      // orders fall back to the general pool.
+      String? assignedRestaurantId;
+      Set<String> dedicatedRestaurantIds = {};
+      int dedicatedGraceMinutes = 5;
       if (driverId != null) {
         try {
           final dRow = await _supabaseClient
               .from('drivers')
-              .select('priority_standing')
+              .select('priority_standing, assigned_restaurant_id')
               .eq('id', driverId)
               .maybeSingle();
           driverStanding =
               (dRow?['priority_standing'] as String?) ?? 'STANDARD';
+          assignedRestaurantId =
+              dRow?['assigned_restaurant_id'] as String?;
           final cfg = await _supabaseClient
               .from('driver_priority_config')
               .select('assignment')
@@ -361,7 +372,31 @@ class DriverService {
         } catch (_) {/* priority not configured — treat all as NORMAL */}
       }
 
-      final response = await _supabaseClient
+      // A general (unassigned) driver needs to know which stores are dedicated,
+      // so their orders can be reserved for the dedicated driver during the
+      // grace window.
+      if (assignedRestaurantId == null) {
+        try {
+          final dedRows = await _supabaseClient
+              .from('drivers')
+              .select('assigned_restaurant_id')
+              .not('assigned_restaurant_id', 'is', null);
+          dedicatedRestaurantIds = (dedRows as List)
+              .map((r) => r['assigned_restaurant_id'] as String)
+              .toSet();
+          if (dedicatedRestaurantIds.isNotEmpty) {
+            final gCfg = await _supabaseClient
+                .from('app_config')
+                .select('value')
+                .eq('key', 'dedicated_driver_grace_minutes')
+                .maybeSingle();
+            dedicatedGraceMinutes =
+                int.tryParse('${gCfg?['value'] ?? 5}') ?? 5;
+          }
+        } catch (_) {/* no dedication configured */}
+      }
+
+      var ordersQuery = _supabaseClient
           .from(AppConstants.tableOrders)
           .select('*, restaurants(latitude, longitude)')
           .filter('driver_id', 'is', null)
@@ -372,7 +407,12 @@ class DriverService {
             AppConstants.orderPreparing,
             AppConstants.orderConfirmed,
             AppConstants.orderPending,
-          ])
+          ]);
+      // Dedicated driver: only ever offered their own store's orders.
+      if (assignedRestaurantId != null) {
+        ordersQuery = ordersQuery.eq('restaurant_id', assignedRestaurantId);
+      }
+      final response = await ordersQuery
           // Customer Priority Delivery orders surface first, so a high-standing
           // driver sees them ahead of standard work; distance/workload rules
           // below still apply, so proximity continues to matter.
@@ -393,15 +433,34 @@ class DriverService {
           continue;
         }
 
-        // Strict proximity to the store (≤ radiusKm, default 3 km). An order
-        // whose store has no coordinates can't be distance-checked, so it is
-        // NOT offered — only orders from a store within range are shown.
+        // Store dedication (general drivers only): an order from a store that
+        // HAS a dedicated driver is reserved for that driver during the grace
+        // window; only after it stays unclaimed past the window does it fall
+        // back to the general pool here.
+        if (assignedRestaurantId == null && dedicatedRestaurantIds.isNotEmpty) {
+          final rid = orderData['restaurant_id'] as String?;
+          if (rid != null && dedicatedRestaurantIds.contains(rid)) {
+            final orderedAt =
+                DateTime.tryParse('${orderData['ordered_at'] ?? ''}')?.toUtc();
+            final ageMin = orderedAt == null
+                ? 0
+                : DateTime.now().toUtc().difference(orderedAt).inMinutes;
+            if (ageMin < dedicatedGraceMinutes) continue; // still reserved
+          }
+        }
+
+        // Proximity to the store (≤ radiusKm, default 3 km). A dedicated driver
+        // skips this — they get all of their store's orders regardless of
+        // distance. An order whose store has no coordinates can't be
+        // distance-checked, so it is not offered on the radius path.
         final rest = orderData['restaurants'] as Map<String, dynamic>?;
         final rLat = (rest?['latitude'] as num?)?.toDouble();
         final rLng = (rest?['longitude'] as num?)?.toDouble();
-        if (rLat == null || rLng == null) continue;
-        final dist = _haversineKm(driverLat, driverLng, rLat, rLng);
-        if (dist > radiusKm) continue;
+        if (assignedRestaurantId == null) {
+          if (rLat == null || rLng == null) continue;
+          final dist = _haversineKm(driverLat, driverLng, rLat, rLng);
+          if (dist > radiusKm) continue;
+        }
 
         // Cap so active + offered never exceeds the 3-order max.
         if (orders.length >= maxSlots) break;

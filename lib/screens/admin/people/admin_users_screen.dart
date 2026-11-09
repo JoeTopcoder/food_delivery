@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../../utils/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +7,8 @@ import '../../../models/user/user_model.dart' as user_models;
 import '../../../providers/admin/admin_provider.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
+import '../../../widgets/common/full_screen_image.dart';
+import 'package:food_driver/config/app_constants.dart';
 import '../finance/admin_wallet_adjust_sheet.dart';
 import '../finance/admin_wallet_history_screen.dart';
 
@@ -637,21 +640,30 @@ class _UserDetailsSheet extends ConsumerWidget {
           // Header
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: roleColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: TextStyle(
-                      color: roleColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                    ),
+              // Profile picture when the customer has one, else an initial.
+              // Tapping a real photo opens it full screen.
+              GestureDetector(
+                onTap: (user.profileImageUrl != null &&
+                        user.profileImageUrl!.isNotEmpty)
+                    ? () => FullScreenImage.show(
+                          context,
+                          imageUrl: user.profileImageUrl!,
+                          title: user.name ?? 'Profile photo',
+                        )
+                    : null,
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: (user.profileImageUrl != null &&
+                            user.profileImageUrl!.isNotEmpty)
+                        ? Image.network(
+                            user.profileImageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _initialAvatar(roleColor, initial),
+                          )
+                        : _initialAvatar(roleColor, initial),
                   ),
                 ),
               ),
@@ -697,18 +709,92 @@ class _UserDetailsSheet extends ConsumerWidget {
 
           // Details
           _row(context, Icons.email_outlined, 'Email', email),
-          if (user.phone != null)
+          if (user.phone != null && user.phone!.isNotEmpty)
             _row(context, Icons.phone_outlined, 'Phone', user.phone!),
-          if (user.address != null)
+          if (user.address != null && user.address!.isNotEmpty)
             _row(context, Icons.location_on_outlined, 'Address', user.address!),
-          _row(
-            context,
-            Icons.calendar_today_outlined,
-            'Joined',
-            _formatDate(user.createdAt),
+          if (user.birthday != null)
+            _row(context, Icons.cake_outlined, 'Birthday',
+                _formatDate(user.birthday!)),
+          if (user.referralCode != null && user.referralCode!.isNotEmpty)
+            _row(context, Icons.card_giftcard_outlined, 'Referral',
+                user.referralCode!),
+          if (user.devicePlatform != null)
+            _row(context, Icons.devices_outlined, 'Platform',
+                user.devicePlatform!),
+          _row(context, Icons.calendar_today_outlined, 'Joined',
+              _formatDate(user.createdAt)),
+          // Tap to copy the full UUID (admins need it for DB/support lookups).
+          InkWell(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: user.id));
+              AppSnackbar.success(context, 'User ID copied');
+            },
+            child: _row(context, Icons.tag, 'User ID', user.id,
+                trailing: const Icon(Icons.copy_rounded,
+                    size: 14, color: Color(0xFF9CA3AF))),
           ),
 
+          const SizedBox(height: 8),
+          // Wallet balance + order history summary
+          _CustomerActivity(userId: user.id),
+
           const SizedBox(height: 20),
+
+          // Wallet actions
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminWalletHistoryScreen(
+                          userId: user.id,
+                          userName: user.name ?? 'Customer',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.history_rounded, size: 18),
+                  label: const Text('Wallet History'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    side: const BorderSide(color: Color(0xFF2563EB)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    AdminWalletAdjustSheet.show(
+                      context,
+                      userId: user.id,
+                      customerName: user.name ?? user.email ?? 'User',
+                    );
+                  },
+                  icon: const Icon(Icons.account_balance_wallet_rounded,
+                      size: 18),
+                  label: const Text('Adjust'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF10B981),
+                    side: const BorderSide(color: Color(0xFF10B981)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
 
           // Call button
           if (user.phone != null && user.phone!.isNotEmpty) ...[
@@ -775,6 +861,21 @@ class _UserDetailsSheet extends ConsumerWidget {
     }
   }
 
+  Widget _initialAvatar(Color color, String initial) {
+    return Container(
+      color: color.withValues(alpha: 0.15),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 22,
+        ),
+      ),
+    );
+  }
+
   Widget _chip(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -793,7 +894,8 @@ class _UserDetailsSheet extends ConsumerWidget {
     );
   }
 
-  Widget _row(BuildContext context, IconData icon, String label, String value) {
+  Widget _row(BuildContext context, IconData icon, String label, String value,
+      {Widget? trailing}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -818,6 +920,7 @@ class _UserDetailsSheet extends ConsumerWidget {
               ),
             ),
           ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing],
         ],
       ),
     );
@@ -840,5 +943,120 @@ class _UserDetailsSheet extends ConsumerWidget {
       'Dec',
     ];
     return '${months[date.month]} ${date.day}, ${date.year}';
+  }
+}
+
+// ─── Customer activity (wallet balance + order summary) ──────────────────────
+
+class _CustomerActivity extends ConsumerWidget {
+  final String userId;
+  const _CustomerActivity({required this.userId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(customerProfileProvider(userId));
+    return statsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (e, _) => Text(
+        'Activity unavailable: ${friendlyError(e)}',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+      ),
+      data: (s) {
+        final balance = (s['wallet_balance'] as num?)?.toDouble() ?? 0;
+        final orders = (s['order_count'] as int?) ?? 0;
+        final delivered = (s['delivered_count'] as int?) ?? 0;
+        final spent = (s['total_spent'] as num?)?.toDouble() ?? 0;
+        final lastRaw = s['last_order_at'] as String?;
+        final last = lastRaw != null ? DateTime.tryParse(lastRaw) : null;
+        final sym = AppConstants.currencySymbol;
+
+        String fmtDate(DateTime d) {
+          const m = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul',
+            'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return '${m[d.month]} ${d.day}, ${d.year}';
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Customer Activity',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _stat(context, 'Wallet',
+                      '$sym${balance.toStringAsFixed(2)}',
+                      const Color(0xFF10B981)),
+                  _stat(context, 'Orders', '$orders',
+                      const Color(0xFF2563EB)),
+                  _stat(context, 'Delivered', '$delivered',
+                      const Color(0xFF6366F1)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _stat(context, 'Total Spent',
+                      '$sym${spent.toStringAsFixed(2)}',
+                      const Color(0xFFF59E0B)),
+                  _stat(
+                      context,
+                      'Last Order',
+                      last != null ? fmtDate(last) : '—',
+                      const Color(0xFF6B7280)),
+                  const Expanded(child: SizedBox()),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _stat(BuildContext context, String label, String value, Color color) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+          ),
+        ],
+      ),
+    );
   }
 }

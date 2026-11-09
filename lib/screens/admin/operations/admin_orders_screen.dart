@@ -36,7 +36,7 @@ final _adminAllOrdersProvider =
           // (user_id = customer, student_id = student-verification link), so
           // PostgREST needs the explicit relationship or the query errors.
           .select(
-            '*, restaurants(name, store_type), '
+            '*, restaurants(name, store_type, is_fast_food), '
             'users!orders_user_id_fkey(name, email, phone), '
             // Assigned rider: orders.driver_id -> drivers -> users(name, phone)
             'driver:drivers!orders_driver_id_fkey(id, vehicle_type, '
@@ -111,6 +111,14 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     return st == 'grocery' || st == 'both';
   }
 
+  /// Whether an order's store is flagged as fast food (KFC, Church's, Bubble
+  /// Chick, etc.).
+  static bool _isFastFood(Map<String, dynamic> o) =>
+      (o['restaurants'] as Map?)?['is_fast_food'] == true;
+
+  static bool _isActiveStatus(Map<String, dynamic> o) =>
+      !_terminalStatuses.contains((o['status'] ?? '').toString());
+
   @override
   void initState() {
     super.initState();
@@ -167,11 +175,32 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   ) {
     var filtered = orders;
 
-    // Vertical filter: food vs grocery
-    if (_typeFilter == 'grocery') {
-      filtered = filtered.where(_isGroceryOrder).toList();
-    } else if (_typeFilter == 'food') {
-      filtered = filtered.where((o) => !_isGroceryOrder(o)).toList();
+    // Vertical filter: food / grocery / fast food / regular / ready / no driver
+    switch (_typeFilter) {
+      case 'grocery':
+        filtered = filtered.where(_isGroceryOrder).toList();
+        break;
+      case 'food':
+        filtered = filtered.where((o) => !_isGroceryOrder(o)).toList();
+        break;
+      case 'fast_food':
+        filtered = filtered.where(_isFastFood).toList();
+        break;
+      case 'regular':
+        // Regular food = non-grocery, non-fast-food.
+        filtered = filtered
+            .where((o) => !_isGroceryOrder(o) && !_isFastFood(o))
+            .toList();
+        break;
+      case 'ready':
+        filtered =
+            filtered.where((o) => (o['status'] ?? '').toString() == 'ready').toList();
+        break;
+      case 'no_driver':
+        filtered = filtered
+            .where((o) => o['driver_id'] == null && _isActiveStatus(o))
+            .toList();
+        break;
     }
 
     // Tab filter
@@ -182,9 +211,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       // "All" shows only active (in-progress) orders — everything except the
       // terminal statuses. Excluding (rather than listing active statuses) keeps
       // any intermediate status visible without needing to enumerate them.
-      filtered = filtered
-          .where((o) => !_terminalStatuses.contains((o['status'] ?? '').toString()))
-          .toList();
+      filtered = filtered.where(_isActiveStatus).toList();
     }
 
     // Delivered / Cancelled tabs reset daily: only show orders that reached that
@@ -378,15 +405,22 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
             ),
           ),
 
-          // Vertical filter: All / Food / Grocery
+          // Category filter: All / Food / Grocery / Fast Food / Regular /
+          // Ready / No Driver. Scrolls horizontally so all chips fit.
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Row(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
               children: [
                 for (final t in const [
                   ('all', 'All'),
                   ('food', 'Food'),
                   ('grocery', 'Grocery'),
+                  ('fast_food', 'Fast Food'),
+                  ('regular', 'Regular'),
+                  ('ready', 'Ready'),
+                  ('no_driver', 'No Driver'),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -407,6 +441,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
                     ),
                   ),
               ],
+            ),
             ),
           ),
 

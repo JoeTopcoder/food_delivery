@@ -332,6 +332,9 @@ class _OrderCard extends ConsumerWidget {
     final restAsync = ref.watch(restaurantByIdProvider(order.restaurantId));
     final restaurant = restAsync.valueOrNull;
 
+    // Restaurant street address shown to the driver on the pickup row.
+    final restAddress = (restaurant?.address ?? '').trim();
+
     // Calculate distances & driver pay
     final restLat = restaurant?.latitude;
     final restLng = restaurant?.longitude;
@@ -725,9 +728,17 @@ class _OrderCard extends ConsumerWidget {
                   icon: Icons.store_rounded,
                   iconColor: const Color(0xFF22C55E),
                   label: restaurant?.name ?? 'Restaurant',
-                  subtitle: driverToRestKm != null
-                      ? '${(driverToRestKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi from you'
-                      : null,
+                  subtitle: [
+                    if (restAddress.isNotEmpty) restAddress,
+                    if (driverToRestKm != null)
+                      '${(driverToRestKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi from you',
+                  ].join(' • ').isEmpty
+                      ? null
+                      : [
+                          if (restAddress.isNotEmpty) restAddress,
+                          if (driverToRestKm != null)
+                            '${(driverToRestKm * AppConstants.kmToMiles).toStringAsFixed(1)} mi from you',
+                        ].join(' • '),
                   onNavigate: restLat != null && restLng != null
                       ? () => _openNavigation(restLat, restLng)
                       : null,

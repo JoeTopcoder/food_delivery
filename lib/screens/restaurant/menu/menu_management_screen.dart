@@ -331,6 +331,32 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
                                           minHeight: 34,
                                         ),
                                         padding: EdgeInsets.zero,
+                                        icon: Icon(
+                                          item.isAvailable
+                                              ? Icons.toggle_on
+                                              : Icons.toggle_off,
+                                          size: 26,
+                                          color: item.isAvailable
+                                              ? Colors.green
+                                              : Colors.grey,
+                                        ),
+                                        tooltip: item.isAvailable
+                                            ? 'Turn off (sold out)'
+                                            : 'Turn on (available)',
+                                        onPressed: () =>
+                                            _toggleItemAvailability(
+                                              context,
+                                              item,
+                                              restaurant.id,
+                                            ),
+                                      ),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 34,
+                                          minHeight: 34,
+                                        ),
+                                        padding: EdgeInsets.zero,
                                         icon: const Icon(
                                           Icons.edit_rounded,
                                           size: 20,
@@ -557,6 +583,36 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen> {
         initialSideType: sideType,
       ),
     );
+  }
+
+  /// Quickly flip an item between Available and Unavailable (e.g. sold out)
+  /// without opening any dialog. Updates the live row and refreshes the list.
+  Future<void> _toggleItemAvailability(
+    BuildContext context,
+    MenuItem item,
+    String restaurantId,
+  ) async {
+    final newValue = !item.isAvailable;
+    try {
+      final menuService = ref.read(menuServiceProvider);
+      await menuService.updateMenuItem(
+        menuItemId: item.id,
+        isAvailable: newValue,
+      );
+      ref.invalidate(restaurantMenuManagementProvider(restaurantId));
+      if (context.mounted) {
+        AppSnackbar.success(
+          context,
+          newValue
+              ? '"${item.name}" is now available'
+              : '"${item.name}" turned off (unavailable)',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
   }
 
   Future<void> _confirmDelete(

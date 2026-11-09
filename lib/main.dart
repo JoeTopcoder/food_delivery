@@ -128,6 +128,7 @@ import 'screens/admin/config/admin_regions_screen.dart';
 import 'screens/admin/marketing/admin_ads_screen.dart';
 import 'screens/admin/marketing/admin_ads_review_screen.dart';
 import 'screens/admin/finance/admin_pricing_screen.dart';
+import 'screens/admin/finance/admin_driver_pay_screen.dart';
 import 'screens/admin/config/admin_services_screen.dart';
 import 'screens/admin/catalog/admin_hotbite_picks_screen.dart';
 import 'screens/admin/catalog/admin_menu_filters_screen.dart';
@@ -1743,6 +1744,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminPricingScreen(),
+                ),
+              );
+            case '/admin-driver-pay':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminDriverPayScreen(),
                 ),
               );
             case '/admin-services':

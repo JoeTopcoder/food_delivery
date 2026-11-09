@@ -47,7 +47,10 @@ class _CallScreenState extends ConsumerState<CallScreen>
 
   // ── Audio controls ─────────────────────────────────────────────────────────
   bool _isMuted = false;
-  bool _isSpeaker = false;
+  // Calls default to speakerphone — the engine forces the speaker route on join
+  // so a flaky Bluetooth device can't hijack and silence the call. Keep this in
+  // sync with that default so the toggle shows the correct state.
+  bool _isSpeaker = true;
 
   // ── Stage indicators ───────────────────────────────────────────────────────
   // ignore: unused_field

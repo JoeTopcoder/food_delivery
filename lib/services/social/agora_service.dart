@@ -133,13 +133,25 @@ class AgoraService {
       );
       _engine!.registerEventHandler(_eventHandler!);
 
+      // Use the DEFAULT audio scenario for 1:1 voice calls. The previous
+      // `audioScenarioChatroom` is meant for live chatrooms with frequent
+      // listener/speaker role switching and can leave the mic not capturing on
+      // a plain two-party call — producing a "connected but silent both ways"
+      // call that the speaker toggle can't fix.
       await _engine!.setAudioProfile(
         profile: AudioProfileType.audioProfileDefault,
-        scenario: AudioScenarioType.audioScenarioChatroom,
+        scenario: AudioScenarioType.audioScenarioDefault,
       );
       await _engine!.enableAudio();
       await _engine!.disableVideo();
-      await _engine!.setDefaultAudioRouteToSpeakerphone(false);
+      // Default call audio to the built-in SPEAKER, not earpiece/Bluetooth.
+      // A connected Bluetooth device that doesn't properly support the voice
+      // (SCO) profile — common with cheap earbuds, speakers and car systems —
+      // otherwise hijacks the call and deadlocks the mic, leaving both parties
+      // silent and the call "connection failed". Forcing the speaker keeps the
+      // call on the phone's own mic/speaker, which always works. Users can
+      // still switch to earpiece with the in-call toggle.
+      await _engine!.setDefaultAudioRouteToSpeakerphone(true);
 
       _initialized = true;
       if (kDebugMode) debugPrint('AgoraService: engine ready');
@@ -270,6 +282,9 @@ class AgoraService {
     await _engine!.enableLocalAudio(true);
     await _engine!.muteLocalAudioStream(false);
     await _engine!.muteAllRemoteAudioStreams(false);
+    // Force the speaker route on join so a flaky Bluetooth SCO device can never
+    // take over the call and silence it. The in-call toggle can switch later.
+    await _engine!.setEnableSpeakerphone(true);
   }
 
   // ── Clear callbacks (call from CallScreen.dispose) ───────────────────────
