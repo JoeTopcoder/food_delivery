@@ -958,7 +958,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Wallet',
                             subtitle: walletBalance > 0
-                                ? 'Balance: \$${walletBalance.toStringAsFixed(2)}'
+                                ? 'Balance: ${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}'
                                 : 'No funds \u2014 top up in your profile',
                             selected: _selectedPayment == 'wallet',
                             onTap: () {
@@ -1176,7 +1176,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '"${appliedPromo.code}" — saved \$${promoDiscount.toStringAsFixed(2)}',
+                                  '"${appliedPromo.code}" — saved ${AppConstants.currencySymbol}${promoDiscount.toStringAsFixed(2)}',
                                   style: TextStyle(
                                     color: const Color(0xFF10B981),
                                     fontWeight: FontWeight.w600,
@@ -1279,7 +1279,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                 Flexible(
                                   child: Text(
                                     'You have ${account.points} pts '
-                                    '(= \$${account.redemptionValue.toStringAsFixed(2)})',
+                                    '(= ${AppConstants.currencySymbol}${account.redemptionValue.toStringAsFixed(2)})',
                                     style: const TextStyle(fontSize: 13),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -2056,7 +2056,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         AppSnackbar.error(
           context,
           'Insufficient wallet balance (${AppConstants.currencySymbol}${walletBalance.toStringAsFixed(2)}). '
-          'Top up \$${(grandTotal - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
+          'Top up ${AppConstants.currencySymbol}${(grandTotal - walletBalance).toStringAsFixed(2)} more or choose another payment method.',
         );
         return;
       }

@@ -570,7 +570,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Wallet',
                             subtitle: balance > 0
-                                ? 'Balance: \$${balance.toStringAsFixed(2)}'
+                                ? 'Balance: ${AppConstants.currencySymbol}${balance.toStringAsFixed(2)}'
                                 : 'No funds — top up in your profile',
                             selected: _selectedPayment == 'wallet',
                             onTap: () {
@@ -772,7 +772,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '"${appliedPromo.code}" — saved \$${promoDiscount.toStringAsFixed(2)}',
+                                  '"${appliedPromo.code}" — saved ${AppConstants.currencySymbol}${promoDiscount.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     color: Color(0xFF10B981),
                                     fontWeight: FontWeight.w600,
@@ -874,7 +874,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                               Row(
                                 children: [
                                   Text(
-                                    'You have ${account.points} pts (= \$${account.redemptionValue.toStringAsFixed(2)})',
+                                    'You have ${account.points} pts (= ${AppConstants.currencySymbol}${account.redemptionValue.toStringAsFixed(2)})',
                                     style: const TextStyle(fontSize: 13),
                                   ),
                                   const Spacer(),
@@ -901,7 +901,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    'Redeeming $redeemPoints pts = \$${loyaltyDiscount.toStringAsFixed(2)} off',
+                                    'Redeeming $redeemPoints pts = ${AppConstants.currencySymbol}${loyaltyDiscount.toStringAsFixed(2)} off',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF6366F1),
@@ -1139,13 +1139,13 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                       if (promoDiscount > 0)
                         _SummaryRow(
                           'Promo (${appliedPromo!.code})',
-                          '−\$${promoDiscount.toStringAsFixed(2)}',
+                          '−${AppConstants.currencySymbol}${promoDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF10B981),
                         ),
                       if (loyaltyDiscount > 0)
                         _SummaryRow(
                           'Loyalty points',
-                          '−\$${loyaltyDiscount.toStringAsFixed(2)}',
+                          '−${AppConstants.currencySymbol}${loyaltyDiscount.toStringAsFixed(2)}',
                           valueColor: const Color(0xFF6366F1),
                         ),
                       if (isPickup)
