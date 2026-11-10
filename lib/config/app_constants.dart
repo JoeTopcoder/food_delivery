@@ -181,6 +181,12 @@
   static String currencyName = 'US Dollar';
   static const String countryName = 'Cayman Islands';
 
+  /// Which currency the CHECKOUT totals are displayed in. Admin-controlled via
+  /// the `checkout_currency` app_config row ('JMD' or 'USD'); overwritten from
+  /// app_config at startup. 'USD' shows totals converted at the live USD/JMD
+  /// rate; anything else (default) shows JMD.
+  static String checkoutCurrency = 'JMD';
+
   // ── Business Constants (defaults — overridden from app_config table) ──────
 
   // Fees

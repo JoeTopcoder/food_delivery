@@ -581,7 +581,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     // Card payments are charged in USD, so when card is selected the whole
     // breakdown is shown in USD (converted at the admin rate); otherwise JMD.
     final usdRate = ref.watch(usdJmdRateProvider).valueOrNull ?? 160.0;
-    final showUsd = _selectedPayment == 'stripe';
+    // Admin-controlled checkout display currency (app_config `checkout_currency`):
+    // 'USD' forces totals to show in USD; otherwise JMD. Card (Stripe) payments
+    // still show USD regardless, since the card is charged in USD.
+    final showUsd = AppConstants.checkoutCurrency.toUpperCase() == 'USD' ||
+        _selectedPayment == 'stripe';
     String money(double jmd) => showUsd
         ? '\$${(jmd / usdRate).toStringAsFixed(2)}'
         : '${AppConstants.currencySymbol}${jmd.toStringAsFixed(2)}';
