@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user/address_model.dart';
 import '../../services/user/address_service.dart';
+import '../../services/user/last_address_store.dart';
 import '../auth_user/auth_provider.dart';
 
 final addressServiceProvider = Provider<AddressService>((ref) {
@@ -59,7 +60,15 @@ final defaultAddressProvider = FutureProvider.autoDispose.family<UserAddress?, S
 /// The address selected during checkout (null = use profile address)
 /// Stores only the ID — the actual address is derived reactively from
 /// [userAddressesProvider] so edits propagate everywhere in real-time.
-final selectedAddressIdProvider = StateProvider<String?>((ref) => null);
+///
+/// Persisted: it initialises from the customer's LAST-USED address (saved via
+/// [LastAddressStore]) and re-saves on every change, so reopening the app
+/// preselects their previous address and the delivery fee stays correct until
+/// they switch. A post-order reset to null does NOT clear the remembered value.
+final selectedAddressIdProvider = StateProvider<String?>((ref) {
+  ref.listenSelf((_, next) => LastAddressStore.save(next));
+  return LastAddressStore.lastUsed;
+});
 
 /// Derives the full [UserAddress] from the latest address list + selected ID.
 /// Falls back to default address when nothing is explicitly selected.

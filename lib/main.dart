@@ -243,6 +243,7 @@ import 'screens/stripe/admin_payout_requests_screen.dart';
 import 'utils/app_logger.dart';
 import 'utils/app_theme.dart';
 import 'services/core/cache_service.dart';
+import 'services/user/last_address_store.dart';
 import 'services/catalog/catalog_cache.dart';
 import 'screens/admin/host_rewards/admin_host_rewards_screen.dart';
 import 'screens/customer/host_rewards/host_referral_scan_screen.dart';
@@ -277,6 +278,8 @@ void main() {
         ),
         SupabaseConfig.initialize(),
         CacheService.init(),
+        // Remember the customer's last-used delivery address across launches.
+        LastAddressStore.init(),
         // Load the disk-backed catalogue cache so the home grid and menus can
         // paint instantly on a cold launch while fresh data loads behind them.
         CatalogCache.init(),
