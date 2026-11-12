@@ -58,12 +58,24 @@ class RestaurantCard extends StatelessWidget {
                   ),
                   child: restaurant.imageUrl != null &&
                       restaurant.imageUrl!.isNotEmpty
-                      ? AppCachedImage(
-                          url: restaurant.imageUrl,
+                      // Show the WHOLE banner (name/logo baked into many images)
+                      // instead of cropping it to fill. BoxFit.contain keeps the
+                      // full image; the backdrop fills any letterbox space so the
+                      // card still looks intentional.
+                      ? Container(
                           height: imageHeight.toDouble(),
                           width: double.infinity,
-                          // Card spans ~full width; decode at a sensible cap.
-                          decodeWidth: 600,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: AppCachedImage(
+                            url: restaurant.imageUrl,
+                            height: imageHeight.toDouble(),
+                            width: double.infinity,
+                            fit: BoxFit.contain,
+                            // Card spans ~full width; decode at a sensible cap.
+                            decodeWidth: 600,
+                          ),
                         )
                       : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
