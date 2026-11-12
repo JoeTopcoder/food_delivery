@@ -400,7 +400,8 @@ Deno.serve(async (request) => {
     const effectiveTaxRate = (isTaxEnabled && !isPickup)
       ? await getTaxRateForLocation(deliveryLat, deliveryLng, globalTaxRate)
       : 0;
-    const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
+    // Tax (GCT) is charged ONLY on the delivery fee, not the product subtotal.
+    const tax = Math.round(deliveryFee * effectiveTaxRate * 100) / 100;
     // Service fee from app_config (platform_service_fee_rate).
     const platformServiceFee = Math.round(subtotal * serviceFeeRate * 100) / 100;
     const orderTotal = Math.round((subtotal - promoDiscount + deliveryFee + platformServiceFee + tax) * 100) / 100;

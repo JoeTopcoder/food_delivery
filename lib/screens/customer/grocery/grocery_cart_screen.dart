@@ -103,7 +103,8 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
       subtotal,
       otherCharges: totalActiveFee,
     );
-    final tax = subtotal * AppConstants.taxRate;
+    // Tax (GCT) is charged ONLY on the delivery fee, not the product subtotal.
+    final tax = effectiveFee * AppConstants.taxRate;
     final total = subtotal + effectiveFee + platformServiceFee + tax;
 
     return Scaffold(

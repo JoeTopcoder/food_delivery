@@ -564,7 +564,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         ? ref.watch(zoneTaxProvider(taxKey)).valueOrNull
         : null;
     final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
-    final tax = subtotal * effectiveTaxRate;
+    // Tax (GCT) is charged ONLY on the delivery fee, not the food subtotal.
+    final tax = activeFee * effectiveTaxRate;
     final promoDiscount =
         appliedPromo?.computeDiscount(
           subtotal,

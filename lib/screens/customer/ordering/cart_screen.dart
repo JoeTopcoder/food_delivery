@@ -181,7 +181,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final zoneTax =
         taxKey != null ? ref.watch(zoneTaxProvider(taxKey)).valueOrNull : null;
     final effectiveTaxRate = zoneTax?.taxRate ?? 0.0;
-    final tax = subtotal * effectiveTaxRate;
+    // Tax (GCT) is charged ONLY on the delivery fee, not the food subtotal.
+    final tax = activeFee * effectiveTaxRate;
     final total =
         subtotal + activeFee + platformServiceFee + totalExtraStopFee + tax;
 

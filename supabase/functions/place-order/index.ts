@@ -582,7 +582,8 @@ Deno.serve(async (request) => {
     const effectiveTaxRate = isPickup
       ? 0
       : await getTaxRateForLocation(deliveryLatitude, deliveryLongitude, globalTaxRate);
-    const serverTaxAmount = round2(subtotal * effectiveTaxRate);
+    // Tax (GCT) is charged ONLY on the delivery fee, not the food subtotal.
+    let serverTaxAmount = round2(deliveryFee * effectiveTaxRate);
 
     // ── Company-sponsored: employee pays FOOD + personal extras only ────────
     // The company absorbs delivery, service, peak and priority. Recompute the
@@ -594,6 +595,7 @@ Deno.serve(async (request) => {
       peakFee = 0;
       priorityFee = 0;
       isPriority = false;
+      serverTaxAmount = 0; // no delivery fee charged → no delivery tax
       totalAmount = round2(Math.max(0,
         subtotal + serverTaxAmount + driverTip - discount - membershipDiscount));
     }

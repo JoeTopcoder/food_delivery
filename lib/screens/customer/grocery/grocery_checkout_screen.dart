@@ -243,7 +243,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final effectiveTaxRate = (AppConstants.taxEnabled && !isPickup)
         ? AppConstants.taxRate
         : 0.0;
-    final tax = subtotal * effectiveTaxRate;
+    // Tax (GCT) is charged ONLY on the delivery fee, not the product subtotal.
+    final tax = activeFee * effectiveTaxRate;
     final promoDiscount =
         appliedPromo?.computeDiscount(
           subtotal,
