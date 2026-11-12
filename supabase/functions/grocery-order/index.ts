@@ -138,6 +138,15 @@ Deno.serve(async (request) => {
     return json({ error: "Missing required fields: store_id, user_id, items" }, 400);
   }
 
+  // Blocked customers cannot place orders (admin_block_customer sets is_active=false).
+  {
+    const { data: u } = await admin
+      .from("users").select("is_active").eq("id", userId).maybeSingle();
+    if (u && u.is_active === false) {
+      return json({ error: "Your account has been suspended. Please contact support." }, 403);
+    }
+  }
+
   // ── STUDENT RECIPIENT GATE ──────────────────────────────────────────────
   // Identical rule to place-order: permission, destination and fee all come
   // from the database, never from the request. This function also runs with
