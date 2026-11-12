@@ -68,6 +68,8 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     with SafeConsumerStateMixin<CheckoutScreen> {
   final _promoCtrl = TextEditingController();
+  // Auto-apply the customer's loyalty reward (6-order punch card) once per screen.
+  bool _autoPromoTried = false;
   final _notesCtrl = TextEditingController();
   final _cardholderCtrl = TextEditingController();
   final _paymentEmailCtrl = TextEditingController();
@@ -322,6 +324,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     _paymentPhoneCtrl.text = currentUser.phone ?? '';
   }
 
+  /// If the customer has earned a loyalty reward (6-order punch card), pull its
+  /// code and apply it automatically so they don't have to type anything.
+  Future<void> _tryAutoApplyLoyalty(double subtotal, String? restaurantId) async {
+    try {
+      if (ref.read(appliedPromoProvider) != null) return;
+      final uid = ref.read(currentUserIdProvider);
+      if (uid == null) return;
+      final res = await SupabaseConfig.client
+          .rpc('get_loyalty_streak', params: {'p_user_id': uid});
+      if (res is! Map) return;
+      final code = res['reward_code'] as String?;
+      if (res['reward_ready'] != true || code == null || code.isEmpty) return;
+      if (!mounted || ref.read(appliedPromoProvider) != null) return;
+      _promoCtrl.text = code;
+      await _applyPromo(subtotal, restaurantId: restaurantId);
+    } catch (_) {/* non-fatal: customer can still enter the code manually */}
+  }
+
   Future<void> _applyPromo(
     double subtotal, {
     String? restaurantId,
@@ -391,6 +411,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final restaurantId = cart.isNotEmpty
         ? cart.first.menuItem.restaurantId
         : null;
+
+    // Auto-apply the loyalty reward (50% off) if the customer has unlocked one
+    // and hasn't already applied a code. Runs once, after the first real build.
+    if (!_autoPromoTried &&
+        subtotal > 0 &&
+        currentUserId != null &&
+        ref.read(appliedPromoProvider) == null) {
+      _autoPromoTried = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tryAutoApplyLoyalty(subtotal, restaurantId);
+      });
+    }
 
     // Watch restaurant data - critical for checkout
     final restaurantAsync = restaurantId != null

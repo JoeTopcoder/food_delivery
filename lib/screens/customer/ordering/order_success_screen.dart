@@ -29,6 +29,7 @@ class OrderSuccessScreen extends StatefulWidget {
 class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
   late final ConfettiController _confettiCtrl;
   double _memberSavings = 0;
+  Map<String, dynamic>? _loyalty; // {enabled,size,discount,filled,reward_ready,reward_code}
 
   @override
   void initState() {
@@ -36,6 +37,19 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
     _confettiCtrl = ConfettiController(duration: const Duration(seconds: 3));
     _confettiCtrl.play();
     _loadMemberSavings();
+    _loadLoyalty();
+  }
+
+  Future<void> _loadLoyalty() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return;
+      final res = await Supabase.instance.client
+          .rpc('get_loyalty_streak', params: {'p_user_id': uid});
+      if (res is Map && (res['enabled'] == true)) {
+        if (mounted) setState(() => _loyalty = Map<String, dynamic>.from(res));
+      }
+    } catch (_) {/* non-fatal */}
   }
 
   Future<void> _loadMemberSavings() async {
@@ -58,6 +72,130 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
 
   void _goHome() {
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Widget _buildLoyaltyCard() {
+    final l = _loyalty!;
+    final size = (l['size'] as num?)?.toInt() ?? 6;
+    final filled = (l['filled'] as num?)?.toInt() ?? 0;
+    final discount = (l['discount'] as num?)?.toInt() ?? 50;
+    final rewardReady = l['reward_ready'] == true;
+    final rewardCode = l['reward_code'] as String?;
+    final earnedNow = rewardReady && filled >= size;
+    const brand = Color(0xFFFF5A1F);
+
+    final title = earnedNow
+        ? '🎉 $discount% OFF unlocked!'
+        : 'Order Rewards';
+    final subtitle = earnedNow
+        ? 'You completed $size orders — enjoy $discount% off your next order. It applies automatically at checkout.'
+        : '${size - filled} more order${(size - filled) == 1 ? '' : 's'} to unlock $discount% off your next order.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: brand.withValues(alpha: earnedNow ? 0.12 : 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: brand.withValues(alpha: earnedNow ? 0.45 : 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: brand,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Dotted progress bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(size, (i) {
+              final isFilled = i < filled;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i == size - 1 ? 0 : 6),
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 22,
+                        width: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isFilled ? brand : Colors.transparent,
+                          border: Border.all(
+                            color: isFilled
+                                ? brand
+                                : brand.withValues(alpha: 0.35),
+                            width: 2,
+                          ),
+                        ),
+                        child: isFilled
+                            ? const Icon(Icons.check,
+                                size: 13, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(height: 4),
+                      // connecting track
+                      Container(
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: isFilled
+                              ? brand
+                              : brand.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+          if (earnedNow && rewardCode != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: brand.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.local_offer_rounded, size: 16, color: brand),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Code: $rewardCode',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      color: brand,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -154,6 +292,12 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                           ],
                         ),
                       ),
+                    ],
+
+                    // Loyalty punch-card progress (6 orders → 50% off next).
+                    if (_loyalty != null) ...[
+                      const SizedBox(height: 20),
+                      _buildLoyaltyCard(),
                     ],
 
                     // Contactless delivery PIN
