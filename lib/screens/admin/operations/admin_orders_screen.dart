@@ -1887,6 +1887,8 @@ class _OrderDetailSheet extends ConsumerWidget {
           const SizedBox(height: 8),
           _RefundedLine(orderId: id),
           const SizedBox(height: 16),
+          _AdminOrderOptionsButton(order: order),
+          const SizedBox(height: 16),
           _AdminMoneyActions(order: order),
         ],
       ),
@@ -2325,6 +2327,417 @@ class _ServerOrderSearchState extends State<_ServerOrderSearch> {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Admin per-order options menu (Notes, Block, Edit Order/Fee, etc.) ────────
+class _AdminOrderOptionsButton extends StatelessWidget {
+  final Map<String, dynamic> order;
+  const _AdminOrderOptionsButton({required this.order});
+
+  String get _orderId => (order['id'] ?? '').toString();
+  String? get _userId => order['user_id']?.toString();
+  String get _customerName => ((order['users'] as Map?)?['name'] ??
+          (order['users'] as Map?)?['email'] ?? 'Customer').toString();
+  String? get _adminId => SupabaseConfig.client.auth.currentUser?.id;
+
+  Future<dynamic> _rpc(String fn, Map<String, dynamic> params) =>
+      SupabaseConfig.client.rpc(fn, params: {...params, 'p_admin_id': _adminId});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _openMenu(context),
+        icon: const Icon(Icons.tune_rounded, size: 18),
+        label: const Text('Admin options'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4F46E5),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 13),
+        ),
+      ),
+    );
+  }
+
+  void _openMenu(BuildContext context) {
+    final items = <(IconData, String, Future<void> Function())>[
+      (Icons.sticky_note_2_rounded, 'Notes', () => _notes(context)),
+      (Icons.timeline_rounded, 'View Order Status', () async => _orderStatus(context)),
+      (Icons.receipt_long_rounded, 'View Order History', () async => _orderHistory(context)),
+      (Icons.account_balance_wallet_rounded, 'Wallet History', () async => _walletHistory(context)),
+      (Icons.credit_card_rounded, 'Credit Card History', () async => _cardHistory(context)),
+      (Icons.add_card_rounded, 'Adjust Wallet', () async => _adjustWallet(context)),
+      (Icons.edit_note_rounded, 'Edit Order', () async => _editOrder(context)),
+      (Icons.local_shipping_rounded, 'Edit Delivery Fee', () => _editDeliveryFee(context)),
+      (Icons.payments_rounded, 'Change Payment Method', () => _changePayment(context)),
+      (Icons.block_rounded, 'Block Customer', () => _blockCustomer(context)),
+    ];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Select Option',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          ),
+          for (final it in items)
+            ListTile(
+              leading: Icon(it.$1, color: const Color(0xFF4F46E5)),
+              title: Text(it.$2),
+              onTap: () { Navigator.pop(ctx); it.$3(); },
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
+  void _toast(BuildContext c, String m, {bool err = false}) {
+    if (err) { AppSnackbar.error(c, m); } else { AppSnackbar.success(c, m); }
+  }
+
+  // ── Notes ──
+  Future<void> _notes(BuildContext context) async {
+    final ctl = TextEditingController(text: (order['admin_notes'] ?? '').toString());
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Order notes'),
+        content: TextField(
+          controller: ctl, maxLines: 4,
+          decoration: const InputDecoration(hintText: 'Internal admin note…'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await _rpc('admin_set_order_notes', {'p_order_id': _orderId, 'p_notes': ctl.text.trim()});
+      order['admin_notes'] = ctl.text.trim();
+      if (context.mounted) _toast(context, 'Note saved');
+    } catch (e) { if (context.mounted) _toast(context, _msg(e), err: true); }
+  }
+
+  // ── Order status ──
+  void _orderStatus(BuildContext context) {
+    const steps = [
+      ('ordered_at', 'Placed'), ('confirmed_at', 'Confirmed'),
+      ('preparing_started_at', 'Preparing'), ('ready_at', 'Ready'),
+      ('picked_up_at', 'Picked up'), ('on_the_way_at', 'Out for delivery'),
+      ('delivered_at', 'Delivered'), ('cancelled_at', 'Cancelled'),
+    ];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Status: ${(order['status'] ?? '').toString()}'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final s in steps)
+              if (order[s.$1] != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text('${s.$2}: ${_fmt(order[s.$1])}',
+                      style: const TextStyle(fontSize: 13)),
+                ),
+          ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+      ),
+    );
+  }
+
+  // ── Order history (this customer) ──
+  void _orderHistory(BuildContext context) {
+    if (_userId == null) return;
+    _listSheet(context, 'Order history', () async {
+      final rows = await SupabaseConfig.client
+          .from('orders')
+          .select('id, status, total_amount, created_at, payment_method')
+          .eq('user_id', _userId!)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return (rows as List).map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return '#${m['id'].toString().substring(0, 8).toUpperCase()} · '
+            '${m['status']} · ${AppConstants.currencySymbol}${(m['total_amount'] ?? 0).toStringAsFixed(2)} · ${_fmt(m['created_at'])}';
+      }).toList();
+    });
+  }
+
+  // ── Credit card history ──
+  void _cardHistory(BuildContext context) {
+    if (_userId == null) return;
+    _listSheet(context, 'Credit card history', () async {
+      final rows = await SupabaseConfig.client
+          .from('payments')
+          .select('amount, method, status, created_at, order_id')
+          .eq('user_id', _userId!)
+          .inFilter('method', ['card', 'stripe'])
+          .order('created_at', ascending: false)
+          .limit(50);
+      return (rows as List).map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        return '${AppConstants.currencySymbol}${(m['amount'] ?? 0).toStringAsFixed(2)} · '
+            '${m['status']} · ${_fmt(m['created_at'])}';
+      }).toList();
+    });
+  }
+
+  void _walletHistory(BuildContext context) {
+    if (_userId == null) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => AdminWalletHistoryScreen(userId: _userId!, userName: _customerName),
+    ));
+  }
+
+  void _adjustWallet(BuildContext context) {
+    if (_userId == null) return;
+    AdminWalletAdjustSheet.show(context, userId: _userId!, customerName: _customerName);
+  }
+
+  // ── Edit delivery fee ──
+  Future<void> _editDeliveryFee(BuildContext context) async {
+    final ctl = TextEditingController(
+        text: ((order['delivery_fee'] ?? 0) as num).toStringAsFixed(2));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit delivery fee'),
+        content: TextField(controller: ctl, keyboardType: TextInputType.number,
+            decoration: InputDecoration(prefixText: AppConstants.currencySymbol)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final fee = double.tryParse(ctl.text.trim());
+    if (fee == null || fee < 0) { _toast(context, 'Invalid fee', err: true); return; }
+    try {
+      final r = await _rpc('admin_edit_delivery_fee', {'p_order_id': _orderId, 'p_new_fee': fee});
+      final m = r is Map ? r : {};
+      order['delivery_fee'] = m['delivery_fee'] ?? fee;
+      order['tax_amount'] = m['tax_amount'] ?? order['tax_amount'];
+      order['total_amount'] = m['total_amount'] ?? order['total_amount'];
+      if (context.mounted) _toast(context, 'Delivery fee updated');
+    } catch (e) { if (context.mounted) _toast(context, _msg(e), err: true); }
+  }
+
+  // ── Change payment method ──
+  Future<void> _changePayment(BuildContext context) async {
+    const methods = ['cash', 'card', 'wallet'];
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Change payment method'),
+        children: [
+          for (final m in methods)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text(m[0].toUpperCase() + m.substring(1)),
+            ),
+        ],
+      ),
+    );
+    if (chosen == null || !context.mounted) return;
+    try {
+      await _rpc('admin_change_payment_method', {'p_order_id': _orderId, 'p_method': chosen});
+      order['payment_method'] = chosen;
+      if (context.mounted) _toast(context, 'Payment method → $chosen');
+    } catch (e) { if (context.mounted) _toast(context, _msg(e), err: true); }
+  }
+
+  // ── Block / unblock customer ──
+  Future<void> _blockCustomer(BuildContext context) async {
+    if (_userId == null) return;
+    final reasonCtl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Block customer'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('They will not be able to place new orders until unblocked.',
+              style: TextStyle(fontSize: 12)),
+          const SizedBox(height: 8),
+          TextField(controller: reasonCtl,
+              decoration: const InputDecoration(labelText: 'Reason (optional)')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(ctx, true), child: const Text('Block')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await _rpc('admin_block_customer',
+          {'p_user_id': _userId, 'p_blocked': true, 'p_reason': reasonCtl.text.trim()});
+      if (context.mounted) _toast(context, 'Customer blocked');
+    } catch (e) { if (context.mounted) _toast(context, _msg(e), err: true); }
+  }
+
+  // ── Edit order (line item quantities) ──
+  Future<void> _editOrder(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _EditOrderItemsSheet(orderId: _orderId, adminId: _adminId),
+    );
+  }
+
+  // ── Generic list sheet (order/card history) ──
+  void _listSheet(BuildContext context, String title,
+      Future<List<String>> Function() loader) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false, initialChildSize: 0.6, maxChildSize: 0.9,
+        builder: (ctx, scroll) => Column(children: [
+          Padding(padding: const EdgeInsets.all(16),
+              child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
+          Expanded(
+            child: FutureBuilder<List<String>>(
+              future: loader(),
+              builder: (c, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snap.hasError) return Center(child: Text(friendlyError(snap.error!)));
+                final rows = snap.data ?? [];
+                if (rows.isEmpty) return const Center(child: Text('Nothing to show'));
+                return ListView.separated(
+                  controller: scroll,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(rows[i], style: const TextStyle(fontSize: 13)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  String _fmt(dynamic v) {
+    final t = DateTime.tryParse((v ?? '').toString());
+    if (t == null) return '';
+    final l = t.toLocal();
+    return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')} '
+        '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _msg(Object e) => e.toString().replaceAll('Exception: ', '');
+}
+
+// Edit order line items (change quantity / remove) with live recompute.
+class _EditOrderItemsSheet extends StatefulWidget {
+  final String orderId;
+  final String? adminId;
+  const _EditOrderItemsSheet({required this.orderId, required this.adminId});
+  @override
+  State<_EditOrderItemsSheet> createState() => _EditOrderItemsSheetState();
+}
+
+class _EditOrderItemsSheetState extends State<_EditOrderItemsSheet> {
+  late Future<List<Map<String, dynamic>>> _future;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final rows = await SupabaseConfig.client
+        .from('order_items')
+        .select('id, item_name, quantity, price, subtotal')
+        .eq('order_id', widget.orderId);
+    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> _setQty(String itemId, int qty) async {
+    setState(() => _busy = true);
+    try {
+      await SupabaseConfig.client.rpc('admin_edit_order_item', params: {
+        'p_item_id': itemId, 'p_qty': qty, 'p_admin_id': widget.adminId,
+      });
+      setState(() => _future = _load());
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, e.toString().replaceAll('Exception: ', ''));
+    } finally { if (mounted) setState(() => _busy = false); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false, initialChildSize: 0.6, maxChildSize: 0.9,
+      builder: (ctx, scroll) => Column(children: [
+        const Padding(padding: EdgeInsets.all(16),
+            child: Text('Edit order', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800))),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _future,
+            builder: (c, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final items = snap.data ?? [];
+              if (items.isEmpty) return const Center(child: Text('No items'));
+              return ListView.separated(
+                controller: scroll,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final it = items[i];
+                  final qty = (it['quantity'] ?? 1) as int;
+                  final id = it['id'].toString();
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(it['item_name']?.toString() ?? 'Item',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    subtitle: Text('${AppConstants.currencySymbol}${((it['price'] ?? 0) as num).toStringAsFixed(2)} each'),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                        onPressed: _busy ? null : () => _setQty(id, qty - 1),
+                        icon: const Icon(Icons.remove_circle_outline)),
+                      Text('$qty', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      IconButton(
+                        onPressed: _busy ? null : () => _setQty(id, qty + 1),
+                        icon: const Icon(Icons.add_circle_outline)),
+                    ]),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const Padding(padding: EdgeInsets.all(12),
+            child: Text('Removing an item (qty 0) deletes it. Totals recompute automatically.',
+                style: TextStyle(fontSize: 11))),
+      ]),
     );
   }
 }

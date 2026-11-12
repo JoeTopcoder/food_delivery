@@ -232,6 +232,15 @@ Deno.serve(async (request) => {
     return json({ error: "Missing required fields", request_id: requestId }, 400);
   }
 
+  // Blocked customers cannot place orders (admin_block_customer sets is_active=false).
+  {
+    const { data: u } = await admin
+      .from("users").select("is_active").eq("id", userId).maybeSingle();
+    if (u && u.is_active === false) {
+      return json({ error: "Your account has been suspended. Please contact support.", request_id: requestId }, 403);
+    }
+  }
+
   // ── Company sponsorship: revalidate server-side & snap to company address ───
   if (sponsorship?.reservation_id) {
     const { data: feCfg } = await admin
