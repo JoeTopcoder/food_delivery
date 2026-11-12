@@ -2042,11 +2042,13 @@ class _AdminMoneyActionsState extends State<_AdminMoneyActions> {
   String get _customerName =>
       ((widget.order['users'] as Map?)?['name'] ?? (widget.order['users'] as Map?)?['email'] ?? 'Customer').toString();
   double get _total => (widget.order['total_amount'] ?? 0).toDouble();
+  double get _delivery => (widget.order['delivery_fee'] ?? 0).toDouble();
   String get _orderId => (widget.order['id'] ?? '').toString();
 
-  Future<void> _refund() async {
-    final amountCtl = TextEditingController(text: _total.toStringAsFixed(2));
-    final reasonCtl = TextEditingController();
+  Future<void> _refund({double? preset, String? presetReason}) async {
+    final amountCtl =
+        TextEditingController(text: (preset ?? _total).toStringAsFixed(2));
+    final reasonCtl = TextEditingController(text: presetReason ?? '');
     bool toWallet = true;
     final ok = await showDialog<bool>(
       context: context,
@@ -2098,6 +2100,86 @@ class _AdminMoneyActionsState extends State<_AdminMoneyActions> {
     }
   }
 
+  double get _paymentCompleted =>
+      (widget.order['payment_status'] ?? '').toString() == 'completed' ? 1 : 0;
+
+  /// Waive (reduce) what the customer pays. For an unpaid (cash) order this
+  /// lowers the total they owe on delivery; for an already-paid order it refunds
+  /// the waived amount to their wallet. Backed by admin_waive_order_amount.
+  Future<void> _waive({double? preset, String? presetReason}) async {
+    final amountCtl =
+        TextEditingController(text: (preset ?? _delivery).toStringAsFixed(2));
+    final reasonCtl = TextEditingController(text: presetReason ?? '');
+    final paid = _paymentCompleted == 1;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Waive amount'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: amountCtl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+                labelText: 'Amount to waive',
+                prefixText: AppConstants.currencySymbol),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: reasonCtl,
+            decoration: const InputDecoration(labelText: 'Reason'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            paid
+                ? 'This order is already paid — the waived amount is refunded to the customer wallet.'
+                : 'Unpaid order — the customer pays this much less on delivery.',
+            style: const TextStyle(fontSize: 11),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Waive')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final amount = double.tryParse(amountCtl.text.trim());
+    if (amount == null || amount <= 0) {
+      AppSnackbar.error(context, 'Enter a valid amount');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final adminId = SupabaseConfig.client.auth.currentUser?.id;
+      final res = await SupabaseConfig.client.rpc('admin_waive_order_amount',
+          params: {
+            'p_order_id': _orderId,
+            'p_amount': amount,
+            'p_reason': reasonCtl.text.trim(),
+            'p_admin_id': adminId,
+          });
+      final m = res is Map ? Map<String, dynamic>.from(res) : {};
+      if (mounted) {
+        AppSnackbar.success(
+            context,
+            m['method'] == 'wallet_refund'
+                ? 'Waived ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} (refunded to wallet)'
+                : 'Waived ${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} — customer pays less');
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.error(context, e.toString().replaceAll('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_userId == null) return const SizedBox.shrink();
@@ -2119,8 +2201,41 @@ class _AdminMoneyActionsState extends State<_AdminMoneyActions> {
           label: const Text('Wallet'),
         )),
       ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _busy ? null : () => _waive(),
+            icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+            label: const Text('Waive amount'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
+        if (_delivery > 0) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _waive(
+                        preset: _delivery,
+                        presetReason: 'Delivery fee waived',
+                      ),
+              icon: const Icon(Icons.local_shipping_rounded, size: 18),
+              label: Text('Waive delivery (${AppConstants.currencySymbol}${_delivery.toStringAsFixed(0)})'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                side: const BorderSide(color: Color(0xFF2563EB)),
+              ),
+            ),
+          ),
+        ],
+      ]),
       const SizedBox(height: 6),
-      Text('Wallet: top up (credit) or deduct (debit) the customer balance. All actions are audited.',
+      Text('Waive: reduce what the customer pays (unpaid orders pay less on delivery; paid orders get a wallet refund). Refund: give money back. Wallet: top up / deduct. All actions are audited.',
           style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
     ]);
   }
