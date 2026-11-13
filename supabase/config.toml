@@ -415,6 +415,15 @@ verify_jwt = false
 [functions.send-fcm-notification]
 verify_jwt = false
 
+# NCB Genius Checkout. ncb-webhook is called by NCB (HMAC-signed, no JWT);
+# ncb-checkout/ncb-verify take user_id/order_id in the body like place-order.
+[functions.ncb-webhook]
+verify_jwt = false
+[functions.ncb-checkout]
+verify_jwt = false
+[functions.ncb-verify]
+verify_jwt = false
+
 [functions.activate-membership]
 verify_jwt = false
 
