@@ -85,6 +85,48 @@ class PaymentService {
     return <String, String>{};
   }
 
+  // ── NCB Genius Checkout (hosted redirect, in-app WebView) ──────────────────
+
+  /// Create an NCB hosted checkout session for [orderId]. Returns the
+  /// checkout URL to load in the in-app WebView plus the session id.
+  Future<({String checkoutUrl, String sessionId})> createNcbCheckout(
+      String orderId) async {
+    final headers = await _buildFunctionHeaders();
+    final res = await _supabaseClient.functions.invoke(
+      'ncb-checkout',
+      body: {'order_id': orderId},
+      headers: headers,
+    );
+    final data = res.data is Map<String, dynamic>
+        ? res.data as Map<String, dynamic>
+        : <String, dynamic>{};
+    if (res.status >= 400 || data['error'] != null) {
+      throw Exception((data['error'] ?? 'Could not start NCB payment').toString());
+    }
+    final url = (data['checkout_url'] ?? '').toString();
+    if (url.isEmpty) throw Exception('NCB did not return a checkout URL');
+    return (checkoutUrl: url, sessionId: (data['session_id'] ?? '').toString());
+  }
+
+  /// Verify an NCB session after the customer returns. Authoritative truth is
+  /// the webhook, but this confirms immediately for the UI. Returns true if paid.
+  Future<bool> verifyNcbPayment(String orderId) async {
+    try {
+      final headers = await _buildFunctionHeaders();
+      final res = await _supabaseClient.functions.invoke(
+        'ncb-verify',
+        body: {'order_id': orderId},
+        headers: headers,
+      );
+      final data = res.data is Map<String, dynamic>
+          ? res.data as Map<String, dynamic>
+          : <String, dynamic>{};
+      return data['paid'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<FunctionResponse> _invokeStripeFunction(
     String functionName, {
     required Map<String, dynamic> body,

@@ -187,6 +187,13 @@
   /// rate; anything else (default) shows JMD.
   static String checkoutCurrency = 'JMD';
 
+  /// Card-payment provider, admin-controlled via the `payment_provider`
+  /// app_config row: 'stripe' (default), 'ncb' (NCB Genius Checkout), or 'auto'
+  /// (NCB first, fall back to Stripe). Overwritten from app_config at startup.
+  static String paymentProvider = 'stripe';
+  static bool get useNcbPayments =>
+      paymentProvider == 'ncb' || paymentProvider == 'auto';
+
   // ── Business Constants (defaults — overridden from app_config table) ──────
 
   // Fees

@@ -402,6 +402,8 @@ class AppConfigService {
     AppConstants.currencyName = _str(c, 'currency_name', AppConstants.currencyName);
     AppConstants.checkoutCurrency =
         _str(c, 'checkout_currency', AppConstants.checkoutCurrency);
+    AppConstants.paymentProvider =
+        _str(c, 'payment_provider', AppConstants.paymentProvider);
 
     // Stripe
     if (c.containsKey('stripe_publishable_key')) {
