@@ -2680,10 +2680,21 @@ class _EditOrderItemsSheetState extends State<_EditOrderItemsSheet> {
   Future<void> _setQty(String itemId, int qty) async {
     setState(() => _busy = true);
     try {
-      await SupabaseConfig.client.rpc('admin_edit_order_item', params: {
+      final res = await SupabaseConfig.client.rpc('admin_edit_order_item', params: {
         'p_item_id': itemId, 'p_qty': qty, 'p_admin_id': widget.adminId,
       });
+      final m = res is Map ? Map<String, dynamic>.from(res) : {};
+      final refunded = (m['refunded'] ?? 0).toDouble();
+      final total = (m['total'] ?? 0).toDouble();
       setState(() => _future = _load());
+      if (mounted) {
+        AppSnackbar.success(
+          context,
+          refunded > 0
+              ? 'Updated — ${AppConstants.currencySymbol}${refunded.toStringAsFixed(2)} refunded to the customer wallet'
+              : 'Updated — new total ${AppConstants.currencySymbol}${total.toStringAsFixed(2)}',
+        );
+      }
     } catch (e) {
       if (mounted) AppSnackbar.error(context, e.toString().replaceAll('Exception: ', ''));
     } finally { if (mounted) setState(() => _busy = false); }
