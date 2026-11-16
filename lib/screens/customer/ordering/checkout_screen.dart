@@ -1663,10 +1663,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                                       ? ''
                                       : feeResult?.restaurantOverride != null
                                       ? ' (Store)'
-                                      : ' (Base)'}${feeResult?.distanceMiles != null
-                                      ? ' – ${feeResult!.distanceMiles!.toStringAsFixed(1)} mi'
-                                      : distanceKm != null
-                                      ? ' – ${(distanceKm * 0.621371).toStringAsFixed(1)} mi'
+                                      : ' (Base)'}${distanceKm != null
+                                      ? ' – ${distanceKm.toStringAsFixed(1)} km'
                                       : ''}',
                             feeLoading
                                 ? 'Calculating…'
