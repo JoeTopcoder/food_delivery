@@ -80,7 +80,8 @@ class RestaurantCard extends StatelessWidget {
                       : _PlaceholderImage(height: imageHeight.toDouble()),
                 ),
                 // Rating badge (moved to bottom-left so the favorite button
-                // can sit at the top-right)
+                // can sit at the top-right). Shows "New" when the restaurant
+                // has no reviews (rating is nulled for no-review restaurants).
                 Positioned(
                   bottom: spacing * 0.75,
                   left: spacing * 0.75,
