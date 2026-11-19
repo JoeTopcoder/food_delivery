@@ -57,9 +57,33 @@ class GasService {
     return res.toString();
   }
 
-  /// Pay an awaiting-payment order from the HotBite wallet (audited ledger).
+  /// Pay an order from the HotBite wallet (audited ledger).
   Future<void> payFromWallet(String orderId) async {
     await _db.rpc('gas_pay_wallet', params: {'p_order': orderId});
+  }
+
+  /// Mark an order Cash on Delivery (collected when delivered).
+  Future<void> setCashOnDelivery(String orderId) async {
+    await _db.rpc('gas_set_cash', params: {'p_order': orderId});
+  }
+
+  /// Pay by saved card via the gas-pay-order edge function (Stripe).
+  Future<void> payByCard(String orderId, String paymentMethodId) async {
+    final res = await _db.functions.invoke('gas-pay-order', body: {
+      'orderId': orderId,
+      'method': 'stripe',
+      'paymentMethodId': paymentMethodId,
+    });
+    final data = res.data;
+    if (data is Map && data['error'] != null) {
+      throw Exception(data['error'].toString());
+    }
+  }
+
+  /// Fetch a single gas order by id (owner/customer/admin per RLS).
+  Future<GasOrder?> getOrder(String orderId) async {
+    final row = await _db.from('gas_orders').select().eq('id', orderId).maybeSingle();
+    return row == null ? null : GasOrder.fromMap(row);
   }
 
   // ── Orders (customer + supplier share the same table via RLS) ─────────────

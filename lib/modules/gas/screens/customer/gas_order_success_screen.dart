@@ -5,9 +5,13 @@ import '../../widgets/gas_ui.dart';
 /// "Order Placed!" confirmation with a progress tracker — matches the mockup,
 /// adapted to the upfront-payment flow (payment is already done when paid).
 class GasOrderSuccessScreen extends StatelessWidget {
-  const GasOrderSuccessScreen({super.key, required this.supplierName, this.paid = true});
+  const GasOrderSuccessScreen({super.key, required this.supplierName, this.method = 'wallet'});
   final String supplierName;
-  final bool paid;
+  /// 'wallet' | 'stripe' | 'cash' | 'unpaid'
+  final String method;
+
+  bool get _paid => method == 'wallet' || method == 'stripe';
+  bool get _cash => method == 'cash';
 
   @override
   Widget build(BuildContext context) {
@@ -34,10 +38,14 @@ class GasOrderSuccessScreen extends StatelessWidget {
               const SizedBox(height: 28),
               _Step(done: true, title: 'Order received',
                   subtitle: 'We\'ve sent your order to the supplier.', first: true),
-              _Step(done: paid, title: paid ? 'Payment received' : 'Make payment',
-                  subtitle: paid
-                      ? 'Your wallet was charged for this order.'
-                      : 'Top up your wallet and pay from My Orders.'),
+              _Step(
+                  done: _paid || _cash,
+                  title: _cash ? 'Cash on delivery' : (_paid ? 'Payment received' : 'Make payment'),
+                  subtitle: _cash
+                      ? 'Pay the driver in cash when your gas arrives.'
+                      : (_paid
+                          ? 'You were charged for this order.'
+                          : 'Top up your wallet and pay from My Orders.')),
               const _Step(done: false, title: 'Supplier confirmation',
                   subtitle: 'The supplier will confirm availability.'),
               const _Step(done: false, title: 'Out for delivery',

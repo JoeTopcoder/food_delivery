@@ -5,7 +5,7 @@ import '../../../../providers/auth_user/auth_provider.dart';
 import '../../models/gas_models.dart';
 import '../../providers/gas_providers.dart';
 import '../../widgets/gas_ui.dart';
-import 'gas_order_success_screen.dart';
+import 'gas_checkout_screen.dart';
 
 /// Supplier detail — pick a cylinder option (exchange/new), quantity, and
 /// place & pay (upfront). Matches the HotBite gas mockup design.
@@ -71,18 +71,13 @@ class _GasSupplierScreenState extends ConsumerState<GasSupplierScreen> {
         lat: lat,
         lng: lng,
       );
-      var paid = true;
-      try {
-        await svc.payFromWallet(orderId);
-      } catch (_) {
-        paid = false;
-      }
       if (!mounted) return;
       ref.invalidate(myGasOrdersProvider);
+      // Go to checkout to choose wallet / card / cash.
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => GasOrderSuccessScreen(supplierName: widget.supplier.businessName, paid: paid),
+          builder: (_) => GasCheckoutScreen(orderId: orderId, supplierName: widget.supplier.businessName),
         ),
       );
     } catch (e) {

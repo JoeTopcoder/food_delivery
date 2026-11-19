@@ -18,6 +18,12 @@ final gasProductsProvider =
   return ref.watch(gasServiceProvider).getProducts(supplierId);
 });
 
+/// A single gas order by id (for the checkout screen).
+final gasOrderProvider =
+    FutureProvider.autoDispose.family<GasOrder?, String>((ref, orderId) {
+  return ref.watch(gasServiceProvider).getOrder(orderId);
+});
+
 /// The current customer's gas orders.
 final myGasOrdersProvider = FutureProvider.autoDispose<List<GasOrder>>((ref) {
   final uid = ref.watch(currentUserIdProvider);
