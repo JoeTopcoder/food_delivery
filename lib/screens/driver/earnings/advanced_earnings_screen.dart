@@ -974,32 +974,11 @@ class _DetailedDeliveryRowState extends State<_DetailedDeliveryRow> {
                             ],
                           ],
                         ),
-                        Row(
-                          children: [
-                            Text(
-                              fmt.format(d.earnedAt),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${d.distanceKm.toStringAsFixed(1)} km',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${d.durationMinutes.toStringAsFixed(0)} min',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
+                        Text(
+                          '${fmt.format(d.earnedAt)} · ${d.distanceKm.toStringAsFixed(1)} km · ${d.durationMinutes.toStringAsFixed(0)} min',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                       ],
                     ),
