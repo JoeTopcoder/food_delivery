@@ -29,6 +29,7 @@ class PickLine {
   final int pickedQuantity;
   final String? barcode; // scan code linked to the product, if any
   final String? imageUrl;
+  final String category; // aisle/section, so the picker works one aisle at a time
 
   const PickLine({
     required this.orderItemId,
@@ -38,6 +39,7 @@ class PickLine {
     required this.pickedQuantity,
     required this.barcode,
     required this.imageUrl,
+    this.category = 'Other',
   });
 
   bool get done => pickedQuantity >= quantity;
@@ -51,5 +53,6 @@ class PickLine {
     pickedQuantity: pickedQuantity ?? this.pickedQuantity,
     barcode: barcode ?? this.barcode,
     imageUrl: imageUrl,
+    category: category,
   );
 }

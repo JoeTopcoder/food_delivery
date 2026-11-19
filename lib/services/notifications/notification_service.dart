@@ -318,6 +318,22 @@ class NotificationService {
   /// Get current FCM token
   Future<String?> getFCMToken() async {
     try {
+      // On iOS, getToken() returns null until the APNs token is available.
+      // Fetch/await the APNs token first so the very first launch registers a
+      // real FCM token (otherwise iOS devices never get a token → no push).
+      if (!kIsWeb && Platform.isIOS) {
+        var apns = await _messaging.getAPNSToken();
+        // The APNs token can take a moment after permission is granted; retry
+        // briefly so we don't give up and save a null token.
+        for (var i = 0; i < 5 && apns == null; i++) {
+          await Future.delayed(const Duration(seconds: 1));
+          apns = await _messaging.getAPNSToken();
+        }
+        if (apns == null) {
+          AppLogger.error('APNs token unavailable — iOS push cannot register '
+              '(check APNs key in Firebase + Push capability provisioning)');
+        }
+      }
       return await _messaging.getToken();
     } catch (e) {
       AppLogger.error('Error getting FCM token: $e');
@@ -709,7 +725,16 @@ class NotificationService {
         onCallCancelled?.call(data['call_id'] as String?);
         break;
       case 'promo':
-        AppLogger.info('Promo notification: $title');
+      case 'admin_broadcast':
+        AppLogger.info('Promo/broadcast notification: $title');
+        if (navigate) {
+          // Deterministic landing so tapping a marketing push always opens the
+          // customer home cleanly (never leaves the app on a blank screen).
+          navigatorKey?.currentState?.pushNamedAndRemoveUntil(
+            '/customer-home',
+            (route) => route.isFirst,
+          );
+        }
         break;
       case 'birthday':
         AppLogger.info('Birthday notification: $title');

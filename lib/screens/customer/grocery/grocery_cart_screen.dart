@@ -55,40 +55,17 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
     if (surgeAsync.hasValue) _lastSurge = surgeAsync.value!;
     final surgeMultiplier = surgeAsync.valueOrNull ?? _lastSurge;
 
-    // Accumulate delivery / service fee across all stores
-    double totalActiveFee = 0;
+    // Grocery uses ONE flat delivery fee that matches the grocery checkout and
+    // the server (app_config grocery_delivery_fee), so the cart, checkout and the
+    // final charge are always identical — no distance/number-of-stores variance.
     final storeData = <String, Restaurant?>{};
-    final feeTypes = <String>{};
-    bool anyFeeLoading = false;
-    final hasDeliveryCoords = delLat != null && delLng != null;
     for (final sid in storeIds) {
       // Masked grocery store: name/logo anonymised, fees & coords intact.
-      final sAsync = ref.watch(groceryStoreByIdProvider(sid));
-      final s = sAsync.valueOrNull;
-      storeData[sid] = s;
-      if (isPickup) {
-        totalActiveFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
-      } else if (hasDeliveryCoords) {
-        final feeKey =
-            '$sid|$delLat|$delLng|${s?.latitude ?? ''}|${s?.longitude ?? ''}|${s?.deliveryFee ?? ''}';
-        final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
-        if (feeAsync.isLoading) anyFeeLoading = true;
-        final fr = feeAsync.valueOrNull;
-        totalActiveFee += fr?.deliveryFee ?? AppConstants.defaultDeliveryFee;
-        if (fr != null) {
-          if (fr.restaurantOverride != null) {
-            feeTypes.add('Store');
-          } else if (fr.calculation == 'distance_based') {
-            feeTypes.add('KM');
-          } else {
-            feeTypes.add('Base');
-          }
-        }
-      } else {
-        totalActiveFee += AppConstants.defaultDeliveryFee;
-      }
+      storeData[sid] = ref.watch(groceryStoreByIdProvider(sid)).valueOrNull;
     }
-    final feeTypeLabel = feeTypes.isNotEmpty ? ' (${feeTypes.join(', ')})' : '';
+    final double totalActiveFee =
+        isPickup ? 0.0 : AppConstants.groceryDeliveryFee;
+    const feeTypeLabel = '';
 
     // HotBite+ free-delivery preview (delivery only).
     final activeSub = ref.watch(activeSubscriptionProvider).valueOrNull;
@@ -103,8 +80,11 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
       subtotal,
       otherCharges: totalActiveFee,
     );
-    // Tax (GCT) is charged ONLY on the delivery fee, not the product subtotal.
-    final tax = effectiveFee * AppConstants.taxRate;
+    // Tax (GCT) on the delivery fee only, and only when enabled — mirrors the
+    // grocery checkout and the server so the tax shown matches what's charged.
+    final effectiveTaxRate =
+        (AppConstants.taxEnabled && !isPickup) ? AppConstants.taxRate : 0.0;
+    final tax = effectiveFee * effectiveTaxRate;
     final total = subtotal + effectiveFee + platformServiceFee + tax;
 
     return Scaffold(
@@ -536,10 +516,8 @@ class _GroceryCartScreenState extends ConsumerState<GroceryCartScreen> {
                                     : surgeMultiplier > 1.0
                                     ? 'Delivery (${((surgeMultiplier - 1) * 100).toStringAsFixed(0)}% surge)'
                                     : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
-                                anyFeeLoading
-                                    ? 'Calculating…'
-                                    : subDeliveryFree
-                                    ? '\$0.00'
+                                subDeliveryFree
+                                    ? '${AppConstants.currencySymbol}0.00'
                                     : '${AppConstants.currencySymbol}${totalActiveFee.toStringAsFixed(2)}',
                                 valueColor: subDeliveryFree
                                     ? const Color(0xFF528BFF)

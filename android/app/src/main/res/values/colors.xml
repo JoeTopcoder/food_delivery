@@ -4,4 +4,6 @@
     <!-- Midnight Navy. Matches the first frame of the Flutter splash gradient,
          so the handoff from this window to Flutter is not a colour jump. -->
     <color name="brand_bg">#0B1220</color>
+    <!-- Accent colour applied to the notification small icon / title. HotBite orange. -->
+    <color name="notification_color">#FF6A00</color>
 </resources>

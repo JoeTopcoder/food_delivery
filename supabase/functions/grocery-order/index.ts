@@ -306,6 +306,8 @@ Deno.serve(async (request) => {
         getConfig("default_commission_rate", 0.15),
       ]);
     const isTaxEnabled = taxEnabledFlag > 0;
+    // Flat delivery fee charged on every grocery delivery (admin-configurable).
+    const groceryFlatDeliveryFee = await getConfig("grocery_delivery_fee", 500.0);
 
     // Check if current hour is within a peak window
     const currentHour = new Date().getUTCHours();
@@ -336,8 +338,13 @@ Deno.serve(async (request) => {
         }
       }
     } else if (!isPickup) {
-      deliveryFee = store.delivery_fee ?? defaultDeliveryFee;
+      // Flat grocery delivery fee (admin-configurable `grocery_delivery_fee`,
+      // default J$500) on every delivery — no per-km build-up. The driver is
+      // paid from this fee, so it must always be a real positive amount.
+      deliveryFee = Math.round(groceryFlatDeliveryFee * 100) / 100;
 
+      // Still enforce the delivery range: a flat fee is a price, not a promise
+      // to drive any distance.
       if (deliveryLat && deliveryLng && store.latitude && store.longitude) {
         deliveryDistanceKm = haversineKm(
           store.latitude, store.longitude, deliveryLat, deliveryLng
@@ -347,11 +354,6 @@ Deno.serve(async (request) => {
             error: `Delivery distance (${deliveryDistanceKm.toFixed(1)} km) exceeds max of ${maxKm} km`,
           }, 400);
         }
-        const extraKm = Math.max(0, deliveryDistanceKm - baseKm);
-        const calcFee = (baseFee + extraKm * perKmFee) * surgeMultiplier + peakFee;
-        deliveryFee = Math.max(deliveryFee, Math.round(calcFee * 100) / 100);
-      } else {
-        deliveryFee = Math.round((deliveryFee * surgeMultiplier + peakFee) * 100) / 100;
       }
     }
 

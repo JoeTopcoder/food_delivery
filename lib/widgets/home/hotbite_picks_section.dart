@@ -76,7 +76,8 @@ class HotBitePicksSection extends ConsumerWidget {
                 label: '🔥 Most Ordered',
                 items: mostOrdered,
                 hPad: hPad,
-                showOrders: true),
+                // Hide the raw order count from customers; show cuisine instead.
+                showOrders: false),
           if (topRated.isNotEmpty)
             _RestaurantRail(
                 label: '⭐ Top Rated', items: topRated, hPad: hPad),

@@ -2206,15 +2206,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
               price: c.menuItem.discountedPrice,
               quantity: c.quantity,
               notes: c.notes,
-              sides: c.selectedSides
-                  .map(
-                    (s) => OrderItemSide(
-                      id: '',
-                      sideName: s.name,
-                      sidePrice: s.price,
+              // Capture BOTH legacy sides AND option-group choices (e.g. the
+              // meat flavor for a combo). Previously only selectedSides were
+              // sent, so option-group selections were silently dropped and never
+              // showed on the order.
+              sides: [
+                ...c.selectedSides.map(
+                  (s) => OrderItemSide(
+                    id: '',
+                    sideName: s.name,
+                    sidePrice: s.price,
+                  ),
+                ),
+                ...c.selectedOptions.values.expand((choices) => choices).map(
+                      (ch) => OrderItemSide(
+                        id: '',
+                        sideName: ch.name,
+                        sidePrice: ch.price,
+                      ),
                     ),
-                  )
-                  .toList(),
+              ],
             ),
           )
           .toList();

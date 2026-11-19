@@ -296,6 +296,31 @@ class DriverService {
         return <Order>[];
       }
 
+      // Admin on/off switch: an admin can pause a driver from receiving orders
+      // for a set period (an hour, the rest of the day, or indefinitely).
+      // `receiving_paused_until` is NULL when the driver is ON; a timestamp in
+      // the future means OFF until then (a far-future date = off indefinitely).
+      if (driverId != null) {
+        try {
+          final pauseRow = await _supabaseClient
+              .from('drivers')
+              .select('receiving_paused_until')
+              .eq('id', driverId)
+              .maybeSingle();
+          final pausedUntilStr =
+              pauseRow?['receiving_paused_until'] as String?;
+          if (pausedUntilStr != null) {
+            final until = DateTime.tryParse(pausedUntilStr)?.toUtc();
+            if (until != null && until.isAfter(DateTime.now().toUtc())) {
+              AppLogger.info(
+                'Driver $driverId is paused by admin until $until — offering no orders',
+              );
+              return <Order>[];
+            }
+          }
+        } catch (_) {/* column missing / query failed — don't block dispatch */}
+      }
+
       // Fetch recently declined order IDs for this driver
       Set<String> declinedOrderIds = {};
       if (driverId != null) {

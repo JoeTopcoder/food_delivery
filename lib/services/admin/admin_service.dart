@@ -352,6 +352,27 @@ class AdminService {
     }
   }
 
+  /// Set the restaurant's order-alert email (restaurants.email). This is the
+  /// real business inbox that `send-new-order-alert` emails when an order comes
+  /// in — it takes priority over the owner's login account. Pass null/empty to
+  /// clear it.
+  Future<void> updateRestaurantEmail(
+    String restaurantId,
+    String? email,
+  ) async {
+    final clean = email?.trim();
+    try {
+      await _supabaseClient
+          .from(AppConstants.tableRestaurants)
+          .update({'email': (clean == null || clean.isEmpty) ? null : clean})
+          .eq('id', restaurantId);
+      AppLogger.info('Order email updated for restaurant $restaurantId');
+    } catch (e) {
+      AppLogger.error('Error updating restaurant email: $e');
+      rethrow;
+    }
+  }
+
   // ==================== RESTAURANT ADS ====================
 
   /// Get all ads (optionally filtered by restaurant)
@@ -588,6 +609,32 @@ class AdminService {
       AppLogger.info('Driver verification updated');
     } catch (e) {
       AppLogger.error('Error verifying driver: $e');
+      rethrow;
+    }
+  }
+
+  /// Admin on/off switch for a driver receiving orders.
+  ///
+  /// Pass [pausedUntil] = null to turn the driver back ON (they receive orders
+  /// normally). Pass a future time to pause them until then (e.g. 1 hour, 2
+  /// hours, end of day), or a far-future date to pause indefinitely. A paused
+  /// driver keeps their account and approval; they just aren't offered new
+  /// orders while paused.
+  Future<void> setDriverReceivingPause(
+    String driverId,
+    DateTime? pausedUntil,
+  ) async {
+    try {
+      AppLogger.info(
+        'setDriverReceivingPause: $driverId until=${pausedUntil?.toIso8601String() ?? 'ON'}',
+      );
+      await _supabaseClient.from(AppConstants.tableDrivers).update({
+        'receiving_paused_until': pausedUntil?.toUtc().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', driverId);
+      AppLogger.info('Driver receiving pause updated');
+    } catch (e) {
+      AppLogger.error('Error setting driver receiving pause: $e');
       rethrow;
     }
   }

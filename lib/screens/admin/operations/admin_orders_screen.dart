@@ -10,6 +10,8 @@ import '../finance/admin_wallet_history_screen.dart';
 import '../../../widgets/orders/order_countdown_timer.dart';
 import '../../../widgets/orders/order_status_timeline.dart';
 import '../../../utils/app_feedback_widgets.dart';
+import '../../../widgets/common/app_cached_image.dart';
+import '../../restaurant/orders/order_picking_screen.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../finance/admin_wallet_adjust_sheet.dart';
 
@@ -1859,16 +1861,43 @@ class _OrderDetailSheet extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text('${it['quantity'] ?? 1}×',
                               style: const TextStyle(
                                   fontWeight: FontWeight.w700, fontSize: 13)),
                           const SizedBox(width: 8),
+                          _ItemThumb(url: it['image_url'] as String?),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                                (it['item_name'] ?? 'Item').toString(),
-                                style: const TextStyle(fontSize: 13)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    (it['item_name'] ?? 'Item').toString(),
+                                    style: const TextStyle(fontSize: 13)),
+                                // Selected options/sides (e.g. meat flavor).
+                                if ((it['sides'] as List?)?.isNotEmpty ?? false)
+                                  Text(
+                                    (it['sides'] as List).join(', '),
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                if (((it['special_instructions'] ?? '')
+                                        .toString()
+                                        .trim()
+                                        .isNotEmpty))
+                                  Text(
+                                    'Note: ${it['special_instructions']}',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: scheme.onSurfaceVariant),
+                                  ),
+                              ],
+                            ),
                           ),
                           Text(_money(it['subtotal'] ?? it['price']),
                               style: const TextStyle(
@@ -1887,6 +1916,32 @@ class _OrderDetailSheet extends ConsumerWidget {
           const SizedBox(height: 8),
           _RefundedLine(orderId: id),
           const SizedBox(height: 16),
+          if (_isGrocery) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED)),
+                icon: const Icon(Icons.checklist_rounded),
+                label: const Text('Pick / Pack Order'),
+                onPressed: () {
+                  final receipt = (order['receipt_number'] ??
+                          order['restaurant_order_number'])
+                      ?.toString();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderPickingScreen(
+                        orderId: id,
+                        orderLabel: receipt,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           _AdminOrderOptionsButton(order: order),
           const SizedBox(height: 16),
           _AdminMoneyActions(order: order),
@@ -1951,11 +2006,61 @@ class _OrderDetailSheet extends ConsumerWidget {
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems(String orderId) async {
-    final rows = await SupabaseConfig.client
-        .from('order_items')
-        .select('item_name, quantity, price, subtotal, special_instructions')
-        .eq('order_id', orderId);
-    return List<Map<String, dynamic>>.from(rows as List);
+    final items = List<Map<String, dynamic>>.from(
+        (await SupabaseConfig.client
+            .from('order_items')
+            .select(
+                'id, item_name, quantity, price, subtotal, special_instructions, menu_item_id')
+            .eq('order_id', orderId)) as List);
+
+    // Attach the selected options/sides (e.g. meat flavor) for each line.
+    final itemIds = items
+        .map((e) => e['id'])
+        .where((e) => e != null)
+        .toList();
+    if (itemIds.isNotEmpty) {
+      try {
+        final sideRows = await SupabaseConfig.client
+            .from('order_item_sides')
+            .select('order_item_id, side_name')
+            .inFilter('order_item_id', itemIds);
+        final sidesByItem = <dynamic, List<String>>{};
+        for (final s in (sideRows as List)) {
+          final oid = s['order_item_id'];
+          final name = (s['side_name'] as String?)?.trim();
+          if (name != null && name.isNotEmpty) {
+            (sidesByItem[oid] ??= <String>[]).add(name);
+          }
+        }
+        for (final it in items) {
+          it['sides'] = sidesByItem[it['id']] ?? const <String>[];
+        }
+      } catch (_) {/* options are best-effort */}
+    }
+
+    // Attach each line's product image (order_items has no image column, so
+    // look it up from the menu item it came from).
+    final ids = items
+        .map((e) => e['menu_item_id'])
+        .where((e) => e != null)
+        .toSet()
+        .toList();
+    if (ids.isNotEmpty) {
+      try {
+        final menuRows = await SupabaseConfig.client
+            .from('menus')
+            .select('id, image_url')
+            .inFilter('id', ids);
+        final imageById = {
+          for (final m in (menuRows as List))
+            m['id']: (m['image_url'] as String?),
+        };
+        for (final it in items) {
+          it['image_url'] = imageById[it['menu_item_id']];
+        }
+      } catch (_) {/* images are best-effort */}
+    }
+    return items;
   }
 
   Widget _detailRow(
@@ -2749,6 +2854,37 @@ class _EditOrderItemsSheetState extends State<_EditOrderItemsSheet> {
             child: Text('Removing an item (qty 0) deletes it. Totals recompute automatically.',
                 style: TextStyle(fontSize: 11))),
       ]),
+    );
+  }
+}
+
+/// Small rounded product thumbnail shown beside an order line item. Falls back
+/// to a neutral placeholder icon when the item has no image.
+class _ItemThumb extends StatelessWidget {
+  final String? url;
+  const _ItemThumb({this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 40.0;
+    final scheme = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: (url != null && url!.trim().isNotEmpty)
+          ? AppCachedImage(
+              url: url,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              decodeWidth: 120,
+            )
+          : Container(
+              width: size,
+              height: size,
+              color: scheme.surfaceContainerHighest,
+              child: Icon(Icons.fastfood_rounded,
+                  size: 20, color: scheme.onSurfaceVariant),
+            ),
     );
   }
 }

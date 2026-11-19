@@ -177,17 +177,8 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
     final student = ref.watch(selectedStudentDetailProvider);
     final isStudentOrder = student != null && student.hasSchool && !isPickup;
 
-    final delLat = isStudentOrder
-        ? student.schoolLat
-        : (selectedAddress?.latitude ?? currentUser?.latitude);
-    final delLng = isStudentOrder
-        ? student.schoolLng
-        : (selectedAddress?.longitude ?? currentUser?.longitude);
-    final hasDeliveryCoords = delLat != null && delLng != null;
-
     double activeFee = 0;
     final feeTypes = <String>{};
-    bool anyFeeLoading = false;
     // Grocery places one order per store, and the server prices each of those
     // independently — so a school run costs the flat fee once per store, the
     // same way an ordinary grocery delivery already costs a delivery fee per
@@ -197,24 +188,11 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
       final s = storeData[sid];
       if (isPickup) {
         activeFee += s?.serviceFee ?? AppConstants.pickupServiceFee;
-      } else if (s != null && hasDeliveryCoords) {
-        final feeKey =
-            '$sid|$delLat|$delLng|${s.latitude ?? ''}|${s.longitude ?? ''}|${s.deliveryFee ?? ''}';
-        final feeAsync = ref.watch(deliveryFeeProvider(feeKey));
-        if (feeAsync.isLoading) anyFeeLoading = true;
-        final fr = feeAsync.valueOrNull;
-        activeFee += fr?.deliveryFee ?? AppConstants.defaultDeliveryFee;
-        if (fr != null) {
-          if (fr.restaurantOverride != null) {
-            feeTypes.add('Store');
-          } else if (fr.calculation == 'distance_based') {
-            feeTypes.add('KM');
-          } else {
-            feeTypes.add('Base');
-          }
-        }
       } else {
-        activeFee += AppConstants.defaultDeliveryFee;
+        // Grocery delivery is a flat fee per store (matches grocery-order on the
+        // server), not a per-km calculation.
+        activeFee += AppConstants.groceryDeliveryFee;
+        feeTypes.add('Flat');
       }
     }
     if (isStudentOrder) {
@@ -1163,9 +1141,7 @@ class _GroceryCheckoutScreenState extends ConsumerState<GroceryCheckoutScreen>
                           subDeliveryFree
                               ? 'Delivery (HotBite+ FREE)'
                               : 'Delivery$feeTypeLabel${storeIds.length > 1 ? ' – ${storeIds.length} stores' : ''}',
-                          anyFeeLoading
-                              ? 'Calculating…'
-                              : subDeliveryFree
+                          subDeliveryFree
                               ? '\$0.00'
                               : '${AppConstants.currencySymbol}${activeFee.toStringAsFixed(2)}',
                           valueColor: subDeliveryFree

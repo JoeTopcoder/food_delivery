@@ -9,6 +9,7 @@ import '../../../models/catalog/menu_model.dart';
 import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/admin/banner_provider.dart';
 import '../../../providers/ordering/grocery_provider.dart';
+import '../../../services/catalog/catalog_cache.dart';
 import '../../../providers/rewards/membership_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
 import '../../../utils/app_theme.dart';
@@ -286,9 +287,36 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
             ),
 
             // ── Store list ──────────────────────────────────────────
-            storesAsync.when(
-              data: (stores) {
-                if (stores.isEmpty) {
+            _buildStoreSliver(storesAsync),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Store list sliver with stale-while-revalidate: while the live query is
+  /// loading on a cold open, paint the disk-cached store list instantly instead
+  /// of a spinner. Only the non-search list is cached.
+  Widget _buildStoreSliver(AsyncValue<List<Restaurant>> storesAsync) {
+    final stores = storesAsync.valueOrNull ??
+        (_searchQuery.isEmpty ? CatalogCache.restaurants('grocery_all') : null);
+    if (stores == null) {
+      if (storesAsync.hasError) {
+        return SliverFillRemaining(
+          child: Center(child: Text(friendlyError(storesAsync.error!))),
+        );
+      }
+      return const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return _storeSliverFor(stores);
+  }
+
+  Widget _storeSliverFor(List<Restaurant> stores) {
+    {
+      {
+        if (stores.isEmpty) {
                   // Content-sized (not SliverFillRemaining): when search results
                   // already fill the viewport above, the leftover sliver space
                   // is smaller than this column — a fixed fill would overflow it.
@@ -363,18 +391,8 @@ class _GroceryScreenState extends ConsumerState<GroceryScreen> {
                     ),
                   ),
                 );
-              },
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (err, _) => SliverFillRemaining(
-                child: Center(child: Text(friendlyError(err))),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      }
+    }
   }
 
   List<Widget> _buildProductSearchResults(WidgetRef ref) {
@@ -962,75 +980,30 @@ class _GroceryBannerCard extends ConsumerWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              Image.network(
+        // Image-only banner: just the uploaded image, edge-to-edge. No overlay
+        // text/CTA. Tap still opens the linked grocery store. Falls back to a
+        // grocery icon when there's no image.
+        child: (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
+            ? Image.network(
                 banner.imageUrl!,
                 fit: BoxFit.cover,
-                color: Colors.black.withValues(alpha: 0.35),
-                colorBlendMode: BlendMode.darken,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            if (banner.imageUrl == null || banner.imageUrl!.isEmpty)
-              Positioned(
-                right: -10,
-                bottom: -10,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Icon(
+                    Icons.local_grocery_store_rounded,
+                    size: 80,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              )
+            : Center(
                 child: Icon(
                   Icons.local_grocery_store_rounded,
-                  size: 120,
-                  color: Colors.white.withValues(alpha: 0.15),
+                  size: 80,
+                  color: Colors.white.withValues(alpha: 0.5),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    banner.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (banner.subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      banner.subtitle!,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Shop at ${banner.restaurantName ?? 'Store'}',
-                      style: const TextStyle(
-                        color: Color(0xFF2E7D32),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

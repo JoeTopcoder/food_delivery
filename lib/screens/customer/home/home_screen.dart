@@ -1783,6 +1783,22 @@ class _DynamicBannerCarouselState
               .single();
           final restaurant = Restaurant.fromJson(data);
 
+          // A food-section banner can link a grocery store (store_type
+          // 'grocery'); tapping it opens the Grocery store screen instead of
+          // the restaurant detail. Grocery uses its own cart, so skip the
+          // food promo auto-apply here.
+          if (restaurant.storeType == 'grocery') {
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GroceryStoreDetailScreen(store: restaurant),
+                ),
+              );
+            }
+            return;
+          }
+
           // Auto-apply this banner's discount, if it has one — fetch the
           // real promo_codes row (not the banner's own cached copy) so an
           // expired/deactivated/edited code is never applied stale.
@@ -1850,92 +1866,19 @@ class _DynamicBannerCarouselState
             ),
           ],
         ),
-        // Swiggy-style split: bold copy + CTA on the left over the gradient,
-        // product image bleeding to the rounded right edge.
-        child: Row(
-          children: [
-            Expanded(
-              flex: 5,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 8, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      banner.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        height: 1.1,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    if (banner.subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        banner.subtitle!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 12.5,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(_kRadiusPill),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              banner.restaurantName != null
-                                  ? 'Visit ${banner.restaurantName}'
-                                  : 'ORDER NOW',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_rounded,
-                              size: 14, color: AppTheme.primaryColor),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Right: product image bleeding to the rounded edge.
-            if (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
-              Expanded(
-                flex: 4,
-                child: Image.network(
-                  banner.imageUrl!,
-                  fit: BoxFit.cover,
-                  height: double.infinity,
-                  errorBuilder: (_, __, ___) => _bannerDecoIcon(),
-                ),
+        // Image-only banner: show just the uploaded image, edge-to-edge. No
+        // title/subtitle/CTA overlay — the tap still links to the restaurant
+        // or grocery store. Falls back to a decorative graphic if there's no
+        // image or it fails to load.
+        child: (banner.imageUrl != null && banner.imageUrl!.isNotEmpty)
+            ? Image.network(
+                banner.imageUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (_, __, ___) => _bannerDecoIcon(),
               )
-            else
-              Expanded(flex: 4, child: _bannerDecoIcon()),
-          ],
-        ),
+            : _bannerDecoIcon(),
       ),
     );
   }

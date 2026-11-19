@@ -23,6 +23,15 @@ class AdminFinancialsScreen extends ConsumerWidget {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (ref.watch(adminIsSuperAdminProvider).valueOrNull == true)
+            IconButton(
+              tooltip: 'Accounting export (CSV)',
+              icon: const Icon(Icons.download_rounded),
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/admin-accounting-export'),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(financialStatisticsProvider),
@@ -46,6 +55,15 @@ class AdminFinancialsScreen extends ConsumerWidget {
             final netRevenue = (data['net_revenue'] ?? (grossRevenue - stripeFeesCollected)).toDouble();
             final totalDiscounts = (data['total_discounts'] ?? 0).toDouble();
             final operatingExpenses = (data['operating_expenses'] ?? 0).toDouble();
+            // Accrual vs cash basis, and the driver-payout liability split.
+            final accountingNetRevenue =
+                (data['accounting_net_revenue'] ?? netRevenue).toDouble();
+            final cashBasedNetRevenue =
+                (data['cash_based_net_revenue'] ?? netRevenue).toDouble();
+            final driverPayoutsCompleted =
+                (data['driver_payouts_completed'] ?? 0).toDouble();
+            final driverPayoutsOutstanding =
+                (data['driver_payouts_outstanding'] ?? totalDriverPayout).toDouble();
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -163,13 +181,15 @@ class AdminFinancialsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // ── Driver Payouts ──
+                // ── Driver Payouts Due (unpaid only) ──
                 _FinancialCard(
                   title: 'Driver Payouts Due',
                   icon: Icons.directions_bike_rounded,
                   color: const Color(0xFF3B82F6),
-                  mainValue: totalDriverPayout,
-                  subLabel: 'Delivery fees + tips owed',
+                  mainValue: driverPayoutsOutstanding,
+                  subLabel: driverPayoutsCompleted > 0
+                      ? 'Unpaid driver earnings (${AppConstants.currencySymbol}${driverPayoutsCompleted.toStringAsFixed(2)} already paid)'
+                      : 'Unpaid driver earnings (delivery fees + tips)',
                   subValue: null,
                 ),
 
@@ -199,13 +219,29 @@ class AdminFinancialsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // ── Net Revenue ──
+                // ── Net Revenue (Cash Basis) ──
+                // Deducts driver pay only once it has actually been PAID, so
+                // unpaid driver earnings are still counted as cash on hand.
                 _FinancialCard(
-                  title: 'Net Revenue',
-                  icon: Icons.account_balance_rounded,
+                  title: 'Net Revenue (Cash Basis)',
+                  icon: Icons.account_balance_wallet_rounded,
                   color: const Color(0xFF10B981),
-                  mainValue: netRevenue,
-                  subLabel: 'Gross revenue less restaurant & driver payouts, Stripe fees & expenses',
+                  mainValue: cashBasedNetRevenue,
+                  subLabel:
+                      'Cash on hand — unpaid driver payouts are added back until settled',
+                  subValue: null,
+                ),
+
+                const SizedBox(height: 12),
+
+                // ── Accounting Net Revenue (accrual) ──
+                _FinancialCard(
+                  title: 'Accounting Net Revenue',
+                  icon: Icons.account_balance_rounded,
+                  color: const Color(0xFF0EA5E9),
+                  mainValue: accountingNetRevenue,
+                  subLabel:
+                      'True profit — driver expenses recognised when earned (accrual)',
                   subValue: null,
                 ),
 
@@ -269,9 +305,19 @@ class AdminFinancialsScreen extends ConsumerWidget {
                         color: AppTheme.primaryColor,
                       ),
                       _BreakdownRow(
-                        label: 'Driver Payouts',
+                        label: 'Driver Payouts Earned',
                         value: totalDriverPayout,
                         color: const Color(0xFF3B82F6),
+                      ),
+                      _BreakdownRow(
+                        label: 'Driver Payouts Completed (paid)',
+                        value: driverPayoutsCompleted,
+                        color: const Color(0xFF059669),
+                      ),
+                      _BreakdownRow(
+                        label: 'Driver Payouts Due (unpaid)',
+                        value: driverPayoutsOutstanding,
+                        color: const Color(0xFFF59E0B),
                       ),
                       if (operatingExpenses > 0)
                         _BreakdownRow(
@@ -281,9 +327,14 @@ class AdminFinancialsScreen extends ConsumerWidget {
                         ),
                       const Divider(height: 20),
                       _BreakdownRow(
-                        label: 'Net Revenue',
-                        value: netRevenue,
+                        label: 'Net Revenue (Cash Basis)',
+                        value: cashBasedNetRevenue,
                         color: const Color(0xFF10B981),
+                      ),
+                      _BreakdownRow(
+                        label: 'Accounting Net Revenue',
+                        value: accountingNetRevenue,
+                        color: const Color(0xFF0EA5E9),
                       ),
                     ],
                   ),

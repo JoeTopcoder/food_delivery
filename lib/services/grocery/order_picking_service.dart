@@ -31,7 +31,7 @@ class OrderPickingService {
       if (ids.isNotEmpty) {
         final prodRows = await _client
             .from('menus')
-            .select('id, barcode, image_url')
+            .select('id, barcode, image_url, category')
             .inFilter('id', ids);
         for (final p in (prodRows as List).cast<Map<String, dynamic>>()) {
           products[p['id'] as String] = p;
@@ -49,12 +49,21 @@ class OrderPickingService {
           pickedQuantity: (r['picked_quantity'] as num?)?.toInt() ?? 0,
           barcode: prod?['barcode'] as String?,
           imageUrl: prod?['image_url'] as String?,
+          category: ((prod?['category'] as String?)?.trim().isNotEmpty ?? false)
+              ? (prod!['category'] as String).trim()
+              : 'Other',
         );
       }).toList();
 
-      // Unpicked first, then by name — keeps the "what's left" at the top.
+      // Group by category (aisle) so the picker works one aisle at a time, then
+      // alphabetically within the aisle. Categories are ordered alphabetically,
+      // with 'Other' always last.
+      int catRank(String c) => c.toLowerCase() == 'other' ? 1 : 0;
       lines.sort((a, b) {
-        if (a.done != b.done) return a.done ? 1 : -1;
+        final cr = catRank(a.category).compareTo(catRank(b.category));
+        if (cr != 0) return cr;
+        final cc = a.category.toLowerCase().compareTo(b.category.toLowerCase());
+        if (cc != 0) return cc;
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
       return lines;

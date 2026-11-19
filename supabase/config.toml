@@ -415,6 +415,13 @@ verify_jwt = false
 [functions.send-fcm-notification]
 verify_jwt = false
 
+# Daily grocery stock sync (Master Mac). Invoked by the pg_cron job via
+# net.http_post, which can only pass a static key — JWT pre-validation would
+# reject it at the gateway (401 "Unregistered API key"). The function uses the
+# service-role key internally, not the caller's JWT.
+[functions.sync-mastermac-stock]
+verify_jwt = false
+
 # NCB Genius Checkout. ncb-webhook is called by NCB (HMAC-signed, no JWT);
 # ncb-checkout/ncb-verify take user_id/order_id in the body like place-order.
 [functions.ncb-webhook]

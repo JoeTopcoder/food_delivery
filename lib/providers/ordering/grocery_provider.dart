@@ -7,6 +7,7 @@ import '../../models/catalog/menu_model.dart';
 import '../../models/catalog/grocery_category_model.dart';
 import '../../models/catalog/inventory_model.dart';
 import '../../services/grocery/grocery_service.dart';
+import '../../services/catalog/catalog_cache.dart';
 import '../auth_user/address_provider.dart';
 import '../auth_user/auth_provider.dart';
 
@@ -89,6 +90,10 @@ String? groceryStoreDistanceLabel({
 /// fall back to the default order (rating). Distance is straight-line metres.
 Future<List<Restaurant>> _groceryStoresSortedByDistance(Ref ref) async {
   final stores = await ref.watch(groceryServiceProvider).getGroceryStores();
+  // Disk cache (stale-while-revalidate): lets the grocery screen paint the store
+  // list instantly on a cold open while this refreshes in the background. Saved
+  // unsorted; the screen sorts by the customer's live location on read.
+  await CatalogCache.saveRestaurants('grocery_all', stores);
   return _sortStoresByDistance(ref, stores);
 }
 

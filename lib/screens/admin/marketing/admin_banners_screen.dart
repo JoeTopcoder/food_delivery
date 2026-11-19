@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/supabase_config.dart';
 import '../../../models/comms/banner_model.dart' as app;
+import '../../../models/catalog/restaurant_model.dart';
 import '../../../providers/admin/banner_provider.dart';
 import '../../../providers/ordering/grocery_provider.dart';
 import '../../../providers/auth_user/user_provider.dart';
@@ -274,7 +275,14 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
   final _subtitleCtrl = TextEditingController();
   String? _selectedRestaurantId;
   String  _section = 'food';
+  // When true in the Food section, the banner shows on the Food home but links
+  // a grocery store and opens the Grocery screen on tap.
+  bool    _foodLinksGrocery = false;
+  bool    _groceryDetectRan = false;
   bool    _saving  = false;
+  // Shown inline in the sheet — a ScaffoldMessenger snackbar renders BEHIND an
+  // open modal bottom sheet, so errors here must be displayed in the form.
+  String? _errorMsg;
 
   // Image state
   File?   _pickedImage;
@@ -349,12 +357,15 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     try {
       final bytes    = await _pickedImage!.readAsBytes();
       final fileName = 'banner_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      // NOTE: upsert must stay false. A unique timestamped filename is used, so
+      // upsert is pointless — and x-upsert:true trips storage RLS ("new row
+      // violates row-level security policy" 403) on a path no policy can fix.
       await Supabase.instance.client.storage
           .from('banners')
           .uploadBinary(
             fileName,
             bytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: false),
           );
       return Supabase.instance.client.storage
           .from('banners')
@@ -438,10 +449,16 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
       AppSnackbar.warning(context, 'Title and restaurant are required');
       return;
     }
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _errorMsg = null;
+    });
+    var step = 'image upload';
     try {
       final imageUrl = await _uploadImageIfNeeded();
+      step = 'promo code';
       final promoCode = await _syncPromoCode(title);
+      step = 'saving banner';
       final data = {
         'title': title,
         'subtitle': _subtitleCtrl.text.trim().isEmpty
@@ -466,8 +483,15 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
       }
       widget.onSaved();
     } catch (e) {
+      // Surface the step that failed plus the raw error text, so a permission
+      // failure points at the exact operation (image upload vs. saving the row)
+      // instead of a generic message.
+      var detail = e.toString();
+      if (detail.length > 300) detail = '${detail.substring(0, 300)}…';
+      final shown = 'Failed at: $step\n$detail';
       if (mounted) {
-        AppSnackbar.error(context, friendlyError(e));
+        setState(() => _errorMsg = shown);
+        AppSnackbar.error(context, 'Failed at $step — see details above');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -481,6 +505,21 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
     final restaurantsAsync = ref.watch(adminAllRestaurantsProvider);
     final groceryStoresAsync = ref.watch(groceryStoresProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    // When editing a food banner that already points at a grocery store, flip
+    // the toggle on once the grocery list is available so the right picker shows.
+    if (!_groceryDetectRan &&
+        widget.existing != null &&
+        _section == 'food' &&
+        _selectedRestaurantId != null) {
+      final gstores = groceryStoresAsync.valueOrNull;
+      if (gstores != null) {
+        _groceryDetectRan = true;
+        if (gstores.any((s) => s.id == _selectedRestaurantId)) {
+          _foodLinksGrocery = true;
+        }
+      }
+    }
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
@@ -668,9 +707,32 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
           ),
           const SizedBox(height: 12),
 
-          // Store picker — swaps list based on section
+          // Food banners can optionally link a grocery store and open the
+          // Grocery screen on tap, while still showing in the Food section.
+          if (_section == 'food') ...[
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _foodLinksGrocery,
+              activeThumbColor: AppTheme.primaryColor,
+              title: const Text(
+                'Open the Grocery store instead',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Banner shows in Food, but tapping opens the Grocery screen',
+                style: TextStyle(fontSize: 11),
+              ),
+              onChanged: (v) => setState(() {
+                _foodLinksGrocery = v;
+                _selectedRestaurantId = null; // reset target when link changes
+              }),
+            ),
+            const SizedBox(height: 4),
+          ],
+
+          // Store picker — swaps list based on section / grocery-link toggle
           Text(
-            _section == 'grocery'
+            (_section == 'grocery' || _foodLinksGrocery)
                 ? 'Link to Grocery Store *'
                 : 'Link to Restaurant *',
             style: TextStyle(
@@ -680,7 +742,7 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
             ),
           ),
           const SizedBox(height: 6),
-          if (_section == 'grocery')
+          if (_section == 'grocery' || _foodLinksGrocery)
             groceryStoresAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
@@ -722,8 +784,14 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text(friendlyError(e)),
               data: (restaurants) {
+                // Food dropdown also lists ACTIVE supermarkets (grocery stores),
+                // tagged with 🛒. Picking one links the store; the home banner
+                // tap routes grocery stores to the Grocery screen automatically.
+                final groceries =
+                    groceryStoresAsync.valueOrNull ?? const <Restaurant>[];
+                final combined = <Restaurant>[...restaurants, ...groceries];
                 final unique =
-                    {for (final r in restaurants) r.id: r}.values.toList();
+                    {for (final r in combined) r.id: r}.values.toList();
                 final safeValue =
                     unique.any((r) => r.id == _selectedRestaurantId)
                         ? _selectedRestaurantId
@@ -740,20 +808,50 @@ class _BannerFormState extends ConsumerState<_BannerForm> {
                       vertical: 10,
                     ),
                   ),
-                  hint: const Text('Select a restaurant'),
-                  items: unique
-                      .map(
-                        (r) => DropdownMenuItem(
-                          value: r.id,
-                          child: Text(r.name, overflow: TextOverflow.ellipsis),
-                        ),
-                      )
-                      .toList(),
+                  hint: const Text('Select a restaurant or supermarket'),
+                  items: unique.map((r) {
+                    final isGrocery =
+                        r.storeType == 'grocery' || r.storeType == 'both';
+                    return DropdownMenuItem(
+                      value: r.id,
+                      child: Text(
+                        isGrocery ? '🛒 ${r.name}' : r.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
                   onChanged: (id) => setState(() => _selectedRestaurantId = id),
                 );
               },
             ),
           const SizedBox(height: 20),
+
+          // Inline error — visible inside the sheet (snackbars hide behind it).
+          if (_errorMsg != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMsg!,
+                      style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Save button
           SizedBox(

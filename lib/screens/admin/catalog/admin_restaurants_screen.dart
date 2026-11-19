@@ -586,6 +586,36 @@ class _RestaurantList extends StatelessWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () =>
+                              _showOrderEmailDialog(context, restaurant),
+                          icon: const Icon(Icons.email_rounded, size: 16),
+                          label: Text(
+                            (restaurant.email != null &&
+                                    restaurant.email!.trim().isNotEmpty)
+                                ? 'Order Email: ${restaurant.email}'
+                                : 'Order Email: not set',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: (restaurant.email != null &&
+                                    restaurant.email!.trim().isNotEmpty)
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFFDC2626),
+                            side: BorderSide(
+                              color: (restaurant.email != null &&
+                                      restaurant.email!.trim().isNotEmpty)
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFDC2626),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
                               _showPaymentMethodDialog(context, restaurant),
                           icon: Icon(
                             restaurant.restaurantPaymentMethod == 'BANK_PAYMENT'
@@ -1234,6 +1264,88 @@ class _RestaurantList extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showOrderEmailDialog(BuildContext context, Restaurant restaurant) {
+    final controller = TextEditingController(text: restaurant.email ?? '');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text('Order Email: ${restaurant.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'New-order alerts are emailed here. Leave blank to fall back to '
+              'the owner login account.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: InputDecoration(
+                labelText: 'Email address',
+                hintText: 'orders@restaurant.com',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              if (value.isNotEmpty && !value.contains('@')) {
+                AppSnackbar.error(context, 'Enter a valid email address');
+                return;
+              }
+              Navigator.of(context).pop();
+              try {
+                await ref
+                    .read(adminServiceProvider)
+                    .updateRestaurantEmail(restaurant.id, value);
+                ref.invalidate(allRestaurantsAdminProvider);
+                if (context.mounted) {
+                  AppSnackbar.success(
+                    context,
+                    value.isEmpty
+                        ? 'Order email cleared for "${restaurant.name}"'
+                        : 'Order email for "${restaurant.name}" set to $value',
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  AppSnackbar.error(context, friendlyError(e));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

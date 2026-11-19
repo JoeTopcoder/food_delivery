@@ -40,9 +40,17 @@ const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const admin = createClient(supabaseUrl, serviceRoleKey);
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+// HotBite logo shown on broadcast push notifications.
+const BRAND_LOGO_URL =
+  "https://yharweliruemjexmuuxn.supabase.co/storage/v1/object/public/restaurant-images/hotbite-groceries/logo.png";
 const FROM_EMAIL =
   Deno.env.get("BROADCAST_FROM_EMAIL") ??
   Deno.env.get("RECEIPT_FROM_EMAIL") ??
+  // The project's verified Resend sender (set as RESEND_FROM_EMAIL /
+  // SUPPORT_FROM_EMAIL). Falling back to onboarding@resend.dev only delivers to
+  // the Resend account owner, which is why a broadcast reached a single inbox.
+  Deno.env.get("RESEND_FROM_EMAIL") ??
+  Deno.env.get("SUPPORT_FROM_EMAIL") ??
   "HotBite <onboarding@resend.dev>";
 
 const corsHeaders = {
@@ -56,18 +64,25 @@ const json = (b: Record<string, unknown>, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// Local base64url encoder — avoids a runtime import() from deno.land, which can
+// fail at invocation time and silently take the whole push leg down.
+function b64url(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 // ── FCM auth (mirror of send-promotion) ─────────────────────────────────────
 async function getAccessToken(): Promise<string> {
-  const raw = Deno.env.get("FCM_SERVICE_ACCOUNT_KEY_BASE64") ?? "";
-  if (!raw) throw new Error("FCM_SERVICE_ACCOUNT_KEY_BASE64 not set");
+  const raw =
+    Deno.env.get("FCM_SERVICE_ACCOUNT_KEY_BASE64") ??
+    Deno.env.get("FIREBASE_SERVICE_ACCOUNT_B64") ??
+    "";
+  if (!raw) throw new Error("FCM service account not set");
   const sa = JSON.parse(atob(raw));
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + 3600;
 
-  // @ts-ignore deno
-  const { encode: b64url } = await import(
-    "https://deno.land/std@0.224.0/encoding/base64url.ts"
-  );
   // @ts-ignore deno
   const { crypto } = globalThis;
 
@@ -132,14 +147,29 @@ async function sendFcm(
         body: JSON.stringify({
           message: {
             token: fcmToken,
-            notification: { title, body },
+            notification: { title, body, image: BRAND_LOGO_URL },
             data,
             android: {
               priority: "high",
               notification: {
                 channel_id: "food_driver_promos",
                 sound: "default",
+                // HotBite logo as the notification's large image + icon.
+                image: BRAND_LOGO_URL,
               },
+            },
+            // iOS (APNs): ensure the alert shows with sound/badge, and allow the
+            // image via a notification service extension (mutable-content).
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: { title, body },
+                  sound: "default",
+                  "mutable-content": 1,
+                },
+              },
+              fcm_options: { image: BRAND_LOGO_URL },
             },
           },
         }),
@@ -198,7 +228,7 @@ function defaultHtml(
   )}</p>
   ${code}
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-  <p style="margin:0;color:#999;font-size:12px">Sent by QUICKDASH. You can manage notifications in your account settings.</p>
+  <p style="margin:0;color:#999;font-size:12px">Sent by HotBite Delivery. You can manage notifications in your account settings.</p>
 </div></body></html>`;
 }
 
@@ -266,7 +296,8 @@ export async function handle(req: Request): Promise<Response> {
   } else if (target === "inactive") {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const [{ data: allUsers }, { data: recent }] = await Promise.all([
-      admin.from("users").select("id").eq("role", "user"),
+      // Customers are role='customer' (some legacy rows are role='user').
+      admin.from("users").select("id").in("role", ["customer", "user"]),
       admin.from("orders").select("user_id").gte("created_at", since),
     ]);
     const recentSet = new Set((recent ?? []).map((o: { user_id: string }) => o.user_id));
@@ -280,11 +311,11 @@ export async function handle(req: Request): Promise<Response> {
       .eq("user_segment", body.segment);
     userIds = (data ?? []).map((p: { user_id: string }) => p.user_id);
   } else {
-    // 'all' customers
+    // 'all' customers — role='customer' (plus any legacy role='user').
     const { data } = await admin
       .from("users")
       .select("id")
-      .eq("role", "user");
+      .in("role", ["customer", "user"]);
     userIds = (data ?? []).map((u: { id: string }) => u.id);
   }
 
@@ -306,7 +337,11 @@ export async function handle(req: Request): Promise<Response> {
     try {
       const accessToken = await getAccessToken();
       const projectId = JSON.parse(
-        atob(Deno.env.get("FCM_SERVICE_ACCOUNT_KEY_BASE64") ?? ""),
+        atob(
+          Deno.env.get("FCM_SERVICE_ACCOUNT_KEY_BASE64") ??
+            Deno.env.get("FIREBASE_SERVICE_ACCOUNT_B64") ??
+            "",
+        ),
       ).project_id;
       const data: Record<string, string> = { type: "admin_broadcast" };
       if (body.promo_code) data.promo_code = body.promo_code;

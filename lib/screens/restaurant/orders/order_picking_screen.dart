@@ -16,8 +16,20 @@ import '../../../utils/friendly_error.dart';
 /// (camera or a hardware/manual code) to tick it off, or tap to pick by hand.
 /// When every line is picked, they can mark the order Ready.
 class OrderPickingScreen extends ConsumerStatefulWidget {
-  final Order order;
-  const OrderPickingScreen({super.key, required this.order});
+  /// Full order (store-side usage). Optional so admin/super-admin surfaces can
+  /// open the pick list with just an id + label (they hold raw order maps, not
+  /// a parsed [Order]).
+  final Order? order;
+  final String? orderId;
+  final String? orderLabel;
+
+  const OrderPickingScreen({
+    super.key,
+    this.order,
+    this.orderId,
+    this.orderLabel,
+  }) : assert(order != null || orderId != null,
+            'Provide either an Order or an orderId');
 
   @override
   ConsumerState<OrderPickingScreen> createState() => _OrderPickingScreenState();
@@ -27,7 +39,7 @@ class _OrderPickingScreenState extends ConsumerState<OrderPickingScreen> {
   final _codeCtrl = TextEditingController();
   bool _busy = false;
 
-  String get _orderId => widget.order.id;
+  String get _orderId => widget.order?.id ?? widget.orderId!;
 
   @override
   void dispose() {
@@ -36,10 +48,15 @@ class _OrderPickingScreenState extends ConsumerState<OrderPickingScreen> {
   }
 
   String get _orderLabel {
-    final n =
-        widget.order.restaurantOrderNumber ??
-        widget.order.receiptNumber ??
-        widget.order.id.substring(0, 8).toUpperCase();
+    final o = widget.order;
+    final n = o != null
+        ? (o.restaurantOrderNumber ??
+            o.receiptNumber ??
+            o.id.substring(0, 8).toUpperCase())
+        : (widget.orderLabel ??
+            (_orderId.length >= 8
+                ? _orderId.substring(0, 8).toUpperCase()
+                : _orderId.toUpperCase()));
     return '#$n';
   }
 
@@ -241,7 +258,11 @@ class _OrderPickingScreenState extends ConsumerState<OrderPickingScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
                     final line = lines[i];
-                    return _PickTile(
+                    // Aisle header: shown above the first item of each category
+                    // so the picker works one section at a time.
+                    final showHeader =
+                        i == 0 || lines[i - 1].category != line.category;
+                    final tile = _PickTile(
                       line: line,
                       busy: _busy,
                       onDecrement: line.pickedQuantity > 0
@@ -252,6 +273,18 @@ class _OrderPickingScreenState extends ConsumerState<OrderPickingScreen> {
                           : null,
                       onToggleDone: () =>
                           _setPicked(line, line.done ? 0 : line.quantity),
+                    );
+                    if (!showHeader) return tile;
+                    // Count items in this category for the header badge.
+                    final catCount =
+                        lines.where((l) => l.category == line.category).length;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _AisleHeader(category: line.category, count: catCount),
+                        const SizedBox(height: 8),
+                        tile,
+                      ],
                     );
                   },
                 ),
@@ -483,18 +516,41 @@ class _PickTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: (line.imageUrl != null && line.imageUrl!.isNotEmpty)
-                ? Image.network(
-                    line.imageUrl!,
-                    width: 42,
-                    height: 42,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _thumb(),
-                  )
-                : _thumb(),
+          // Thumbnail — tap to expand and see the product clearly.
+          GestureDetector(
+            onTap: (line.imageUrl != null && line.imageUrl!.isNotEmpty)
+                ? () => _showProductImage(context, line)
+                : null,
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: (line.imageUrl != null && line.imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          line.imageUrl!,
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _thumb(),
+                        )
+                      : _thumb(),
+                ),
+                if (line.imageUrl != null && line.imageUrl!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(1),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(6),
+                        bottomRight: Radius.circular(8),
+                      ),
+                    ),
+                    child: const Icon(Icons.zoom_in,
+                        size: 12, color: Colors.white),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(width: 10),
           // Name + linked flag
@@ -563,6 +619,73 @@ class _PickTile extends StatelessWidget {
     color: Colors.grey[100],
     child: Icon(Icons.shopping_bag_outlined, size: 20, color: Colors.grey[400]),
   );
+
+  /// Full-screen, pinch-to-zoom view of the product image so the picker can see
+  /// exactly what to grab off the shelf.
+  void _showProductImage(BuildContext context, PickLine line) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    line.imageUrl!,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : const SizedBox(
+                            height: 240,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                    errorBuilder: (_, __, ___) => const SizedBox(
+                      height: 240,
+                      child: Center(
+                        child: Icon(Icons.broken_image_outlined,
+                            size: 48, color: Colors.white54),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${line.quantity}× ${line.name}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => Navigator.of(ctx).pop(),
+              icon: const Icon(Icons.close, color: Colors.white),
+              label: const Text('Close',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _StepBtn extends StatelessWidget {
@@ -880,6 +1003,59 @@ class _ScannerViewState extends State<_ScannerView> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aisle/section header shown above each group of pick lines, so the picker
+/// moves through the store one category at a time instead of criss-crossing.
+class _AisleHeader extends StatelessWidget {
+  final String category;
+  final int count;
+  const _AisleHeader({required this.category, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.storefront_rounded, size: 18, color: scheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              category.toUpperCase(),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.4,
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: scheme.onPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
               ),
             ),
           ),

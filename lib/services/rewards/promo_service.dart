@@ -118,25 +118,25 @@ class PromoService {
     int? maxUses,
     DateTime? expiresAt,
   }) async {
-    await _client.from('promo_codes').insert({
-      'code': code.toUpperCase(),
-      'discount_type': discountType,
-      'discount_value': discountValue,
-      'min_order_amount': ?minOrderAmount,
-      'max_uses': ?maxUses,
-      if (expiresAt != null) 'expires_at': expiresAt.toIso8601String(),
-      'is_active': true,
+    // Admin writes go through SECURITY DEFINER RPCs (gated by require_admin),
+    // matching the rest of the admin app. A direct table insert is blocked by
+    // RLS unless the session is 2FA-elevated (aal2), which silently failed.
+    await _client.rpc('admin_create_promo', params: {
+      'p_code': code.toUpperCase(),
+      'p_discount_type': discountType,
+      'p_discount_value': discountValue,
+      'p_min_order_amount': minOrderAmount,
+      'p_max_uses': maxUses,
+      'p_expires_at': expiresAt?.toIso8601String(),
     });
   }
 
   Future<void> toggleActive(String promoId, bool isActive) async {
-    await _client
-        .from('promo_codes')
-        .update({'is_active': isActive})
-        .eq('id', promoId);
+    await _client.rpc('admin_set_promo_active',
+        params: {'p_promo_id': promoId, 'p_is_active': isActive});
   }
 
   Future<void> deletePromo(String promoId) async {
-    await _client.from('promo_codes').delete().eq('id', promoId);
+    await _client.rpc('admin_delete_promo', params: {'p_promo_id': promoId});
   }
 }

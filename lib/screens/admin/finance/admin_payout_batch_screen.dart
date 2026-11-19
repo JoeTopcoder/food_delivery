@@ -397,17 +397,121 @@ class _AdminPayoutBatchScreenState
               ],
             ),
           ),
-          Text(
-            owes
-                ? '−$_sym${amount.abs().toStringAsFixed(2)}'
-                : '$_sym${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: owes ? const Color(0xFFEF4444) : null,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                owes
+                    ? '−$_sym${amount.abs().toStringAsFixed(2)}'
+                    : '$_sym${amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: owes ? const Color(0xFFEF4444) : null,
+                ),
+              ),
+              // Pay a driver, restaurant or supermarket their unpaid earnings in
+              // CASH (works even with no bank details on file).
+              // earnings_balance = total_earnings − total_paid_out.
+              if (((r['earnings_balance'] as num?)?.toDouble() ?? 0) > 0.005) ...[
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 28,
+                  child: OutlinedButton.icon(
+                    onPressed: _running ? null : () => _payCash(r),
+                    icon: const Icon(Icons.payments_rounded, size: 14),
+                    label: const Text('Pay Cash',
+                        style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF059669),
+                      side: const BorderSide(color: Color(0xFF059669)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _payCash(Map<String, dynamic> r) async {
+    final entityId = r['entity_id']?.toString();
+    if (entityId == null) return;
+    final isDriver = r['entity_type'] == 'driver';
+    final kind = isDriver ? 'driver' : 'store';
+    final balance = (r['earnings_balance'] as num?)?.toDouble() ?? 0;
+    final ctrl = TextEditingController(text: balance.toStringAsFixed(2));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Pay ${r['entity_name'] ?? kind} in cash'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Unpaid earnings: $_sym${balance.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                prefixText: '$_sym ',
+                labelText: 'Cash amount',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Records a completed cash payout and reduces what the $kind is owed.',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white),
+            child: const Text('Pay Cash'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final amt = double.tryParse(ctrl.text.trim());
+    if (amt == null || amt <= 0) {
+      if (mounted) AppSnackbar.error(context, 'Enter a valid amount.');
+      return;
+    }
+    setState(() => _running = true);
+    try {
+      await SupabaseConfig.client.rpc(
+          isDriver ? 'admin_pay_driver_cash' : 'admin_pay_restaurant_cash',
+          params: isDriver
+              ? {'p_driver_id': entityId, 'p_amount': amt}
+              : {'p_restaurant_id': entityId, 'p_amount': amt});
+      if (mounted) {
+        AppSnackbar.success(context,
+            '${r['entity_name'] ?? 'Store'} paid $_sym${amt.toStringAsFixed(2)} cash');
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
   }
 }

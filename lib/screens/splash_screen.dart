@@ -559,9 +559,13 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash> {
       ..initialize().then((_) {
         if (!mounted) return;
         final dur = _videoController?.value.duration ?? Duration.zero;
-        // Give the clip its full runtime (+ a small buffer), floored.
+        // Give the clip its full runtime (+ a small buffer), floored — but
+        // never hold the splash longer than 5s, so a cold start (e.g. opened
+        // from a notification tap) always proceeds instead of appearing stuck.
         if (dur > _minVisible) {
-          _minVisible = dur + const Duration(milliseconds: 150);
+          final target = dur + const Duration(milliseconds: 150);
+          _minVisible =
+              target > const Duration(seconds: 5) ? const Duration(seconds: 5) : target;
         }
         setState(() => _videoReady = true);
         _videoController?.play();
@@ -736,18 +740,32 @@ class _AppLaunchSplashState extends ConsumerState<AppLaunchSplash> {
     // ready (or if it fails), a plain black screen is shown briefly.
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SizedBox.expand(
-        child: (_videoReady && _videoController != null)
-            ? FittedBox(
-                fit: BoxFit.cover,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(
-                  width: _videoController!.value.size.width,
-                  height: _videoController!.value.size.height,
-                  child: VideoPlayer(_videoController!),
-                ),
-              )
-            : const SizedBox.shrink(),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background intro video (falls back to the black Scaffold until ready).
+          if (_videoReady && _videoController != null)
+            FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: _videoController!.value.size.width,
+                height: _videoController!.value.size.height,
+                child: VideoPlayer(_videoController!),
+              ),
+            ),
+          // HotBite logo, centered on top of the video / black frame.
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Image.asset(
+                'assets/images/hotbite_logo.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const HotBiteMark(size: 168),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

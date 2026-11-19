@@ -10,7 +10,6 @@ import '../../../utils/friendly_error.dart';
 import '../../../providers/auth_user/auth_provider.dart';
 import '../../../providers/catalog/recommendation_provider.dart';
 import '../../../providers/platform/feature_providers.dart';
-import '../../../utils/menu_filter.dart';
 import '../../../utils/app_theme.dart';
 import '../../../widgets/menu/menu_item_card.dart';
 import '../../../widgets/menu/menu_item_actions.dart';
@@ -391,9 +390,10 @@ class _RestaurantDetailScreenState
     final menuItemsAsync = ref.watch(
       restaurantMenuProvider(widget.restaurant.id),
     );
-    // Admin word filter: hide alcohol/other flagged items from customers.
-    final menuFilterWords = ref.watch(menuFilterWordsProvider).valueOrNull ??
-        const <String>[];
+    // Admin word filter is enforced server-side now: the menus RLS policy hides
+    // filtered items from customers (and honours per-item filter_exempt), so we
+    // do NOT re-filter here — doing so would wrongly hide exempted items (e.g. a
+    // non-alcoholic "Kola Champagne" soda).
     final currentUserId = ref.watch(currentUserIdProvider);
     final isFav = currentUserId != null &&
         ref.watch(favoriteRestaurantIdsProvider).contains(widget.restaurant.id);
@@ -1048,9 +1048,7 @@ class _RestaurantDetailScreenState
                     // silently once it resolves.
                     final rawMenuItems = menuItemsAsync.valueOrNull ??
                         CatalogCache.menu(widget.restaurant.id);
-                    final menuItems = rawMenuItems == null
-                        ? null
-                        : applyMenuFilter(rawMenuItems, menuFilterWords);
+                    final menuItems = rawMenuItems;
                     if (menuItems == null) {
                       if (menuItemsAsync.hasError) {
                         return AppErrorState(

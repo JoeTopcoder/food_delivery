@@ -78,6 +78,7 @@ class AppConfigService {
     AppConstants.taxEnabled = _bool(c, 'tax_enabled', AppConstants.taxEnabled);
     AppConstants.platformCommissionCap = _double(c, 'platform_commission_cap', AppConstants.platformCommissionCap);
     AppConstants.defaultDeliveryFee = _double(c, 'default_delivery_fee', AppConstants.defaultDeliveryFee);
+    AppConstants.groceryDeliveryFee = _double(c, 'grocery_delivery_fee', AppConstants.groceryDeliveryFee);
     AppConstants.pickupServiceFee = _double(c, 'pickup_service_fee', AppConstants.pickupServiceFee);
     AppConstants.studentDeliveryFee = _double(c, 'student_delivery_fee', AppConstants.studentDeliveryFee);
     AppConstants.browseMaxKm = _double(c, 'browse_max_km', AppConstants.browseMaxKm);

@@ -193,7 +193,7 @@ function defaultHtml(
   )}</p>
   ${code}
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-  <p style="margin:0;color:#999;font-size:12px">Sent by QUICKDASH. You can manage notifications in your account settings.</p>
+  <p style="margin:0;color:#999;font-size:12px">Sent by HotBite Delivery. You can manage notifications in your account settings.</p>
 </div></body></html>`;
 }
 
@@ -261,7 +261,8 @@ Deno.serve(async (req) => {
   } else if (target === "inactive") {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const [{ data: allUsers }, { data: recent }] = await Promise.all([
-      admin.from("users").select("id").eq("role", "user"),
+      // Customers are role='customer' (some legacy rows are role='user').
+      admin.from("users").select("id").in("role", ["customer", "user"]),
       admin.from("orders").select("user_id").gte("created_at", since),
     ]);
     const recentSet = new Set((recent ?? []).map((o: { user_id: string }) => o.user_id));
@@ -275,11 +276,11 @@ Deno.serve(async (req) => {
       .eq("user_segment", body.segment);
     userIds = (data ?? []).map((p: { user_id: string }) => p.user_id);
   } else {
-    // 'all' customers
+    // 'all' customers — role='customer' (plus any legacy role='user').
     const { data } = await admin
       .from("users")
       .select("id")
-      .eq("role", "user");
+      .in("role", ["customer", "user"]);
     userIds = (data ?? []).map((u: { id: string }) => u.id);
   }
 

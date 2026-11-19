@@ -823,6 +823,8 @@ class _DriverList extends StatelessWidget {
                           ],
                         ),
                       ] else ...[
+                        _DriverReceivingControl(driverId: driver.id),
+                        const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
@@ -2774,6 +2776,201 @@ class _AssignStoreDialogState extends State<_AssignStoreDialog> {
               : const Text('Save'),
         ),
       ],
+    );
+  }
+}
+
+/// Admin on/off switch that controls whether a driver is offered new orders.
+/// Reads/writes `drivers.receiving_paused_until`: NULL = ON, a future time =
+/// paused until then, a far-future date = paused indefinitely.
+class _DriverReceivingControl extends ConsumerStatefulWidget {
+  final String driverId;
+  const _DriverReceivingControl({required this.driverId});
+
+  @override
+  ConsumerState<_DriverReceivingControl> createState() =>
+      _DriverReceivingControlState();
+}
+
+class _DriverReceivingControlState
+    extends ConsumerState<_DriverReceivingControl> {
+  // Anything at/after this is treated as "paused indefinitely".
+  static final DateTime _indefinite = DateTime.utc(2999, 1, 1);
+
+  DateTime? _pausedUntil; // null = ON (or expired)
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final row = await SupabaseConfig.client
+          .from('drivers')
+          .select('receiving_paused_until')
+          .eq('id', widget.driverId)
+          .maybeSingle();
+      final s = row?['receiving_paused_until'] as String?;
+      DateTime? until = s == null ? null : DateTime.tryParse(s)?.toUtc();
+      // Treat an already-expired pause as ON.
+      if (until != null && !until.isAfter(DateTime.now().toUtc())) {
+        until = null;
+      }
+      if (mounted) setState(() {
+        _pausedUntil = until;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _apply(DateTime? until, String msg) async {
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(adminServiceProvider)
+          .setDriverReceivingPause(widget.driverId, until);
+      ref.invalidate(allDriversAdminProvider);
+      if (mounted) {
+        setState(() {
+          _pausedUntil = (until != null && until.isAfter(DateTime.now().toUtc()))
+              ? until
+              : null;
+          _saving = false;
+        });
+        AppSnackbar.success(context, msg);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        AppSnackbar.error(context, friendlyError(e));
+      }
+    }
+  }
+
+  String _statusText() {
+    final until = _pausedUntil;
+    if (until == null) return 'ON — receiving orders';
+    if (!until.isBefore(_indefinite)) return 'OFF — paused indefinitely';
+    final local = until.toLocal();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    final sameDay = DateUtils.isSameDay(local, DateTime.now());
+    return sameDay
+        ? 'OFF — until $hh:$mm'
+        : 'OFF — until ${local.month}/${local.day} $hh:$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: SizedBox(
+            width: 18, height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    final isOn = _pausedUntil == null;
+    final now = DateTime.now();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isOn ? Icons.check_circle_rounded : Icons.pause_circle_filled_rounded,
+                size: 20,
+                color: isOn ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Order Receiving',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+              const Spacer(),
+              if (_saving)
+                const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _statusText(),
+            style: TextStyle(
+              fontSize: 13,
+              color: isOn ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                onPressed: (_saving || isOn)
+                    ? null
+                    : () => _apply(null, 'Driver turned ON'),
+                icon: const Icon(Icons.power_settings_new, size: 16),
+                label: const Text('Turn ON'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              _offChip('Off 1 hour',
+                  () => _apply(now.add(const Duration(hours: 1)).toUtc(),
+                      'Driver paused for 1 hour')),
+              _offChip('Off 2 hours',
+                  () => _apply(now.add(const Duration(hours: 2)).toUtc(),
+                      'Driver paused for 2 hours')),
+              _offChip('Off rest of day', () {
+                final endOfDay =
+                    DateTime(now.year, now.month, now.day, 23, 59, 59);
+                _apply(endOfDay.toUtc(), 'Driver paused for the rest of today');
+              }),
+              _offChip('Off until turned on',
+                  () => _apply(_indefinite, 'Driver paused indefinitely')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _offChip(String label, VoidCallback onTap) {
+    return OutlinedButton(
+      onPressed: _saving ? null : onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFF59E0B),
+        side: const BorderSide(color: Color(0xFFF59E0B)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: Text(label),
     );
   }
 }

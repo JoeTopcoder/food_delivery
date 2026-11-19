@@ -431,11 +431,17 @@ class _UserCard extends StatelessWidget {
                             color: Color(0xFF9CA3AF),
                           ),
                           const SizedBox(width: 2),
-                          Text(
-                            user.phone!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF9CA3AF),
+                          // Flexible + ellipsis so a long phone number can't
+                          // overflow the row.
+                          Flexible(
+                            child: Text(
+                              user.phone!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF9CA3AF),
+                              ),
                             ),
                           ),
                         ],

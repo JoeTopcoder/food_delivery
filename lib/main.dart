@@ -83,6 +83,7 @@ import 'screens/admin/marketing/admin_email_notifications_screen.dart';
 import 'screens/admin/operations/admin_chats_screen.dart';
 import 'screens/admin/finance/admin_payouts_screen.dart';
 import 'screens/admin/finance/admin_financials_screen.dart';
+import 'screens/admin/finance/admin_accounting_export_screen.dart';
 import 'screens/admin/ai/admin_analytics_screen.dart';
 import 'screens/admin/ai/admin_ai_panel_screen.dart';
 import 'screens/admin/ai/admin_ai_operations_screen.dart';
@@ -1221,6 +1222,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['admin'],
                   child: AdminFinancialsScreen(),
+                ),
+              );
+            case '/admin-accounting-export':
+              return MaterialPageRoute(
+                builder: (context) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: AdminAccountingExportScreen(),
                 ),
               );
             case '/admin-analytics':

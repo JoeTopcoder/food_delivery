@@ -280,6 +280,8 @@ export async function handle(request: Request): Promise<Response> {
         getConfig("default_commission_rate", 0.15),
       ]);
     const isTaxEnabled = taxEnabledFlag > 0;
+    // Flat delivery fee charged on every grocery delivery (admin-configurable).
+    const groceryFlatDeliveryFee = await getConfig("grocery_delivery_fee", 500.0);
 
     // Check if current hour is within a peak window
     const currentHour = new Date().getUTCHours();
@@ -310,8 +312,14 @@ export async function handle(request: Request): Promise<Response> {
         }
       }
     } else if (!isPickup) {
-      deliveryFee = store.delivery_fee ?? defaultDeliveryFee;
+      // Flat grocery delivery fee (admin-configurable `grocery_delivery_fee`,
+      // default J$500) on every delivery — no per-km build-up, so the fee shown
+      // at checkout always equals the fee charged. The driver is paid from this
+      // fee, so it is always a real positive amount.
+      deliveryFee = Math.round(groceryFlatDeliveryFee * 100) / 100;
 
+      // Still enforce the delivery range: a flat fee is a price, not a promise
+      // to drive any distance.
       if (deliveryLat && deliveryLng && store.latitude && store.longitude) {
         deliveryDistanceKm = haversineKm(
           store.latitude, store.longitude, deliveryLat, deliveryLng
@@ -321,11 +329,6 @@ export async function handle(request: Request): Promise<Response> {
             error: `Delivery distance (${deliveryDistanceKm.toFixed(1)} km) exceeds max of ${maxKm} km`,
           }, 400);
         }
-        const extraKm = Math.max(0, deliveryDistanceKm - baseKm);
-        const calcFee = (baseFee + extraKm * perKmFee) * surgeMultiplier + peakFee;
-        deliveryFee = Math.max(deliveryFee, Math.round(calcFee * 100) / 100);
-      } else {
-        deliveryFee = Math.round((deliveryFee * surgeMultiplier + peakFee) * 100) / 100;
       }
     }
 
@@ -385,7 +388,10 @@ export async function handle(request: Request): Promise<Response> {
     // getTaxRateForLocation, but the default is the global rate, not 0.)
     void getTaxRateForLocation;
     const effectiveTaxRate = (isTaxEnabled && !isPickup) ? globalTaxRate : 0;
-    const tax = Math.round(subtotal * effectiveTaxRate * 100) / 100;
+    // GCT is charged ONLY on the delivery fee, not the product subtotal — and
+    // this must match the Flutter grocery checkout (tax = deliveryFee × rate),
+    // otherwise the total shown at checkout differs from the total charged.
+    const tax = Math.round(deliveryFee * effectiveTaxRate * 100) / 100;
     // Customer-facing platform service fee — MUST match the Flutter checkout's
     // AppConstants.calculateServiceFee(subtotal, otherCharges: deliveryFee) so
     // the preview, the card charge and the receipt agree. Processor-recovery

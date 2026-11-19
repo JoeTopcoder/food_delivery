@@ -96,11 +96,11 @@ class _AdminMenuFiltersScreenState
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Menu items whose name, category or description contains any '
-                    'of these words are hidden from customers (restaurant owners '
-                    'and admins still see them). Separate words with commas. '
-                    'Whole-word, case-insensitive — e.g. "cocktail" hides a whole '
-                    '"Signature Cocktails" section.',
+                    'Menu AND grocery items whose name, category or description '
+                    'contains any of these words are hidden from customers '
+                    '(restaurant/store owners and admins still see them). '
+                    'Separate words with commas. Whole-word, case-insensitive — '
+                    'e.g. "cocktail" hides a whole "Signature Cocktails" section.',
                     style: TextStyle(
                         fontSize: 13, color: cs.onSurfaceVariant, height: 1.4),
                   ),

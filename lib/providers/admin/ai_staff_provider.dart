@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/supabase_config.dart';
 import '../auth_user/auth_provider.dart';
 
@@ -177,6 +179,43 @@ final adminOverviewPeriodProvider = StateProvider<String>((ref) => '30d');
 final adminOverviewStatsProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, period) async {
   final client = SupabaseConfig.client;
+
+  // ── Live updates ──────────────────────────────────────────────────────────
+  // Keep the headline KPIs current without the admin pulling to refresh:
+  //  • Realtime — refresh the moment an order or driver row changes (a new
+  //    order, a delivery completing, a rider going online/offline, a store
+  //    opening/closing).
+  //  • A short periodic fallback so figures still tick over even if a realtime
+  //    event is missed or a table isn't in the realtime publication.
+  // The subscription/timer are torn down when the provider is disposed.
+  var refreshScheduled = false;
+  void scheduleRefresh() {
+    if (refreshScheduled) return;
+    refreshScheduled = true;
+    // Debounce a burst of row changes into a single refresh.
+    Timer(const Duration(milliseconds: 600), () => ref.invalidateSelf());
+  }
+
+  final channel = Supabase.instance.client.channel('admin_overview_$period');
+  for (final table in ['orders', 'drivers', 'restaurants']) {
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: table,
+      callback: (_) => scheduleRefresh(),
+    );
+  }
+  channel.subscribe();
+
+  // Periodic fallback (every 20s) so counts like Online riders stay live even
+  // if a table isn't in supabase_realtime.
+  final pollTimer = Timer(const Duration(seconds: 20), () => ref.invalidateSelf());
+
+  ref.onDispose(() {
+    pollTimer.cancel();
+    Supabase.instance.client.removeChannel(channel);
+  });
+
   // Jamaica midnight (05:00 UTC) for the requested window.
   final jamNow = DateTime.now().toUtc().subtract(const Duration(hours: 5));
   final jamMidnightUtc = DateTime.utc(jamNow.year, jamNow.month, jamNow.day, 5);
@@ -211,68 +250,61 @@ final adminOverviewStatsProvider =
   final orders = ordersRows.length;
 
   // Delivered orders in window: one fetch gives both figures.
-  //  • Total sales (GMV)      = sum of total_amount (all sales the company made)
-  //  • Platform revenue        = what HotBite actually earns per order:
-  //      subtotal×commission_rate + service/peak/priority/pickup fees.
-  //    commission_rate is stored as a fraction (0.15 = 15%) and is populated on
-  //    every order, so this is consistent across all history (unlike the newer
-  //    platform_revenue_ledger, which only covers recent orders).
+  //  • Total sales (GMV)   = sum of total_amount (all sales the company made)
+  //  • Platform revenue    = TRUE net, computed EXACTLY like the Financials
+  //    screen's "Net Revenue" (get_financial_statistics):
+  //        total − restaurant payout − driver payout − processor (Stripe) fee
+  //    so the dashboard card and the Financials page always say the same thing.
   final revRows = await guarded(() {
     var q = client
         .from('orders')
         .select('total_amount, subtotal, commission_rate, commission_amount, '
-            'platform_service_fee, delivery_fee, peak_fee, priority_fee, pickup_fee, '
-            'promo_code, discount')
+            'delivery_fee, driver_tip, payment_method, stripe_fee_amount')
         .eq('status', 'delivered');
     if (from != null) q = q.gte('delivered_at', from.toIso8601String());
     return q;
   }(), const <dynamic>[]);
 
-  // The platform keeps only (1 − driver_pay_percent) of the delivery fee — the
-  // driver gets the rest — and nothing of a delivery fee that a FREEDELIVERY-
-  // style coupon waived. Mirror record_platform_revenue() exactly so the
-  // dashboard can't show more platform revenue than the ledger (which was the
-  // bug: the whole gross delivery_fee, incl. the driver's cut and the waived
-  // amount, was being counted as platform income).
+  // Driver gets `driver_pay_percent` of the delivery fee (mirrors the Financials
+  // model, which pays the driver delivery_fee × pct + tip).
   final driverPctRaw = await guarded(
       client.from('app_config').select('value').eq('key', 'driver_pay_percent').maybeSingle(),
       null);
   final driverPct =
       double.tryParse('${(driverPctRaw as Map?)?['value'] ?? ''}') ?? 0.80;
-  // Codes whose discount applies to the delivery fee (e.g. FREEDELIVERY).
-  final deliveryPromoRows = await guarded(
-      client.from('promo_codes').select('code').eq('applies_to', 'delivery_fee'),
-      const <dynamic>[]);
-  final deliveryPromoCodes = {
-    for (final p in deliveryPromoRows) ((p as Map)['code'] as String?)?.toUpperCase()
-  };
 
   double totalSales = 0;
-  double platformRevenue = 0;
+  double platformRevenue = 0; // accrual (accounting) net
+  double driverEarned = 0; // driver pay EARNED over delivered orders in window
   double d(Map m, String k) => (m[k] as num?)?.toDouble() ?? 0;
   for (final row in revRows) {
     final r = row as Map;
-    totalSales += d(r, 'total_amount');
-    // Prefer the recorded commission_amount; fall back to subtotal×rate.
+    final total = d(r, 'total_amount');
+    totalSales += total;
+
+    // Mirror get_financial_statistics exactly:
     final commissionAmt = (r['commission_amount'] as num?)?.toDouble();
     final commission =
         commissionAmt ?? (d(r, 'subtotal') * d(r, 'commission_rate'));
-    // Net delivery fee the platform actually collected (gross minus the part of
-    // the promo discount that waived delivery), then the platform's share of it.
-    final grossDelivery = d(r, 'delivery_fee');
-    final code = (r['promo_code'] as String?)?.toUpperCase();
-    final deliveryDiscount = (code != null && deliveryPromoCodes.contains(code))
-        ? (d(r, 'discount') < grossDelivery ? d(r, 'discount') : grossDelivery)
-        : 0.0;
-    final netDelivery = grossDelivery - deliveryDiscount;
-    final deliveryShare = (netDelivery > 0 ? netDelivery : 0) * (1 - driverPct);
-    // Platform revenue = commission + service fee + platform delivery share + surcharges.
-    platformRevenue += commission +
-        d(r, 'platform_service_fee') +
-        deliveryShare +
-        d(r, 'peak_fee') +
-        d(r, 'priority_fee') +
-        d(r, 'pickup_fee');
+    final restaurantPayout =
+        (d(r, 'subtotal') - commission) > 0 ? (d(r, 'subtotal') - commission) : 0.0;
+    final driverPayout = d(r, 'delivery_fee') * driverPct + d(r, 'driver_tip');
+    // Processor (Stripe) fee: 0 for cash; stored fee; else a card estimate.
+    final pm = (r['payment_method'] as String? ?? '').toLowerCase();
+    final storedStripe = (r['stripe_fee_amount'] as num?)?.toDouble();
+    final double stripeFee;
+    if (pm == 'cash' || pm == 'cash_on_delivery' || pm == 'cod') {
+      stripeFee = 0;
+    } else if (storedStripe != null) {
+      stripeFee = storedStripe;
+    } else if (pm == 'stripe' || pm == 'card' || pm == 'credit_card' || pm == 'debit_card') {
+      stripeFee = d(r, 'subtotal') * 0.029 + 0.30;
+    } else {
+      stripeFee = 0;
+    }
+
+    driverEarned += driverPayout;
+    platformRevenue += total - restaurantPayout - driverPayout - stripeFee;
   }
 
   // Membership fees (HotBite+) are sales the company made AND 100% platform
@@ -293,7 +325,32 @@ final adminOverviewStatsProvider =
     membershipRevenue += ((r as Map)['price_paid'] as num?)?.toDouble() ?? 0;
   }
   totalSales += membershipRevenue;
+  // HotBite+ membership fees are straight profit — add them to Platform revenue.
+  // get_financial_statistics (the Financials "Net Revenue") adds the same figure,
+  // so the two stay identical.
   platformRevenue += membershipRevenue;
+
+  // Cash-basis Platform revenue: unpaid driver pay is added back until the
+  // driver is actually paid, so this equals the Financials "Net Revenue (Cash
+  // Basis)". Completed driver payouts (status='completed') are the settled cash;
+  // the outstanding remainder is still money on hand.
+  final completedRows = await guarded(
+      client
+          .from('payout_requests')
+          .select('amount')
+          .eq('requester_type', 'driver')
+          .eq('status', 'completed'),
+      const <dynamic>[]);
+  double driverCompleted = 0;
+  for (final r in completedRows) {
+    driverCompleted += ((r as Map)['amount'] as num?)?.toDouble() ?? 0;
+  }
+  final driverOutstanding =
+      (driverEarned - driverCompleted) > 0 ? (driverEarned - driverCompleted) : 0.0;
+  // Accounting (accrual) net is platformRevenue as computed above; cash basis
+  // adds the still-unpaid driver liability back.
+  final accountingNetRevenue = platformRevenue;
+  final cashBasedPlatformRevenue = platformRevenue + driverOutstanding;
 
   final riderRows = await guarded(
       client.from('drivers').select('id').eq('is_online', true), const <dynamic>[]);
@@ -310,7 +367,12 @@ final adminOverviewStatsProvider =
 
   return {
     'total_sales': totalSales,
-    'platform_revenue': platformRevenue,
+    // Platform revenue card shows the cash-basis figure (matches Financials
+    // "Net Revenue (Cash Basis)"): unpaid driver pay is added back until settled.
+    'platform_revenue': cashBasedPlatformRevenue,
+    'accounting_net_revenue': accountingNetRevenue,
+    'driver_payouts_outstanding': driverOutstanding,
+    'driver_payouts_completed': driverCompleted,
     // Back-compat: existing readers of 'revenue' get gross sales as before.
     'revenue': totalSales,
     'orders': orders,

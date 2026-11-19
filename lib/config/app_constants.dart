@@ -249,6 +249,10 @@
   }
 
   static double defaultDeliveryFee = 775.0; // JMD; overwritten from app_config
+  /// Flat delivery fee charged on every grocery delivery (admin-configurable
+  /// `grocery_delivery_fee`). The grocery order flow prices delivery at this
+  /// flat amount, not per-km. Overwritten from app_config at startup.
+  static double groceryDeliveryFee = 500.0; // JMD
   static double pickupServiceFee = 0.0; // JMD; overwritten from app_config
 
   /// Flat delivery fee for an order sent to a student at their school.
