@@ -104,12 +104,62 @@ class DriverIntelligenceService {
     required String driverId,
     String period = 'today',
   }) async {
-    final res = await _invoke({
-      'action': 'get_driver_earnings',
-      'driver_id': driverId,
-      'period': period,
-    });
-    return res != null ? EarningsSummary.fromJson(res) : null;
+    // Query the driver_earnings ledger directly (RLS: "Drivers read own
+    // earnings"). This avoids depending on the driver-intelligence edge
+    // function for the per-order earnings list.
+    try {
+      final now = DateTime.now();
+      late final DateTime since;
+      switch (period) {
+        case 'today':
+          since = DateTime(now.year, now.month, now.day);
+          break;
+        case 'week':
+          since = now.subtract(const Duration(days: 7));
+          break;
+        case 'month':
+          since = now.subtract(const Duration(days: 30));
+          break;
+        default:
+          since = DateTime.fromMillisecondsSinceEpoch(0);
+      }
+      final rows = await _client
+          .from('driver_earnings')
+          .select()
+          .eq('driver_id', driverId)
+          .gte('earned_at', since.toUtc().toIso8601String())
+          .order('earned_at', ascending: false);
+
+      final items = (rows as List)
+          .map((e) => EarningsDetail.fromJson(e as Map<String, dynamic>))
+          .toList();
+      double sum(double Function(EarningsDetail) f) =>
+          items.fold<double>(0.0, (s, e) => s + f(e));
+      final totalPayout = sum((e) => e.totalPayout);
+      final totalMinutes = sum((e) => e.durationMinutes);
+      double round2(double v) => (v * 100).roundToDouble() / 100;
+
+      return EarningsSummary(
+        period: period,
+        deliveryCount: items.length,
+        totalPayout: round2(totalPayout),
+        basePay: round2(sum((e) => e.basePay)),
+        distancePay: round2(sum((e) => e.distancePay)),
+        timePay: round2(sum((e) => e.timePay)),
+        waitPay: round2(sum((e) => e.waitPay)),
+        boostPay: round2(sum((e) => e.boostPay)),
+        surgePay: round2(sum((e) => e.surgePay)),
+        tips: round2(sum((e) => e.tip)),
+        floorTopups: round2(sum((e) => e.floorTopup)),
+        totalDistanceKm: round2(sum((e) => e.distanceKm)),
+        totalMinutes: totalMinutes.round(),
+        avgPerDelivery: items.isNotEmpty ? round2(totalPayout / items.length) : 0,
+        avgPerHour: totalMinutes > 0 ? round2(totalPayout / (totalMinutes / 60)) : 0,
+        deliveries: items,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── Fetch zones from DB directly (fast, no edge function) ───────
