@@ -177,6 +177,9 @@ import 'screens/shared/theme_screen.dart';
 import 'screens/main_navigation_screen.dart';
 // Car Services module
 import 'modules/car_services/screens/customer/car_services_home_screen.dart';
+import 'modules/gas/screens/customer/gas_landing_screen.dart';
+import 'modules/gas/screens/supplier/gas_supplier_dashboard_screen.dart';
+import 'modules/gas/screens/admin/gas_admin_screen.dart';
 import 'modules/car_services/screens/customer/car_service_provider_detail_screen.dart';
 import 'modules/car_services/screens/customer/car_service_booking_screen.dart';
 import 'modules/car_services/screens/customer/car_service_booking_summary_screen.dart';
@@ -2066,6 +2069,27 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
                 builder: (context) => const RoleGuard(
                   allowedRoles: ['user', 'customer'],
                   child: CarServicesHomeScreen(),
+                ),
+              );
+            case '/gas':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['user', 'customer'],
+                  child: GasLandingScreen(),
+                ),
+              );
+            case '/gas-supplier-dashboard':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['restaurant', 'admin'],
+                  child: GasSupplierDashboardScreen(),
+                ),
+              );
+            case '/gas-admin':
+              return MaterialPageRoute(
+                builder: (_) => const RoleGuard(
+                  allowedRoles: ['admin'],
+                  child: GasAdminScreen(),
                 ),
               );
             case '/car-services/provider-detail':

@@ -507,6 +507,7 @@ class AppConfigService {
     AppConstants.serviceRidesEnabled       = _bool(c, 'service_rides_enabled',       false);
     AppConstants.serviceLaundryEnabled     = _bool(c, 'service_laundry_enabled',     false);
     AppConstants.serviceCarServiceEnabled  = _bool(c, 'service_car_service_enabled', false);
+    AppConstants.serviceGasEnabled         = _bool(c, 'service_gas_enabled',         false);
 
     // Grocery white-label brand shown to customers instead of real store names.
     AppConstants.groceryPublicBrand = _str(c, 'grocery_public_brand', AppConstants.groceryPublicBrand);

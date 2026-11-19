@@ -25,6 +25,7 @@ class ServiceLauncherGrid extends ConsumerWidget {
     final ridesOn = ref.watch(serviceEnabledProvider('rides'));
     final laundryOn = ref.watch(serviceEnabledProvider('laundry'));
     final carOn = ref.watch(serviceEnabledProvider('car_service'));
+    final gasOn = ref.watch(serviceEnabledProvider('gas'));
 
     // The "More" hub only appears when there's at least one extra service
     // behind it.
@@ -49,6 +50,14 @@ class ServiceLauncherGrid extends ConsumerWidget {
             context,
             MaterialPageRoute(builder: (_) => const GroceryScreen()),
           ),
+        ),
+      if (gasOn)
+        _ServiceTile(
+          icon: Icons.local_fire_department_rounded,
+          emoji: '🔥',
+          label: 'Cooking Gas',
+          color: const Color(0xFFD7263D),
+          onTap: () => Navigator.pushNamed(context, '/gas'),
         ),
       // Drinks & Snacks browses the existing "Drinks" food category — it reuses
       // the category browse screen, it does not create a new catalogue.

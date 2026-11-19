@@ -418,6 +418,7 @@
   static bool serviceRidesEnabled = false;
   static bool serviceLaundryEnabled = false;
   static bool serviceCarServiceEnabled = false;
+  static bool serviceGasEnabled = false; // Cooking Gas (LPG) vertical — off by default
 
   // ── Grocery white-label storefront ───────────────────────────────────────
   // Partner grocery stores are anonymised to customers: they never see the real

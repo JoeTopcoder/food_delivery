@@ -110,6 +110,8 @@ final serviceEnabledProvider = Provider.family<bool, String>((ref, key) {
       return AppConstants.serviceLaundryEnabled;
     case 'car_service':
       return AppConstants.serviceCarServiceEnabled;
+    case 'gas':
+      return AppConstants.serviceGasEnabled;
     default:
       return true;
   }
