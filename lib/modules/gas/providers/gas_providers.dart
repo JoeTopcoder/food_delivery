@@ -43,6 +43,11 @@ final allGasSuppliersProvider = FutureProvider.autoDispose<List<GasSupplier>>((r
   return ref.watch(gasServiceProvider).getAllSuppliers();
 });
 
+/// Admin: all gas orders across suppliers.
+final allGasOrdersProvider = FutureProvider.autoDispose<List<GasOrder>>((ref) {
+  return ref.watch(gasServiceProvider).getAllOrders();
+});
+
 /// Admin: financial rollup.
 final gasFinancialsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.watch(gasServiceProvider).getFinancials();

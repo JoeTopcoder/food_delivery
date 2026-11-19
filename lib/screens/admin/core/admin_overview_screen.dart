@@ -216,6 +216,7 @@ class AdminOverviewScreen extends ConsumerWidget {
     _ToolCat('Services & Catalog', [
       _Tool('Close App / Holidays', Icons.power_settings_new_rounded, '/admin-app-closure'),
       _Tool('Manage Services', Icons.tune_rounded, '/admin-services'),
+      _Tool('Cooking Gas', Icons.propane_tank_rounded, '/gas-admin'),
       _Tool('HotBite Picks', Icons.local_fire_department_rounded, '/admin-hotbite-picks'),
       _Tool('Menu Word Filter', Icons.filter_alt_rounded, '/admin-menu-filters'),
       _Tool('HotBite+', Icons.workspace_premium_rounded, '/admin-mealhub'),

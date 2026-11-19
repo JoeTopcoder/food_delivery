@@ -1378,6 +1378,10 @@ class _RestaurantDashboardScreenState
                     const Color(0xFF14B8A6), 'Grocery Management',
                     () => Navigator.of(context)
                         .pushNamed('/grocery-management')),
+                row(Icons.propane_tank_rounded, const Color(0xFFD7263D),
+                    'Cooking Gas',
+                    () => Navigator.of(context)
+                        .pushNamed('/gas-supplier-dashboard')),
                 row(Icons.account_balance_rounded, const Color(0xFF0EA5E9),
                     'Bank Info',
                     () => Navigator.push(

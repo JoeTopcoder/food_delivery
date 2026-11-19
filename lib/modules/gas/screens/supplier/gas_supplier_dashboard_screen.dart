@@ -192,9 +192,8 @@ class _SupplierOrderCardState extends ConsumerState<_SupplierOrderCard> {
           _btn('Reject', t('rejected', reason: 'supplier rejected'), danger: true),
         ];
       case 'supplier_accepted':
-        return [_btn('Request payment', t('awaiting_payment'), primary: true)];
+        return [_btn('Start preparing', t('preparing'), primary: true)];
       case 'awaiting_payment':
-        return [const Text('Waiting for customer payment…', style: TextStyle(fontSize: 12))];
       case 'payment_confirmed':
         return [_btn('Start preparing', t('preparing'), primary: true)];
       case 'preparing':

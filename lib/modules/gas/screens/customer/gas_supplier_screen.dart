@@ -59,17 +59,27 @@ class _GasSupplierScreenState extends ConsumerState<GasSupplierScreen> {
     }
     setState(() { _placing = true; _error = null; });
     try {
-      await ref.read(gasServiceProvider).placeOrder(
+      final svc = ref.read(gasServiceProvider);
+      final orderId = await svc.placeOrder(
             supplierId: widget.supplier.id,
             lines: _cart,
             address: addressText,
             lat: lat,
             lng: lng,
           );
+      // Checkout like a regular order: pay NOW (before the supplier confirms).
+      // If the wallet can't cover it, the order stays unpaid and the orders
+      // screen lets them pay after topping up.
+      var paid = true;
+      try {
+        await svc.payFromWallet(orderId);
+      } catch (_) {
+        paid = false;
+      }
       if (!mounted) return;
       ref.invalidate(myGasOrdersProvider);
       Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const GasOrdersScreen(justPlaced: true)));
+          MaterialPageRoute(builder: (_) => GasOrdersScreen(justPlaced: true, paid: paid)));
     } catch (e) {
       setState(() => _error = _friendly('$e'));
     } finally {
@@ -258,7 +268,7 @@ class _CartBar extends StatelessWidget {
           const Divider(height: 10),
           _row('Subtotal', gasMoney(subtotal)),
           if (deposits > 0) _row('Refundable deposit', gasMoney(deposits)),
-          Text('Delivery & service fees are added at the next step.',
+          Text('Delivery & service fees are added and charged to your wallet now.',
               style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
           if (error != null) Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -272,7 +282,7 @@ class _CartBar extends StatelessWidget {
               onPressed: placing ? null : onPlace,
               child: placing
                   ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Place gas order'),
+                  : const Text('Place & pay'),
             ),
           ),
         ],

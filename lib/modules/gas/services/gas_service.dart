@@ -134,6 +134,16 @@ class GasService {
     await _db.from('gas_suppliers').update({'delivery_operational': operational}).eq('id', supplierId);
   }
 
+  /// Admin: all gas orders across every supplier (RLS admin policy permits).
+  Future<List<GasOrder>> getAllOrders() async {
+    final rows = await _db
+        .from('gas_orders')
+        .select()
+        .order('placed_at', ascending: false)
+        .limit(200);
+    return (rows as List).map((r) => GasOrder.fromMap(r as Map<String, dynamic>)).toList();
+  }
+
   Future<Map<String, dynamic>> getFinancials() async {
     final res = await _db.rpc('get_gas_financials_admin');
     return (res as Map).cast<String, dynamic>();

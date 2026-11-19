@@ -10,13 +10,59 @@ class GasAdminScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Cooking Gas — Admin'),
-          bottom: const TabBar(tabs: [Tab(text: 'Suppliers'), Tab(text: 'Financials')]),
+          bottom: const TabBar(
+              isScrollable: true,
+              tabs: [Tab(text: 'Orders'), Tab(text: 'Suppliers'), Tab(text: 'Financials')]),
         ),
-        body: const TabBarView(children: [_SuppliersTab(), _FinancialsTab()]),
+        body: const TabBarView(children: [_OrdersTab(), _SuppliersTab(), _FinancialsTab()]),
+      ),
+    );
+  }
+}
+
+class _OrdersTab extends ConsumerWidget {
+  const _OrdersTab();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(allGasOrdersProvider);
+    return RefreshIndicator(
+      onRefresh: () async => ref.refresh(allGasOrdersProvider.future),
+      child: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ListView(children: [Padding(padding: const EdgeInsets.all(24), child: Text('$e'))]),
+        data: (orders) {
+          if (orders.isEmpty) {
+            return ListView(children: const [SizedBox(height: 120), Center(child: Text('No gas orders yet.'))]);
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final o = orders[i];
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.propane_tank_rounded, color: Color(0xFFFF5A1F)),
+                  title: Text('#${o.id.substring(0, 8)} · ${gasMoney(o.totalCents)}',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('${o.statusLabel} · payment: ${o.paymentStatus}'
+                      '${o.deliveryAddress != null ? '\n${o.deliveryAddress}' : ''}'),
+                  isThreeLine: o.deliveryAddress != null,
+                  trailing: Text(
+                    o.placedAt != null
+                        ? '${o.placedAt!.toLocal()}'.split('.').first.substring(5)
+                        : '',
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor),
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

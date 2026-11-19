@@ -6,8 +6,9 @@ import '../../providers/gas_providers.dart';
 /// The customer's cooking gas orders, with live status and wallet payment when
 /// the supplier has accepted and the order is awaiting payment.
 class GasOrdersScreen extends ConsumerWidget {
-  const GasOrdersScreen({super.key, this.justPlaced = false});
+  const GasOrdersScreen({super.key, this.justPlaced = false, this.paid = true});
   final bool justPlaced;
+  final bool paid;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,11 +20,15 @@ class GasOrdersScreen extends ConsumerWidget {
           if (justPlaced)
             Container(
               width: double.infinity,
-              color: const Color(0xFF059669).withValues(alpha: 0.12),
+              color: (paid ? const Color(0xFF059669) : const Color(0xFFFF5A1F)).withValues(alpha: 0.12),
               padding: const EdgeInsets.all(12),
-              child: const Text(
-                'Order placed. The supplier will confirm availability, then you can pay.',
-                style: TextStyle(color: Color(0xFF047857), fontWeight: FontWeight.w600),
+              child: Text(
+                paid
+                    ? 'Order placed and paid. The supplier will confirm and prepare your cylinder.'
+                    : 'Order placed — payment didn\'t go through. Top up your wallet and pay below.',
+                style: TextStyle(
+                    color: paid ? const Color(0xFF047857) : const Color(0xFFC2410C),
+                    fontWeight: FontWeight.w600),
               ),
             ),
           Expanded(
@@ -133,7 +138,7 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
               padding: const EdgeInsets.only(top: 6),
               child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
             ),
-            if (o.awaitingPayment) ...[
+            if (o.paymentStatus == 'unpaid' && !o.isTerminal) ...[
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
