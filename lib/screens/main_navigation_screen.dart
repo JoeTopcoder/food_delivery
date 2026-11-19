@@ -6,6 +6,7 @@ import 'customer/home/home_screen.dart';
 import 'customer/grocery/grocery_screen.dart';
 import 'customer/account/profile_screen.dart';
 import '../modules/car_services/screens/customer/car_services_home_screen.dart';
+import '../modules/gas/screens/customer/gas_landing_screen.dart';
 import '../providers/auth_user/user_provider.dart';
 import '../providers/auth_user/auth_provider.dart';
 import '../providers/money/wallet_provider.dart';
@@ -40,6 +41,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     OrdersScreen(),
     CarServicesHomeScreen(),
     CustomerProfileScreen(),
+    GasLandingScreen(embedded: true),
   ];
 
   void _showGuestSignInPrompt(BuildContext context) {
@@ -207,6 +209,16 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         l10n.grocery,
         serviceKey: 'grocery',
       ),
+      // Gas tab — hidden entirely when the gas service is off (see filter below),
+      // so it never needs the "coming soon" grey state (no serviceKey).
+      _NavTab(
+        5,
+        'gas',
+        _screens[5],
+        Icons.propane_tank_outlined,
+        Icons.propane_tank,
+        'Gas',
+      ),
       _NavTab(
         2,
         'orders',
@@ -235,9 +247,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         guestGated: true,
       ),
     ];
-    final tabs = allTabs
-        .where((t) => ref.watch(screenEnabledProvider(t.key)))
-        .toList();
+    final tabs = allTabs.where((t) {
+      // The gas tab appears only when the Cooking Gas service is enabled.
+      if (t.key == 'gas') return ref.watch(serviceEnabledProvider('gas'));
+      return ref.watch(screenEnabledProvider(t.key));
+    }).toList();
     if (tabs.isEmpty) {
       return const Scaffold(
         body: Center(

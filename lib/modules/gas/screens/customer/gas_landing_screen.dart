@@ -9,21 +9,16 @@ import 'gas_orders_screen.dart';
 
 /// Cooking Gas landing — hero + verified, operational LPG suppliers.
 class GasLandingScreen extends ConsumerWidget {
-  const GasLandingScreen({super.key});
+  const GasLandingScreen({super.key, this.embedded = false});
+
+  /// When true, this is hosted inside the main app bottom nav, so it omits its
+  /// own Scaffold app bar + bottom nav (the host provides them).
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final suppliersAsync = ref.watch(gasLiveSuppliersProvider);
-    return Scaffold(
-      appBar: GasBrand.appBar(context, actions: [
-        IconButton(
-          tooltip: 'My gas orders',
-          icon: const Icon(Icons.receipt_long_rounded),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GasOrdersScreen())),
-        ),
-      ]),
-      bottomNavigationBar: const GasBottomNav(current: 3),
-      body: RefreshIndicator(
+    final body = RefreshIndicator(
         onRefresh: () async => ref.refresh(gasLiveSuppliersProvider.future),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -65,7 +60,19 @@ class GasLandingScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
+    );
+
+    if (embedded) return SafeArea(bottom: false, child: body);
+    return Scaffold(
+      appBar: GasBrand.appBar(context, actions: [
+        IconButton(
+          tooltip: 'My gas orders',
+          icon: const Icon(Icons.receipt_long_rounded),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GasOrdersScreen())),
+        ),
+      ]),
+      bottomNavigationBar: const GasBottomNav(current: 3),
+      body: body,
     );
   }
 }
