@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../utils/est_datetime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
@@ -527,6 +528,7 @@ class _OrderCard extends StatelessWidget {
         .toString();
     final customerName = (user?['name'] ?? user?['email'] ?? 'Customer')
         .toString();
+    final customerPhone = (user?['phone'] ?? '').toString().trim();
     final driverId = order['driver_id']?.toString();
     final riderName =
         ((order['driver'] as Map?)?['user'] as Map?)?['name']?.toString();
@@ -641,6 +643,10 @@ class _OrderCard extends StatelessWidget {
 
             // Customer & Restaurant
             _DetailRow(icon: Icons.person_outline, text: customerName),
+            if (customerPhone.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _DetailRow(icon: Icons.phone_outlined, text: customerPhone),
+            ],
             const SizedBox(height: 4),
             _DetailRow(icon: Icons.store_outlined, text: restaurantName),
             if (deliveryAddress.isNotEmpty) ...[
@@ -1763,9 +1769,8 @@ class _OrderDetailSheet extends ConsumerWidget {
               (restaurant?['name'] ?? 'Unknown').toString()),
           _detailRow(context, Icons.person_rounded, 'Customer',
               (user?['name'] ?? user?['email'] ?? 'Customer').toString()),
-          if (user?['phone'] != null)
-            _detailRow(context, Icons.phone_rounded, 'Phone',
-                user!['phone'].toString()),
+          // Customer phone — always shown to admins/super-admins; tap to copy.
+          _phoneRow(context, (user?['phone'] ?? '').toString().trim()),
           if ((order['user_id'] ?? '').toString().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 10, bottom: 4),
@@ -2061,6 +2066,49 @@ class _OrderDetailSheet extends ConsumerWidget {
       } catch (_) {/* images are best-effort */}
     }
     return items;
+  }
+
+  /// Customer phone row — always visible to admins/super-admins. Shows the
+  /// number (or "Not on file"), tappable to copy to the clipboard.
+  Widget _phoneRow(BuildContext context, String phone) {
+    final scheme = Theme.of(context).colorScheme;
+    final has = phone.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.phone_rounded, size: 17, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 78,
+            child: Text('Phone',
+                style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+          ),
+          Expanded(
+            child: Text(has ? phone : 'Not on file',
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: has ? null : scheme.onSurfaceVariant)),
+          ),
+          if (has)
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: phone));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Phone copied: $phone'), duration: const Duration(seconds: 2)),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.copy_rounded, size: 16, color: scheme.primary),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _detailRow(
