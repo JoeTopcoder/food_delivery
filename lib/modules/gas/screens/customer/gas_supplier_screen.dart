@@ -5,10 +5,17 @@ import '../../../../providers/auth_user/auth_provider.dart';
 import '../../models/gas_models.dart';
 import '../../providers/gas_providers.dart';
 import '../../widgets/gas_ui.dart';
-import 'gas_checkout_screen.dart';
+import 'gas_review_screen.dart';
 
-/// Supplier detail — pick a cylinder option (exchange/new), quantity, and
-/// place & pay (upfront). Matches the HotBite gas mockup design.
+/// A selectable cylinder option (one product × one purchase type).
+class _Option {
+  final GasProduct product;
+  final String type; // 'exchange' | 'new'
+  _Option(this.product, this.type);
+  int get price => (type == 'exchange' ? product.exchangePriceCents : product.newPriceCents) ?? 0;
+  String get key => '${product.id}|$type';
+}
+
 class GasSupplierScreen extends ConsumerStatefulWidget {
   const GasSupplierScreen({super.key, required this.supplier});
   final GasSupplier supplier;
@@ -17,84 +24,41 @@ class GasSupplierScreen extends ConsumerStatefulWidget {
 }
 
 class _GasSupplierScreenState extends ConsumerState<GasSupplierScreen> {
-  String? _selProductId;
-  String _selType = 'exchange';
+  String _mode = 'exchange';
+  String? _selKey;
   int _qty = 1;
-  bool _placing = false;
-  String? _error;
 
-  GasProduct? _selected(List<GasProduct> products) {
+  List<_Option> _options(List<GasProduct> products, String mode) {
+    final out = <_Option>[];
     for (final p in products) {
-      if (p.id == _selProductId) return p;
+      if (mode == 'exchange' && p.exchangeAvailable && p.exchangePriceCents != null) out.add(_Option(p, 'exchange'));
+      if (mode == 'new' && p.newAvailable && p.newPriceCents != null) out.add(_Option(p, 'new'));
+    }
+    return out;
+  }
+
+  _Option? _selected(List<GasProduct> products) {
+    for (final o in _options(products, _mode)) {
+      if (o.key == _selKey) return o;
     }
     return null;
   }
 
-  int _unitCents(GasProduct p) =>
-      (_selType == 'exchange' ? p.exchangePriceCents : p.newPriceCents) ?? 0;
-  int _depositCents(GasProduct p) => _selType == 'new' ? p.depositCents * _qty : 0;
-  int _total(GasProduct p) => _unitCents(p) * _qty + _depositCents(p);
-
-  void _select(GasProduct p, String type) {
-    setState(() {
-      _selProductId = p.id;
-      _selType = type;
-      _error = null;
-    });
-  }
-
-  Future<void> _place(GasProduct p) async {
+  ({double? lat, double? lng}) get _origin {
     final addr = ref.read(selectedAddressProvider);
     final user = ref.read(currentUserProvider);
-    final lat = addr?.latitude ?? user?.latitude;
-    final lng = addr?.longitude ?? user?.longitude;
-    final addressText = addr?.address ?? user?.address ?? '';
-    if (lat == null || lng == null || addressText.isEmpty) {
-      setState(() => _error = 'Add a delivery address with a location first.');
-      return;
-    }
-    final line = GasCartLine(
-      product: p,
-      purchaseType: _selType,
-      qty: _qty,
-      existingBrand: p.brand,
-      existingSize: p.sizeLabel,
-      condition: 'good',
-    );
-    setState(() { _placing = true; _error = null; });
-    try {
-      final svc = ref.read(gasServiceProvider);
-      final orderId = await svc.placeOrder(
-        supplierId: widget.supplier.id,
-        lines: [line],
-        address: addressText,
-        lat: lat,
-        lng: lng,
-      );
-      if (!mounted) return;
-      ref.invalidate(myGasOrdersProvider);
-      // Go to checkout to choose wallet / card / cash.
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GasCheckoutScreen(orderId: orderId, supplierName: widget.supplier.businessName),
-        ),
-      );
-    } catch (e) {
-      setState(() => _error = _friendly('$e'));
-    } finally {
-      if (mounted) setState(() => _placing = false);
-    }
+    return (lat: addr?.latitude ?? user?.latitude, lng: addr?.longitude ?? user?.longitude);
   }
 
-  String _friendly(String raw) {
-    if (raw.contains('outside the supplier delivery area')) {
-      return 'Your delivery address is outside this supplier\'s coverage area.';
-    }
-    if (raw.contains('insufficient stock')) return 'Sorry, that cylinder just went out of stock.';
-    if (raw.contains('insufficient wallet')) return 'Not enough wallet balance — top up and try again.';
-    if (raw.contains('not available')) return 'This supplier is not accepting orders right now.';
-    return raw.replaceAll('PostgrestException', '').trim();
+  GasCartLine _line(_Option o) => GasCartLine(
+        product: o.product, purchaseType: o.type, qty: _qty,
+        existingBrand: o.product.brand, existingSize: o.product.sizeLabel, condition: 'good',
+      );
+
+  void _continue(_Option o) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => GasReviewScreen(supplier: widget.supplier, line: _line(o)),
+    ));
   }
 
   @override
@@ -106,273 +70,197 @@ class _GasSupplierScreenState extends ConsumerState<GasSupplierScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Could not load products.\n$e', textAlign: TextAlign.center)),
         data: (products) {
+          final opts = _options(products, _mode);
           final sel = _selected(products);
-          return Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 160),
-                children: [
-                  _BannerAndInfo(supplier: widget.supplier),
-                  const SizedBox(height: 18),
-                  const Text('Select Cylinder Option',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 10),
-                  if (products.isEmpty)
-                    const Padding(padding: EdgeInsets.only(top: 24),
-                        child: Center(child: Text('No cylinders listed yet.')))
-                  else
-                    for (final p in products)
-                      _OptionCard(
-                        product: p,
-                        selected: _selProductId == p.id,
-                        selectedType: _selProductId == p.id ? _selType : null,
-                        onSelect: (type) => _select(p, type),
-                      ),
-                ],
-              ),
-              if (sel != null)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: _CheckoutBar(
-                    product: sel,
-                    qty: _qty,
-                    total: _total(sel),
-                    placing: _placing,
-                    error: _error,
-                    onQty: (d) => setState(() => _qty = (_qty + d).clamp(1, 99)),
-                    onPlace: () => _place(sel),
-                  ),
+          return Stack(children: [
+            ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 200),
+              children: [
+                const _Banner(),
+                const SizedBox(height: 16),
+                _ModeToggle(mode: _mode, onChanged: (m) => setState(() { _mode = m; _selKey = null; })),
+                const SizedBox(height: 16),
+                const Text('Choose Cylinder Size', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 10),
+                if (opts.isEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 20),
+                      child: Center(child: Text(_mode == 'new' ? 'No new cylinders offered here.' : 'No exchange cylinders listed yet.')))
+                else
+                  for (final o in opts)
+                    _OptionRow(
+                      option: o,
+                      selected: _selKey == o.key,
+                      onTap: o.product.inStock ? () => setState(() => _selKey = o.key) : null,
+                    ),
+              ],
+            ),
+            if (sel != null)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _SummaryBar(
+                  supplierId: widget.supplier.id,
+                  line: _line(sel),
+                  origin: _origin,
+                  qty: _qty,
+                  onQty: (d) => setState(() => _qty = (_qty + d).clamp(1, 99)),
+                  onContinue: () => _continue(sel),
                 ),
-            ],
-          );
+              ),
+          ]);
         },
       ),
     );
   }
 }
 
-class _BannerAndInfo extends StatelessWidget {
-  const _BannerAndInfo({required this.supplier});
-  final GasSupplier supplier;
+class _Banner extends StatelessWidget {
+  const _Banner();
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Banner
-        ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            height: 150,
-            width: double.infinity,
-            decoration: const BoxDecoration(gradient: GasBrand.flameGradient),
-            child: supplier.bannerUrl != null && supplier.bannerUrl!.isNotEmpty
-                ? Image.network(supplier.bannerUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _bannerFallback())
-                : _bannerFallback(),
-          ),
-        ),
-        // Info card overlapping
-        Transform.translate(
-          offset: const Offset(0, -28),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 16, offset: const Offset(0, 6))],
-            ),
-            child: Column(
-              children: [
-                Row(children: [
-                  GasBrand.flameAvatar(size: 48, logoUrl: supplier.logoUrl),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(supplier.businessName,
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 3),
-                        Row(children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 16),
-                          const SizedBox(width: 3),
-                          Text(supplier.rating > 0 ? supplier.rating.toStringAsFixed(1) : 'New',
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                          if (supplier.totalOrders > 0)
-                            Text('  (${supplier.totalOrders}+ orders)',
-                                style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5)),
-                        ]),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          const Icon(Icons.circle, size: 9, color: GasBrand.green),
-                          const SizedBox(width: 5),
-                          Text(supplier.isOpen ? 'Open · Delivering now' : 'Currently closed',
-                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: GasBrand.green)),
-                        ]),
-                      ],
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 12),
-                Row(children: [
-                  _InfoChip(icon: Icons.location_on_rounded, label: _area(supplier)),
-                  _InfoChip(icon: Icons.schedule_rounded, label: supplier.hoursLabel ?? 'Hours vary'),
-                  _InfoChip(icon: Icons.local_shipping_rounded, label: supplier.etaLabel ?? 'Est. soon'),
-                ]),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return Container(
+      height: 140,
+      width: double.infinity,
+      decoration: BoxDecoration(gradient: GasBrand.flameGradient, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(18),
+      child: Stack(children: [
+        Positioned(right: -6, bottom: -10,
+            child: Icon(Icons.local_fire_department_rounded, size: 120, color: Colors.white.withValues(alpha: 0.22))),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+          Text('Cooking Gas Delivery',
+              style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.05)),
+          SizedBox(height: 8),
+          Text('Exchange your empty cylinder or get a new one delivered to your doorstep.',
+              style: TextStyle(color: Colors.white, fontSize: 12.5, height: 1.3)),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _ModeToggle extends StatelessWidget {
+  const _ModeToggle({required this.mode, required this.onChanged});
+  final String mode;
+  final void Function(String) onChanged;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        _seg('exchange', Icons.swap_horiz_rounded, 'Exchange Cylinder', 'Return your empty cylinder'),
+        _seg('new', Icons.add_circle_outline_rounded, 'New Cylinder', 'Get a new cylinder + deposit'),
+      ]),
     );
   }
 
-  String _area(GasSupplier s) {
-    final a = s.address ?? '';
-    if (a.contains(',')) return a.split(',').last.trim();
-    return a.isEmpty ? 'Nearby' : a;
+  Widget _seg(String value, IconData icon, String title, String sub) {
+    return Expanded(
+      child: Builder(builder: (context) {
+        final active = mode == value;
+        return InkWell(
+          onTap: () => onChanged(value),
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+            decoration: BoxDecoration(
+              color: active ? GasBrand.orange : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 18, color: active ? Colors.white : Theme.of(context).hintColor),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5,
+                          color: active ? Colors.white : Theme.of(context).colorScheme.onSurface)),
+                  Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 9.5,
+                          color: active ? Colors.white70 : Theme.of(context).hintColor)),
+                ]),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
   }
-
-  Widget _bannerFallback() => Center(
-      child: Icon(Icons.propane_tank_rounded, size: 72, color: Colors.white.withValues(alpha: 0.85)));
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-  @override
-  Widget build(BuildContext context) => Expanded(
-        child: Column(children: [
-          Icon(icon, size: 18, color: GasBrand.orange),
-          const SizedBox(height: 3),
-          Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-        ]),
-      );
-}
-
-class _OptionCard extends StatelessWidget {
-  const _OptionCard({required this.product, required this.selected, required this.selectedType, required this.onSelect});
-  final GasProduct product;
+class _OptionRow extends StatelessWidget {
+  const _OptionRow({required this.option, required this.selected, required this.onTap});
+  final _Option option;
   final bool selected;
-  final String? selectedType;
-  final void Function(String type) onSelect;
-
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
-    final out = !product.inStock;
+    final p = option.product;
+    final out = onTap == null;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: selected ? GasBrand.orange.withValues(alpha: 0.06) : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: selected ? GasBrand.orange : Theme.of(context).dividerColor.withValues(alpha: 0.4),
             width: selected ? 1.8 : 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: GasBrand.orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.propane_tank_rounded, color: GasBrand.orange),
-            ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(children: [
+            GasBrand.cylinderTile(brand: p.brand, size: 62, imageUrl: p.imageUrl),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${product.brand} – ${product.sizeLabel}',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
-                if (selected)
-                  Text(selectedType == 'exchange' ? 'Exchange Cylinder' : 'New Cylinder',
+                Text('${p.brand} – ${p.sizeLabel}${option.type == 'new' ? ' (New Cylinder)' : ''}',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 3),
+                Row(children: [
+                  Icon(option.type == 'exchange' ? Icons.swap_horiz_rounded : Icons.add_circle_outline_rounded,
+                      size: 14, color: Theme.of(context).hintColor),
+                  const SizedBox(width: 4),
+                  Text(option.type == 'exchange' ? 'Exchange' : 'New Cylinder',
                       style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor)),
+                ]),
+                const SizedBox(height: 4),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(gasMoney(option.price),
+                      style: const TextStyle(color: GasBrand.orange, fontWeight: FontWeight.w900, fontSize: 17)),
+                  if (option.type == 'new' && p.depositCents > 0)
+                    Padding(padding: const EdgeInsets.only(left: 6, bottom: 2),
+                        child: Text('+ ${gasMoney(p.depositCents)} deposit',
+                            style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor))),
+                ]),
               ]),
             ),
             if (out)
-              const Text('Out of stock', style: TextStyle(color: Colors.red, fontSize: 12))
-            else if (selected)
-              const Icon(Icons.check_circle_rounded, color: GasBrand.orange)
+              const Text('Out', style: TextStyle(color: Colors.red, fontSize: 12))
             else
-              Icon(Icons.radio_button_unchecked_rounded, color: Theme.of(context).hintColor),
+              Icon(selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  color: selected ? GasBrand.orange : Theme.of(context).hintColor),
           ]),
-          const SizedBox(height: 12),
-          Row(children: [
-            if (product.exchangeAvailable && product.exchangePriceCents != null)
-              Expanded(
-                child: _PriceButton(
-                  label: 'Exchange',
-                  price: gasMoney(product.exchangePriceCents!),
-                  active: selected && selectedType == 'exchange',
-                  enabled: !out,
-                  onTap: () => onSelect('exchange'),
-                ),
-              ),
-            if (product.exchangeAvailable && product.newAvailable) const SizedBox(width: 10),
-            if (product.newAvailable && product.newPriceCents != null)
-              Expanded(
-                child: _PriceButton(
-                  label: 'New Cylinder',
-                  price: gasMoney(product.newPriceCents!),
-                  sub: product.depositCents > 0 ? '(+ ${gasMoney(product.depositCents)} deposit)' : null,
-                  active: selected && selectedType == 'new',
-                  enabled: !out,
-                  onTap: () => onSelect('new'),
-                ),
-              ),
-          ]),
-        ],
-      ),
-    );
-  }
-}
-
-class _PriceButton extends StatelessWidget {
-  const _PriceButton({required this.label, required this.price, this.sub, required this.active, required this.enabled, required this.onTap});
-  final String label;
-  final String price;
-  final String? sub;
-  final bool active;
-  final bool enabled;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: active ? GasBrand.orange.withValues(alpha: 0.12) : null,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? GasBrand.orange : Theme.of(context).dividerColor.withValues(alpha: 0.5)),
         ),
-        child: Column(children: [
-          Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5,
-              color: enabled ? null : Theme.of(context).disabledColor)),
-          const SizedBox(height: 2),
-          Text(price, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: GasBrand.orange)),
-          if (sub != null) Text(sub!, style: TextStyle(fontSize: 9.5, color: Theme.of(context).hintColor)),
-        ]),
       ),
     );
   }
 }
 
-class _CheckoutBar extends StatelessWidget {
-  const _CheckoutBar({required this.product, required this.qty, required this.total, required this.placing, required this.error, required this.onQty, required this.onPlace});
-  final GasProduct product;
+class _SummaryBar extends ConsumerWidget {
+  const _SummaryBar({required this.supplierId, required this.line, required this.origin, required this.qty, required this.onQty, required this.onContinue});
+  final String supplierId;
+  final GasCartLine line;
+  final ({double? lat, double? lng}) origin;
   final int qty;
-  final int total;
-  final bool placing;
-  final String? error;
   final void Function(int) onQty;
-  final VoidCallback onPlace;
+  final VoidCallback onContinue;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pad = MediaQuery.of(context).padding.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(16, 14, 16, 14 + pad),
@@ -383,41 +271,77 @@ class _CheckoutBar extends StatelessWidget {
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
-          const Text('Quantity', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Text('Quantity', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
           const Spacer(),
           _QtyBtn(icon: Icons.remove_rounded, onTap: () => onQty(-1)),
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('$qty', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
           _QtyBtn(icon: Icons.add_rounded, onTap: () => onQty(1)),
         ]),
-        const Divider(height: 18),
-        Row(children: [
-          const Text('Total', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-          const Spacer(),
-          Text(gasMoney(total), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-        ]),
-        Text('Delivery & service fees are added and charged to your wallet now.',
-            style: TextStyle(fontSize: 10.5, color: Theme.of(context).hintColor)),
-        if (error != null) Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-        ),
         const SizedBox(height: 10),
+        _QuoteSummary(supplierId: supplierId, line: line, origin: origin),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity, height: 52,
           child: FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: GasBrand.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            onPressed: placing ? null : onPlace,
-            icon: placing
-                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.shopping_cart_rounded),
-            label: Text(placing ? 'Placing…' : 'Place Gas Order',
-                style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+            style: FilledButton.styleFrom(backgroundColor: GasBrand.orange,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            onPressed: onContinue,
+            icon: const Icon(Icons.local_shipping_rounded),
+            label: const Text('Continue to Delivery', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
           ),
         ),
       ]),
     );
   }
+}
+
+/// Live price summary from the server quote (items/delivery/service/total).
+class _QuoteSummary extends ConsumerWidget {
+  const _QuoteSummary({required this.supplierId, required this.line, required this.origin});
+  final String supplierId;
+  final GasCartLine line;
+  final ({double? lat, double? lng}) origin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (origin.lat == null || origin.lng == null) {
+      return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Text('Subtotal', style: TextStyle(fontWeight: FontWeight.w700)),
+        Text(gasMoney(line.lineCents), style: const TextStyle(fontWeight: FontWeight.w800)),
+      ]);
+    }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ref.read(gasServiceProvider).quote(
+          supplierId: supplierId, lines: [line], lat: origin.lat!, lng: origin.lng!),
+      builder: (context, snap) {
+        final q = snap.data;
+        int c(String k) => (q?[k] as num?)?.toInt() ?? 0;
+        return Column(children: [
+          _row(context, 'Cylinder (${line.product.sizeLabel} ${line.purchaseType})', gasMoney(c('items_cents'))),
+          if (c('deposit_cents') > 0) _row(context, 'Deposit', gasMoney(c('deposit_cents'))),
+          _row(context, 'Delivery Fee', q == null ? '…' : gasMoney(c('delivery_cents'))),
+          _row(context, 'Service Fee', q == null ? '…' : gasMoney(c('service_fee_cents'))),
+          const Divider(height: 14),
+          _row(context, 'Total', q == null ? '…' : gasMoney(c('total_cents')), bold: true),
+          if (q != null && q['in_zone'] == false)
+            const Padding(padding: EdgeInsets.only(top: 4),
+                child: Text('Address may be outside this supplier\'s delivery area.',
+                    style: TextStyle(color: Colors.red, fontSize: 11.5))),
+        ]);
+      },
+    );
+  }
+
+  Widget _row(BuildContext c, String a, String b, {bool bold = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(a, style: TextStyle(fontWeight: bold ? FontWeight.w900 : FontWeight.w400,
+              fontSize: bold ? 16 : 13, color: bold ? null : Theme.of(c).hintColor)),
+          Text(b, style: TextStyle(fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+              fontSize: bold ? 17 : 13, color: bold ? GasBrand.orange : null)),
+        ]),
+      );
 }
 
 class _QtyBtn extends StatelessWidget {
@@ -426,12 +350,9 @@ class _QtyBtn extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-        color: GasBrand.orange.withValues(alpha: 0.12),
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, color: GasBrand.orange, size: 20)),
-        ),
+        color: Colors.transparent,
+        shape: CircleBorder(side: BorderSide(color: Theme.of(context).dividerColor)),
+        child: InkWell(customBorder: const CircleBorder(), onTap: onTap,
+            child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, size: 20))),
       );
 }

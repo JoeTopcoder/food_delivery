@@ -33,6 +33,22 @@ class GasService {
     return (rows as List).map((r) => GasProduct.fromMap(r as Map<String, dynamic>)).toList();
   }
 
+  /// Price quote (delivery + service + total) BEFORE placing — no side effects.
+  Future<Map<String, dynamic>> quote({
+    required String supplierId,
+    required List<GasCartLine> lines,
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _db.rpc('gas_quote', params: {
+      'p_supplier': supplierId,
+      'p_items': lines.map((l) => l.toItemJson()).toList(),
+      'p_lat': lat,
+      'p_lng': lng,
+    });
+    return (res as Map).cast<String, dynamic>();
+  }
+
   // ── Placement + payment ───────────────────────────────────────────────────
 
   /// Places a gas order via the server-authoritative RPC. Returns the new order id.
