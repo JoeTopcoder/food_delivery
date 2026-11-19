@@ -155,13 +155,23 @@ class _SupplierCard extends StatelessWidget {
                 _OpenPill(open: open),
                 const SizedBox(height: 8),
                 Row(children: [
-                  Icon(Icons.schedule_rounded, size: 14, color: Theme.of(context).hintColor),
-                  const SizedBox(width: 4),
-                  Text(supplier.hoursLabel ?? 'Hours vary', style: const TextStyle(fontSize: 12)),
-                  const Spacer(),
-                  Icon(Icons.local_shipping_rounded, size: 14, color: Theme.of(context).hintColor),
-                  const SizedBox(width: 4),
-                  Text(supplier.etaLabel ?? 'Est. soon', style: const TextStyle(fontSize: 12)),
+                  Expanded(
+                    child: Row(children: [
+                      Icon(Icons.schedule_rounded, size: 14, color: Theme.of(context).hintColor),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(supplier.hoursLabel ?? 'Hours vary',
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.local_shipping_rounded, size: 14, color: Theme.of(context).hintColor),
+                    const SizedBox(width: 4),
+                    Text(supplier.etaLabel ?? 'Est. soon',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)),
+                  ]),
                 ]),
               ]),
             ),
