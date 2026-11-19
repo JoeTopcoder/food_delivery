@@ -55,7 +55,10 @@ class _GasCheckoutScreenState extends ConsumerState<GasCheckoutScreen> {
 
   String _friendly(String raw) {
     if (raw.contains('insufficient wallet')) return 'Not enough wallet balance — choose another method or top up.';
-    if (raw.contains('not configured')) return 'Card payments aren\'t available right now. Try wallet or cash.';
+    if (raw.contains('not configured') || raw.contains('FunctionException') ||
+        raw.contains('404') || raw.contains('Failed to send') || raw.contains('not found')) {
+      return 'Card payment isn\'t available yet — please use Wallet or Cash on Delivery.';
+    }
     return raw.replaceAll('PostgrestException', '').replaceAll('Exception:', '').trim();
   }
 
