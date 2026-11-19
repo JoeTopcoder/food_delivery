@@ -131,7 +131,17 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1117),
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        color: AppTheme.primaryColor,
+        backgroundColor: const Color(0xFF1A1D27),
+        // Pull to refresh so a just-completed delivery (today's) always shows
+        // even if a realtime event was missed while the tab was backgrounded.
+        onRefresh: () async {
+          ref.invalidate(deliveryHistoryProvider(driver.id));
+          ref.invalidate(driverProfileProvider(currentUserId));
+          await ref.read(deliveryHistoryProvider(driver.id).future);
+        },
+        child: CustomScrollView(
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
@@ -504,6 +514,7 @@ class _DriverEarningsScreenState extends ConsumerState<DriverEarningsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
