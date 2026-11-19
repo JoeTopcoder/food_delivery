@@ -31,6 +31,11 @@ class GasSupplier {
   final bool deliveryOperational;
   final String verificationStatus;
   final bool isActive;
+  final double rating;
+  final int totalOrders;
+  final String? hoursLabel;
+  final String? etaLabel;
+  final String? bannerUrl;
 
   const GasSupplier({
     required this.id,
@@ -46,6 +51,11 @@ class GasSupplier {
     this.deliveryOperational = false,
     this.verificationStatus = 'pending',
     this.isActive = true,
+    this.rating = 0,
+    this.totalOrders = 0,
+    this.hoursLabel,
+    this.etaLabel,
+    this.bannerUrl,
   });
 
   bool get isLive =>
@@ -66,6 +76,11 @@ class GasSupplier {
         deliveryOperational: _bool(m['delivery_operational']),
         verificationStatus: m['verification_status']?.toString() ?? 'pending',
         isActive: _bool(m['is_active']),
+        rating: _dbl(m['rating']) ?? 0,
+        totalOrders: _int(m['total_orders']),
+        hoursLabel: m['hours_label']?.toString(),
+        etaLabel: m['eta_label']?.toString(),
+        bannerUrl: m['banner_url']?.toString(),
       );
 }
 
