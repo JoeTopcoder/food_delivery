@@ -19,6 +19,7 @@ final _serviceTogglesProvider = FutureProvider.autoDispose<Map<String, bool>>((
         'service_rides_enabled',
         'service_laundry_enabled',
         'service_car_service_enabled',
+        'service_gas_enabled',
         'screen_home_enabled',
         'screen_grocery_enabled',
         'screen_orders_enabled',
@@ -36,6 +37,7 @@ final _serviceTogglesProvider = FutureProvider.autoDispose<Map<String, bool>>((
   map.putIfAbsent('service_rides_enabled', () => true);
   map.putIfAbsent('service_laundry_enabled', () => true);
   map.putIfAbsent('service_car_service_enabled', () => true);
+  map.putIfAbsent('service_gas_enabled', () => false);
   map.putIfAbsent('screen_home_enabled', () => true);
   map.putIfAbsent('screen_grocery_enabled', () => true);
   map.putIfAbsent('screen_orders_enabled', () => true);
@@ -85,6 +87,13 @@ class AdminServicesScreen extends ConsumerWidget {
       subtitle: 'Car wash & detailing bookings',
       icon: Icons.car_repair_rounded,
       color: Color(0xFF155EEF),
+    ),
+    _ServiceDef(
+      key: 'service_gas_enabled',
+      label: 'Cooking Gas',
+      subtitle: 'LPG cylinder exchange & delivery',
+      icon: Icons.propane_tank_rounded,
+      color: Color(0xFFD7263D),
     ),
   ];
 
@@ -257,6 +266,16 @@ class AdminServicesScreen extends ConsumerWidget {
           .from('app_config')
           .update({'value': enabled ? 'true' : 'false'})
           .eq('key', key);
+
+      // Cooking Gas: the one switch also flips the backend kill switch
+      // (gas_enabled) so turning it off both hides the UI AND stops the server
+      // from accepting new gas orders.
+      if (key == 'service_gas_enabled') {
+        await SupabaseConfig.client
+            .from('app_config')
+            .update({'value': enabled ? 'true' : 'false'})
+            .eq('key', 'gas_enabled');
+      }
 
       // Reload AppConstants so the change is reflected instantly in this session
       await AppConfigService(SupabaseConfig.client).load();
