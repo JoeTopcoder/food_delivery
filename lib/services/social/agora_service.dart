@@ -87,6 +87,9 @@ class AgoraService {
           if (kDebugMode)
             debugPrint('AgoraService: remote user $remoteUid joined');
           onUserJoined?.call(remoteUid);
+          // Remote is in — re-assert the audio route to defeat a dead Bluetooth
+          // (SCO) device that would otherwise leave both parties silent.
+          _scheduleReassert();
         },
         onUserOffline:
             (RtcConnection conn, int remoteUid, UserOfflineReasonType reason) {
@@ -107,6 +110,7 @@ class AgoraService {
               if (state == RemoteAudioState.remoteAudioStateDecoding) {
                 onUserJoined?.call(remoteUid);
                 onRemoteAudioActive?.call();
+                _scheduleReassert();
               }
             },
         onConnectionStateChanged:
@@ -269,8 +273,15 @@ class AgoraService {
   }
 
   // ── Audio controls ───────────────────────────────────────────────────────
+  // Remembered speaker preference (default speaker ON) so route re-assertions
+  // after the remote joins restore what the user actually chose, not a default.
+  bool _speakerOn = true;
+
   void setMuted(bool muted) => _engine?.muteLocalAudioStream(muted);
-  void setSpeaker(bool speaker) => _engine?.setEnableSpeakerphone(speaker);
+  void setSpeaker(bool speaker) {
+    _speakerOn = speaker;
+    _engine?.setEnableSpeakerphone(speaker);
+  }
   void setVolumes() {
     _engine?.adjustRecordingSignalVolume(400);
     _engine?.adjustPlaybackSignalVolume(400);
@@ -285,6 +296,32 @@ class AgoraService {
     // Force the speaker route on join so a flaky Bluetooth SCO device can never
     // take over the call and silence it. The in-call toggle can switch later.
     await _engine!.setEnableSpeakerphone(true);
+  }
+
+  /// Re-assert the audio route once the remote party joins. On iOS a Bluetooth
+  /// device that doesn't properly support the voice (SCO) profile can seize the
+  /// call and deadlock the mic → both parties silent. Re-opening the audio paths
+  /// and briefly flipping the speaker route forces the iOS audio session to drop
+  /// the dead Bluetooth device and pick a working one (built-in), while
+  /// restoring the user's chosen speaker/earpiece.
+  Future<void> reassertAudioRoute() async {
+    if (_engine == null) return;
+    try {
+      await _engine!.enableLocalAudio(true);
+      await _engine!.muteLocalAudioStream(false);
+      await _engine!.muteAllRemoteAudioStreams(false);
+      // Flip then restore to kick the session off a stuck BT (SCO) route.
+      await _engine!.setEnableSpeakerphone(!_speakerOn);
+      await Future.delayed(const Duration(milliseconds: 150));
+      await _engine!.setEnableSpeakerphone(_speakerOn);
+      setVolumes();
+    } catch (_) {/* best-effort */}
+  }
+
+  /// Re-assert the route a moment after the remote joins (let the session settle
+  /// before forcing it off a dead Bluetooth device).
+  void _scheduleReassert() {
+    Future.delayed(const Duration(milliseconds: 500), reassertAudioRoute);
   }
 
   // ── Clear callbacks (call from CallScreen.dispose) ───────────────────────
