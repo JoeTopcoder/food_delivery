@@ -3,8 +3,8 @@
 Agora carries the call **audio**; this pipeline is the **signaling** that wakes a
 backgrounded/locked iPhone and makes it **ring** via CallKit. Everything in the
 codebase is already wired — the only remaining work is Apple credentials + a
-macOS/Xcode build. Bundle id: **`com.quickdash.app`** → VoIP topic
-**`com.quickdash.app.voip`**.
+macOS/Xcode build. Bundle id: **`com.sevendash.app`** → VoIP topic
+**`com.sevendash.app.voip`**.
 
 ---
 
@@ -22,7 +22,7 @@ work**, because even basic FCM doesn't reach iOS.
 
 ### P1. Register the iOS app in Firebase + add the config file
 - Firebase Console → your project → **Add app → iOS**, bundle id
-  **`com.quickdash.app`** (skip if the iOS app already exists).
+  **`com.sevendash.app`** (skip if the iOS app already exists).
 - **Download `GoogleService-Info.plist`**, put it at
   **`ios/Runner/GoogleService-Info.plist`**, and add it to the **Runner** target
   in Xcode (check "Copy items if needed" + Runner target membership) so it's
@@ -89,7 +89,7 @@ Apple Developer → **Certificates, Identifiers & Profiles → Keys → +**
 ```bash
 supabase secrets set APNS_KEY_ID=XXXXXXXXXX
 supabase secrets set APNS_TEAM_ID=YYYYYYYYYY
-supabase secrets set APNS_BUNDLE_ID=com.quickdash.app
+supabase secrets set APNS_BUNDLE_ID=com.sevendash.app
 supabase secrets set APNS_PRODUCTION=true   # true for TestFlight/App Store; false for a dev/debug build
 # Paste the whole .p8 (including the BEGIN/END lines):
 supabase secrets set APNS_VOIP_KEY="$(cat AuthKey_XXXXXXXXXX.p8)"

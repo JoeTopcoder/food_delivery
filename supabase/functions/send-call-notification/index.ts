@@ -131,7 +131,7 @@ async function apnsProviderJwt(): Promise<string> {
 
 async function sendVoipPush(voipToken: string, callData: Record<string, unknown>): Promise<Response> {
   const jwt = await apnsProviderJwt();
-  const bundle = Deno.env.get("APNS_BUNDLE_ID") ?? "com.quickdash.app";
+  const bundle = Deno.env.get("APNS_BUNDLE_ID") ?? "com.sevendash.app";
   const prod = (Deno.env.get("APNS_PRODUCTION") ?? "true") === "true";
   const host = prod ? "api.push.apple.com" : "api.sandbox.push.apple.com";
   return await fetch(`https://${host}/3/device/${voipToken}`, {
