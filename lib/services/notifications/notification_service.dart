@@ -293,10 +293,23 @@ class NotificationService {
           case Event.actionCallEnded:
             FlutterCallkitIncoming.endAllCalls();
             break;
+          case Event.actionDidUpdateDevicePushTokenVoip:
+            // iOS PushKit VoIP token — persist it so the backend can send the
+            // VoIP push that rings CallKit when the app is backgrounded/locked.
+            final voip = (event.body['deviceTokenVoIP'] ?? event.body['token'] ?? '')
+                .toString();
+            if (voip.isNotEmpty) _saveVoipToken(voip);
+            break;
           default:
             break;
         }
       });
+
+      // On iOS, also fetch any VoIP token already issued this launch.
+      try {
+        final existingVoip = await FlutterCallkitIncoming.getDevicePushTokenVoIP();
+        if (existingVoip.isNotEmpty) _saveVoipToken(existingVoip);
+      } catch (_) {/* non-iOS or not yet available */}
 
       _initialized = true;
       AppLogger.info('Notification service initialized with FCM');
@@ -374,6 +387,22 @@ class NotificationService {
       AppLogger.info('Device platform ($_devicePlatform) + FCM token saved');
     } catch (e) {
       AppLogger.error('Error saving FCM token / platform: $e');
+    }
+  }
+
+  /// Persist the iOS PushKit VoIP token on the user's profile. The backend uses
+  /// it to send the APNs VoIP push that rings CallKit on iOS.
+  Future<void> _saveVoipToken(String token) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || token.isEmpty) return;
+      await Supabase.instance.client
+          .from('users')
+          .update({'voip_token': token})
+          .eq('id', user.id);
+      AppLogger.info('iOS VoIP token saved');
+    } catch (e) {
+      AppLogger.error('Error saving VoIP token: $e');
     }
   }
 

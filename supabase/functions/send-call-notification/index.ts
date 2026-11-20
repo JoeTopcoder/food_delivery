@@ -95,6 +95,58 @@ async function getAccessToken(
   return access_token;
 }
 
+// ── APNs VoIP push (PushKit → CallKit on iOS) ───────────────────────────────
+// Signs an ES256 provider JWT with the Apple VoIP push key (.p8) and POSTs a
+// VoIP push to APNs. Secrets (set via `supabase secrets set`):
+//   APNS_VOIP_KEY   — contents of the AuthKey_XXXX.p8 (PEM, incl. BEGIN/END)
+//   APNS_KEY_ID     — the key's 10-char Key ID
+//   APNS_TEAM_ID    — your Apple Developer Team ID
+//   APNS_BUNDLE_ID  — the app bundle id (topic is <bundle>.voip)
+//   APNS_PRODUCTION — "true" for TestFlight/App Store, "false" for dev builds
+async function apnsProviderJwt(): Promise<string> {
+  const keyId = Deno.env.get("APNS_KEY_ID");
+  const teamId = Deno.env.get("APNS_TEAM_ID");
+  const p8 = Deno.env.get("APNS_VOIP_KEY");
+  if (!keyId || !teamId || !p8) throw new Error("APNS VoIP secrets not set");
+
+  const now = Math.floor(Date.now() / 1000);
+  const enc = new TextEncoder();
+  const header = base64UrlEncode(enc.encode(JSON.stringify({ alg: "ES256", kid: keyId })));
+  const payload = base64UrlEncode(enc.encode(JSON.stringify({ iss: teamId, iat: now })));
+  const unsigned = `${header}.${payload}`;
+
+  const pemBody = p8
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s+/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]
+  );
+  const sig = new Uint8Array(
+    await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(unsigned))
+  );
+  return `${unsigned}.${base64UrlEncode(sig)}`;
+}
+
+async function sendVoipPush(voipToken: string, callData: Record<string, unknown>): Promise<Response> {
+  const jwt = await apnsProviderJwt();
+  const bundle = Deno.env.get("APNS_BUNDLE_ID") ?? "com.quickdash.app";
+  const prod = (Deno.env.get("APNS_PRODUCTION") ?? "true") === "true";
+  const host = prod ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+  return await fetch(`https://${host}/3/device/${voipToken}`, {
+    method: "POST",
+    headers: {
+      authorization: `bearer ${jwt}`,
+      "apns-topic": `${bundle}.voip`,
+      "apns-push-type": "voip",
+      "apns-priority": "10",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(callData),
+  });
+}
+
 // ── Load service account from env ───────────────────────────────────────────
 
 function getServiceAccount() {
@@ -137,7 +189,7 @@ Deno.serve(async (req: Request) => {
     // 1. Fetch recipient's FCM token from the users table
     const { data: user, error: userError } = await admin
       .from("users")
-      .select("fcm_token, name")
+      .select("fcm_token, voip_token, name")
       .eq("id", recipientUserId)
       .maybeSingle();
 
@@ -146,9 +198,9 @@ Deno.serve(async (req: Request) => {
       return json({ error: "User lookup failed" }, 500);
     }
 
-    if (!user?.fcm_token) {
-      console.warn(`No FCM token for user ${recipientUserId}`);
-      return json({ error: "Recipient has no FCM token" }, 404);
+    if (!user?.fcm_token && !user?.voip_token) {
+      console.warn(`No FCM or VoIP token for user ${recipientUserId}`);
+      return json({ error: "Recipient has no push token" }, 404);
     }
 
     // Look up the caller's role so the receiver's call screen can show who's
@@ -197,8 +249,45 @@ Deno.serve(async (req: Request) => {
     }
     safeCallerName = displayCaller;
 
+    // 1b. iOS VoIP push (PushKit → CallKit ring). Preferred for iOS: it wakes
+    //     the app and rings even when backgrounded/locked. If the recipient has
+    //     a voip_token and the APNs VoIP key is configured, send it and stop.
+    //     Any failure falls through to the FCM path below (so iOS still gets at
+    //     least an alert banner until the Apple VoIP key is set).
+    if (user.voip_token) {
+      try {
+        const voipRes = await sendVoipPush(user.voip_token as string, {
+          call_id: callId,
+          caller_name: safeCallerName,
+          caller_id: callerId ?? "",
+          caller_role: callerRole,
+          channel_name: channelName,
+          order_id: orderId ?? "",
+          handle: safeCallerName,
+          aps: {}, // VoIP pushes carry no alert; CallKit renders the UI
+        });
+        if (voipRes.ok) {
+          await admin.from("notifications").insert({
+            user_id: recipientUserId, title: "Incoming Call",
+            body: `${safeCallerName} is calling you`, type: "incoming_call",
+            data: { type: "incoming_call", call_id: callId, caller_id: callerId,
+                    order_id: orderId, channel_name: channelName },
+          }).then(() => {});
+          console.log(`VoIP call push sent to ${recipientUserId} for call ${callId}`);
+          return json({ success: true, via: "voip", status: voipRes.status });
+        }
+        console.warn(`VoIP push failed (${voipRes.status}): ${await voipRes.text()} — falling back to FCM`);
+      } catch (e) {
+        console.warn(`VoIP push error (${e instanceof Error ? e.message : e}) — falling back to FCM`);
+      }
+    }
+
     // 2. Build and send a data-only FCM message (high priority)
     //    Data-only ensures the background handler fires on Android even when killed
+    if (!user.fcm_token) {
+      // iOS-only recipient whose VoIP push just failed and has no FCM token.
+      return json({ error: "VoIP push failed and no FCM token to fall back to" }, 502);
+    }
     const sa = getServiceAccount();
     const accessToken = await getAccessToken(sa);
 
