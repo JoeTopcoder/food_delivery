@@ -39,6 +39,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _creatingProfile = false;
   bool _redirecting = false;
   late AnimationController _pulseController;
+  Timer? _heartbeatTimer;
   Driver? _lastDriver;
   bool _serviceTopicsInitialized = false;
   // Ready orders already shown to this driver, so a nearby order isn't
@@ -72,10 +73,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     };
     NotificationService.onNewPackageReceived = null;
     NotificationService.onNewRideReceived = null;
+
+    // Presence heartbeat: while the driver is online, ping the server every 60s
+    // so it can tell a live driver from one who closed the app. The server
+    // flips a driver offline once their heartbeat goes stale.
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      final d = _lastDriver;
+      if (d != null && d.isAvailable) {
+        ref.read(driverServiceProvider).sendHeartbeat();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
     _pulseController.dispose();
     NotificationService.onNewOrderReceived = null;
     NotificationService.onNewPackageReceived = null;

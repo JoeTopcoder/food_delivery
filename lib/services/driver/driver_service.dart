@@ -200,10 +200,15 @@ class DriverService {
     try {
       AppLogger.info('Updating driver availability: $driverId -> $isAvailable');
 
+      // Keep is_online in lockstep with the on-duty toggle (admin counts
+      // is_online), and seed last_seen so the heartbeat-staleness reconcile
+      // doesn't immediately flip a driver who just came online.
       await _supabaseClient
           .from(AppConstants.tableDrivers)
           .update({
             'is_available': isAvailable,
+            'is_online': isAvailable,
+            if (isAvailable) 'last_seen': DateTime.now().toUtc().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', driverId);
@@ -1237,6 +1242,17 @@ class DriverService {
     } catch (e) {
       AppLogger.error('Error fetching verification documents: $e');
       return {};
+    }
+  }
+
+  /// Lightweight presence ping — called periodically while the driver is online
+  /// so the server can tell a live driver from one who closed the app. Keeps
+  /// drivers.last_seen fresh; the staleness reconcile uses it.
+  Future<void> sendHeartbeat() async {
+    try {
+      await _supabaseClient.rpc('driver_heartbeat');
+    } catch (_) {
+      // best-effort; a missed beat is tolerated by the staleness window
     }
   }
 
