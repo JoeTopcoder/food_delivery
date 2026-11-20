@@ -226,19 +226,26 @@ Deno.serve(async (req: Request) => {
         android: {
           priority: "high",
         },
+        // iOS: send a real ALERT push (not a silent content-available background
+        // push, which iOS throttles and shows nothing). This makes a backgrounded
+        // or locked iPhone surface the incoming-call notification with sound; the
+        // custom data keys ride along so tapping it opens the call screen.
+        // NOTE: true phone-style ringing (CallKit while locked) still needs a
+        // PushKit VoIP push — a separate native pipeline, not this FCM path.
         apns: {
           payload: {
             aps: {
-              "content-available": 1,
-              sound: "default",
               alert: {
                 title: "Incoming Call 📞",
                 body: `${safeCallerName} is calling you`,
               },
+              sound: "default",
+              "interruption-level": "time-sensitive",
             },
           },
           headers: {
             "apns-priority": "10",
+            "apns-push-type": "alert",
           },
         },
       },
