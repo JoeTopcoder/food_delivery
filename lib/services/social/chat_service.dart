@@ -396,40 +396,36 @@ class ChatService {
     );
 
     final callJson = res as Map<String, dynamic>;
-    var callRecord = CallRecord.fromJson(callJson);
+    final callRecord = CallRecord.fromJson(callJson);
 
-    // Fetch Agora token so both parties can join the channel
-    try {
-      final result = await fetchAgoraToken(
-        callRecord.id,
-        callRecord.channelName,
-      );
-      if (result != null) {
-        callRecord = callRecord.copyWith(agoraToken: result.token);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'initiateCall: token pre-fetch failed (will retry in CallScreen): $e',
-        );
-      }
-    }
+    // Everything below is OFF the critical path so the caller's call UI opens
+    // immediately (previously the token fetch + system-message insert blocked it
+    // for 3-10s). The CallScreen fetches its own token when it joins, so the
+    // pre-fetch here is just a cache warm-up; the push + system message don't
+    // need to be awaited either.
 
-    // Send a system message about the call (no-op for rides — no conversation)
-    try {
-      await sendMessage(
-        orderId: orderId,
-        senderId: callerId,
-        senderRole: '',
-        message: 'Voice call started',
-        messageType: MessageType.callEvent,
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('initiateCall: system message skipped: $e');
-    }
-
-    // Send FCM push notification to receiver so their phone rings
+    // Ring the receiver (FCM / VoIP) — fire and forget.
     _notifyIncomingCall(callRecord);
+
+    // Warm the Agora token cache + log the system message in the background.
+    unawaited(() async {
+      try {
+        await fetchAgoraToken(callRecord.id, callRecord.channelName);
+      } catch (e) {
+        if (kDebugMode) debugPrint('initiateCall: token warm-up failed: $e');
+      }
+      try {
+        await sendMessage(
+          orderId: orderId,
+          senderId: callerId,
+          senderRole: '',
+          message: 'Voice call started',
+          messageType: MessageType.callEvent,
+        );
+      } catch (e) {
+        if (kDebugMode) debugPrint('initiateCall: system message skipped: $e');
+      }
+    }());
 
     return callRecord;
   }
