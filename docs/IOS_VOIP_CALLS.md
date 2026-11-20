@@ -6,6 +6,59 @@ codebase is already wired — the only remaining work is Apple credentials + a
 macOS/Xcode build. Bundle id: **`com.quickdash.app`** → VoIP topic
 **`com.quickdash.app.voip`**.
 
+---
+
+## ⚠️ PREREQUISITE — iOS push is NOT configured at all (do this FIRST)
+
+Diagnostic run on the live DB: **0 of 4 iOS users have any push token**, while
+Android is 14/14. Root cause: **`ios/Runner/GoogleService-Info.plist` is missing**
+(Android's `google-services.json` is present). Without it, `FirebaseApp.configure()`
+on iOS can't start Firebase Messaging, so **no FCM token is ever issued** → iOS
+gets **no push at all** — not calls, not the daily admin broadcast. The app code
+is correct (it awaits the APNs token and logs the cause); this is pure config.
+
+Until the steps below are done, **nothing in the VoIP sections further down will
+work**, because even basic FCM doesn't reach iOS.
+
+### P1. Register the iOS app in Firebase + add the config file
+- Firebase Console → your project → **Add app → iOS**, bundle id
+  **`com.quickdash.app`** (skip if the iOS app already exists).
+- **Download `GoogleService-Info.plist`**, put it at
+  **`ios/Runner/GoogleService-Info.plist`**, and add it to the **Runner** target
+  in Xcode (check "Copy items if needed" + Runner target membership) so it's
+  bundled. (Do NOT fabricate this file — it must come from the console.)
+
+### P2. Upload the APNs Auth Key to Firebase (lets Firebase mint iOS FCM tokens)
+- Firebase Console → **Project Settings → Cloud Messaging → Apple app
+  configuration → APNs Authentication Key → Upload**.
+- Use the **same `.p8`** you create for VoIP below, plus its **Key ID** and your
+  **Team ID**. (One APNs key serves both FCM alerts and VoIP pushes.)
+
+### P3. Xcode capabilities + APNs environment
+- Runner target → **Signing & Capabilities → + Push Notifications**.
+- `ios/Runner/Runner.entitlements` has `aps-environment` = **`production`**.
+  - TestFlight / App Store build → `production` ✅ (leave as-is).
+  - Direct Xcode **debug/dev** build to a device → must be **`development`**, or
+    the device won't get an APNs token. (Switch it for local testing, switch back
+    for release — or let Xcode's "Automatically manage signing" handle it.)
+
+### P4. Verify FCM registration before touching VoIP
+```bash
+cd ios && pod install && cd ..
+flutter run        # on a REAL iPhone; grant the notification prompt
+```
+```sql
+SELECT count(*) FROM users WHERE device_platform='ios' AND fcm_token IS NOT NULL;
+```
+This must climb above **0**. Once it does, iOS receives the **daily admin
+broadcast** immediately. Only then proceed to the VoIP steps for call ringing.
+
+> If `fcm_token` stays null, read the Xcode console — the app logs
+> `APNs token unavailable — iOS push cannot register (check APNs key in Firebase
+> + Push capability provisioning)`, which points at P1–P3.
+
+---
+
 ## What's already done (in this repo)
 - `ios/Runner/Info.plist` — `UIBackgroundModes` includes **`voip`** + `audio`.
 - `ios/Runner/AppDelegate.swift` — registers **PushKit**, forwards the VoIP token
