@@ -1123,7 +1123,8 @@ class _UserCardsAndTopups extends StatelessWidget {
         }
         final data = snap.data ?? const {};
         final cards = (data['saved_cards'] as List?) ?? const [];
-        final charges = (data['card_charges'] as List?) ?? const [];
+        final topups = (data['card_topups'] as List?) ?? const [];
+        final verifications = (data['card_verifications'] as List?) ?? const [];
 
         Widget badge(String s) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -1134,6 +1135,34 @@ class _UserCardsAndTopups extends StatelessWidget {
           child: Text(s, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700,
               color: _statusColor(s))),
         );
+
+        // Rows for a list of card charges (shared by Top-ups + Verifications).
+        List<Widget> chargeRows(List items, String emptyMsg) {
+          if (items.isEmpty) {
+            return [Text(emptyMsg, style: const TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)))];
+          }
+          return items.map<Widget>((c) {
+            final m = c as Map;
+            final status = (m['status'] ?? '').toString();
+            final amt = (m['amount'] as num?)?.toDouble() ?? 0;
+            final ok = _statusColor(status) == const Color(0xFF10B981);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Icon(ok ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                    size: 16, color: _statusColor(status)),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('$sym${amt.toStringAsFixed(2)} · ${(m['brand'] ?? '').toString().toUpperCase()} •••• ${m['last4'] ?? '----'}',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  Text(_fmtDate(m['created_at'] as String?),
+                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF9CA3AF))),
+                ])),
+                badge(status),
+              ]),
+            );
+          }).toList();
+        }
 
         return Container(
           padding: const EdgeInsets.all(14),
@@ -1168,33 +1197,16 @@ class _UserCardsAndTopups extends StatelessWidget {
                 }),
 
               const SizedBox(height: 14),
-              const Text('Card Top-ups / Charges',
+              const Text('Card Top-ups',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
               const SizedBox(height: 8),
-              if (charges.isEmpty)
-                const Text('No card top-ups yet.', style: TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)))
-              else
-                ...charges.map((c) {
-                  final m = c as Map;
-                  final status = (m['status'] ?? '').toString();
-                  final amt = (m['amount'] as num?)?.toDouble() ?? 0;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(children: [
-                      Icon(_statusColor(status) == const Color(0xFF10B981)
-                              ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                          size: 16, color: _statusColor(status)),
-                      const SizedBox(width: 8),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('$sym${amt.toStringAsFixed(2)} · ${(m['brand'] ?? '').toString().toUpperCase()} •••• ${m['last4'] ?? '----'}',
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                        Text(_fmtDate(m['created_at'] as String?),
-                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF9CA3AF))),
-                      ])),
-                      badge(status),
-                    ]),
-                  );
-                }),
+              ...chargeRows(topups, 'No card top-ups yet.'),
+
+              const SizedBox(height: 14),
+              const Text('Card Verifications',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+              const SizedBox(height: 8),
+              ...chargeRows(verifications, 'No card verifications yet.'),
             ],
           ),
         );
