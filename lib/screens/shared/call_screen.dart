@@ -179,6 +179,15 @@ class _CallScreenState extends ConsumerState<CallScreen>
     // 4. Caller joins immediately; receiver joins after accepting
     if (widget.isCaller || _callStatus == CallStatus.accepted) {
       await _joinChannel();
+    } else if (_callStatus == CallStatus.ringing) {
+      // Receiver: PRE-WARM the Agora token while the phone is still ringing.
+      // The slowest part of connecting is the server round-trip to mint the
+      // token; doing it now (engine is already initialized above) means that
+      // when the user taps Answer we only have to joinChannel — so audio is
+      // essentially immediate instead of waiting ~5s for a cold token fetch.
+      if (_token == null || _token!.isEmpty) {
+        _token = await _fetchToken();
+      }
     }
   }
 
@@ -297,7 +306,9 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _isJoining = true;
     if (mounted) setState(() => _stageError = null);
 
-    _token = await _fetchToken();
+    // Reuse a token pre-fetched during ringing; only hit the server if we
+    // don't already have one (or a retry cleared it).
+    _token ??= await _fetchToken();
     if (!mounted) {
       _isJoining = false;
       return;
