@@ -64,6 +64,13 @@ class AdminFinancialsScreen extends ConsumerWidget {
                 (data['driver_payouts_completed'] ?? 0).toDouble();
             final driverPayoutsOutstanding =
                 (data['driver_payouts_outstanding'] ?? totalDriverPayout).toDouble();
+            // Customer wallet (deposits are a liability the platform owes back,
+            // not revenue — shown separately from sales/net revenue).
+            final walletTopups = (data['wallet_topups_total'] ?? 0).toDouble();
+            final walletTopupsMonth = (data['wallet_topups_month'] ?? 0).toDouble();
+            final walletLiability =
+                (data['wallet_liability_outstanding'] ?? 0).toDouble();
+            final walletCashback = (data['wallet_cashback_issued'] ?? 0).toDouble();
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -165,6 +172,38 @@ class AdminFinancialsScreen extends ConsumerWidget {
                   mainValue: totalSales,
                   subLabel: 'This Month',
                   subValue: monthlySales,
+                ),
+
+                const SizedBox(height: 12),
+
+                // ── Customer Wallet Top-ups (deposits — a liability, NOT sales) ──
+                _FinancialCard(
+                  title: 'Wallet Top-ups (deposits)',
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: const Color(0xFF7C3AED),
+                  mainValue: walletTopups,
+                  subLabel: 'This Month',
+                  subValue: walletTopupsMonth,
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(4, 6, 4, 0),
+                  child: Text(
+                    'Customer deposits — money the platform holds and owes back. '
+                    'Counted as revenue only when spent on an order, so it is not '
+                    'part of Sales or Net Revenue.',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF6B7280)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Wallet liability + cashback issued ──
+                _FinancialCard(
+                  title: 'Wallet Balance Outstanding',
+                  icon: Icons.savings_rounded,
+                  color: const Color(0xFFF59E0B),
+                  mainValue: walletLiability,
+                  subLabel: 'Cashback issued',
+                  subValue: walletCashback,
                 ),
 
                 const SizedBox(height: 12),
