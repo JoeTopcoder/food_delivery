@@ -2,6 +2,7 @@ import Firebase
 import Flutter
 import UIKit
 import PushKit
+import AVFoundation
 import flutter_callkit_incoming
 
 @main
@@ -24,6 +25,62 @@ import flutter_callkit_incoming
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    // ── Call audio session channel ──────────────────────────────────────────
+    // iOS will stay SILENT on an Agora voice call unless the shared
+    // AVAudioSession is put into .playAndRecord and activated. Agora's own
+    // management is not reliable here (especially alongside the voip background
+    // mode / CallKit), so Dart explicitly activates the session when a call
+    // connects and deactivates it when the call ends.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HotBiteCallAudio") {
+      let channel = FlutterMethodChannel(
+        name: "hotbite/call_audio", binaryMessenger: registrar.messenger())
+      channel.setMethodCallHandler { [weak self] call, result in
+        switch call.method {
+        case "activate":
+          let speaker = (call.arguments as? [String: Any])?["speaker"] as? Bool ?? true
+          self?.configureCallAudio(active: true, speaker: speaker)
+          result(true)
+        case "setSpeaker":
+          let speaker = (call.arguments as? [String: Any])?["speaker"] as? Bool ?? true
+          self?.setSpeakerRoute(speaker)
+          result(true)
+        case "deactivate":
+          self?.configureCallAudio(active: false, speaker: false)
+          result(true)
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
+  }
+
+  // Put the shared audio session into a VoIP-ready state (or tear it down).
+  private func configureCallAudio(active: Bool, speaker: Bool) {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      if active {
+        try session.setCategory(
+          .playAndRecord,
+          mode: .voiceChat,
+          options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+        try session.setActive(true, options: [])
+        setSpeakerRoute(speaker)
+      } else {
+        try session.setActive(false, options: [.notifyOthersOnDeactivation])
+      }
+    } catch {
+      NSLog("HotBiteCallAudio: session error \(error)")
+    }
+  }
+
+  private func setSpeakerRoute(_ speaker: Bool) {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.overrideOutputAudioPort(speaker ? .speaker : .none)
+    } catch {
+      NSLog("HotBiteCallAudio: route error \(error)")
+    }
   }
 
   // ── PushKit: VoIP token updated ───────────────────────────────────────────

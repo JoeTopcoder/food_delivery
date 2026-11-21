@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -142,6 +143,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
     _pulseCtrl.dispose();
     _agora.clearCallbacks();
     _agora.leaveChannel();
+    _deactivateIosAudio();
     super.dispose();
   }
 
@@ -207,6 +209,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
       });
       await _agora.ensureAudioActive();
       _agora.setVolumes();
+      // Local audio is live — make sure iOS has an active playAndRecord session.
+      await _activateIosAudio();
     };
     _agora.onUserJoined = (_) {
       if (mounted) {
@@ -447,7 +451,30 @@ class _CallScreenState extends ConsumerState<CallScreen>
   /// RTC connected (remote joined / audio flowing). Cancels the connect-timeout
   /// watchdog and, if a fallback was mid-request, resolves the race by cancelling
   /// it — a working Agora call must never be replaced by a phone bridge.
+  // ── iOS audio session ──────────────────────────────────────────────────
+  // iOS stays silent on a voice call unless the shared AVAudioSession is in
+  // .playAndRecord and active. Agora's own management isn't reliable here, so
+  // we explicitly drive it through a native method channel. No-op on Android.
+  static const MethodChannel _callAudioChannel =
+      MethodChannel('hotbite/call_audio');
+
+  Future<void> _activateIosAudio() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _callAudioChannel.invokeMethod('activate', {'speaker': _isSpeaker});
+    } catch (_) {/* best-effort */}
+  }
+
+  Future<void> _deactivateIosAudio() async {
+    if (!Platform.isIOS) return;
+    try {
+      await _callAudioChannel.invokeMethod('deactivate');
+    } catch (_) {/* best-effort */}
+  }
+
   void _onRtcConnected() {
+    // Make sure iOS actually has an active audio session now that media is up.
+    _activateIosAudio();
     _rtcEverConnected = true;
     _connectTimeoutTimer?.cancel();
     _connectTimeoutTimer = null;
@@ -650,6 +677,7 @@ class _CallScreenState extends ConsumerState<CallScreen>
         .read(chatServiceProvider)
         .updateCallStatus(widget.call.id, CallStatus.ended);
     await _agora.leaveChannel();
+    await _deactivateIosAudio();
     if (mounted) {
       await Future.delayed(const Duration(milliseconds: 400));
       if (mounted) Navigator.of(context).pop();
@@ -1438,6 +1466,11 @@ class _CallScreenState extends ConsumerState<CallScreen>
               onTap: () {
                 setState(() => _isSpeaker = !_isSpeaker);
                 _agora.setSpeaker(_isSpeaker);
+                // Keep the iOS native route in sync with the toggle.
+                if (Platform.isIOS) {
+                  _callAudioChannel.invokeMethod(
+                      'setSpeaker', {'speaker': _isSpeaker}).catchError((_) {});
+                }
               },
             ),
           ],
