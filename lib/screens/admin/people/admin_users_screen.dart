@@ -622,12 +622,17 @@ class _UserDetailsSheet extends ConsumerWidget {
         : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-      child: Column(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, 32 + MediaQuery.of(context).padding.bottom),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -855,6 +860,7 @@ class _UserDetailsSheet extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
